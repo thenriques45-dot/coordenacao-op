@@ -1,5 +1,6 @@
 from domain.aluno import Aluno
 
+
 class Turma:
     def __init__(self, codigo, ano):
         self.codigo = codigo
