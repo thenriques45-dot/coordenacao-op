@@ -11,6 +11,8 @@ class Aluno:
         self.defasagens = {}  # {bimestre: {disciplina: True/False}}
         self.notas = {}        # {bimestre: [n1, n2, n3]}
         self.resultados = {}   # {bimestre: True/False}
+        self.defasagem_frequencia = {}  # {bimestre: {disciplina: True/False}}
+
 
     def adicionar_notas(self, bimestre, notas):
         self.notas[bimestre] = notas
