@@ -1,0 +1,1142 @@
+{
+    "codigo": "2A",
+    "ano": 206,
+    "carga_horaria": {
+        "1": {
+            "ARTE": 0,
+            "BIOLOGIA": 20,
+            "EDUCAÇÃO FINANCEIRA": 20,
+            "FILOSOFIA": 0,
+            "FISICA": 23,
+            "GEOGRAFIA": 20,
+            "HISTORIA": 20,
+            "LINGUA INGLESA": 0,
+            "LINGUA PORTUGUESA": 38,
+            "MATEMATICA": 44,
+            "QUIMICA": 20,
+            "REDAÇÃO E LEITURA": 20,
+            "PROJETO DE VIDA": 20
+        }
+    },
+    "alunos": {
+        "0001121658404": {
+            "nome": "ADRIELLY MATOS RODRIGUES",
+            "ativo": true,
+            "numero_chamada": 1,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 3
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "000110258079X": {
+            "nome": "ANA ELIZA VIEGA MALDONADO",
+            "ativo": true,
+            "numero_chamada": 2,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 5,
+                    "BIOLOGIA": 6,
+                    "EDUCAÇÃO FINANCEIRA": 5,
+                    "FILOSOFIA": 8,
+                    "FISICA": 9,
+                    "GEOGRAFIA": 6,
+                    "HISTORIA": 7,
+                    "LINGUA INGLESA": 2,
+                    "LINGUA PORTUGUESA": 20,
+                    "MATEMATICA": 16,
+                    "QUIMICA": 3,
+                    "REDAÇÃO E LEITURA": 8,
+                    "PROJETO DE VIDA": 5
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001114972873": {
+            "nome": "BRYAN NASCIMENTO OLIVEIRA",
+            "ativo": true,
+            "numero_chamada": 3,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 5,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 7,
+                    "FISICA": 3,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 4,
+                    "MATEMATICA": 6,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "EDUCAÇÃO FINANCEIRA": true,
+                    "GEOGRAFIA": true,
+                    "MATEMATICA": true,
+                    "QUIMICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001128142995": {
+            "nome": "CAMILA VITÓRIA MELO DA SILVA",
+            "ativo": true,
+            "numero_chamada": 4,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 12,
+                    "EDUCAÇÃO FINANCEIRA": 4,
+                    "FILOSOFIA": 6,
+                    "FISICA": 10,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 10,
+                    "LINGUA INGLESA": 2,
+                    "LINGUA PORTUGUESA": 22,
+                    "MATEMATICA": 11,
+                    "QUIMICA": 4,
+                    "REDAÇÃO E LEITURA": 11,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001117165954": {
+            "nome": "CRISTIAN LUIS RIOS CALLISAYA",
+            "ativo": true,
+            "numero_chamada": 5,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "ARTE": true,
+                    "FISICA": true,
+                    "QUIMICA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001134476346": {
+            "nome": "DANIELLA OLIVEIRA DOS ANJOS",
+            "ativo": true,
+            "numero_chamada": 6,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 1,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 1,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 1,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001104644915": {
+            "nome": "DAVI DO NASCIMENTO SILVA",
+            "ativo": true,
+            "numero_chamada": 7,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 5,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 9,
+                    "FILOSOFIA": 7,
+                    "FISICA": 4,
+                    "GEOGRAFIA": 8,
+                    "HISTORIA": 4,
+                    "LINGUA INGLESA": 3,
+                    "LINGUA PORTUGUESA": 6,
+                    "MATEMATICA": 11,
+                    "QUIMICA": 6,
+                    "REDAÇÃO E LEITURA": 4,
+                    "PROJETO DE VIDA": 3
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001116469844": {
+            "nome": "EDUARDA VITÓRIA SANTOS QUEIROZ",
+            "ativo": true,
+            "numero_chamada": 8,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "ARTE": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001119292177": {
+            "nome": "EMANUELLY PAOLA DA SILVA",
+            "ativo": true,
+            "numero_chamada": 9,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "QUIMICA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001109118909": {
+            "nome": "EMILLY FELICIANA DA SILVA",
+            "ativo": true,
+            "numero_chamada": 10,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 1,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 1,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 2,
+                    "LINGUA PORTUGUESA": 1,
+                    "MATEMATICA": 2,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001137371651": {
+            "nome": "ESTER DE SOUZA DELGADO",
+            "ativo": true,
+            "numero_chamada": 11,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 7,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 2,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 6,
+                    "MATEMATICA": 4,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 4,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001168062639": {
+            "nome": "FRANCISCO EDUARDO PAULINO DE CARVALHO",
+            "ativo": true,
+            "numero_chamada": 12,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 8,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 6,
+                    "FILOSOFIA": 9,
+                    "FISICA": 5,
+                    "GEOGRAFIA": 6,
+                    "HISTORIA": 5,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 18,
+                    "MATEMATICA": 9,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 4,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "FILOSOFIA": true,
+                    "GEOGRAFIA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001127377449": {
+            "nome": "GABRIEL HENDREW DA SILVA ALVES",
+            "ativo": true,
+            "numero_chamada": 13,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 1,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 2,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 9,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 2,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001097446840": {
+            "nome": "GILVAN OLIVEIRA DE SOUZA",
+            "ativo": true,
+            "numero_chamada": 14,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 8,
+                    "BIOLOGIA": 12,
+                    "EDUCAÇÃO FINANCEIRA": 4,
+                    "FILOSOFIA": 12,
+                    "FISICA": 9,
+                    "GEOGRAFIA": 4,
+                    "HISTORIA": 10,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 16,
+                    "MATEMATICA": 9,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 10,
+                    "PROJETO DE VIDA": 8
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "BIOLOGIA": true,
+                    "FILOSOFIA": true,
+                    "FISICA": true,
+                    "LINGUA INGLESA": true,
+                    "MATEMATICA": true,
+                    "QUIMICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001115149301": {
+            "nome": "GIOVANNA CARVALHO DE SOUSA",
+            "ativo": true,
+            "numero_chamada": 15,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 10,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 13,
+                    "FILOSOFIA": 9,
+                    "FISICA": 8,
+                    "GEOGRAFIA": 12,
+                    "HISTORIA": 9,
+                    "LINGUA INGLESA": 4,
+                    "LINGUA PORTUGUESA": 20,
+                    "MATEMATICA": 19,
+                    "QUIMICA": 8,
+                    "REDAÇÃO E LEITURA": 7,
+                    "PROJETO DE VIDA": 5
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "GEOGRAFIA": true,
+                    "HISTORIA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001134475676": {
+            "nome": "GRAZIELY NEVES",
+            "ativo": true,
+            "numero_chamada": 16,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 2,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 1,
+                    "FISICA": 3,
+                    "GEOGRAFIA": 4,
+                    "HISTORIA": 4,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 6,
+                    "MATEMATICA": 4,
+                    "QUIMICA": 2,
+                    "REDAÇÃO E LEITURA": 3,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "000113277035X": {
+            "nome": "ISABELA LEITE DIAMANTE",
+            "ativo": true,
+            "numero_chamada": 17,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 6,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 8,
+                    "FISICA": 3,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 1,
+                    "LINGUA INGLESA": 2,
+                    "LINGUA PORTUGUESA": 8,
+                    "MATEMATICA": 8,
+                    "QUIMICA": 4,
+                    "REDAÇÃO E LEITURA": 2,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "BIOLOGIA": true,
+                    "FILOSOFIA": true,
+                    "FISICA": true,
+                    "HISTORIA": true,
+                    "LINGUA INGLESA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001124893490": {
+            "nome": "ISABELLA CADENGUE DA SILVA ALVES",
+            "ativo": true,
+            "numero_chamada": 18,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 3,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 4,
+                    "FILOSOFIA": 0,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 5,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 10,
+                    "MATEMATICA": 6,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 3,
+                    "PROJETO DE VIDA": 5
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "GEOGRAFIA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001110607817": {
+            "nome": "ISABELLE ROSA DIAS CASERI",
+            "ativo": true,
+            "numero_chamada": 19,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 2,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 3,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 1,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 2,
+                    "PROJETO DE VIDA": 5
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001125905621": {
+            "nome": "ISABELLY CHRISTINY DE LIMA ROMEIRO",
+            "ativo": true,
+            "numero_chamada": 20,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001115795673": {
+            "nome": "LUAN PIERRE DE CARVALHO",
+            "ativo": true,
+            "numero_chamada": 21,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "FISICA": true,
+                    "QUIMICA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001106221023": {
+            "nome": "LUCAS DE ABREU SILVA",
+            "ativo": true,
+            "numero_chamada": 22,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "ARTE": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "000113680187X": {
+            "nome": "LUCAS MORAIS ALMEIDA BONFIM",
+            "ativo": true,
+            "numero_chamada": 23,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 1,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 1,
+                    "FISICA": 4,
+                    "GEOGRAFIA": 4,
+                    "HISTORIA": 2,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 4,
+                    "MATEMATICA": 4,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 2,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001124978331": {
+            "nome": "MARIA EDUARDA DOS SANTOS SILVA",
+            "ativo": true,
+            "numero_chamada": 24,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 6,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 7,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 3,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 6,
+                    "MATEMATICA": 2,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 2,
+                    "PROJETO DE VIDA": 12
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001121545713": {
+            "nome": "MARIA EDUARDA DOS SANTOS VILELA",
+            "ativo": true,
+            "numero_chamada": 25,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 7,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 7,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 1,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "EDUCAÇÃO FINANCEIRA": true,
+                    "FILOSOFIA": true,
+                    "FISICA": true,
+                    "GEOGRAFIA": true,
+                    "HISTORIA": true,
+                    "LINGUA PORTUGUESA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001121129109": {
+            "nome": "MARIANA VELLO DA SILVA",
+            "ativo": true,
+            "numero_chamada": 26,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 2,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "EDUCAÇÃO FINANCEIRA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001134166096": {
+            "nome": "MATEUS OLIVEIRA CASADO",
+            "ativo": true,
+            "numero_chamada": 27,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 7,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 2,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 2,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "MATEMATICA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "000113115356X": {
+            "nome": "MATHEUS CREPALDE MOREIRA SILVA",
+            "ativo": true,
+            "numero_chamada": 28,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 6,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 8,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 7,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 10,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 7,
+                    "PROJETO DE VIDA": 12
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "FILOSOFIA": true,
+                    "GEOGRAFIA": true,
+                    "HISTORIA": true,
+                    "LINGUA INGLESA": true,
+                    "QUIMICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001110925268": {
+            "nome": "MATHEUS DA SILVA MORGADO",
+            "ativo": true,
+            "numero_chamada": 29,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001128274334": {
+            "nome": "OTÁVIO VILELA PRÁ",
+            "ativo": true,
+            "numero_chamada": 30,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 2,
+                    "FISICA": 5,
+                    "GEOGRAFIA": 4,
+                    "HISTORIA": 4,
+                    "LINGUA INGLESA": 5,
+                    "LINGUA PORTUGUESA": 12,
+                    "MATEMATICA": 13,
+                    "QUIMICA": 9,
+                    "REDAÇÃO E LEITURA": 5,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "EDUCAÇÃO FINANCEIRA": true,
+                    "FILOSOFIA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001133397980": {
+            "nome": "PABLO HENRIQUE PANSANI BATISTA DE AMORIM",
+            "ativo": true,
+            "numero_chamada": 31,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 0,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 1,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001134549027": {
+            "nome": "PEDRO HENRIQUE SILVA",
+            "ativo": true,
+            "numero_chamada": 32,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 6,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 4,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 0,
+                    "HISTORIA": 5,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 6,
+                    "MATEMATICA": 2,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 4,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001098710472": {
+            "nome": "RHAIANNY SARA PIMENTA CIPRIANO DA SILVA",
+            "ativo": true,
+            "numero_chamada": 33,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 6,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 0,
+                    "FILOSOFIA": 7,
+                    "FISICA": 1,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 0,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 0,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "GEOGRAFIA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001114901362": {
+            "nome": "RILLARY YASMIM DO NASCIMENTO LOPES",
+            "ativo": true,
+            "numero_chamada": 34,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 5,
+                    "BIOLOGIA": 4,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 8,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 4,
+                    "MATEMATICA": 4,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 3,
+                    "PROJETO DE VIDA": 14
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001124982656": {
+            "nome": "SAMUEL BRYAN DA SILVA SANTOS",
+            "ativo": true,
+            "numero_chamada": 35,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 1,
+                    "BIOLOGIA": 2,
+                    "EDUCAÇÃO FINANCEIRA": 4,
+                    "FILOSOFIA": 2,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 4,
+                    "HISTORIA": 0,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 3,
+                    "QUIMICA": 4,
+                    "REDAÇÃO E LEITURA": 1,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "EDUCAÇÃO FINANCEIRA": true,
+                    "GEOGRAFIA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "000112778044X": {
+            "nome": "THAYNA ANTONIO DA SILVA",
+            "ativo": true,
+            "numero_chamada": 36,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 0,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 0,
+                    "FISICA": 2,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 4,
+                    "LINGUA INGLESA": 0,
+                    "LINGUA PORTUGUESA": 4,
+                    "MATEMATICA": 4,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 1,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {}
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001128385612": {
+            "nome": "THIAGO LIMA DE ALBUQUERQUE",
+            "ativo": true,
+            "numero_chamada": 37,
+            "notas": {},
+            "frequencia": {
+                "1": {
+                    "ARTE": 1,
+                    "BIOLOGIA": 0,
+                    "EDUCAÇÃO FINANCEIRA": 2,
+                    "FILOSOFIA": 0,
+                    "FISICA": 0,
+                    "GEOGRAFIA": 2,
+                    "HISTORIA": 1,
+                    "LINGUA INGLESA": 1,
+                    "LINGUA PORTUGUESA": 2,
+                    "MATEMATICA": 0,
+                    "QUIMICA": 0,
+                    "REDAÇÃO E LEITURA": 3,
+                    "PROJETO DE VIDA": 0
+                }
+            },
+            "defasagens": {
+                "1": {
+                    "FISICA": true,
+                    "HISTORIA": true,
+                    "MATEMATICA": true,
+                    "PROJETO DE VIDA": true
+                }
+            },
+            "defasagem_frequencia": {}
+        },
+        "0001245657768": {
+            "nome": "GUILHERME CHAVES DA SILVA",
+            "ativo": true,
+            "numero_chamada": 38,
+            "notas": {},
+            "frequencia": {},
+            "defasagens": {},
+            "defasagem_frequencia": {}
+        },
+        "0001134500099": {
+            "nome": "ANNA BEATRIZ DE LIMA RODRIGUES",
+            "ativo": true,
+            "numero_chamada": 39,
+            "notas": {},
+            "frequencia": {},
+            "defasagens": {},
+            "defasagem_frequencia": {}
+        },
+        "0001115151290": {
+            "nome": "PEDRO HENRIQUE SABATINI BATISTA",
+            "ativo": true,
+            "numero_chamada": 40,
+            "notas": {},
+            "frequencia": {},
+            "defasagens": {},
+            "defasagem_frequencia": {}
+        }
+    }
+}

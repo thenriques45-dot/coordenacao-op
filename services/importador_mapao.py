@@ -1,6 +1,6 @@
 import pandas as pd
-import re
 from services.leitor_aulas_mapao import extrair_aulas_por_disciplina
+from services.configuracao import Configuracao
 
 
 class ImportadorMapao:
@@ -8,7 +8,9 @@ class ImportadorMapao:
     def importar(caminho_excel, turma, bimestre):
         df = pd.read_excel(caminho_excel, header=None)
 
+        # ----------------------------------------
         # localizar linha do cabeçalho
+        # ----------------------------------------
         linha_inicio = None
         for i, valor in enumerate(df.iloc[:, 0]):
             if isinstance(valor, str) and valor.strip().upper() == "ALUNO":
@@ -20,9 +22,9 @@ class ImportadorMapao:
 
         cabecalho = df.iloc[linha_inicio].tolist()
 
-        # -----------------------------
+        # ----------------------------------------
         # 1️⃣ Mapear blocos de disciplinas
-        # -----------------------------
+        # ----------------------------------------
         blocos = {}
         idx = 0
 
@@ -45,15 +47,21 @@ class ImportadorMapao:
                 idx += 1
 
         # ----------------------------------------
-        # 2️⃣ Carga horária (uma vez por bimestre)
+        # 2️⃣ Carga horária (MERGE por bimestre)
         # ----------------------------------------
+        carga_nova = extrair_aulas_por_disciplina(caminho_excel)
+
         if bimestre not in turma.carga_horaria:
-            carga = extrair_aulas_por_disciplina(caminho_excel)
-            turma.definir_carga_horaria(bimestre, carga)
+            turma.carga_horaria[bimestre] = {}
+
+        # merge seguro de carga horária
+        turma.carga_horaria[bimestre].update(carga_nova)
 
         # ----------------------------------------
-        # 3️⃣ Processar alunos (linha a linha)
+        # 3️⃣ Processar alunos
         # ----------------------------------------
+        nota_minima = Configuracao.obter_nota_minima()
+
         for _, linha in df.iloc[linha_inicio + 1:].iterrows():
             nome_aluno = linha.iloc[0]
 
@@ -70,27 +78,44 @@ class ImportadorMapao:
                     break
 
             if aluno is None:
-                continue  # aluno não pertence à turma atual
+                continue  # aluno não pertence à turma
 
-            faltas_por_disciplina = {}
+            # inicializações seguras
+            aluno.frequencia.setdefault(bimestre, {})
+            aluno.defasagens.setdefault(bimestre, {})
 
             for disciplina, (inicio, _) in blocos.items():
-                col_faltas = inicio + 1  # 2ª coluna do bloco
 
+                # ===================== MÉDIA =====================
+                col_media = inicio
+                media = None
+
+                if col_media < len(linha):
+                    valor_media = linha.iloc[col_media]
+                    try:
+                        media = float(valor_media) if not pd.isna(valor_media) else None
+                    except (ValueError, TypeError):
+                        media = None
+
+                # registra somente defasagens (média < nota mínima)
+                if media is not None and media < nota_minima:
+                    aluno.defasagens[bimestre][disciplina] = True
+
+                # ===================== FALTAS =====================
+                col_faltas = inicio + 1
                 if col_faltas >= len(linha):
                     continue
 
-                valor = linha.iloc[col_faltas]
-
-                if pd.isna(valor):
+                valor_faltas = linha.iloc[col_faltas]
+                try:
+                    faltas = int(valor_faltas) if not pd.isna(valor_faltas) else 0
+                except (ValueError, TypeError):
                     faltas = 0
-                else:
-                    try:
-                        faltas = int(valor)
-                    except (ValueError, TypeError):
-                        faltas = 0
 
-                faltas_por_disciplina[disciplina] = faltas
+                faltas_atuais = aluno.frequencia[bimestre].get(disciplina)
 
-            # grava frequência do bimestre
-            aluno.frequencia[bimestre] = faltas_por_disciplina
+                # REGRA DE OURO:
+                # - não sobrescreve valor existente
+                # - só grava se for disciplina nova ou faltas > 0
+                if faltas_atuais is None or faltas > 0:
+                    aluno.frequencia[bimestre][disciplina] = faltas

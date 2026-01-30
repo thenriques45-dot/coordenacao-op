@@ -4,6 +4,52 @@ from domain.turma import Turma
 import os
 
 
+def escolher_turma():
+    pasta_base = "dados/persistidos"
+    if not os.path.exists(pasta_base):
+        print("Nenhuma turma salva encontrada.")
+        return None
+
+    anos = sorted(
+        d for d in os.listdir(pasta_base)
+        if os.path.isdir(os.path.join(pasta_base, d))
+    )
+
+    if not anos:
+        print("Nenhum ano disponível.")
+        return None
+
+    print("\nAnos disponíveis:")
+    for i, ano in enumerate(anos, start=1):
+        print(f"{i} - {ano}")
+
+    escolha_ano = input("Escolha o ano: ").strip()
+    if not escolha_ano.isdigit():
+        return None
+
+    pasta_ano = os.path.join(pasta_base, anos[int(escolha_ano) - 1])
+
+    arquivos = sorted(
+        f for f in os.listdir(pasta_ano)
+        if f.endswith(".json")
+    )
+
+    if not arquivos:
+        print("Nenhuma turma encontrada.")
+        return None
+
+    print("\nTurmas disponíveis:")
+    for i, nome in enumerate(arquivos, start=1):
+        print(f"{i} - {nome}")
+
+    escolha_turma = input("Escolha a turma: ").strip()
+    if not escolha_turma.isdigit():
+        return None
+
+    caminho_json = os.path.join(pasta_ano, arquivos[int(escolha_turma) - 1])
+    return PersistenciaJSON.carregar_turma(caminho_json)
+
+
 def main():
     while True:
         print("\n=== CoordenaçãoOP ===")
@@ -14,237 +60,183 @@ def main():
         print("4 - Definir nota mínima")
         print("5 - Importar mapão (frequência e defasagens)")
         print("6 - Ler aulas dadas por disciplina (diagnóstico)")
+        print("7 - Gerar ata do Conselho de Classe")
         print()
 
         opcao = input("Escolha uma opção: ").strip()
 
+        # ===================== SAIR =====================
         if opcao == "0":
             print("Encerrando o CoordenaçãoOP.")
             break
 
+        # ===================== CRIAR TURMA =====================
         elif opcao == "1":
-            codigo_turma = input("Informe a turma (ex: 3A): ").strip()
-            ano = int(input("Informe o ano letivo (ex: 2026): ").strip())
-            caminho_csv = input("Informe o caminho do arquivo CSV: ").strip()
+            print("\nCiclos disponíveis:")
+            print("1 - Educação Infantil (EI)")
+            print("2 - Ensino Fundamental Anos Iniciais (EFAI)")
+            print("3 - Ensino Fundamental Anos Finais (EFAF)")
+            print("4 - Ensino Médio (EM)")
 
-            turma = Turma(codigo=codigo_turma, ano=ano)
+            ciclos = {
+                "1": "EI",
+                "2": "EFAI",
+                "3": "EFAF",
+                "4": "EM"
+            }
+
+            opcao_ciclo = input("Escolha o ciclo: ").strip()
+            if opcao_ciclo not in ciclos:
+                print("Ciclo inválido.")
+                continue
+
+            ciclo = ciclos[opcao_ciclo]
+
+            if ciclo == "EI":
+                series = {
+                    "1": "BERÇÁRIO I",
+                    "2": "BERÇÁRIO II",
+                    "3": "MATERNAL I",
+                    "4": "MATERNAL II",
+                    "5": "PRÉ-ESCOLA I",
+                    "6": "PRÉ-ESCOLA II"
+                }
+            elif ciclo == "EFAI":
+                series = {str(i): f"{i}º ANO" for i in range(1, 5)}
+            elif ciclo == "EFAF":
+                series = {str(i): f"{i}º ANO" for i in range(6, 10)}
+            else:
+                series = {
+                    "1": "1ª SÉRIE",
+                    "2": "2ª SÉRIE",
+                    "3": "3ª SÉRIE"
+                }
+
+            print("\nSéries disponíveis:")
+            for k, v in series.items():
+                print(f"{k} - {v}")
+
+            escolha_serie = input("Escolha a série: ").strip()
+            if escolha_serie not in series:
+                print("Série inválida.")
+                continue
+
+            serie = series[escolha_serie]
+
+            turma_letra = input("Informe a turma (A, B, C): ").strip().upper()
+
+            codigo = (
+                f"{serie[0]}{turma_letra}"
+                if ciclo == "EM"
+                else f"{serie} {turma_letra}"
+            )
+
+            sala = input("Informe a sala: ").strip()
+
+            print("\nPeríodos disponíveis:")
+            print("1 - MANHÃ")
+            print("2 - TARDE")
+            print("3 - NOITE")
+            print("4 - INTEGRAL (9 HORAS)")
+            print("5 - INTEGRAL (7 HORAS)")
+
+            periodos = {
+                "1": "MANHÃ",
+                "2": "TARDE",
+                "3": "NOITE",
+                "4": "INTEGRAL (9 HORAS)",
+                "5": "INTEGRAL (7 HORAS)"
+            }
+
+            escolha_periodo = input("Escolha o período: ").strip()
+            if escolha_periodo not in periodos:
+                print("Período inválido.")
+                continue
+
+            periodo = periodos[escolha_periodo]
+
+            ano = int(input("Informe o ano letivo: ").strip())
+            caminho_csv = input("Informe o caminho do CSV: ").strip()
+
+            turma = Turma(
+                codigo=codigo,
+                ano=ano,
+                serie=serie,
+                sala=sala,
+                periodo=periodo
+            )
 
             alunos = ImportadorCSV.importar_alunos(caminho_csv)
             for aluno in alunos:
                 turma.adicionar_aluno(aluno)
 
-            caminho_saida = PersistenciaJSON.salvar_turma(turma)
-            print(f"\nTurma criada e salva em: {caminho_saida}")
+            PersistenciaJSON.salvar_turma(turma)
+            print("Turma criada com sucesso.")
 
+        # ===================== ABRIR TURMA =====================
         elif opcao == "2":
-            pasta_base = "dados/persistidos"
+            turma = escolher_turma()
+            if turma:
+                print(f"\nTurma {turma.codigo} ({turma.ano}) carregada.")
+                print(f"Total de alunos: {len(turma.alunos)}")
 
-            if not os.path.exists(pasta_base):
-                print("Nenhuma turma salva encontrada.")
-                continue
-
-            anos = [
-                d for d in os.listdir(pasta_base)
-                if os.path.isdir(os.path.join(pasta_base, d))
-            ]
-
-            if not anos:
-                print("Nenhum ano disponível.")
-                continue
-
-            anos_ordenados = sorted(anos)
-
-            print("\nAnos disponíveis:")
-            for i, ano in enumerate(anos_ordenados, start=1):
-                print(f"{i} - {ano}")
-
-            escolha_ano = input("\nEscolha o ano pelo número: ").strip()
-
-            if not escolha_ano.isdigit():
-                print("Opção inválida.")
-                continue
-
-            indice_ano = int(escolha_ano) - 1
-            if indice_ano < 0 or indice_ano >= len(anos_ordenados):
-                print("Opção fora do intervalo.")
-                continue
-
-            ano_escolhido = anos_ordenados[indice_ano]
-            pasta_ano = os.path.join(pasta_base, ano_escolhido)
-
-            arquivos = [
-                f for f in os.listdir(pasta_ano)
-                if f.endswith(".json")
-            ]
-
-            if not arquivos:
-                print("Nenhuma turma encontrada para este ano.")
-                continue
-
-            arquivos_ordenados = sorted(arquivos)
-
-            print("\nTurmas disponíveis:")
-            for i, nome in enumerate(arquivos_ordenados, start=1):
-                print(f"{i} - {nome}")
-
-            escolha_turma = input("\nEscolha a turma pelo número: ").strip()
-
-            if not escolha_turma.isdigit():
-                print("Opção inválida.")
-                continue
-
-            indice_turma = int(escolha_turma) - 1
-            if indice_turma < 0 or indice_turma >= len(arquivos_ordenados):
-                print("Opção fora do intervalo.")
-                continue
-
-            caminho_json = os.path.join(pasta_ano, arquivos_ordenados[indice_turma])
-
-            turma = PersistenciaJSON.carregar_turma(caminho_json)
-            print(f"\nTurma {turma.codigo} ({turma.ano}) carregada com sucesso.")
-            print(f"Total de alunos: {len(turma.alunos)}")
-
+        # ===================== ATUALIZAR TURMA =====================
         elif opcao == "3":
-            pasta_base = "dados/persistidos"
-
-            if not os.path.exists(pasta_base):
-                print("Nenhuma turma salva encontrada.")
+            turma = escolher_turma()
+            if not turma:
                 continue
 
-            anos = sorted([
-                d for d in os.listdir(pasta_base)
-                if os.path.isdir(os.path.join(pasta_base, d))
-            ])
-
-            if not anos:
-                print("Nenhum ano disponível.")
-                continue
-
-            print("\nAnos disponíveis:")
-            for i, ano in enumerate(anos, start=1):
-                print(f"{i} - {ano}")
-
-            escolha_ano = input("\nEscolha o ano pelo número: ").strip()
-            if not escolha_ano.isdigit():
-                continue
-
-            pasta_ano = os.path.join(pasta_base, anos[int(escolha_ano) - 1])
-
-            arquivos = sorted([
-                f for f in os.listdir(pasta_ano)
-                if f.endswith(".json")
-            ])
-
-            if not arquivos:
-                print("Nenhuma turma encontrada.")
-                continue
-
-            print("\nTurmas disponíveis:")
-            for i, nome in enumerate(arquivos, start=1):
-                print(f"{i} - {nome}")
-
-            escolha_turma = input("\nEscolha a turma pelo número: ").strip()
-            if not escolha_turma.isdigit():
-                continue
-
-            caminho_json = os.path.join(pasta_ano, arquivos[int(escolha_turma) - 1])
-            turma = PersistenciaJSON.carregar_turma(caminho_json)
-
-            caminho_csv = input("Informe o caminho do CSV atualizado de alunos: ").strip()
-
+            caminho_csv = input("Informe o caminho do CSV atualizado: ").strip()
             from services.atualizador_turma import AtualizadorTurma
             AtualizadorTurma.atualizar_turma(turma, caminho_csv)
-
             PersistenciaJSON.salvar_turma(turma)
-
             print("Turma atualizada com sucesso.")
-            print(f"Total de alunos (histórico): {len(turma.alunos)}")
 
+        # ===================== NOTA MÍNIMA =====================
         elif opcao == "4":
             from services.configuracao import Configuracao
-
             atual = Configuracao.obter_nota_minima()
-            print(f"\nNota mínima atual: {atual}")
+            print(f"Nota mínima atual: {atual}")
 
-            novo_valor = input("Informe a nova nota mínima (ou Enter para manter): ").strip()
+            novo = input("Nova nota mínima: ").strip()
+            if novo:
+                Configuracao.definir_nota_minima(float(novo.replace(",", ".")))
+                print("Nota mínima atualizada.")
 
-            if not novo_valor:
-                print("Nota mínima mantida.")
-                continue
-
-            try:
-                novo_valor = float(novo_valor.replace(",", "."))
-            except ValueError:
-                print("Valor inválido. Informe um número.")
-                continue
-
-            Configuracao.definir_nota_minima(novo_valor)
-            print(f"Nota mínima atualizada para: {novo_valor}")
-
+        # ===================== IMPORTAR MAPÃO =====================
         elif opcao == "5":
-            pasta_base = "dados/persistidos"
-
-            if not os.path.exists(pasta_base):
-                print("Nenhuma turma salva encontrada.")
+            turma = escolher_turma()
+            if not turma:
                 continue
 
-            anos = sorted([
-                d for d in os.listdir(pasta_base)
-                if os.path.isdir(os.path.join(pasta_base, d))
-            ])
-
-            if not anos:
-                print("Nenhum ano disponível.")
-                continue
-
-            print("\nAnos disponíveis:")
-            for i, ano in enumerate(anos, start=1):
-                print(f"{i} - {ano}")
-
-            escolha_ano = input("\nEscolha o ano pelo número: ").strip()
-            if not escolha_ano.isdigit():
-                continue
-
-            pasta_ano = os.path.join(pasta_base, anos[int(escolha_ano) - 1])
-
-            arquivos = sorted([
-                f for f in os.listdir(pasta_ano)
-                if f.endswith(".json")
-            ])
-
-            if not arquivos:
-                print("Nenhuma turma encontrada.")
-                continue
-
-            print("\nTurmas disponíveis:")
-            for i, nome in enumerate(arquivos, start=1):
-                print(f"{i} - {nome}")
-
-            escolha_turma = input("\nEscolha a turma: ").strip()
-            if not escolha_turma.isdigit():
-                continue
-
-            caminho_json = os.path.join(pasta_ano, arquivos[int(escolha_turma) - 1])
-            turma = PersistenciaJSON.carregar_turma(caminho_json)
-
-            bimestre = input("Informe o bimestre (ex: 1): ").strip()
-            caminho_excel = input("Informe o caminho do mapão (.xlsx): ").strip()
+            bimestre = input("Informe o bimestre: ").strip()
+            caminho_excel = input("Caminho do mapão (.xlsx): ").strip()
 
             from services.importador_mapao import ImportadorMapao
             ImportadorMapao.importar(caminho_excel, turma, bimestre)
-
             PersistenciaJSON.salvar_turma(turma)
+
             print("Mapão importado com sucesso.")
 
+        # ===================== LEITOR DIAGNÓSTICO =====================
         elif opcao == "6":
-            caminho_excel = input("Informe o caminho do mapão (.xlsx): ").strip()
-
+            caminho_excel = input("Caminho do mapão (.xlsx): ").strip()
             from services.leitor_aulas_mapao import extrair_aulas_por_disciplina
-            aulas = extrair_aulas_por_disciplina(caminho_excel)
 
-            print("\nAulas dadas por disciplina:")
-            for disciplina, total in aulas.items():
-                print(f"- {disciplina}: {total}")
+            aulas = extrair_aulas_por_disciplina(caminho_excel)
+            for d, total in aulas.items():
+                print(f"{d}: {total}")
+
+        # ===================== GERAR ATA =====================
+        elif opcao == "7":
+            turma = escolher_turma()
+            if not turma:
+                continue
+
+            bimestre = input("Informe o bimestre: ").strip()
+            from services.gerador_ata import GeradorAta
+            caminho = GeradorAta.gerar(turma, bimestre)
+            print(f"Ata gerada em: {caminho}")
 
         else:
             print("Opção inválida.")
