@@ -28,7 +28,9 @@ class PersistenciaJSON:
                 "ativo": aluno.ativo,
                 "numero_chamada": aluno.numero_chamada,
                 "notas": aluno.notas,
-                "resultados": aluno.resultados
+                "resultados": aluno.resultados,
+                "frequencia": aluno.frequencia,
+                "defasagens": aluno.defasagens
             }
 
         with open(caminho_arquivo, "w", encoding="utf-8") as arquivo:

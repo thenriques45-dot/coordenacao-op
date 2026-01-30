@@ -7,6 +7,8 @@ class Aluno:
         self.nome = nome
         self.ativo = ativo
         self.numero_chamada = numero_chamada
+        self.frequencia = {}   # {bimestre: {"faltas": int, "percentual": float}}
+        self.defasagens = {}  # {bimestre: {disciplina: True/False}}
         self.notas = {}        # {bimestre: [n1, n2, n3]}
         self.resultados = {}   # {bimestre: True/False}
 

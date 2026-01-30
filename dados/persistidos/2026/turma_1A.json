@@ -7,245 +7,727 @@
             "ativo": true,
             "numero_chamada": 1,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001131408731": {
             "nome": "ARTHUR DENILSON DE SOUZA SILVA",
             "ativo": true,
             "numero_chamada": 2,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": true,
+                    "EDUCACAO FISICA\n1900": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "MATEMATICA\n2700": false
+                }
+            }
         },
         "0001140174216": {
             "nome": "BEATRIZ OLIVEIRA SILVA",
             "ativo": true,
             "numero_chamada": 3,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001158625820": {
             "nome": "CAMILLE DA SILVA VELOSO",
             "ativo": true,
             "numero_chamada": 4,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001126527531": {
             "nome": "DAVI DA SILVA LIRA",
             "ativo": true,
             "numero_chamada": 5,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001146215277": {
             "nome": "DAVI HENRIQUE TEZOLIN RIBEIRO DA SILVA",
             "ativo": true,
             "numero_chamada": 6,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001136601338": {
             "nome": "DEBORA DE OLIVEIRA NEVES",
             "ativo": true,
             "numero_chamada": 7,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001128475467": {
             "nome": "DYLAN DA SILVA GUARNIERI",
             "ativo": true,
             "numero_chamada": 8,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001144184812": {
             "nome": "EDUARDA STHEFANY CRUZ FERREIRA MAGALHÃES",
             "ativo": true,
             "numero_chamada": 9,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001125802819": {
             "nome": "ENZO GABRIEL DE OLIVEIRA MARQUES",
             "ativo": true,
             "numero_chamada": 10,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001133917768": {
             "nome": "ENZZO GABRIEL COSTA GOMES DURAES",
             "ativo": true,
             "numero_chamada": 11,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001122912468": {
             "nome": "FELIPE FERREIRA OLYMPIO",
             "ativo": true,
             "numero_chamada": 12,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001111304804": {
             "nome": "FERNANDA MORAIS COUTRIM",
             "ativo": true,
             "numero_chamada": 13,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001106308700": {
             "nome": "GEOVANA VITORIA MARQUES DUARTE",
             "ativo": true,
             "numero_chamada": 14,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001155518457": {
             "nome": "HELOISA DA SILVA PASSARETTI",
             "ativo": true,
             "numero_chamada": 15,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001140174435": {
             "nome": "ISABELLY LUCIATO SOUZA",
             "ativo": true,
             "numero_chamada": 16,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": true,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001134589803": {
             "nome": "ISABELLY MARQUES DA SILVA",
             "ativo": true,
             "numero_chamada": 17,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001125451427": {
             "nome": "JEFFERSON SANTANA DOS SANTOS",
             "ativo": true,
             "numero_chamada": 18,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001136046963": {
             "nome": "KEMILLY CAMILY ROCHA PEREIRA",
             "ativo": true,
             "numero_chamada": 19,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001145085015": {
             "nome": "LEVI MOTTA SANTOS",
             "ativo": true,
             "numero_chamada": 20,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001142980832": {
             "nome": "LUAN CIRINO DE SOUSA",
             "ativo": true,
             "numero_chamada": 21,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": true,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001136007027": {
             "nome": "LUCAS FILIPIM DE SOUZA",
             "ativo": true,
             "numero_chamada": 22,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": true,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001145320132": {
             "nome": "MARIA EDUARDA DE CARVALHO BARBOSA",
             "ativo": true,
             "numero_chamada": 23,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001140120360": {
             "nome": "MIGUEL GONZAGA DIAS",
             "ativo": true,
             "numero_chamada": 24,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001114915981": {
             "nome": "MIGUEL RODRIGUES DE ANDRADE SOUZA",
             "ativo": true,
             "numero_chamada": 25,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001142722831": {
             "nome": "MIQUEIAS LIMA RIBEIRO",
             "ativo": true,
             "numero_chamada": 26,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001123226003": {
             "nome": "MURILLO MATEUS DE SOUZA",
             "ativo": true,
             "numero_chamada": 27,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": true,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": true,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": true,
+                    "LINGUA PORTUGUESA\n1100": true,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001141256137": {
             "nome": "PEDRO HENRIQUE MARTINS DOS SANTOS",
             "ativo": true,
             "numero_chamada": 28,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001134295017": {
             "nome": "PEDRO HENRIQUE RODRIGUES SILVA",
             "ativo": true,
             "numero_chamada": 29,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {}
         },
         "0001137677983": {
             "nome": "RHIANNA REBECA ARAUJO APOLINARIO",
             "ativo": true,
             "numero_chamada": 30,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": true,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001113444174": {
             "nome": "RIAN MACENA DA SILVA",
             "ativo": true,
             "numero_chamada": 31,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": true,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": true,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001145410534": {
             "nome": "RYCHARD DE LIMA GONCALVES",
             "ativo": true,
             "numero_chamada": 32,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": true,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": true
+                }
+            }
         },
         "0001145088107": {
             "nome": "SAMUEL DIMAS ALMEIDA DE MEDEIROS",
             "ativo": true,
             "numero_chamada": 33,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001139980300": {
             "nome": "THAIS LOPES DO NASCIMENTO",
             "ativo": true,
             "numero_chamada": 34,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": false,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": false,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         },
         "0001139508155": {
             "nome": "WESLEY BRASILIANO DA SILVA",
             "ativo": true,
             "numero_chamada": 35,
             "notas": {},
-            "resultados": {}
+            "resultados": {},
+            "frequencia": {},
+            "defasagens": {
+                "1": {
+                    "ARTE\n1813": false,
+                    "CIENCIAS\n8468": false,
+                    "EDUCACAO FISICA\n1900": false,
+                    "GEOGRAFIA\n2100": false,
+                    "HISTORIA\n2200": false,
+                    "LINGUA INGLESA\n8467": false,
+                    "LINGUA PORTUGUESA\n1100": false,
+                    "MATEMATICA\n2700": true,
+                    "ORIENTAÇÃO DE ESTUDO – LÍNGUA PORTUGUESA\n55208": false,
+                    "ORIENTAÇÃO DE ESTUDO – MATEMÁTICA\n55207": true,
+                    "PROJETO DE VIDA\n8441": false,
+                    "REDAÇÃO E LEITURA\n52001": false
+                }
+            }
         }
     }
 }
