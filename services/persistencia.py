@@ -28,6 +28,7 @@ class PersistenciaJSON:
                 "notas": aluno.notas,
                 "frequencia": aluno.frequencia,
                 "defasagens": aluno.defasagens,
+                "medias": getattr(aluno, "medias", {}),
                 "defasagem_frequencia": getattr(aluno, "defasagem_frequencia", ""),
                 # ✅ NOVO CAMPO SALVO
                 "frequencia_percentual": getattr(aluno, "frequencia_percentual", "")
@@ -57,6 +58,7 @@ class PersistenciaJSON:
             aluno.notas = info.get("notas", {})
             aluno.frequencia = info.get("frequencia", {})
             aluno.defasagens = info.get("defasagens", {})
+            aluno.medias = info.get("medias", {})
             aluno.defasagem_frequencia = info.get("defasagem_frequencia", {})
 
             # ✅ NOVO CAMPO RESTAURADO

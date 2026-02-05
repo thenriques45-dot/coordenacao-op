@@ -3,17 +3,25 @@ import os
 
 
 class Configuracao:
-    CAMINHO_PADRAO = os.path.join("config", "criterios.json")
+    CAMINHO_PADRAO = os.path.join("config", "configuracoes.json")
+    CAMINHO_LEGADO = os.path.join("config", "criterios.json")
 
     # ===================== LEITURA =====================
 
     @staticmethod
     def _carregar():
-        if not os.path.exists(Configuracao.CAMINHO_PADRAO):
-            return {}
+        if os.path.exists(Configuracao.CAMINHO_PADRAO):
+            with open(Configuracao.CAMINHO_PADRAO, encoding="utf-8") as f:
+                return json.load(f)
 
-        with open(Configuracao.CAMINHO_PADRAO, encoding="utf-8") as f:
-            return json.load(f)
+        # migração automática do arquivo legado
+        if os.path.exists(Configuracao.CAMINHO_LEGADO):
+            with open(Configuracao.CAMINHO_LEGADO, encoding="utf-8") as f:
+                dados = json.load(f)
+            Configuracao._salvar(dados)
+            return dados
+
+        return {}
 
     @staticmethod
     def _salvar(dados):
@@ -34,15 +42,18 @@ class Configuracao:
         dados["nota_minima"] = float(valor)
         Configuracao._salvar(dados)
 
-    # ===================== DIRETORA =====================
+    # ===================== DIREÇÃO =====================
 
     @staticmethod
-    def obter_diretora():
+    def obter_direcao():
         dados = Configuracao._carregar()
-        return dados.get("diretora", "________________________________")
+        nome = dados.get("direcao_nome", "________________________________")
+        pronome = dados.get("direcao_pronome", "F")  # F = ela/dela, M = ele/dele
+        return nome, pronome
 
     @staticmethod
-    def definir_diretora(nome):
+    def definir_direcao(nome, pronome):
         dados = Configuracao._carregar()
-        dados["diretora"] = nome.strip().upper()
+        dados["direcao_nome"] = nome.strip().upper()
+        dados["direcao_pronome"] = pronome.strip().upper()
         Configuracao._salvar(dados)

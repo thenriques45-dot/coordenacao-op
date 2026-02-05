@@ -67,6 +67,7 @@ def main():
         print("4 - Atualizar turma (alunos)")
         print("5 - Importar mapão (frequência, notas e carga horária)")
         print("6 - Gerar ata do Conselho de Classe")
+        print("7 - Gerar relatório para professores")
         print()
 
         opcao = input("Escolha uma opção: ").strip()
@@ -80,6 +81,7 @@ def main():
         elif opcao == "1":
             print("\nConfigurações:")
             print("1 - Definir nota mínima")
+            print("2 - Definir direção")
 
             sub = input("Escolha uma opção: ").strip()
 
@@ -91,6 +93,25 @@ def main():
                 if novo:
                     Configuracao.definir_nota_minima(float(novo.replace(",", ".")))
                     print("Nota mínima atualizada.")
+
+            elif sub == "2":
+                atual_nome, atual_pronome = Configuracao.obter_direcao()
+                pronome_txt = "ELA/DELA" if atual_pronome == "F" else "ELE/DELE"
+                print(f"Direção atual: {atual_nome} ({pronome_txt})")
+
+                nome = input("Nome da direção: ").strip()
+                if not nome:
+                    print("Nome não informado.")
+                    continue
+
+                print("Pronome:")
+                print("1 - ELA/DELA (Diretora Sra.)")
+                print("2 - ELE/DELE (Diretor Sr.)")
+                escolha = input("Escolha o pronome: ").strip()
+                pronome = "F" if escolha == "1" else "M"
+
+                Configuracao.definir_direcao(nome, pronome)
+                print("Direção atualizada.")
 
         # ===================== CRIAR TURMA =====================
         elif opcao == "2":
@@ -257,6 +278,18 @@ def main():
 
             caminho = GeradorAta.gerar(turma, bimestre)
             print(f"Ata gerada em: {caminho}")
+
+        # ===================== RELATÓRIO PROFESSORES =====================
+        elif opcao == "7":
+            turma = escolher_turma()
+            if not turma:
+                continue
+
+            bimestre = input("Informe o bimestre: ").strip()
+            from services.gerador_relatorio_professores import GeradorRelatorioProfessores
+
+            caminho = GeradorRelatorioProfessores.gerar(turma, bimestre)
+            print(f"Relatório gerado em: {caminho}")
 
         else:
             print("Opção inválida.")

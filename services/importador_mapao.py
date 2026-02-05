@@ -113,6 +113,7 @@ class ImportadorMapao:
 
             aluno.frequencia.setdefault(bimestre, {})
             aluno.defasagens.setdefault(bimestre, {})
+            aluno.medias.setdefault(bimestre, {})
 
             # =====================================================
             # DISCIPLINAS (média + faltas)
@@ -127,6 +128,9 @@ class ImportadorMapao:
                         media = float(valor_media) if not pd.isna(valor_media) else None
                     except:
                         media = None
+
+                if disciplina not in aluno.medias[bimestre] and media is not None:
+                    aluno.medias[bimestre][disciplina] = media
 
                 if disciplina not in aluno.defasagens[bimestre]:
                     if media is not None and media < nota_minima:

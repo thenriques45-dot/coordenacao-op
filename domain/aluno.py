@@ -9,6 +9,7 @@ class Aluno:
         self.numero_chamada = numero_chamada
         self.frequencia = {}    # {bimestre: {disciplina: faltas}}
         self.defasagens = {}  # {bimestre: {disciplina: True/False}}
+        self.medias = {}       # {bimestre: {disciplina: media}}
         self.notas = {}        # {bimestre: [n1, n2, n3]}
         self.resultados = {}   # {bimestre: True/False}
         self.defasagem_frequencia = {}  # {bimestre: {disciplina: True/False}}

@@ -160,15 +160,17 @@ class GeradorAta:
 
         total = len(turma.alunos)
         frequentes = sum(1 for a in turma.alunos.values() if a.ativo)
-        diretora = Configuracao.obter_diretora()
+        direcao_nome, direcao_pronome = Configuracao.obter_direcao()
+        artigo = "da" if direcao_pronome == "F" else "do"
+        titulo_direcao = "Diretora Sra." if direcao_pronome == "F" else "Diretor Sr."
         ciclo = getattr(turma,"ciclo","")
 
         intro = doc.add_paragraph(style="TextoAta")
         intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
         intro.add_run(
-            f"Aos {data_por_extenso(data_conselho)}, reuniram-se presencialmente a presidência da "
-            f"Diretora Sra. {diretora}, equipe gestora, professores, estudantes e responsáveis da turma do "
+            f"Aos {data_por_extenso(data_conselho)}, reuniram-se presencialmente a presidência {artigo} "
+            f"{titulo_direcao} {direcao_nome}, equipe gestora, professores, estudantes e responsáveis da turma do "
             f"{turma.serie or ''} {turma.codigo} {ciclo} para procederem ao CONSELHO DE CLASSE. "
             f"Na abertura a diretora pautou que no conselho de classe devem ser colocadas situações que mereçam "
             f"um estudo de caso e registro de alternativas para intervenções pedagógicas que tenham como meta "
