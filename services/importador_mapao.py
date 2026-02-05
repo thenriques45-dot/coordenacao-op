@@ -9,7 +9,7 @@ class ImportadorMapao:
         df = pd.read_excel(caminho_excel, header=None)
 
         # ----------------------------------------
-        # localizar linha do cabeçalho
+        # localizar linha do cabeçalho "ALUNO"
         # ----------------------------------------
         linha_inicio = None
         for i, valor in enumerate(df.iloc[:, 0]):
@@ -20,16 +20,45 @@ class ImportadorMapao:
         if linha_inicio is None:
             raise ValueError("Cabeçalho 'ALUNO' não encontrado no mapão.")
 
-        cabecalho = df.iloc[linha_inicio].tolist()
+        # =====================================================
+        # ⭐ LINHA REAL DOS RÓTULOS (onde está Fre An(%))
+        # =====================================================
+        cabecalho = df.iloc[linha_inicio + 1].tolist()
+
+        # =====================================================
+        # ⭐ procurar "Fre An(%)" nas próximas linhas (robusto)
+        # =====================================================
+        col_frequencia = None
+        linha_freq = None
+
+        for offset in range(1, 6):  # procura até 5 linhas abaixo
+            linha_teste = df.iloc[linha_inicio + offset].tolist()
+
+            for i, col in enumerate(linha_teste):
+                if isinstance(col, str):
+                    nome = col.strip().upper()
+                    if "FRE" in nome and "AN" in nome:
+                        col_frequencia = i
+                        linha_freq = linha_inicio + offset
+                        break
+
+            if col_frequencia is not None:
+                break
+
+        if col_frequencia is None:
+            raise ValueError("Coluna 'Fre An(%)' não encontrada no mapão.")
+        
 
         # ----------------------------------------
-        # 1️⃣ Mapear blocos de disciplinas
+        # 1️⃣ Mapear blocos de disciplinas (linha ALUNO)
         # ----------------------------------------
+        cabecalho_blocos = df.iloc[linha_inicio].tolist()
+
         blocos = {}
         idx = 0
 
-        while idx < len(cabecalho):
-            nome = cabecalho[idx]
+        while idx < len(cabecalho_blocos):
+            nome = cabecalho_blocos[idx]
 
             if isinstance(nome, str) and "\n" in nome:
                 disciplina = nome.split("\n")[0].strip().upper()
@@ -37,7 +66,7 @@ class ImportadorMapao:
                 fim = idx
 
                 j = idx + 1
-                while j < len(cabecalho) and pd.isna(cabecalho[j]):
+                while j < len(cabecalho_blocos) and pd.isna(cabecalho_blocos[j]):
                     fim = j
                     j += 1
 
@@ -47,22 +76,24 @@ class ImportadorMapao:
                 idx += 1
 
         # ----------------------------------------
-        # 2️⃣ Carga horária (MERGE por bimestre)
+        # 2️⃣ Carga horária
         # ----------------------------------------
         carga_nova = extrair_aulas_por_disciplina(caminho_excel)
 
         if bimestre not in turma.carga_horaria:
             turma.carga_horaria[bimestre] = {}
 
-        # merge seguro de carga horária
-        turma.carga_horaria[bimestre].update(carga_nova)
+        for disciplina, carga in carga_nova.items():
+            turma.carga_horaria[bimestre].setdefault(disciplina, carga)
 
         # ----------------------------------------
         # 3️⃣ Processar alunos
         # ----------------------------------------
         nota_minima = Configuracao.obter_nota_minima()
 
-        for _, linha in df.iloc[linha_inicio + 1:].iterrows():
+        # ⭐ começa 2 linhas abaixo agora
+        for _, linha in df.iloc[linha_freq + 1:].iterrows():
+
             nome_aluno = linha.iloc[0]
 
             if not isinstance(nome_aluno, str):
@@ -78,44 +109,63 @@ class ImportadorMapao:
                     break
 
             if aluno is None:
-                continue  # aluno não pertence à turma
+                continue
 
-            # inicializações seguras
             aluno.frequencia.setdefault(bimestre, {})
             aluno.defasagens.setdefault(bimestre, {})
 
+            # =====================================================
+            # DISCIPLINAS (média + faltas)
+            # =====================================================
             for disciplina, (inicio, _) in blocos.items():
 
-                # ===================== MÉDIA =====================
-                col_media = inicio
+                # -------- MÉDIA --------
                 media = None
-
-                if col_media < len(linha):
-                    valor_media = linha.iloc[col_media]
+                if inicio < len(linha):
+                    valor_media = linha.iloc[inicio]
                     try:
                         media = float(valor_media) if not pd.isna(valor_media) else None
-                    except (ValueError, TypeError):
+                    except:
                         media = None
 
-                # registra somente defasagens (média < nota mínima)
-                if media is not None and media < nota_minima:
-                    aluno.defasagens[bimestre][disciplina] = True
+                if disciplina not in aluno.defasagens[bimestre]:
+                    if media is not None and media < nota_minima:
+                        aluno.defasagens[bimestre][disciplina] = True
 
-                # ===================== FALTAS =====================
+                # -------- FALTAS --------
                 col_faltas = inicio + 1
                 if col_faltas >= len(linha):
                     continue
 
-                valor_faltas = linha.iloc[col_faltas]
                 try:
-                    faltas = int(valor_faltas) if not pd.isna(valor_faltas) else 0
-                except (ValueError, TypeError):
+                    faltas = int(linha.iloc[col_faltas]) if not pd.isna(linha.iloc[col_faltas]) else 0
+                except:
                     faltas = 0
-
-                faltas_atuais = aluno.frequencia[bimestre].get(disciplina)
-
-                # REGRA DE OURO:
-                # - não sobrescreve valor existente
-                # - só grava se for disciplina nova ou faltas > 0
-                if faltas_atuais is None or faltas > 0:
+                if disciplina not in aluno.frequencia[bimestre]:
                     aluno.frequencia[bimestre][disciplina] = faltas
+
+            # =====================================================
+            # ⭐ FREQUÊNCIA CONSOLIDADA DO MAPÃO (OFICIAL)
+            # =====================================================
+            try:
+                # Frequência deve vir do primeiro mapão (FGB).
+                if getattr(aluno, "frequencia_percentual", "") in ("", None):
+                    if getattr(aluno, "ativo", True):
+
+                        valor = linha.iloc[col_frequencia]
+
+                        if not pd.isna(valor):
+                            texto = str(valor).replace("%", "").strip().replace(",", ".")
+                            num = float(texto)
+                            # Se vier como fração (ex.: 0.65), converte para 65.
+                            if num <= 1:
+                                num = num * 100
+                            aluno.frequencia_percentual = int(round(num))
+                        else:
+                            aluno.frequencia_percentual = ""
+                    else:
+                        aluno.frequencia_percentual = ""
+
+            except:
+                if getattr(aluno, "frequencia_percentual", "") in ("", None):
+                    aluno.frequencia_percentual = ""

@@ -28,7 +28,9 @@ class PersistenciaJSON:
                 "notas": aluno.notas,
                 "frequencia": aluno.frequencia,
                 "defasagens": aluno.defasagens,
-                "defasagem_frequencia": getattr(aluno, "defasagem_frequencia", {})
+                "defasagem_frequencia": getattr(aluno, "defasagem_frequencia", ""),
+                # ✅ NOVO CAMPO SALVO
+                "frequencia_percentual": getattr(aluno, "frequencia_percentual", "")
             }
 
         with open(caminho, "w", encoding="utf-8") as f:
@@ -56,6 +58,9 @@ class PersistenciaJSON:
             aluno.frequencia = info.get("frequencia", {})
             aluno.defasagens = info.get("defasagens", {})
             aluno.defasagem_frequencia = info.get("defasagem_frequencia", {})
+
+            # ✅ NOVO CAMPO RESTAURADO
+            aluno.frequencia_percentual = info.get("frequencia_percentual", "")
 
             turma.alunos[matricula] = aluno
 

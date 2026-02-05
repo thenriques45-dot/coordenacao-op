@@ -1,9 +1,13 @@
 from services.importador_dados import ImportadorCSV
 from services.persistencia import PersistenciaJSON
+from services.configuracao import Configuracao
 from domain.turma import Turma
 import os
 
 
+# ======================================================
+# UTIL: ESCOLHER TURMA
+# ======================================================
 def escolher_turma():
     pasta_base = "dados/persistidos"
     if not os.path.exists(pasta_base):
@@ -50,17 +54,19 @@ def escolher_turma():
     return PersistenciaJSON.carregar_turma(caminho_json)
 
 
+# ======================================================
+# MAIN
+# ======================================================
 def main():
     while True:
         print("\n=== CoordenaçãoOP ===")
         print("0 - Sair")
-        print("1 - Criar nova turma (importar CSV)")
-        print("2 - Abrir turma existente")
-        print("3 - Atualizar turma (alunos)")
-        print("4 - Definir nota mínima")
-        print("5 - Importar mapão (frequência e defasagens)")
-        print("6 - Ler aulas dadas por disciplina (diagnóstico)")
-        print("7 - Gerar ata do Conselho de Classe")
+        print("1 - Configurações")
+        print("2 - Criar nova turma (importar CSV)")
+        print("3 - Abrir turma existente")
+        print("4 - Atualizar turma (alunos)")
+        print("5 - Importar mapão (frequência, notas e carga horária)")
+        print("6 - Gerar ata do Conselho de Classe")
         print()
 
         opcao = input("Escolha uma opção: ").strip()
@@ -70,8 +76,24 @@ def main():
             print("Encerrando o CoordenaçãoOP.")
             break
 
-        # ===================== CRIAR TURMA =====================
+        # ===================== CONFIGURAÇÕES =====================
         elif opcao == "1":
+            print("\nConfigurações:")
+            print("1 - Definir nota mínima")
+
+            sub = input("Escolha uma opção: ").strip()
+
+            if sub == "1":
+                atual = Configuracao.obter_nota_minima()
+                print(f"Nota mínima atual: {atual}")
+
+                novo = input("Nova nota mínima (Enter para manter): ").strip()
+                if novo:
+                    Configuracao.definir_nota_minima(float(novo.replace(",", ".")))
+                    print("Nota mínima atualizada.")
+
+        # ===================== CRIAR TURMA =====================
+        elif opcao == "2":
             print("\nCiclos disponíveis:")
             print("1 - Educação Infantil (EI)")
             print("2 - Ensino Fundamental Anos Iniciais (EFAI)")
@@ -92,6 +114,7 @@ def main():
 
             ciclo = ciclos[opcao_ciclo]
 
+            # Séries por ciclo
             if ciclo == "EI":
                 series = {
                     "1": "BERÇÁRIO I",
@@ -174,34 +197,24 @@ def main():
             print("Turma criada com sucesso.")
 
         # ===================== ABRIR TURMA =====================
-        elif opcao == "2":
+        elif opcao == "3":
             turma = escolher_turma()
             if turma:
                 print(f"\nTurma {turma.codigo} ({turma.ano}) carregada.")
                 print(f"Total de alunos: {len(turma.alunos)}")
 
         # ===================== ATUALIZAR TURMA =====================
-        elif opcao == "3":
+        elif opcao == "4":
             turma = escolher_turma()
             if not turma:
                 continue
 
             caminho_csv = input("Informe o caminho do CSV atualizado: ").strip()
             from services.atualizador_turma import AtualizadorTurma
+
             AtualizadorTurma.atualizar_turma(turma, caminho_csv)
             PersistenciaJSON.salvar_turma(turma)
             print("Turma atualizada com sucesso.")
-
-        # ===================== NOTA MÍNIMA =====================
-        elif opcao == "4":
-            from services.configuracao import Configuracao
-            atual = Configuracao.obter_nota_minima()
-            print(f"Nota mínima atual: {atual}")
-
-            novo = input("Nova nota mínima: ").strip()
-            if novo:
-                Configuracao.definir_nota_minima(float(novo.replace(",", ".")))
-                print("Nota mínima atualizada.")
 
         # ===================== IMPORTAR MAPÃO =====================
         elif opcao == "5":
@@ -210,31 +223,38 @@ def main():
                 continue
 
             bimestre = input("Informe o bimestre: ").strip()
-            caminho_excel = input("Caminho do mapão (.xlsx): ").strip()
 
             from services.importador_mapao import ImportadorMapao
-            ImportadorMapao.importar(caminho_excel, turma, bimestre)
+
+            print("\nImportação de mapões:")
+            print("1) Primeiro, importe o mapão de FGB (prioritário).")
+            caminho_fgb = input("Caminho do mapão FGB (.xlsx): ").strip()
+            if not caminho_fgb:
+                print("Caminho do FGB não informado. Importação cancelada.")
+                continue
+
+            ImportadorMapao.importar(caminho_fgb, turma, bimestre)
+
+            resp_if = input("Há mapão de IF para importar? (S/N): ").strip().upper()
+            if resp_if == "S":
+                caminho_if = input("Caminho do mapão IF (.xlsx): ").strip()
+                if caminho_if:
+                    ImportadorMapao.importar(caminho_if, turma, bimestre)
+                else:
+                    print("Caminho do IF não informado. Pulando IF.")
+
             PersistenciaJSON.salvar_turma(turma)
-
-            print("Mapão importado com sucesso.")
-
-        # ===================== LEITOR DIAGNÓSTICO =====================
-        elif opcao == "6":
-            caminho_excel = input("Caminho do mapão (.xlsx): ").strip()
-            from services.leitor_aulas_mapao import extrair_aulas_por_disciplina
-
-            aulas = extrair_aulas_por_disciplina(caminho_excel)
-            for d, total in aulas.items():
-                print(f"{d}: {total}")
+            print("Mapões importados com sucesso.")
 
         # ===================== GERAR ATA =====================
-        elif opcao == "7":
+        elif opcao == "6":
             turma = escolher_turma()
             if not turma:
                 continue
 
             bimestre = input("Informe o bimestre: ").strip()
             from services.gerador_ata import GeradorAta
+
             caminho = GeradorAta.gerar(turma, bimestre)
             print(f"Ata gerada em: {caminho}")
 
