@@ -1,0 +1,19 @@
+﻿Changelog v0.8
+
+Resumo amigável
+- Relatório DOCX para professores (agrupado por disciplina), com:
+  - Alunos abaixo da nota mínima (com nota)
+  - Alunos com excesso de faltas (com percentual e lista para compensação)
+- Novo item de menu para gerar o relatório de professores
+- Persistência de médias por disciplina para uso em relatórios
+- Configurações migradas para `config/configuracoes.json`
+- Texto da ata ajustado para gênero correto da direção
+
+Arquivos principais
+- services/gerador_relatorio_professores.py (novo)
+- domain/aluno.py (novo campo `medias`)
+- services/importador_mapao.py (salva médias)
+- services/persistencia.py (salva/carrega médias)
+- main.py (novo menu)
+- services/configuracao.py (configurações + migração)
+- services/gerador_ata.py (texto da direção)
