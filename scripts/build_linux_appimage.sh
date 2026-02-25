@@ -30,9 +30,16 @@ cat > AppDir/coordenacaoop.desktop <<'EOF'
 Type=Application
 Name=CoordenacaoOP
 Exec=CoordenacaoOP
-Icon=utilities-terminal
+Icon=coordenacaoop
 Categories=Office;Education;
 Terminal=false
+EOF
+
+cat > AppDir/coordenacaoop.svg <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="20" fill="#1f6aa5"/>
+  <text x="50%" y="54%" text-anchor="middle" fill="#ffffff" font-size="64" font-family="Arial, sans-serif">CO</text>
+</svg>
 EOF
 
 mkdir -p AppDir/usr/share/applications
