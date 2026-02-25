@@ -1,0 +1,29 @@
+Changelog v1.0.0
+
+Resumo amigavel
+- GUI consolidada com cobertura das funcionalidades principais do CLI.
+- Fluxo de gestão de turma reorganizado com tela dedicada para importações e documentos.
+- Tela de conselho por bimestre (aluno a aluno), com:
+  - notas destacadas por situação (abaixo, limite, adequada)
+  - frequência por disciplina
+  - encaminhamentos ENC 1..10 com salvamento automático
+- Integração dos encaminhamentos no campo ENCAM da ata.
+- Geração de ata diretamente na tela de conselho (bimestre automático).
+- Suporte ao 5º conceito (5C) na gestão de alunos.
+- Exclusão de turma com confirmação.
+- Seleção de destino ao salvar ata e relatório.
+- Projeto aberto e pronto para distribuição:
+  - licença GPL-3.0
+  - documentação de contribuição/segurança
+  - pipelines de CI e release para Windows/Linux
+- Verificação manual de atualização via menu Ajuda (GitHub Releases).
+
+Arquivos principais desta versão
+- gui/app.py
+- services/updater.py
+- services/version.py
+- services/preparador_ata.py
+- services/gerador_ata.py
+- services/runtime_paths.py
+- .github/workflows/ci.yml
+- .github/workflows/release.yml

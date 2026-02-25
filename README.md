@@ -15,6 +15,7 @@ Este projeto é distribuído sob a licença **GPL-3.0-or-later**. Veja [LICENSE]
 - Registro de encaminhamentos (ENC 1..10) por aluno
 - Geração de ata de conselho (.docx)
 - Geração de relatório para professores (.docx)
+- Verificação de atualizações pelo menu `Ajuda > Verificar atualizacoes`
 
 ## Requisitos (execução em código-fonte)
 

@@ -16,6 +16,8 @@ from services.importador_mapao import ImportadorMapao
 from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
 from services.runtime_paths import data_dir
+from services.updater import check_for_updates, open_release_page
+from services.version import APP_NAME, APP_VERSION
 
 CICLOS = {
     "EI": "Educacao Infantil",
@@ -56,7 +58,7 @@ class CoordenacaoApp(tk.Tk):
         self.platform_ui = detect_platform_ui()
         apply_theme(self.platform_ui)
 
-        self.title("CoordenacaoOP")
+        self.title(f"{APP_NAME} v{APP_VERSION}")
         self.geometry("980x560")
         self.minsize(900, 520)
 
@@ -112,6 +114,12 @@ class CoordenacaoApp(tk.Tk):
             command=self.destroy,
         )
         menu.add_cascade(label="Arquivo", menu=menu_arquivo)
+
+        menu_ajuda = tk.Menu(menu, tearoff=0)
+        menu_ajuda.add_command(label=f"Versao atual: v{APP_VERSION}", state="disabled")
+        menu_ajuda.add_separator()
+        menu_ajuda.add_command(label="Verificar atualizacoes", command=self._verificar_atualizacoes)
+        menu.add_cascade(label="Ajuda", menu=menu_ajuda)
 
         self.config(menu=menu)
 
@@ -1384,3 +1392,25 @@ class CoordenacaoApp(tk.Tk):
 
     def _log(self, *args):
         print(*args)
+
+    def _verificar_atualizacoes(self):
+        info = check_for_updates(APP_VERSION)
+        if not info.get("ok"):
+            messagebox.showwarning("Atualizacoes", info.get("error", "Falha desconhecida."))
+            return
+
+        if info.get("update_available"):
+            latest_tag = info.get("latest_tag") or info.get("latest_version")
+            msg = (
+                f"Nova versao disponivel: {latest_tag}\n"
+                f"Versao atual: v{APP_VERSION}\n\n"
+                "Deseja abrir a pagina de release para atualizar?"
+            )
+            if messagebox.askyesno("Atualizacoes", msg):
+                open_release_page(info.get("release_url"))
+            return
+
+        messagebox.showinfo(
+            "Atualizacoes",
+            f"Voce ja esta na versao mais recente (v{APP_VERSION}).",
+        )
