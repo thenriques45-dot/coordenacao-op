@@ -37,11 +37,14 @@ class GeradorRelatorioProfessores:
         encontrou_medias = False
 
         for aluno in turma.alunos.values():
+            if not getattr(aluno, "ativo", True):
+                continue
+
             medias_bim = getattr(aluno, "medias", {}).get(bimestre, {})
             for disciplina, media in medias_bim.items():
-                encontrou_medias = True
                 if media is None:
                     continue
+                encontrou_medias = True
                 if media < nota_minima:
                     nome_fmt = aluno.nome.title()
                     por_disciplina.setdefault(disciplina, []).append((nome_fmt, media))
@@ -57,9 +60,6 @@ class GeradorRelatorioProfessores:
                     por_disciplina_faltas.setdefault(disciplina, []).append(
                         (nome_fmt, faltas, total_aulas, percentual)
                     )
-
-        for disciplina in sorted(por_disciplina_faltas.keys()):
-            pass
 
         # Disciplinas a considerar (união de notas e faltas)
         disciplinas = sorted(set(por_disciplina.keys()) | set(por_disciplina_faltas.keys()))
