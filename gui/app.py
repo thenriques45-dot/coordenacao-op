@@ -64,6 +64,10 @@ class CoordenacaoApp(tk.Tk):
         self.csv_update_var = tk.StringVar()
         self.mapao_fgb_var = tk.StringVar()
         self.mapao_if_var = tk.StringVar()
+        self.status_mapao_var = tk.StringVar(value="Mapao: -")
+        self.status_ata_var = tk.StringVar(value="Ata: -")
+        self.status_relatorio_var = tk.StringVar(value="Relatorio: -")
+        self.status_pendencias_var = tk.StringVar(value="Pendencias frequencia: -")
 
         self.nota_minima_var = tk.StringVar()
         self.direcao_nome_var = tk.StringVar()
@@ -76,6 +80,7 @@ class CoordenacaoApp(tk.Tk):
         self._bind_shortcuts()
         self._carregar_configuracoes()
         self._carregar_catalogo_turmas()
+        self.bimestre_var.trace_add("write", lambda *_: self._atualizar_status_bimestre())
 
     def _build_menu(self):
         menu = tk.Menu(self)
@@ -248,6 +253,14 @@ class CoordenacaoApp(tk.Tk):
             row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
 
+        status = ttk.LabelFrame(operacoes, text="Status do bimestre", padding=10)
+        status.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        status.columnconfigure(0, weight=1)
+        ttk.Label(status, textvariable=self.status_mapao_var).grid(row=0, column=0, sticky="w")
+        ttk.Label(status, textvariable=self.status_ata_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(status, textvariable=self.status_relatorio_var).grid(row=2, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(status, textvariable=self.status_pendencias_var).grid(row=3, column=0, sticky="w", pady=(4, 0))
+
         config = ttk.LabelFrame(root, text="Configuracoes", padding=12)
         config.grid(row=1, column=1, sticky="nsew", pady=(12, 0), padx=(8, 0))
         config.columnconfigure(1, weight=1)
@@ -360,9 +373,40 @@ class CoordenacaoApp(tk.Tk):
     def _atualizar_status_turma(self):
         if self.turma is None:
             self.turma_status.set("Turma atual: nenhuma")
+            self._atualizar_status_bimestre()
             return
         self.turma_status.set(
             f"Turma atual: {self.turma.codigo} ({self.turma.ano}) - {len(self.turma.alunos)} alunos"
+        )
+        self._atualizar_status_bimestre()
+
+    def _atualizar_status_bimestre(self):
+        bimestre = self.bimestre_var.get().strip()
+        if self.turma is None or not bimestre:
+            self.status_mapao_var.set("Mapao: -")
+            self.status_ata_var.set("Ata: -")
+            self.status_relatorio_var.set("Relatorio: -")
+            self.status_pendencias_var.set("Pendencias frequencia: -")
+            return
+
+        codigo = self.turma.codigo
+        carga_bimestre = self.turma.carga_horaria.get(bimestre, {})
+        mapao_ok = bool(carga_bimestre)
+        caminho_ata = os.path.join("dados", "atas", f"ata_{codigo}_bimestre_{bimestre}.docx")
+        caminho_relatorio = os.path.join(
+            "dados", "relatorios", f"relatorio_professores_{codigo}_bim_{bimestre}.docx"
+        )
+        caminho_pendencias = os.path.join(
+            "dados", "relatorios", f"faltando_frequencia_{codigo}_bim_{bimestre}.txt"
+        )
+
+        self.status_mapao_var.set(f"Mapao: {'OK' if mapao_ok else 'PENDENTE'}")
+        self.status_ata_var.set(f"Ata: {'GERADA' if os.path.exists(caminho_ata) else 'NAO GERADA'}")
+        self.status_relatorio_var.set(
+            f"Relatorio: {'GERADO' if os.path.exists(caminho_relatorio) else 'NAO GERADO'}"
+        )
+        self.status_pendencias_var.set(
+            f"Pendencias frequencia: {'EXISTE RELATORIO' if os.path.exists(caminho_pendencias) else 'SEM RELATORIO'}"
         )
 
     def _codigo_turma(self, serie, turma_letra, ciclo):
@@ -675,6 +719,7 @@ class CoordenacaoApp(tk.Tk):
     def _salvar_turma(self):
         PersistenciaJSON.salvar_turma(self.turma)
         self._carregar_catalogo_turmas()
+        self._atualizar_status_bimestre()
 
     def _salvar_nota_minima(self):
         valor = self.nota_minima_var.get().strip().replace(",", ".")

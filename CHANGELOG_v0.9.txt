@@ -1,0 +1,24 @@
+Changelog v0.9.0
+
+Resumo amigavel
+- Interface grafica inicial multiplataforma (Windows/Linux) usando tkinter.
+- Adaptacao por plataforma para tema e atalhos principais.
+- Catalogo de turmas com filtro por ano, busca e abertura por duplo clique.
+- Criacao de nova turma diretamente na GUI a partir de CSV.
+- Edicao basica de alunos pela GUI (nome, numero de chamada e ativo/inativo).
+- Fluxos principais operacionais em GUI:
+  - atualizar turma por CSV
+  - importar mapao FGB/IF
+  - gerar ata
+  - gerar relatorio para professores
+- Painel de status por bimestre (mapao, ata, relatorio e pendencias de frequencia).
+- Gerador de ata ajustado para modo GUI (sem input obrigatorio) mantendo compatibilidade com CLI.
+
+Arquivos principais
+- main_gui.py (novo)
+- gui/app.py (novo)
+- gui/platform_ui.py (novo)
+- gui/bootstrap.py (novo)
+- services/gerador_ata.py (ajustes de integracao GUI)
+- ROADMAP_GERENCIADOR.md (novo)
+- CHECKLIST_v0.9.0.md (novo)
