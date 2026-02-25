@@ -1,29 +1,60 @@
-Changelog v1.0.0
+Changelog v1.0.x
 
-Resumo amigavel
+v1.0.4 - Ajustes de UX e fluxo de conselho
+- Tela "Gerir turma" com seletor de periodo em dropdown:
+  - 1o bimestre, 2o bimestre, 3o bimestre, 4o bimestre e 5o conceito
+- Campos de arquivo movidos para telas proprias:
+  - "Atualizar turma por CSV"
+  - "Importar mapoes"
+- Botao de relatorio removido da tela de gestao.
+- Novo botao na tela de conselho:
+  - "Encaminhamentos professores" (gera relatorio no bimestre atual do conselho)
+- Bloco "Status do bimestre" removido da gestao para evitar inconsistencias.
+
+v1.0.3 - Correcao de versao no executavel
+- Versao do app passa a ser lida de forma robusta:
+  - variavel de ambiente (quando existir)
+  - arquivo VERSION empacotado no build
+  - fallback local
+- Pipeline de release passou a gerar VERSION a partir da tag.
+- Scripts de build Windows/Linux passaram a incluir VERSION no bundle.
+
+v1.0.2 - Menu Ajuda
+- Novo item "Sobre" no menu Ajuda com:
+  - nome do app
+  - versao atual
+  - descricao curta
+  - licenca
+  - link do repositorio GitHub
+
+v1.0.1 - Correcao de build Linux
+- Ajuste no empacotamento AppImage para resolver falha de build.
+
+v1.0.0 - Base da versao estavel
 - GUI consolidada com cobertura das funcionalidades principais do CLI.
-- Fluxo de gestão de turma reorganizado com tela dedicada para importações e documentos.
 - Tela de conselho por bimestre (aluno a aluno), com:
-  - notas destacadas por situação (abaixo, limite, adequada)
-  - frequência por disciplina
-  - encaminhamentos ENC 1..10 com salvamento automático
-- Integração dos encaminhamentos no campo ENCAM da ata.
-- Geração de ata diretamente na tela de conselho (bimestre automático).
-- Suporte ao 5º conceito (5C) na gestão de alunos.
-- Exclusão de turma com confirmação.
-- Seleção de destino ao salvar ata e relatório.
-- Projeto aberto e pronto para distribuição:
-  - licença GPL-3.0
-  - documentação de contribuição/segurança
+  - notas por situacao (abaixo, limite, adequada)
+  - frequencia por disciplina
+  - encaminhamentos ENC 1..10 com salvamento automatico
+- Integracao dos encaminhamentos no campo ENCAM da ata.
+- Geracao de ata na tela de conselho (bimestre automatico).
+- Suporte ao 5o conceito (5C) na gestao de alunos.
+- Exclusao de turma com confirmacao.
+- Selecao de destino ao salvar ata e relatorio.
+- Projeto preparado para distribuicao open source:
+  - licenca GPL-3.0
+  - documentacao de contribuicao/seguranca
   - pipelines de CI e release para Windows/Linux
-- Verificação manual de atualização via menu Ajuda (GitHub Releases).
+- Verificacao manual de atualizacoes via menu Ajuda (GitHub Releases).
 
-Arquivos principais desta versão
+Arquivos principais do ciclo 1.0.x
 - gui/app.py
 - services/updater.py
 - services/version.py
-- services/preparador_ata.py
 - services/gerador_ata.py
+- services/gerador_relatorio_professores.py
 - services/runtime_paths.py
 - .github/workflows/ci.yml
 - .github/workflows/release.yml
+- scripts/build_windows.ps1
+- scripts/build_linux_appimage.sh
