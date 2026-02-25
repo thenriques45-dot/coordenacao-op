@@ -104,7 +104,15 @@ def data_por_extenso(data: date):
 class GeradorAta:
 
     @staticmethod
-    def gerar(turma, bimestre):
+    def gerar(
+        turma,
+        bimestre,
+        data_conselho=None,
+        confirmar_continuacao=None,
+        log=None
+    ):
+        if log is None:
+            log = print
 
         doc = Document()
 
@@ -155,8 +163,9 @@ class GeradorAta:
         # ======================================================
         # TEXTO INTRODUTÓRIO COMPLETO (RESTaurado)
         # ======================================================
-        entrada = input("Informe a data do Conselho (DD/MM/AAAA) ou Enter para hoje: ").strip()
-        data_conselho = datetime.strptime(entrada,"%d/%m/%Y").date() if entrada else date.today()
+        if data_conselho is None:
+            entrada = input("Informe a data do Conselho (DD/MM/AAAA) ou Enter para hoje: ").strip()
+            data_conselho = datetime.strptime(entrada, "%d/%m/%Y").date() if entrada else date.today()
 
         total = len(turma.alunos)
         frequentes = sum(1 for a in turma.alunos.values() if a.ativo)
@@ -216,9 +225,9 @@ class GeradorAta:
 
         if sem_freq:
 
-            print("\n⚠ ATENÇÃO: alunos sem frequência importada:\n")
+            log("\n⚠ ATENÇÃO: alunos sem frequência importada:\n")
             for nome in sem_freq:
-                print(" -", nome)
+                log(" -", nome)
 
             # ---------- gera relatório ----------
             pasta_rel = "dados/relatorios"
@@ -234,14 +243,19 @@ class GeradorAta:
                 for nome in sem_freq:
                     f.write(nome + "\n")
 
-            print(f"\nRelatório salvo em: {caminho_rel}\n")
+            log(f"\nRelatório salvo em: {caminho_rel}\n")
 
-            # ---------- pergunta continuar ----------
-            resp = input("Deseja continuar mesmo assim? (S/N): ").strip().upper()
+            if confirmar_continuacao is not None:
+                if not confirmar_continuacao(sem_freq, caminho_rel):
+                    log("Geração da ata cancelada.")
+                    return None
+            else:
+                # ---------- pergunta continuar ----------
+                resp = input("Deseja continuar mesmo assim? (S/N): ").strip().upper()
 
-            if resp != "S":
-                print("Geração da ata cancelada.")
-                return None
+                if resp != "S":
+                    log("Geração da ata cancelada.")
+                    return None
 
         cabecalhos = (
             ["Nº","ALUNO","STATUS"]
