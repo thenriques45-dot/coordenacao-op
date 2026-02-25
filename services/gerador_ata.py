@@ -110,7 +110,8 @@ class GeradorAta:
         bimestre,
         data_conselho=None,
         confirmar_continuacao=None,
-        log=None
+        log=None,
+        caminho_saida=None
     ):
         bimestre = garantir_bimestre_operacional(bimestre)
         if log is None:
@@ -504,13 +505,18 @@ class GeradorAta:
         # ======================================================
         # SALVAR
         # ======================================================
-        pasta = "dados/atas"
-        os.makedirs(pasta,exist_ok=True)
-
-        caminho = os.path.join(
-            pasta,
-            f"ata_{turma.codigo}_bimestre_{bimestre}.docx"
-        )
+        if caminho_saida:
+            pasta = os.path.dirname(caminho_saida)
+            if pasta:
+                os.makedirs(pasta, exist_ok=True)
+            caminho = caminho_saida
+        else:
+            pasta = "dados/atas"
+            os.makedirs(pasta, exist_ok=True)
+            caminho = os.path.join(
+                pasta,
+                f"ata_{turma.codigo}_bimestre_{bimestre}.docx"
+            )
 
         doc.save(caminho)
         return caminho

@@ -483,8 +483,15 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
             row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
-        ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
+        ttk.Button(
+            botoes,
+            text="Excluir turma",
+            command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
+        ).grid(
             row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+        )
+        ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
+            row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0)
         )
 
         status = ttk.LabelFrame(frame, text="Status do bimestre", padding=10)
@@ -497,18 +504,26 @@ class CoordenacaoApp(tk.Tk):
 
         self._atualizar_status_bimestre()
 
-    def _excluir_turma_selecionada(self):
-        selecionado = self.tree_turmas.focus()
-        if not selecionado:
-            messagebox.showwarning("Excluir turma", "Selecione uma turma na lista.")
-            return
+    def _excluir_turma_selecionada(self, fechar_dialogo=None):
+        caminho = None
+        codigo = ""
+        ano = ""
 
-        valores = self.tree_turmas.item(selecionado, "values")
-        if not valores or len(valores) < 3:
-            messagebox.showwarning("Excluir turma", "Nao foi possivel identificar o arquivo da turma.")
-            return
+        if fechar_dialogo is not None and self.turma is not None and self.turma_caminho:
+            caminho = self.turma_caminho
+            codigo = self.turma.codigo
+            ano = str(self.turma.ano)
+        else:
+            selecionado = self.tree_turmas.focus()
+            if not selecionado:
+                messagebox.showwarning("Excluir turma", "Selecione uma turma na lista.")
+                return
+            valores = self.tree_turmas.item(selecionado, "values")
+            if not valores or len(valores) < 3:
+                messagebox.showwarning("Excluir turma", "Nao foi possivel identificar o arquivo da turma.")
+                return
+            ano, codigo, caminho = valores[0], valores[1], valores[2]
 
-        ano, codigo, caminho = valores[0], valores[1], valores[2]
         confirma = messagebox.askyesno(
             "Confirmar exclusao",
             (
@@ -542,6 +557,8 @@ class CoordenacaoApp(tk.Tk):
                 self._atualizar_status_turma()
 
             self._carregar_catalogo_turmas()
+            if fechar_dialogo is not None and fechar_dialogo.winfo_exists():
+                fechar_dialogo.destroy()
             messagebox.showinfo("Excluir turma", "Turma excluida com sucesso.")
         except Exception as exc:
             messagebox.showerror("Erro", f"Nao foi possivel excluir a turma:\n{exc}")
@@ -1017,8 +1034,19 @@ class CoordenacaoApp(tk.Tk):
         if not bimestre:
             return
 
+        caminho_sugerido = f"relatorio_professores_{self.turma.codigo}_bim_{bimestre}.docx"
+        caminho = filedialog.asksaveasfilename(
+            title="Salvar relatorio para professores",
+            initialdir=os.path.join("dados", "relatorios"),
+            initialfile=caminho_sugerido,
+            defaultextension=".docx",
+            filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+        )
+        if not caminho:
+            return
+
         try:
-            caminho = GeradorRelatorioProfessores.gerar(self.turma, bimestre)
+            caminho = GeradorRelatorioProfessores.gerar(self.turma, bimestre, caminho_saida=caminho)
             messagebox.showinfo("Relatorio", f"Relatorio gerado em:\n{caminho}")
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao gerar relatorio:\n{exc}")
@@ -1039,6 +1067,17 @@ class CoordenacaoApp(tk.Tk):
                 messagebox.showwarning("Data", "Use o formato DD/MM/AAAA para a data do conselho.")
                 return
 
+        caminho_sugerido = f"ata_{self.turma.codigo}_bimestre_{bimestre}.docx"
+        caminho_destino = filedialog.asksaveasfilename(
+            title="Salvar ata do conselho",
+            initialdir=os.path.join("dados", "atas"),
+            initialfile=caminho_sugerido,
+            defaultextension=".docx",
+            filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+        )
+        if not caminho_destino:
+            return
+
         try:
             caminho = GeradorAta.gerar(
                 self.turma,
@@ -1046,6 +1085,7 @@ class CoordenacaoApp(tk.Tk):
                 data_conselho=data_conselho,
                 confirmar_continuacao=self._confirmar_continuacao_ata,
                 log=self._log,
+                caminho_saida=caminho_destino,
             )
             if caminho:
                 messagebox.showinfo("Ata", f"Ata gerada em:\n{caminho}")

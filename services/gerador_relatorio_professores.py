@@ -10,7 +10,7 @@ from services.periodo_letivo import garantir_bimestre_operacional
 
 class GeradorRelatorioProfessores:
     @staticmethod
-    def gerar(turma, bimestre):
+    def gerar(turma, bimestre, caminho_saida=None):
         bimestre = garantir_bimestre_operacional(bimestre)
         doc = Document()
 
@@ -109,13 +109,18 @@ class GeradorRelatorioProfessores:
                     doc.add_paragraph(f"Compensar faltas: {', '.join(nomes)}")
 
         # ===================== SALVAR =====================
-        pasta = "dados/relatorios"
-        os.makedirs(pasta, exist_ok=True)
-
-        caminho = os.path.join(
-            pasta,
-            f"relatorio_professores_{turma.codigo}_bim_{bimestre}.docx"
-        )
+        if caminho_saida:
+            pasta = os.path.dirname(caminho_saida)
+            if pasta:
+                os.makedirs(pasta, exist_ok=True)
+            caminho = caminho_saida
+        else:
+            pasta = "dados/relatorios"
+            os.makedirs(pasta, exist_ok=True)
+            caminho = os.path.join(
+                pasta,
+                f"relatorio_professores_{turma.codigo}_bim_{bimestre}.docx"
+            )
 
         doc.save(caminho)
         return caminho
