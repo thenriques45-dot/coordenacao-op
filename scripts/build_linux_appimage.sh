@@ -11,6 +11,7 @@ python3 -m PyInstaller \
   --onefile \
   --windowed \
   --name CoordenacaoOP \
+  --add-data "VERSION:." \
   --add-data "dados/imagens:dados/imagens" \
   main_gui.py
 

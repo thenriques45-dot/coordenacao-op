@@ -17,6 +17,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set release version file
+        shell: pwsh
+        run: |
+          "${{ github.ref_name }}" | Out-File -FilePath VERSION -Encoding utf8 -NoNewline
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -44,6 +49,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set release version file
+        run: |
+          echo -n "${{ github.ref_name }}" > VERSION
 
       - name: Set up Python
         uses: actions/setup-python@v5
