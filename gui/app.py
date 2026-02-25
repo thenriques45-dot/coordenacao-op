@@ -5,6 +5,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from domain.turma import Turma
 from gui.platform_ui import apply_theme, detect_platform_ui
+from gui.session import TurmaSession, TurmaWindowRegistry
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
 from services.configuracao import Configuracao
@@ -58,6 +59,9 @@ class CoordenacaoApp(tk.Tk):
         self.minsize(900, 520)
 
         self.turma = None
+        self.turma_caminho = None
+        self.turma_session = None
+        self.turma_window_registry = TurmaWindowRegistry()
 
         self.turma_status = tk.StringVar(value="Turma atual: nenhuma")
         self.bimestre_var = tk.StringVar()
@@ -75,6 +79,7 @@ class CoordenacaoApp(tk.Tk):
         self.direcao_pronome_var = tk.StringVar(value="F")
         self.filtro_ano_var = tk.StringVar(value="Todos")
         self.busca_turma_var = tk.StringVar()
+        self.gestao_nova_janela_var = tk.BooleanVar(value=False)
 
         self._build_menu()
         self._build_layout()
@@ -92,6 +97,12 @@ class CoordenacaoApp(tk.Tk):
             command=self._abrir_turma,
         )
         menu_arquivo.add_command(label="Criar nova turma...", command=self._abrir_dialogo_criar_turma)
+        menu_arquivo.add_command(label="Gerir turma...", command=self._abrir_dialogo_gerir_turma)
+        menu_arquivo.add_checkbutton(
+            label="Gestao em nova janela (experimental)",
+            variable=self.gestao_nova_janela_var,
+        )
+        menu_arquivo.add_command(label="Excluir turma selecionada...", command=self._excluir_turma_selecionada)
         menu_arquivo.add_command(label="Gerenciar alunos...", command=self._abrir_dialogo_gerenciar_alunos)
         menu_arquivo.add_separator()
         menu_arquivo.add_command(
@@ -133,8 +144,11 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(topo, text="Atualizar lista", command=self._carregar_catalogo_turmas).grid(
             row=0, column=1, padx=(8, 0), sticky="w"
         )
+        ttk.Button(topo, text="Excluir selecionada", command=self._excluir_turma_selecionada).grid(
+            row=0, column=2, padx=(8, 0), sticky="w"
+        )
         ttk.Label(topo, textvariable=self.turma_status).grid(
-            row=0, column=2, padx=(12, 0), sticky="w"
+            row=0, column=3, padx=(12, 0), sticky="w"
         )
 
         ttk.Label(topo, text="Ano").grid(row=1, column=0, pady=(10, 0), sticky="w")
@@ -148,9 +162,9 @@ class CoordenacaoApp(tk.Tk):
         self.combo_ano.grid(row=1, column=1, pady=(10, 0), sticky="w")
         self.combo_ano.bind("<<ComboboxSelected>>", self._on_filtro_alterado)
 
-        ttk.Label(topo, text="Buscar turma").grid(row=1, column=2, pady=(10, 0), padx=(12, 0), sticky="w")
+        ttk.Label(topo, text="Buscar turma").grid(row=1, column=3, pady=(10, 0), padx=(12, 0), sticky="w")
         busca_entry = ttk.Entry(topo, textvariable=self.busca_turma_var)
-        busca_entry.grid(row=1, column=2, pady=(10, 0), padx=(110, 0), sticky="ew")
+        busca_entry.grid(row=1, column=3, pady=(10, 0), padx=(110, 0), sticky="ew")
         busca_entry.bind("<KeyRelease>", self._on_filtro_alterado)
 
         self.tree_turmas = ttk.Treeview(
@@ -165,105 +179,25 @@ class CoordenacaoApp(tk.Tk):
         self.tree_turmas.column("ano", width=80, anchor="center")
         self.tree_turmas.column("codigo", width=130, anchor="center")
         self.tree_turmas.column("arquivo", width=540, anchor="w")
-        self.tree_turmas.grid(row=2, column=0, columnspan=3, pady=(8, 0), sticky="nsew")
+        self.tree_turmas.grid(row=2, column=0, columnspan=4, pady=(8, 0), sticky="nsew")
         self.tree_turmas.bind("<Double-1>", self._abrir_turma_da_lista)
 
         scroll = ttk.Scrollbar(topo, orient="vertical", command=self.tree_turmas.yview)
-        scroll.grid(row=2, column=3, pady=(8, 0), sticky="ns")
+        scroll.grid(row=2, column=4, pady=(8, 0), sticky="ns")
         self.tree_turmas.configure(yscrollcommand=scroll.set)
 
-        operacoes = ttk.LabelFrame(root, text="Operacoes", padding=12)
-        operacoes.grid(row=1, column=0, sticky="nsew", pady=(12, 0), padx=(0, 8))
-        operacoes.columnconfigure(1, weight=1)
-
-        ttk.Label(operacoes, text="Bimestre").grid(row=0, column=0, sticky="w")
-        ttk.Entry(operacoes, textvariable=self.bimestre_var, width=12).grid(
-            row=0, column=1, sticky="w"
-        )
-
-        ttk.Label(operacoes, text="Data conselho (DD/MM/AAAA)").grid(
-            row=1, column=0, sticky="w", pady=(8, 0)
-        )
-        ttk.Entry(operacoes, textvariable=self.data_conselho_var).grid(
-            row=1, column=1, sticky="ew", pady=(8, 0)
-        )
-
-        ttk.Label(operacoes, text="CSV atualizado").grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(operacoes, textvariable=self.csv_update_var).grid(
-            row=2, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
-            operacoes,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.csv_update_var,
-                [("CSV", "*.csv"), ("Todos", "*.*")],
-            ),
-        ).grid(row=2, column=2, padx=(8, 0), pady=(8, 0))
-
-        ttk.Label(operacoes, text="Mapao FGB (.xlsx)").grid(
-            row=3, column=0, sticky="w", pady=(8, 0)
-        )
-        ttk.Entry(operacoes, textvariable=self.mapao_fgb_var).grid(
-            row=3, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
-            operacoes,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.mapao_fgb_var,
-                [("Excel", "*.xlsx"), ("Todos", "*.*")],
-            ),
-        ).grid(row=3, column=2, padx=(8, 0), pady=(8, 0))
-
-        ttk.Label(operacoes, text="Mapao IF (.xlsx) opcional").grid(
-            row=4, column=0, sticky="w", pady=(8, 0)
-        )
-        ttk.Entry(operacoes, textvariable=self.mapao_if_var).grid(
-            row=4, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
-            operacoes,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.mapao_if_var,
-                [("Excel", "*.xlsx"), ("Todos", "*.*")],
-            ),
-        ).grid(row=4, column=2, padx=(8, 0), pady=(8, 0))
-
-        botoes = ttk.Frame(operacoes)
-        botoes.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(16, 0))
-        botoes.columnconfigure((0, 1), weight=1)
-
-        ttk.Button(botoes, text="Atualizar turma por CSV", command=self._atualizar_turma).grid(
+        acoes = ttk.LabelFrame(root, text="Acoes", padding=12)
+        acoes.grid(row=1, column=0, sticky="ew", pady=(12, 0), padx=(0, 8))
+        acoes.columnconfigure((0, 1), weight=1)
+        ttk.Button(acoes, text="Criar nova turma", command=self._abrir_dialogo_criar_turma).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
-        ttk.Button(botoes, text="Importar mapoes", command=self._importar_mapoes).grid(
+        ttk.Button(acoes, text="Gerir turma selecionada", command=self._abrir_dialogo_gerir_turma).grid(
             row=0, column=1, sticky="ew", padx=(6, 0)
         )
-        ttk.Button(botoes, text="Gerar relatorio professores", command=self._gerar_relatorio).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
-        )
-        ttk.Button(botoes, text="Gerar ata", command=self._gerar_ata).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
-        )
-        ttk.Button(botoes, text="Criar nova turma", command=self._abrir_dialogo_criar_turma).grid(
-            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
-        )
-        ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
-            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
-        )
-
-        status = ttk.LabelFrame(operacoes, text="Status do bimestre", padding=10)
-        status.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(14, 0))
-        status.columnconfigure(0, weight=1)
-        ttk.Label(status, textvariable=self.status_mapao_var).grid(row=0, column=0, sticky="w")
-        ttk.Label(status, textvariable=self.status_ata_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(status, textvariable=self.status_relatorio_var).grid(row=2, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(status, textvariable=self.status_pendencias_var).grid(row=3, column=0, sticky="w", pady=(4, 0))
 
         config = ttk.LabelFrame(root, text="Configuracoes", padding=12)
-        config.grid(row=1, column=1, sticky="nsew", pady=(12, 0), padx=(8, 0))
+        config.grid(row=0, column=1, rowspan=2, sticky="nsew", pady=(0, 0), padx=(8, 0))
         config.columnconfigure(1, weight=1)
 
         ttk.Label(config, text="Nota minima").grid(row=0, column=0, sticky="w")
@@ -367,12 +301,16 @@ class CoordenacaoApp(tk.Tk):
     def _abrir_turma_por_caminho(self, caminho):
         try:
             self.turma = PersistenciaJSON.carregar_turma(caminho)
+            self.turma_caminho = caminho
+            self.turma_session = TurmaSession(self.turma, caminho)
             self._atualizar_status_turma()
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao abrir turma:\n{exc}")
 
     def _atualizar_status_turma(self):
         if self.turma is None:
+            self.turma_caminho = None
+            self.turma_session = None
             self.turma_status.set("Turma atual: nenhuma")
             self._atualizar_status_bimestre()
             return
@@ -422,6 +360,191 @@ class CoordenacaoApp(tk.Tk):
         if ciclo == "EM":
             return f"{serie[0]}{letra}"
         return f"{serie} {letra}"
+
+    def _garantir_turma_selecionada(self):
+        if self.turma is not None:
+            return True
+
+        selecionado = self.tree_turmas.focus()
+        if selecionado:
+            valores = self.tree_turmas.item(selecionado, "values")
+            if valores and len(valores) >= 3:
+                self._abrir_turma_por_caminho(valores[2])
+                return self.turma is not None
+
+        messagebox.showwarning("Turma", "Selecione ou abra uma turma para continuar.")
+        return False
+
+    def _abrir_dialogo_gerir_turma(self):
+        if not self._garantir_turma_selecionada():
+            return
+
+        session_key = self.turma_session.key if self.turma_session else None
+        if session_key:
+            existente = self.turma_window_registry.get_window(session_key)
+            if existente is not None:
+                existente.lift()
+                existente.focus_force()
+                return
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Gerir turma - {self.turma.codigo}")
+        if not self.gestao_nova_janela_var.get():
+            dialog.transient(self)
+            dialog.grab_set()
+        dialog.geometry("860x540")
+
+        if session_key:
+            self.turma_window_registry.register(session_key, dialog)
+
+            def _on_close():
+                self.turma_window_registry.unregister(session_key)
+                dialog.destroy()
+
+            dialog.protocol("WM_DELETE_WINDOW", _on_close)
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(1, weight=1)
+
+        ttk.Label(
+            frame,
+            text=f"Turma atual: {self.turma.codigo} ({self.turma.ano}) - {len(self.turma.alunos)} alunos",
+        ).grid(row=0, column=0, columnspan=3, sticky="w")
+
+        ttk.Label(frame, text="Bimestre").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        ttk.Entry(frame, textvariable=self.bimestre_var, width=12).grid(
+            row=1, column=1, sticky="w", pady=(10, 0)
+        )
+
+        ttk.Label(frame, text="Data conselho (DD/MM/AAAA)").grid(
+            row=2, column=0, sticky="w", pady=(8, 0)
+        )
+        ttk.Entry(frame, textvariable=self.data_conselho_var).grid(
+            row=2, column=1, sticky="ew", pady=(8, 0)
+        )
+
+        ttk.Label(frame, text="CSV atualizado").grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=self.csv_update_var).grid(
+            row=3, column=1, sticky="ew", pady=(8, 0)
+        )
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                self.csv_update_var,
+                [("CSV", "*.csv"), ("Todos", "*.*")],
+            ),
+        ).grid(row=3, column=2, padx=(8, 0), pady=(8, 0))
+
+        ttk.Label(frame, text="Mapao FGB (.xlsx)").grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=self.mapao_fgb_var).grid(
+            row=4, column=1, sticky="ew", pady=(8, 0)
+        )
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                self.mapao_fgb_var,
+                [("Excel", "*.xlsx"), ("Todos", "*.*")],
+            ),
+        ).grid(row=4, column=2, padx=(8, 0), pady=(8, 0))
+
+        ttk.Label(frame, text="Mapao IF (.xlsx) opcional").grid(
+            row=5, column=0, sticky="w", pady=(8, 0)
+        )
+        ttk.Entry(frame, textvariable=self.mapao_if_var).grid(
+            row=5, column=1, sticky="ew", pady=(8, 0)
+        )
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                self.mapao_if_var,
+                [("Excel", "*.xlsx"), ("Todos", "*.*")],
+            ),
+        ).grid(row=5, column=2, padx=(8, 0), pady=(8, 0))
+
+        botoes = ttk.Frame(frame)
+        botoes.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        botoes.columnconfigure((0, 1), weight=1)
+        ttk.Button(botoes, text="Atualizar turma por CSV", command=self._atualizar_turma).grid(
+            row=0, column=0, sticky="ew", padx=(0, 6)
+        )
+        ttk.Button(botoes, text="Importar mapoes", command=self._importar_mapoes).grid(
+            row=0, column=1, sticky="ew", padx=(6, 0)
+        )
+        ttk.Button(botoes, text="Gerar relatorio professores", command=self._gerar_relatorio).grid(
+            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+        )
+        ttk.Button(botoes, text="Gerar ata", command=self._gerar_ata).grid(
+            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+        )
+        ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
+            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+        )
+        ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
+            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+        )
+
+        status = ttk.LabelFrame(frame, text="Status do bimestre", padding=10)
+        status.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        status.columnconfigure(0, weight=1)
+        ttk.Label(status, textvariable=self.status_mapao_var).grid(row=0, column=0, sticky="w")
+        ttk.Label(status, textvariable=self.status_ata_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(status, textvariable=self.status_relatorio_var).grid(row=2, column=0, sticky="w", pady=(4, 0))
+        ttk.Label(status, textvariable=self.status_pendencias_var).grid(row=3, column=0, sticky="w", pady=(4, 0))
+
+        self._atualizar_status_bimestre()
+
+    def _excluir_turma_selecionada(self):
+        selecionado = self.tree_turmas.focus()
+        if not selecionado:
+            messagebox.showwarning("Excluir turma", "Selecione uma turma na lista.")
+            return
+
+        valores = self.tree_turmas.item(selecionado, "values")
+        if not valores or len(valores) < 3:
+            messagebox.showwarning("Excluir turma", "Nao foi possivel identificar o arquivo da turma.")
+            return
+
+        ano, codigo, caminho = valores[0], valores[1], valores[2]
+        confirma = messagebox.askyesno(
+            "Confirmar exclusao",
+            (
+                f"Excluir a turma {codigo} ({ano})?\n\n"
+                f"Arquivo:\n{caminho}\n\n"
+                "Esta acao remove apenas o JSON da turma e nao pode ser desfeita."
+            ),
+        )
+        if not confirma:
+            return
+
+        try:
+            if not os.path.exists(caminho):
+                messagebox.showwarning("Excluir turma", "Arquivo da turma nao existe mais.")
+                self._carregar_catalogo_turmas()
+                return
+
+            os.remove(caminho)
+
+            pasta_ano = os.path.dirname(caminho)
+            try:
+                if os.path.isdir(pasta_ano) and not os.listdir(pasta_ano):
+                    os.rmdir(pasta_ano)
+            except OSError:
+                pass
+
+            if self.turma_caminho and os.path.normcase(self.turma_caminho) == os.path.normcase(caminho):
+                self.turma = None
+                self.turma_caminho = None
+                self.turma_session = None
+                self._atualizar_status_turma()
+
+            self._carregar_catalogo_turmas()
+            messagebox.showinfo("Excluir turma", "Turma excluida com sucesso.")
+        except Exception as exc:
+            messagebox.showerror("Erro", f"Nao foi possivel excluir a turma:\n{exc}")
 
     def _disciplinas_da_turma(self):
         if self.turma is None:
@@ -513,8 +636,9 @@ class CoordenacaoApp(tk.Tk):
                 )
                 for aluno in ImportadorCSV.importar_alunos(caminho_csv):
                     turma.adicionar_aluno(aluno)
-                PersistenciaJSON.salvar_turma(turma)
+                self.turma_caminho = PersistenciaJSON.salvar_turma(turma)
                 self.turma = turma
+                self.turma_session = TurmaSession(turma, self.turma_caminho)
                 self._atualizar_status_turma()
                 self._carregar_catalogo_turmas()
                 messagebox.showinfo("Criar turma", "Turma criada com sucesso.")
@@ -820,7 +944,8 @@ class CoordenacaoApp(tk.Tk):
             return None
 
     def _salvar_turma(self):
-        PersistenciaJSON.salvar_turma(self.turma)
+        self.turma_caminho = PersistenciaJSON.salvar_turma(self.turma)
+        self.turma_session = TurmaSession(self.turma, self.turma_caminho)
         self._carregar_catalogo_turmas()
         self._atualizar_status_bimestre()
 
