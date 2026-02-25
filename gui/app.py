@@ -34,6 +34,16 @@ PERIODOS = (
     "INTEGRAL (7 HORAS)",
 )
 REPO_URL = f"https://github.com/{REPO_OWNER}/{REPO_NAME}"
+PERIODO_EXIBICAO = {
+    "1": "1o bimestre",
+    "2": "2o bimestre",
+    "3": "3o bimestre",
+    "4": "4o bimestre",
+    CONCEITO_FINAL: "5o conceito",
+}
+PERIODO_POR_EXIBICAO = {valor: chave for chave, valor in PERIODO_EXIBICAO.items()}
+BIMESTRE_EXIBICAO = tuple(PERIODO_EXIBICAO[b] for b in ("1", "2", "3", "4"))
+TODOS_PERIODOS_EXIBICAO = tuple(PERIODO_EXIBICAO[p] for p in ("1", "2", "3", "4", CONCEITO_FINAL))
 
 
 def series_por_ciclo(ciclo):
@@ -69,7 +79,7 @@ class CoordenacaoApp(tk.Tk):
         self.turma_window_registry = TurmaWindowRegistry()
 
         self.turma_status = tk.StringVar(value="Turma atual: nenhuma")
-        self.bimestre_var = tk.StringVar()
+        self.bimestre_var = tk.StringVar(value=PERIODO_EXIBICAO["1"])
         self.data_conselho_var = tk.StringVar()
         self.csv_update_var = tk.StringVar()
         self.mapao_fgb_var = tk.StringVar()
@@ -91,7 +101,6 @@ class CoordenacaoApp(tk.Tk):
         self._bind_shortcuts()
         self._carregar_configuracoes()
         self._carregar_catalogo_turmas()
-        self.bimestre_var.trace_add("write", lambda *_: self._atualizar_status_bimestre())
 
     def _build_menu(self):
         menu = tk.Menu(self)
@@ -454,91 +463,45 @@ class CoordenacaoApp(tk.Tk):
             if janela is not None:
                 janela.bind("<Destroy>", lambda _e: render_painel_conselho(), add="+")
 
-        ttk.Label(frame, text="Bimestre").grid(row=1, column=0, sticky="w", pady=(10, 0))
-        ttk.Entry(frame, textvariable=self.bimestre_var, width=12).grid(
-            row=1, column=1, sticky="w", pady=(10, 0)
-        )
-
-        ttk.Label(frame, text="CSV atualizado").grid(row=2, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(frame, textvariable=self.csv_update_var).grid(
-            row=2, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
+        ttk.Label(frame, text="Periodo").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        ttk.Combobox(
             frame,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.csv_update_var,
-                [("CSV", "*.csv"), ("Todos", "*.*")],
-            ),
-        ).grid(row=2, column=2, padx=(8, 0), pady=(8, 0))
-
-        ttk.Label(frame, text="Mapao FGB (.xlsx)").grid(row=3, column=0, sticky="w", pady=(8, 0))
-        ttk.Entry(frame, textvariable=self.mapao_fgb_var).grid(
-            row=3, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
-            frame,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.mapao_fgb_var,
-                [("Excel", "*.xlsx"), ("Todos", "*.*")],
-            ),
-        ).grid(row=3, column=2, padx=(8, 0), pady=(8, 0))
-
-        ttk.Label(frame, text="Mapao IF (.xlsx) opcional").grid(
-            row=4, column=0, sticky="w", pady=(8, 0)
-        )
-        ttk.Entry(frame, textvariable=self.mapao_if_var).grid(
-            row=4, column=1, sticky="ew", pady=(8, 0)
-        )
-        ttk.Button(
-            frame,
-            text="Selecionar",
-            command=lambda: self._selecionar_arquivo(
-                self.mapao_if_var,
-                [("Excel", "*.xlsx"), ("Todos", "*.*")],
-            ),
-        ).grid(row=4, column=2, padx=(8, 0), pady=(8, 0))
+            textvariable=self.bimestre_var,
+            values=TODOS_PERIODOS_EXIBICAO,
+            state="readonly",
+            width=24,
+        ).grid(row=1, column=1, sticky="w", pady=(10, 0))
 
         botoes = ttk.Frame(frame)
-        botoes.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        botoes.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         botoes.columnconfigure((0, 1), weight=1)
-        ttk.Button(botoes, text="Atualizar turma por CSV", command=self._atualizar_turma).grid(
+        ttk.Button(
+            botoes,
+            text="Atualizar turma por CSV",
+            command=self._abrir_dialogo_atualizar_turma_csv,
+        ).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
         ttk.Button(
             botoes,
             text="Importar mapoes",
-            command=lambda: self._importar_mapoes(callback_sucesso=render_painel_conselho),
+            command=lambda: self._abrir_dialogo_importar_mapoes(callback_sucesso=render_painel_conselho),
         ).grid(
             row=0, column=1, sticky="ew", padx=(6, 0)
         )
-        ttk.Button(botoes, text="Gerar relatorio professores", command=self._gerar_relatorio).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
-        )
         ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
-            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
         ttk.Button(
             botoes,
             text="Excluir turma",
             command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
         ).grid(
-            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
         ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
-            row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0)
+            row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0)
         )
-
-        status = ttk.LabelFrame(frame, text="Status do bimestre", padding=10)
-        status.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(12, 0))
-        status.columnconfigure(0, weight=1)
-        ttk.Label(status, textvariable=self.status_mapao_var).grid(row=0, column=0, sticky="w")
-        ttk.Label(status, textvariable=self.status_ata_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(status, textvariable=self.status_relatorio_var).grid(row=2, column=0, sticky="w", pady=(4, 0))
-        ttk.Label(status, textvariable=self.status_pendencias_var).grid(row=3, column=0, sticky="w", pady=(4, 0))
-
-        self._atualizar_status_bimestre()
         render_painel_conselho()
 
     def _excluir_turma_selecionada(self, fechar_dialogo=None):
@@ -759,7 +722,7 @@ class CoordenacaoApp(tk.Tk):
 
         controle = ttk.Frame(root)
         controle.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        controle.columnconfigure((0, 1, 2, 3), weight=1)
+        controle.columnconfigure((0, 1, 2, 3, 4), weight=1)
         nota_minima = Configuracao.obter_nota_minima()
 
         def salvar_encaminhamentos_atual():
@@ -841,6 +804,10 @@ class CoordenacaoApp(tk.Tk):
             salvar_encaminhamentos_atual()
             self._gerar_ata_bimestre(bimestre)
 
+        def gerar_relatorio_deste_conselho():
+            salvar_encaminhamentos_atual()
+            self._gerar_relatorio_bimestre(bimestre)
+
         ttk.Button(controle, text="Aluno anterior", command=lambda: proximo(-1)).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
@@ -848,13 +815,18 @@ class CoordenacaoApp(tk.Tk):
             row=0, column=1, sticky="ew", padx=(6, 6)
         )
         ttk.Button(controle, text="Concluir conselho", command=concluir).grid(
-            row=0, column=3, sticky="ew", padx=(6, 0)
+            row=0, column=4, sticky="ew", padx=(6, 0)
         )
         ttk.Button(
             controle,
             text="Gerar ata deste conselho",
             command=gerar_ata_deste_conselho,
         ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
+        ttk.Button(
+            controle,
+            text="Encaminhamentos professores",
+            command=gerar_relatorio_deste_conselho,
+        ).grid(row=0, column=3, sticky="ew", padx=(6, 0))
 
         carregar_aluno()
         dialog.bind("<Left>", lambda _e: proximo(-1))
@@ -1230,17 +1202,140 @@ class CoordenacaoApp(tk.Tk):
 
     def _obter_bimestre(self):
         entrada = self.bimestre_var.get().strip()
+        entrada = PERIODO_POR_EXIBICAO.get(entrada, entrada)
         if not entrada:
             messagebox.showwarning("Bimestre", "Informe o bimestre.")
             return None
         try:
             bimestre = garantir_bimestre_operacional(entrada)
-            if bimestre != entrada:
-                self.bimestre_var.set(bimestre)
+            self.bimestre_var.set(PERIODO_EXIBICAO.get(bimestre, bimestre))
             return bimestre
         except ValueError as exc:
             messagebox.showwarning("Bimestre", str(exc))
             return None
+
+    def _abrir_dialogo_atualizar_turma_csv(self):
+        if not self._exigir_turma():
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Atualizar turma por CSV")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(1, weight=1)
+
+        caminho_var = tk.StringVar(value=self.csv_update_var.get().strip())
+        ttk.Label(frame, text="CSV atualizado").grid(row=0, column=0, sticky="w")
+        ttk.Entry(frame, textvariable=caminho_var, width=54).grid(row=0, column=1, sticky="ew")
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                caminho_var,
+                [("CSV", "*.csv"), ("Todos", "*.*")],
+            ),
+        ).grid(row=0, column=2, padx=(8, 0))
+
+        botoes = ttk.Frame(frame)
+        botoes.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        botoes.columnconfigure((0, 1), weight=1)
+
+        def confirmar():
+            caminho_csv = caminho_var.get().strip()
+            if not caminho_csv:
+                messagebox.showwarning("CSV", "Informe o caminho do CSV atualizado.")
+                return
+            try:
+                AtualizadorTurma.atualizar_turma(self.turma, caminho_csv)
+                self.csv_update_var.set(caminho_csv)
+                self._salvar_turma()
+                messagebox.showinfo("Turma", "Turma atualizada com sucesso.")
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror("Erro", f"Falha ao atualizar turma:\n{exc}")
+
+        ttk.Button(botoes, text="Atualizar", command=confirmar).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ttk.Button(botoes, text="Cancelar", command=dialog.destroy).grid(
+            row=0, column=1, sticky="ew", padx=(6, 0)
+        )
+
+    def _abrir_dialogo_importar_mapoes(self, callback_sucesso=None):
+        if not self._exigir_turma():
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Importar mapoes")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(1, weight=1)
+
+        periodo_atual = PERIODO_POR_EXIBICAO.get(self.bimestre_var.get().strip(), "")
+        bimestre_inicial = periodo_atual if periodo_atual in {"1", "2", "3", "4"} else "1"
+        bimestre_var = tk.StringVar(value=PERIODO_EXIBICAO[bimestre_inicial])
+        mapao_fgb_var = tk.StringVar(value=self.mapao_fgb_var.get().strip())
+        mapao_if_var = tk.StringVar(value=self.mapao_if_var.get().strip())
+
+        ttk.Label(frame, text="Bimestre").grid(row=0, column=0, sticky="w")
+        ttk.Combobox(
+            frame,
+            textvariable=bimestre_var,
+            values=BIMESTRE_EXIBICAO,
+            state="readonly",
+            width=24,
+        ).grid(row=0, column=1, sticky="w")
+
+        ttk.Label(frame, text="Mapao FGB (.xlsx)").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=mapao_fgb_var, width=54).grid(row=1, column=1, sticky="ew", pady=(8, 0))
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                mapao_fgb_var,
+                [("Excel", "*.xlsx"), ("Todos", "*.*")],
+            ),
+        ).grid(row=1, column=2, padx=(8, 0), pady=(8, 0))
+
+        ttk.Label(frame, text="Mapao IF (.xlsx) opcional").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=mapao_if_var, width=54).grid(row=2, column=1, sticky="ew", pady=(8, 0))
+        ttk.Button(
+            frame,
+            text="Selecionar",
+            command=lambda: self._selecionar_arquivo(
+                mapao_if_var,
+                [("Excel", "*.xlsx"), ("Todos", "*.*")],
+            ),
+        ).grid(row=2, column=2, padx=(8, 0), pady=(8, 0))
+
+        botoes = ttk.Frame(frame)
+        botoes.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        botoes.columnconfigure((0, 1), weight=1)
+
+        def confirmar():
+            bimestre_sel = PERIODO_POR_EXIBICAO.get(bimestre_var.get().strip(), "")
+            self.bimestre_var.set(PERIODO_EXIBICAO.get(bimestre_sel, bimestre_var.get().strip()))
+            sucesso = self._importar_mapoes(
+                bimestre=bimestre_sel,
+                caminho_fgb=mapao_fgb_var.get().strip(),
+                caminho_if=mapao_if_var.get().strip(),
+                callback_sucesso=callback_sucesso,
+            )
+            if sucesso:
+                self.mapao_fgb_var.set(mapao_fgb_var.get().strip())
+                self.mapao_if_var.set(mapao_if_var.get().strip())
+                dialog.destroy()
+
+        ttk.Button(botoes, text="Importar", command=confirmar).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ttk.Button(botoes, text="Cancelar", command=dialog.destroy).grid(
+            row=0, column=1, sticky="ew", padx=(6, 0)
+        )
 
     def _salvar_turma(self):
         self.turma_caminho = PersistenciaJSON.salvar_turma(self.turma)
@@ -1286,19 +1381,19 @@ class CoordenacaoApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao atualizar turma:\n{exc}")
 
-    def _importar_mapoes(self, callback_sucesso=None):
+    def _importar_mapoes(self, bimestre=None, caminho_fgb=None, caminho_if=None, callback_sucesso=None):
         if not self._exigir_turma():
-            return
+            return False
 
-        bimestre = self._obter_bimestre()
+        bimestre = bimestre or self._obter_bimestre()
         if not bimestre:
-            return
+            return False
 
-        caminho_fgb = self.mapao_fgb_var.get().strip()
-        caminho_if = self.mapao_if_var.get().strip()
+        caminho_fgb = (caminho_fgb or self.mapao_fgb_var.get().strip()).strip()
+        caminho_if = (caminho_if or self.mapao_if_var.get().strip()).strip()
         if not caminho_fgb:
             messagebox.showwarning("Mapao", "Informe o caminho do mapao FGB.")
-            return
+            return False
 
         try:
             ImportadorMapao.importar(caminho_fgb, self.turma, bimestre)
@@ -1308,8 +1403,10 @@ class CoordenacaoApp(tk.Tk):
             if callback_sucesso is not None:
                 callback_sucesso()
             messagebox.showinfo("Mapao", "Mapoes importados com sucesso.")
+            return True
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao importar mapao:\n{exc}")
+            return False
 
     def _gerar_relatorio(self):
         if not self._exigir_turma():
@@ -1317,7 +1414,11 @@ class CoordenacaoApp(tk.Tk):
         bimestre = self._obter_bimestre()
         if not bimestre:
             return
+        self._gerar_relatorio_bimestre(bimestre)
 
+    def _gerar_relatorio_bimestre(self, bimestre):
+        if not self._exigir_turma():
+            return
         caminho_sugerido = f"relatorio_professores_{self.turma.codigo}_bim_{bimestre}.docx"
         caminho = filedialog.asksaveasfilename(
             title="Salvar relatorio para professores",
