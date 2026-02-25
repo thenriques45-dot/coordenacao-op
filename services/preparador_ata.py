@@ -46,6 +46,13 @@ class PreparadorAta:
             status_texto = STATUS_MAPA.get(status_raw, "")
             linha_amarela = status_raw in STATUS_MAPA
             encaminhamento = status_texto if linha_amarela else ""
+            encaminhamentos_conselho = getattr(aluno, "encaminhamentos_conselho", {})
+            codigos = encaminhamentos_conselho.get(bimestre, [])
+            if not isinstance(codigos, list):
+                codigos = []
+            if codigos:
+                codigos_txt = ", ".join(str(c) for c in sorted(set(codigos)))
+                encaminhamento = f"{encaminhamento} | {codigos_txt}" if encaminhamento else codigos_txt
 
             # -------- DEFASAGENS --------
             defasagens = set()

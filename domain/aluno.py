@@ -13,6 +13,7 @@ class Aluno:
         self.notas = {}        # {bimestre: [n1, n2, n3]}
         self.resultados = {}   # {bimestre: True/False}
         self.defasagem_frequencia = {}  # {bimestre: {disciplina: True/False}}
+        self.encaminhamentos_conselho = {}  # {bimestre: [codigos 1..10]}
 
 
     def adicionar_notas(self, bimestre, notas):

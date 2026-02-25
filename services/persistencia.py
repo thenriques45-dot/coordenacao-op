@@ -31,7 +31,8 @@ class PersistenciaJSON:
                 "medias": getattr(aluno, "medias", {}),
                 "defasagem_frequencia": getattr(aluno, "defasagem_frequencia", ""),
                 # ✅ NOVO CAMPO SALVO
-                "frequencia_percentual": getattr(aluno, "frequencia_percentual", "")
+                "frequencia_percentual": getattr(aluno, "frequencia_percentual", ""),
+                "encaminhamentos_conselho": getattr(aluno, "encaminhamentos_conselho", {}),
             }
 
         with open(caminho, "w", encoding="utf-8") as f:
@@ -63,6 +64,7 @@ class PersistenciaJSON:
 
             # ✅ NOVO CAMPO RESTAURADO
             aluno.frequencia_percentual = info.get("frequencia_percentual", "")
+            aluno.encaminhamentos_conselho = info.get("encaminhamentos_conselho", {})
 
             turma.alunos[matricula] = aluno
 

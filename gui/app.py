@@ -1,11 +1,12 @@
 import os
 import tkinter as tk
-from datetime import datetime
+from datetime import date, datetime
 from tkinter import filedialog, messagebox, ttk
 
 from domain.turma import Turma
 from gui.platform_ui import apply_theme, detect_platform_ui
 from gui.session import TurmaSession, TurmaWindowRegistry
+from services.encaminhamentos import ENCAMINHAMENTOS
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
 from services.configuracao import Configuracao
@@ -406,11 +407,45 @@ class CoordenacaoApp(tk.Tk):
         frame = ttk.Frame(dialog, padding=12)
         frame.grid(sticky="nsew")
         frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(3, weight=1)
 
         ttk.Label(
             frame,
             text=f"Turma atual: {self.turma.codigo} ({self.turma.ano}) - {len(self.turma.alunos)} alunos",
         ).grid(row=0, column=0, columnspan=3, sticky="w")
+
+        conselho = ttk.LabelFrame(frame, text="Conselho por bimestre", padding=8)
+        conselho.grid(row=0, column=3, rowspan=8, sticky="nsew", padx=(12, 0))
+        conselho.columnconfigure(0, weight=1)
+
+        bimestres = self._bimestres_com_dados()
+        botoes_conselho = {}
+
+        def atualizar_botoes_conselho():
+            for b, botao in botoes_conselho.items():
+                acao = "Gerir" if self._tem_conselho_registrado(b) else "Realizar"
+                botao.configure(text=f"{acao} conselho do {b}º bimestre")
+
+        def abrir_conselho_com_refresh(b):
+            janela = self._abrir_tela_conselho(b)
+            if janela is not None:
+                janela.bind("<Destroy>", lambda _e: atualizar_botoes_conselho(), add="+")
+
+        if not bimestres:
+            ttk.Label(
+                conselho,
+                text="Sem dados para conselho.\nImporte mapao/medias primeiro.",
+            ).grid(row=0, column=0, sticky="w")
+        else:
+            for i, b in enumerate(bimestres):
+                acao = "Gerir" if self._tem_conselho_registrado(b) else "Realizar"
+                botao = ttk.Button(
+                    conselho,
+                    text=f"{acao} conselho do {b}º bimestre",
+                    command=lambda bb=b: abrir_conselho_com_refresh(bb),
+                )
+                botao.grid(row=i, column=0, sticky="ew", pady=(0, 6))
+                botoes_conselho[b] = botao
 
         ttk.Label(frame, text="Bimestre").grid(row=1, column=0, sticky="w", pady=(10, 0))
         ttk.Entry(frame, textvariable=self.bimestre_var, width=12).grid(
@@ -477,8 +512,8 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(botoes, text="Gerar relatorio professores", command=self._gerar_relatorio).grid(
             row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
-        ttk.Button(botoes, text="Gerar ata", command=self._gerar_ata).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+        ttk.Label(botoes, text="Ata gerada a partir da tela de conselho.").grid(
+            row=1, column=1, sticky="w", padx=(6, 0), pady=(10, 0)
         )
         ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
             row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
@@ -578,6 +613,245 @@ class CoordenacaoApp(tk.Tk):
                     disciplinas.update(medias.keys())
 
         return sorted(d for d in disciplinas if d)
+
+    def _bimestres_com_dados(self):
+        if self.turma is None:
+            return []
+
+        encontrados = set()
+
+        for b in self.turma.carga_horaria.keys():
+            if str(b) in {"1", "2", "3", "4"}:
+                encontrados.add(str(b))
+
+        for aluno in self.turma.alunos.values():
+            for origem in (
+                getattr(aluno, "medias", {}),
+                getattr(aluno, "frequencia", {}),
+                getattr(aluno, "defasagens", {}),
+            ):
+                for b in origem.keys():
+                    if str(b) in {"1", "2", "3", "4"}:
+                        encontrados.add(str(b))
+
+        return sorted(encontrados, key=int)
+
+    def _tem_conselho_registrado(self, bimestre):
+        if self.turma is None:
+            return False
+        for aluno in self.turma.alunos.values():
+            codigos = getattr(aluno, "encaminhamentos_conselho", {}).get(bimestre, [])
+            if isinstance(codigos, list) and codigos:
+                return True
+        return False
+
+    def _abrir_tela_conselho(self, bimestre):
+        if not self._exigir_turma():
+            return
+
+        alunos = [
+            a for a in self.turma.alunos.values()
+            if getattr(a, "ativo", True)
+        ]
+        alunos.sort(key=lambda a: (a.numero_chamada is None, a.numero_chamada or 9999, a.nome))
+
+        if not alunos:
+            messagebox.showwarning("Conselho", "Nao ha alunos ativos para realizar o conselho.")
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Conselho - {bimestre}º bimestre - {self.turma.codigo}")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.geometry("1020x640")
+
+        if not self.data_conselho_var.get().strip():
+            self.data_conselho_var.set(date.today().strftime("%d/%m/%Y"))
+
+        root = ttk.Frame(dialog, padding=12)
+        root.grid(sticky="nsew")
+        root.columnconfigure(1, weight=1)
+        root.rowconfigure(2, weight=1)
+        root.rowconfigure(3, weight=0)
+
+        aluno_pos_var = tk.StringVar()
+        aluno_nome_var = tk.StringVar()
+        aluno_numero_var = tk.StringVar()
+        aluno_foto_var = tk.StringVar(value="Foto do aluno: (pendente implementacao)")
+
+        ttk.Label(root, textvariable=aluno_pos_var).grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(root, textvariable=aluno_nome_var).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=1, sticky="e", pady=(6, 0))
+        ttk.Label(root, text="Data do conselho (DD/MM/AAAA)").grid(row=0, column=1, sticky="e")
+        ttk.Entry(root, textvariable=self.data_conselho_var, width=14).grid(row=0, column=1, sticky="e", padx=(0, 180))
+        ttk.Label(root, textvariable=aluno_foto_var).grid(row=2, column=0, sticky="nw", pady=(8, 0))
+
+        notas_box = ttk.LabelFrame(root, text="Disciplinas e notas", padding=8)
+        notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 0))
+        notas_box.columnconfigure(0, weight=1)
+        notas_box.rowconfigure(0, weight=1)
+        tree_notas = ttk.Treeview(
+            notas_box,
+            columns=("disciplina", "media", "situacao"),
+            show="headings",
+            height=8,
+        )
+        tree_notas.heading("disciplina", text="Disciplina")
+        tree_notas.heading("media", text="Media")
+        tree_notas.heading("situacao", text="Situacao")
+        tree_notas.column("disciplina", width=280, anchor="w")
+        tree_notas.column("media", width=80, anchor="center")
+        tree_notas.column("situacao", width=120, anchor="center")
+        tree_notas.tag_configure("abaixo", foreground="#b00020")
+        tree_notas.tag_configure("limite", foreground="#b36b00")
+        tree_notas.tag_configure("adequada", foreground="#127a2a")
+        tree_notas.grid(row=0, column=0, sticky="nsew")
+
+        freq_box = ttk.LabelFrame(root, text="Frequencia por disciplina", padding=8)
+        freq_box.grid(row=3, column=0, columnspan=1, sticky="new", pady=(10, 0))
+        freq_box.columnconfigure(0, weight=1)
+        freq_box.rowconfigure(0, weight=0)
+        tree_freq = ttk.Treeview(
+            freq_box,
+            columns=("disciplina", "faltas", "aulas", "percentual"),
+            show="headings",
+            height=8,
+        )
+        tree_freq.heading("disciplina", text="Disciplina")
+        tree_freq.heading("faltas", text="Faltas")
+        tree_freq.heading("aulas", text="Aulas")
+        tree_freq.heading("percentual", text="% Faltas")
+        tree_freq.column("disciplina", width=280, anchor="w")
+        tree_freq.column("faltas", width=80, anchor="center")
+        tree_freq.column("aulas", width=80, anchor="center")
+        tree_freq.column("percentual", width=100, anchor="center")
+        tree_freq.grid(row=0, column=0, sticky="nsew")
+
+        enc_box = ttk.LabelFrame(root, text="Encaminhamentos (ENC 1..10)", padding=8)
+        enc_box.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        enc_vars = {}
+        estado = {"idx": 0, "carregando_enc": False}
+
+        def on_toggle_encaminhamento():
+            if estado["carregando_enc"]:
+                return
+            salvar_encaminhamentos_atual()
+
+        for i in range(1, 11):
+            var = tk.BooleanVar(value=False)
+            enc_vars[i] = var
+            col = 0 if i <= 5 else 1
+            row = i - 1 if i <= 5 else i - 6
+            tk.Checkbutton(
+                enc_box,
+                text=f"{i}. {ENCAMINHAMENTOS[i]}",
+                variable=var,
+                command=on_toggle_encaminhamento,
+                wraplength=300,
+                justify="left",
+                anchor="w",
+            ).grid(row=row, column=col, sticky="w", padx=(0, 12), pady=(2, 0))
+        ttk.Label(enc_box, text="Salvamento automatico: marcar/desmarcar ja atualiza.").grid(
+            row=5, column=0, columnspan=2, sticky="w", pady=(8, 0)
+        )
+
+        controle = ttk.Frame(root)
+        controle.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        controle.columnconfigure((0, 1, 2, 3), weight=1)
+        nota_minima = Configuracao.obter_nota_minima()
+
+        def salvar_encaminhamentos_atual():
+            aluno = alunos[estado["idx"]]
+            codigos = [k for k, v in enc_vars.items() if v.get()]
+            if codigos:
+                aluno.encaminhamentos_conselho.setdefault(bimestre, [])
+                aluno.encaminhamentos_conselho[bimestre] = sorted(codigos)
+            else:
+                aluno.encaminhamentos_conselho.get(bimestre, [])
+                if bimestre in aluno.encaminhamentos_conselho:
+                    aluno.encaminhamentos_conselho.pop(bimestre, None)
+            self._salvar_turma()
+
+        def carregar_aluno():
+            aluno = alunos[estado["idx"]]
+            aluno_pos_var.set(f"Aluno {estado['idx'] + 1} de {len(alunos)}")
+            aluno_nome_var.set(f"Nome: {aluno.nome}")
+            numero_txt = "" if aluno.numero_chamada is None else str(aluno.numero_chamada)
+            aluno_numero_var.set(f"Nº chamada: {numero_txt}")
+
+            for item in tree_notas.get_children():
+                tree_notas.delete(item)
+            for item in tree_freq.get_children():
+                tree_freq.delete(item)
+
+            medias = getattr(aluno, "medias", {}).get(bimestre, {})
+            linhas_notas = []
+            for disciplina, media in sorted(medias.items()):
+                if media is None:
+                    continue
+                if media < nota_minima:
+                    linhas_notas.append((0, disciplina, media, "ABAIXO MINIMA", "abaixo"))
+                elif media == nota_minima:
+                    linhas_notas.append((1, disciplina, media, "NO LIMITE", "limite"))
+                else:
+                    linhas_notas.append((2, disciplina, media, "ADEQUADA", "adequada"))
+
+            linhas_notas.sort(key=lambda x: (x[0], x[1]))
+            for _, disciplina, media, situacao, tag in linhas_notas:
+                tree_notas.insert(
+                    "", "end",
+                    values=(disciplina, f"{media:.1f}", situacao),
+                    tags=(tag,),
+                )
+
+            faltas_bim = getattr(aluno, "frequencia", {}).get(bimestre, {})
+            carga_bim = self.turma.carga_horaria.get(bimestre, {})
+            disciplinas_freq = sorted(set(faltas_bim.keys()) | set(carga_bim.keys()))
+            for disciplina in disciplinas_freq:
+                faltas = faltas_bim.get(disciplina, 0) or 0
+                total = carga_bim.get(disciplina, 0) or 0
+                percentual = (faltas / total * 100) if total else 0
+                tree_freq.insert(
+                    "", "end",
+                    values=(disciplina, str(faltas), str(total), f"{percentual:.1f}%"),
+                )
+
+            selecionados = set(getattr(aluno, "encaminhamentos_conselho", {}).get(bimestre, []))
+            estado["carregando_enc"] = True
+            for codigo, var in enc_vars.items():
+                var.set(codigo in selecionados)
+            estado["carregando_enc"] = False
+
+        def proximo(delta):
+            salvar_encaminhamentos_atual()
+            novo = estado["idx"] + delta
+            if novo < 0 or novo >= len(alunos):
+                return
+            estado["idx"] = novo
+            carregar_aluno()
+
+        def concluir():
+            salvar_encaminhamentos_atual()
+            messagebox.showinfo("Conselho", "Encaminhamentos salvos para este bimestre.")
+            dialog.destroy()
+
+        ttk.Button(controle, text="Aluno anterior", command=lambda: proximo(-1)).grid(
+            row=0, column=0, sticky="ew", padx=(0, 6)
+        )
+        ttk.Button(controle, text="Proximo aluno", command=lambda: proximo(1)).grid(
+            row=0, column=1, sticky="ew", padx=(6, 6)
+        )
+        ttk.Button(controle, text="Concluir conselho", command=concluir).grid(
+            row=0, column=2, sticky="ew", padx=(6, 0)
+        )
+        ttk.Button(
+            controle,
+            text="Gerar ata deste conselho",
+            command=lambda: self._gerar_ata_bimestre(bimestre),
+        ).grid(row=0, column=3, sticky="ew", padx=(6, 0))
+
+        carregar_aluno()
+        return dialog
 
     def _abrir_dialogo_criar_turma(self):
         dialog = tk.Toplevel(self)
@@ -1051,15 +1325,12 @@ class CoordenacaoApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao gerar relatorio:\n{exc}")
 
-    def _gerar_ata(self):
+    def _gerar_ata_bimestre(self, bimestre):
         if not self._exigir_turma():
-            return
-        bimestre = self._obter_bimestre()
-        if not bimestre:
             return
 
         data_texto = self.data_conselho_var.get().strip()
-        data_conselho = None
+        data_conselho = date.today()
         if data_texto:
             try:
                 data_conselho = datetime.strptime(data_texto, "%d/%m/%Y").date()
@@ -1091,6 +1362,12 @@ class CoordenacaoApp(tk.Tk):
                 messagebox.showinfo("Ata", f"Ata gerada em:\n{caminho}")
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao gerar ata:\n{exc}")
+
+    def _gerar_ata(self):
+        bimestre = self._obter_bimestre()
+        if not bimestre:
+            return
+        self._gerar_ata_bimestre(bimestre)
 
     def _confirmar_continuacao_ata(self, sem_freq, caminho_rel):
         nomes = ", ".join(sem_freq[:4])

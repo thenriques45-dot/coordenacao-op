@@ -11,6 +11,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
 from services.configuracao import Configuracao
+from services.encaminhamentos import ENCAMINHAMENTOS
 from services.preparador_ata import PreparadorAta
 from services.periodo_letivo import garantir_bimestre_operacional
 
@@ -358,18 +359,7 @@ class GeradorAta:
         titulo_enc = doc.add_paragraph()
         titulo_enc.add_run("Outras observações e encaminhamentos:").bold = True
 
-        textos = [
-            "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
-            "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
-            "Dedicar-se mais ao estudo em casa.",
-            "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
-            "Frequência às aulas.",
-            "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
-            "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
-            "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
-            "Recuperação contínua",
-            "Tarefas auxiliares para superação das dificuldades específicas do estudante"
-        ]
+        textos = [ENCAMINHAMENTOS[i] for i in range(1, 11)]
 
         tabela_enc = doc.add_table(rows=5, cols=4)
         tabela_enc.style = "Table Grid"
