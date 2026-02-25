@@ -16,7 +16,7 @@ from services.importador_mapao import ImportadorMapao
 from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
 from services.runtime_paths import data_dir
-from services.updater import check_for_updates, open_release_page
+from services.updater import REPO_NAME, REPO_OWNER, check_for_updates, open_release_page
 from services.version import APP_NAME, APP_VERSION
 
 CICLOS = {
@@ -33,6 +33,7 @@ PERIODOS = (
     "INTEGRAL (9 HORAS)",
     "INTEGRAL (7 HORAS)",
 )
+REPO_URL = f"https://github.com/{REPO_OWNER}/{REPO_NAME}"
 
 
 def series_por_ciclo(ciclo):
@@ -119,6 +120,7 @@ class CoordenacaoApp(tk.Tk):
         menu_ajuda.add_command(label=f"Versao atual: v{APP_VERSION}", state="disabled")
         menu_ajuda.add_separator()
         menu_ajuda.add_command(label="Verificar atualizacoes", command=self._verificar_atualizacoes)
+        menu_ajuda.add_command(label="Sobre", command=self._mostrar_sobre)
         menu.add_cascade(label="Ajuda", menu=menu_ajuda)
 
         self.config(menu=menu)
@@ -427,50 +429,39 @@ class CoordenacaoApp(tk.Tk):
         conselho.grid(row=0, column=3, rowspan=8, sticky="nsew", padx=(12, 0))
         conselho.columnconfigure(0, weight=1)
 
-        bimestres = self._bimestres_com_dados()
-        botoes_conselho = {}
+        def render_painel_conselho():
+            for child in conselho.winfo_children():
+                child.destroy()
 
-        def atualizar_botoes_conselho():
-            for b, botao in botoes_conselho.items():
+            bimestres = self._bimestres_com_dados()
+            if not bimestres:
+                ttk.Label(
+                    conselho,
+                    text="Sem dados para conselho.\nImporte mapao/medias primeiro.",
+                ).grid(row=0, column=0, sticky="w")
+                return
+
+            for i, b in enumerate(bimestres):
                 acao = "Gerir" if self._tem_conselho_registrado(b) else "Realizar"
-                botao.configure(text=f"{acao} conselho do {b}º bimestre")
+                ttk.Button(
+                    conselho,
+                    text=f"{acao} conselho do {b}º bimestre",
+                    command=lambda bb=b: abrir_conselho_com_refresh(bb),
+                ).grid(row=i, column=0, sticky="ew", pady=(0, 6))
 
         def abrir_conselho_com_refresh(b):
             janela = self._abrir_tela_conselho(b)
             if janela is not None:
-                janela.bind("<Destroy>", lambda _e: atualizar_botoes_conselho(), add="+")
-
-        if not bimestres:
-            ttk.Label(
-                conselho,
-                text="Sem dados para conselho.\nImporte mapao/medias primeiro.",
-            ).grid(row=0, column=0, sticky="w")
-        else:
-            for i, b in enumerate(bimestres):
-                acao = "Gerir" if self._tem_conselho_registrado(b) else "Realizar"
-                botao = ttk.Button(
-                    conselho,
-                    text=f"{acao} conselho do {b}º bimestre",
-                    command=lambda bb=b: abrir_conselho_com_refresh(bb),
-                )
-                botao.grid(row=i, column=0, sticky="ew", pady=(0, 6))
-                botoes_conselho[b] = botao
+                janela.bind("<Destroy>", lambda _e: render_painel_conselho(), add="+")
 
         ttk.Label(frame, text="Bimestre").grid(row=1, column=0, sticky="w", pady=(10, 0))
         ttk.Entry(frame, textvariable=self.bimestre_var, width=12).grid(
             row=1, column=1, sticky="w", pady=(10, 0)
         )
 
-        ttk.Label(frame, text="Data conselho (DD/MM/AAAA)").grid(
-            row=2, column=0, sticky="w", pady=(8, 0)
-        )
-        ttk.Entry(frame, textvariable=self.data_conselho_var).grid(
-            row=2, column=1, sticky="ew", pady=(8, 0)
-        )
-
-        ttk.Label(frame, text="CSV atualizado").grid(row=3, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(frame, text="CSV atualizado").grid(row=2, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(frame, textvariable=self.csv_update_var).grid(
-            row=3, column=1, sticky="ew", pady=(8, 0)
+            row=2, column=1, sticky="ew", pady=(8, 0)
         )
         ttk.Button(
             frame,
@@ -479,11 +470,11 @@ class CoordenacaoApp(tk.Tk):
                 self.csv_update_var,
                 [("CSV", "*.csv"), ("Todos", "*.*")],
             ),
-        ).grid(row=3, column=2, padx=(8, 0), pady=(8, 0))
+        ).grid(row=2, column=2, padx=(8, 0), pady=(8, 0))
 
-        ttk.Label(frame, text="Mapao FGB (.xlsx)").grid(row=4, column=0, sticky="w", pady=(8, 0))
+        ttk.Label(frame, text="Mapao FGB (.xlsx)").grid(row=3, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(frame, textvariable=self.mapao_fgb_var).grid(
-            row=4, column=1, sticky="ew", pady=(8, 0)
+            row=3, column=1, sticky="ew", pady=(8, 0)
         )
         ttk.Button(
             frame,
@@ -492,13 +483,13 @@ class CoordenacaoApp(tk.Tk):
                 self.mapao_fgb_var,
                 [("Excel", "*.xlsx"), ("Todos", "*.*")],
             ),
-        ).grid(row=4, column=2, padx=(8, 0), pady=(8, 0))
+        ).grid(row=3, column=2, padx=(8, 0), pady=(8, 0))
 
         ttk.Label(frame, text="Mapao IF (.xlsx) opcional").grid(
-            row=5, column=0, sticky="w", pady=(8, 0)
+            row=4, column=0, sticky="w", pady=(8, 0)
         )
         ttk.Entry(frame, textvariable=self.mapao_if_var).grid(
-            row=5, column=1, sticky="ew", pady=(8, 0)
+            row=4, column=1, sticky="ew", pady=(8, 0)
         )
         ttk.Button(
             frame,
@@ -507,22 +498,23 @@ class CoordenacaoApp(tk.Tk):
                 self.mapao_if_var,
                 [("Excel", "*.xlsx"), ("Todos", "*.*")],
             ),
-        ).grid(row=5, column=2, padx=(8, 0), pady=(8, 0))
+        ).grid(row=4, column=2, padx=(8, 0), pady=(8, 0))
 
         botoes = ttk.Frame(frame)
-        botoes.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        botoes.grid(row=5, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         botoes.columnconfigure((0, 1), weight=1)
         ttk.Button(botoes, text="Atualizar turma por CSV", command=self._atualizar_turma).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
-        ttk.Button(botoes, text="Importar mapoes", command=self._importar_mapoes).grid(
+        ttk.Button(
+            botoes,
+            text="Importar mapoes",
+            command=lambda: self._importar_mapoes(callback_sucesso=render_painel_conselho),
+        ).grid(
             row=0, column=1, sticky="ew", padx=(6, 0)
         )
         ttk.Button(botoes, text="Gerar relatorio professores", command=self._gerar_relatorio).grid(
             row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
-        )
-        ttk.Label(botoes, text="Ata gerada a partir da tela de conselho.").grid(
-            row=1, column=1, sticky="w", padx=(6, 0), pady=(10, 0)
         )
         ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
             row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
@@ -539,7 +531,7 @@ class CoordenacaoApp(tk.Tk):
         )
 
         status = ttk.LabelFrame(frame, text="Status do bimestre", padding=10)
-        status.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        status.grid(row=6, column=0, columnspan=3, sticky="ew", pady=(12, 0))
         status.columnconfigure(0, weight=1)
         ttk.Label(status, textvariable=self.status_mapao_var).grid(row=0, column=0, sticky="w")
         ttk.Label(status, textvariable=self.status_ata_var).grid(row=1, column=0, sticky="w", pady=(4, 0))
@@ -547,6 +539,7 @@ class CoordenacaoApp(tk.Tk):
         ttk.Label(status, textvariable=self.status_pendencias_var).grid(row=3, column=0, sticky="w", pady=(4, 0))
 
         self._atualizar_status_bimestre()
+        render_painel_conselho()
 
     def _excluir_turma_selecionada(self, fechar_dialogo=None):
         caminho = None
@@ -844,6 +837,10 @@ class CoordenacaoApp(tk.Tk):
             messagebox.showinfo("Conselho", "Encaminhamentos salvos para este bimestre.")
             dialog.destroy()
 
+        def gerar_ata_deste_conselho():
+            salvar_encaminhamentos_atual()
+            self._gerar_ata_bimestre(bimestre)
+
         ttk.Button(controle, text="Aluno anterior", command=lambda: proximo(-1)).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
@@ -851,15 +848,17 @@ class CoordenacaoApp(tk.Tk):
             row=0, column=1, sticky="ew", padx=(6, 6)
         )
         ttk.Button(controle, text="Concluir conselho", command=concluir).grid(
-            row=0, column=2, sticky="ew", padx=(6, 0)
+            row=0, column=3, sticky="ew", padx=(6, 0)
         )
         ttk.Button(
             controle,
             text="Gerar ata deste conselho",
-            command=lambda: self._gerar_ata_bimestre(bimestre),
-        ).grid(row=0, column=3, sticky="ew", padx=(6, 0))
+            command=gerar_ata_deste_conselho,
+        ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
         carregar_aluno()
+        dialog.bind("<Left>", lambda _e: proximo(-1))
+        dialog.bind("<Right>", lambda _e: proximo(1))
         return dialog
 
     def _abrir_dialogo_criar_turma(self):
@@ -1287,7 +1286,7 @@ class CoordenacaoApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao atualizar turma:\n{exc}")
 
-    def _importar_mapoes(self):
+    def _importar_mapoes(self, callback_sucesso=None):
         if not self._exigir_turma():
             return
 
@@ -1306,6 +1305,8 @@ class CoordenacaoApp(tk.Tk):
             if caminho_if:
                 ImportadorMapao.importar(caminho_if, self.turma, bimestre)
             self._salvar_turma()
+            if callback_sucesso is not None:
+                callback_sucesso()
             messagebox.showinfo("Mapao", "Mapoes importados com sucesso.")
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao importar mapao:\n{exc}")
@@ -1414,3 +1415,15 @@ class CoordenacaoApp(tk.Tk):
             "Atualizacoes",
             f"Voce ja esta na versao mais recente (v{APP_VERSION}).",
         )
+
+    def _mostrar_sobre(self):
+        mensagem = (
+            f"{APP_NAME}\n"
+            f"Versao: v{APP_VERSION}\n\n"
+            "Aplicativo para apoiar a coordenacao pedagogica na gestao de turmas,\n"
+            "importacao de mapoes e geracao de ata/relatorios por bimestre.\n\n"
+            f"Codigo-fonte: {REPO_URL}\n"
+            "Licenca: GPL-3.0"
+        )
+        if messagebox.askyesno("Sobre", f"{mensagem}\n\nAbrir repositorio no GitHub?"):
+            open_release_page(REPO_URL)
