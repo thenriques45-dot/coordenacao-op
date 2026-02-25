@@ -12,6 +12,7 @@ from docx.oxml.ns import qn
 
 from services.configuracao import Configuracao
 from services.preparador_ata import PreparadorAta
+from services.periodo_letivo import garantir_bimestre_operacional
 
 
 # ======================================================
@@ -111,6 +112,7 @@ class GeradorAta:
         confirmar_continuacao=None,
         log=None
     ):
+        bimestre = garantir_bimestre_operacional(bimestre)
         if log is None:
             log = print
 

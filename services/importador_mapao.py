@@ -1,11 +1,13 @@
 import pandas as pd
 from services.leitor_aulas_mapao import extrair_aulas_por_disciplina
 from services.configuracao import Configuracao
+from services.periodo_letivo import garantir_bimestre_operacional
 
 
 class ImportadorMapao:
     @staticmethod
     def importar(caminho_excel, turma, bimestre):
+        bimestre = garantir_bimestre_operacional(bimestre)
         df = pd.read_excel(caminho_excel, header=None)
 
         # ----------------------------------------

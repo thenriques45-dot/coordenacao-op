@@ -11,6 +11,7 @@ from services.configuracao import Configuracao
 from services.gerador_ata import GeradorAta
 from services.gerador_relatorio_professores import GeradorRelatorioProfessores
 from services.importador_mapao import ImportadorMapao
+from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
 
 CICLOS = {
@@ -381,12 +382,19 @@ class CoordenacaoApp(tk.Tk):
         self._atualizar_status_bimestre()
 
     def _atualizar_status_bimestre(self):
-        bimestre = self.bimestre_var.get().strip()
+        bimestre = normalizar_periodo(self.bimestre_var.get())
         if self.turma is None or not bimestre:
             self.status_mapao_var.set("Mapao: -")
             self.status_ata_var.set("Ata: -")
             self.status_relatorio_var.set("Relatorio: -")
             self.status_pendencias_var.set("Pendencias frequencia: -")
+            return
+
+        if bimestre not in {"1", "2", "3", "4"}:
+            self.status_mapao_var.set("Mapao: n/a (use 1..4)")
+            self.status_ata_var.set("Ata: n/a (use 1..4)")
+            self.status_relatorio_var.set("Relatorio: n/a (use 1..4)")
+            self.status_pendencias_var.set("Pendencias frequencia: n/a")
             return
 
         codigo = self.turma.codigo
@@ -414,6 +422,22 @@ class CoordenacaoApp(tk.Tk):
         if ciclo == "EM":
             return f"{serie[0]}{letra}"
         return f"{serie} {letra}"
+
+    def _disciplinas_da_turma(self):
+        if self.turma is None:
+            return []
+
+        disciplinas = set()
+        for carga in self.turma.carga_horaria.values():
+            if isinstance(carga, dict):
+                disciplinas.update(carga.keys())
+
+        for aluno in self.turma.alunos.values():
+            for medias in getattr(aluno, "medias", {}).values():
+                if isinstance(medias, dict):
+                    disciplinas.update(medias.keys())
+
+        return sorted(d for d in disciplinas if d)
 
     def _abrir_dialogo_criar_turma(self):
         dialog = tk.Toplevel(self)
@@ -605,6 +629,8 @@ class CoordenacaoApp(tk.Tk):
         nome_var = tk.StringVar()
         numero_var = tk.StringVar()
         ativo_var = tk.BooleanVar(value=True)
+        disciplina_5c_var = tk.StringVar()
+        valor_5c_var = tk.StringVar()
 
         ttk.Label(form, text="Matricula").grid(row=0, column=0, sticky="w")
         ttk.Entry(form, textvariable=matricula_var, state="readonly", width=18).grid(row=0, column=1, sticky="w")
@@ -613,6 +639,23 @@ class CoordenacaoApp(tk.Tk):
         ttk.Label(form, text="No chamada").grid(row=2, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(form, textvariable=numero_var, width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))
         ttk.Checkbutton(form, text="Ativo", variable=ativo_var).grid(row=3, column=1, sticky="w", pady=(8, 0))
+        ttk.Separator(form).grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 4))
+
+        ttk.Label(form, text=f"{CONCEITO_FINAL} disciplina").grid(row=5, column=0, sticky="w")
+        disciplinas = self._disciplinas_da_turma()
+        combo_disc_5c = ttk.Combobox(
+            form,
+            textvariable=disciplina_5c_var,
+            values=disciplinas,
+            state="readonly",
+            width=26,
+        )
+        combo_disc_5c.grid(row=5, column=1, sticky="w")
+        if disciplinas:
+            disciplina_5c_var.set(disciplinas[0])
+
+        ttk.Label(form, text=f"Valor {CONCEITO_FINAL}").grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(form, textvariable=valor_5c_var, width=12).grid(row=6, column=1, sticky="w", pady=(8, 0))
 
         def obter_alunos_filtrados():
             termo = filtro_var.get().strip().lower()
@@ -653,6 +696,22 @@ class CoordenacaoApp(tk.Tk):
             nome_var.set(aluno.nome)
             numero_var.set("" if aluno.numero_chamada is None else str(aluno.numero_chamada))
             ativo_var.set(bool(aluno.ativo))
+            carregar_5c_aluno()
+
+        def carregar_5c_aluno(_event=None):
+            matricula = matricula_var.get().strip()
+            disciplina = disciplina_5c_var.get().strip()
+            valor_5c_var.set("")
+            if not matricula or not disciplina:
+                return
+
+            aluno = self.turma.alunos.get(matricula)
+            if aluno is None:
+                return
+
+            medias_5c = getattr(aluno, "medias", {}).get(CONCEITO_FINAL, {})
+            if isinstance(medias_5c, dict) and disciplina in medias_5c:
+                valor_5c_var.set(str(medias_5c[disciplina]))
 
         def salvar_alteracoes():
             matricula = matricula_var.get().strip()
@@ -689,18 +748,55 @@ class CoordenacaoApp(tk.Tk):
                 tree.focus(matricula)
             messagebox.showinfo("Alunos", "Alteracoes salvas.")
 
+        def salvar_5c():
+            matricula = matricula_var.get().strip()
+            disciplina = disciplina_5c_var.get().strip()
+            valor_txt = valor_5c_var.get().strip().replace(",", ".")
+            if not matricula:
+                messagebox.showwarning("5C", "Selecione um aluno na lista.")
+                return
+            if not disciplina:
+                messagebox.showwarning("5C", "Selecione uma disciplina.")
+                return
+
+            aluno = self.turma.alunos.get(matricula)
+            if aluno is None:
+                messagebox.showwarning("5C", "Aluno nao encontrado.")
+                return
+
+            aluno.medias.setdefault(CONCEITO_FINAL, {})
+            if valor_txt == "":
+                aluno.medias[CONCEITO_FINAL].pop(disciplina, None)
+                if not aluno.medias[CONCEITO_FINAL]:
+                    aluno.medias.pop(CONCEITO_FINAL, None)
+            else:
+                try:
+                    valor = float(valor_txt)
+                except ValueError:
+                    messagebox.showwarning("5C", "Valor invalido para 5C.")
+                    return
+                aluno.medias[CONCEITO_FINAL][disciplina] = valor
+
+            self._salvar_turma()
+            self._atualizar_status_turma()
+            messagebox.showinfo("5C", "Conceito salvo.")
+
         filtro_var.trace_add("write", lambda *_: repopular_lista())
         tree.bind("<<TreeviewSelect>>", carregar_aluno)
+        combo_disc_5c.bind("<<ComboboxSelected>>", carregar_5c_aluno)
         repopular_lista()
 
         botoes = ttk.Frame(form)
-        botoes.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        botoes.columnconfigure((0, 1), weight=1)
+        botoes.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        botoes.columnconfigure((0, 1, 2), weight=1)
         ttk.Button(botoes, text="Salvar alteracoes", command=salvar_alteracoes).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
+        ttk.Button(botoes, text=f"Salvar {CONCEITO_FINAL}", command=salvar_5c).grid(
+            row=0, column=1, sticky="ew", padx=(6, 6)
+        )
         ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
-            row=0, column=1, sticky="ew", padx=(6, 0)
+            row=0, column=2, sticky="ew", padx=(6, 0)
         )
 
     def _exigir_turma(self):
@@ -710,11 +806,18 @@ class CoordenacaoApp(tk.Tk):
         return True
 
     def _obter_bimestre(self):
-        bimestre = self.bimestre_var.get().strip()
-        if not bimestre:
+        entrada = self.bimestre_var.get().strip()
+        if not entrada:
             messagebox.showwarning("Bimestre", "Informe o bimestre.")
             return None
-        return bimestre
+        try:
+            bimestre = garantir_bimestre_operacional(entrada)
+            if bimestre != entrada:
+                self.bimestre_var.set(bimestre)
+            return bimestre
+        except ValueError as exc:
+            messagebox.showwarning("Bimestre", str(exc))
+            return None
 
     def _salvar_turma(self):
         PersistenciaJSON.salvar_turma(self.turma)

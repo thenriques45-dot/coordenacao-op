@@ -5,11 +5,13 @@ from docx.shared import Pt
 
 from services.avaliador_frequencia import AvaliadorFrequencia
 from services.configuracao import Configuracao
+from services.periodo_letivo import garantir_bimestre_operacional
 
 
 class GeradorRelatorioProfessores:
     @staticmethod
     def gerar(turma, bimestre):
+        bimestre = garantir_bimestre_operacional(bimestre)
         doc = Document()
 
         # Fonte padrão
