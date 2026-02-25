@@ -1,10 +1,11 @@
 import json
 import os
+from services.runtime_paths import config_dir
 
 
 class Configuracao:
-    CAMINHO_PADRAO = os.path.join("config", "configuracoes.json")
-    CAMINHO_LEGADO = os.path.join("config", "criterios.json")
+    CAMINHO_PADRAO = config_dir("configuracoes.json")
+    CAMINHO_LEGADO = config_dir("criterios.json")
 
     # ===================== LEITURA =====================
 

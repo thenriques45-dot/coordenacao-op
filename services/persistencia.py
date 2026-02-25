@@ -2,13 +2,14 @@ import json
 import os
 from domain.turma import Turma
 from domain.aluno import Aluno
+from services.runtime_paths import data_dir
 
 
 class PersistenciaJSON:
 
     @staticmethod
     def salvar_turma(turma):
-        pasta = os.path.join("dados", "persistidos", str(turma.ano))
+        pasta = data_dir("persistidos", str(turma.ano))
         os.makedirs(pasta, exist_ok=True)
 
         caminho = os.path.join(pasta, f"turma_{turma.codigo}.json")

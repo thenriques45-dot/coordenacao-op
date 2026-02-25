@@ -1,6 +1,7 @@
 from services.importador_dados import ImportadorCSV
 from services.persistencia import PersistenciaJSON
 from services.configuracao import Configuracao
+from services.runtime_paths import data_dir
 from domain.turma import Turma
 import os
 
@@ -9,7 +10,7 @@ import os
 # UTIL: ESCOLHER TURMA
 # ======================================================
 def escolher_turma():
-    pasta_base = "dados/persistidos"
+    pasta_base = data_dir("persistidos")
     if not os.path.exists(pasta_base):
         print("Nenhuma turma salva encontrada.")
         return None

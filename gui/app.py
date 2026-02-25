@@ -15,6 +15,7 @@ from services.gerador_relatorio_professores import GeradorRelatorioProfessores
 from services.importador_mapao import ImportadorMapao
 from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
+from services.runtime_paths import data_dir
 
 CICLOS = {
     "EI": "Educacao Infantil",
@@ -232,7 +233,7 @@ class CoordenacaoApp(tk.Tk):
         self.direcao_pronome_var.set(pronome)
 
     def _listar_turmas(self):
-        pasta_base = os.path.join("dados", "persistidos")
+        pasta_base = data_dir("persistidos")
         resultados = []
         if not os.path.isdir(pasta_base):
             return resultados
@@ -282,7 +283,7 @@ class CoordenacaoApp(tk.Tk):
     def _abrir_turma(self):
         caminho = filedialog.askopenfilename(
             title="Selecionar turma",
-            initialdir="dados/persistidos",
+            initialdir=data_dir("persistidos"),
             filetypes=[("JSON", "*.json"), ("Todos", "*.*")],
         )
         if not caminho:
@@ -339,12 +340,12 @@ class CoordenacaoApp(tk.Tk):
         codigo = self.turma.codigo
         carga_bimestre = self.turma.carga_horaria.get(bimestre, {})
         mapao_ok = bool(carga_bimestre)
-        caminho_ata = os.path.join("dados", "atas", f"ata_{codigo}_bimestre_{bimestre}.docx")
+        caminho_ata = os.path.join(data_dir("atas"), f"ata_{codigo}_bimestre_{bimestre}.docx")
         caminho_relatorio = os.path.join(
-            "dados", "relatorios", f"relatorio_professores_{codigo}_bim_{bimestre}.docx"
+            data_dir("relatorios"), f"relatorio_professores_{codigo}_bim_{bimestre}.docx"
         )
         caminho_pendencias = os.path.join(
-            "dados", "relatorios", f"faltando_frequencia_{codigo}_bim_{bimestre}.txt"
+            data_dir("relatorios"), f"faltando_frequencia_{codigo}_bim_{bimestre}.txt"
         )
 
         self.status_mapao_var.set(f"Mapao: {'OK' if mapao_ok else 'PENDENTE'}")
@@ -1311,7 +1312,7 @@ class CoordenacaoApp(tk.Tk):
         caminho_sugerido = f"relatorio_professores_{self.turma.codigo}_bim_{bimestre}.docx"
         caminho = filedialog.asksaveasfilename(
             title="Salvar relatorio para professores",
-            initialdir=os.path.join("dados", "relatorios"),
+            initialdir=data_dir("relatorios"),
             initialfile=caminho_sugerido,
             defaultextension=".docx",
             filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
@@ -1341,7 +1342,7 @@ class CoordenacaoApp(tk.Tk):
         caminho_sugerido = f"ata_{self.turma.codigo}_bimestre_{bimestre}.docx"
         caminho_destino = filedialog.asksaveasfilename(
             title="Salvar ata do conselho",
-            initialdir=os.path.join("dados", "atas"),
+            initialdir=data_dir("atas"),
             initialfile=caminho_sugerido,
             defaultextension=".docx",
             filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],

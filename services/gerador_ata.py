@@ -14,6 +14,7 @@ from services.configuracao import Configuracao
 from services.encaminhamentos import ENCAMINHAMENTOS
 from services.preparador_ata import PreparadorAta
 from services.periodo_letivo import garantir_bimestre_operacional
+from services.runtime_paths import asset_path, data_dir
 
 
 # ======================================================
@@ -148,7 +149,7 @@ class GeradorAta:
         p = header.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.add_run().add_picture(
-            "dados/imagens/cabecalho.jpg",
+            asset_path("dados", "imagens", "cabecalho.jpg"),
             width=Cm(12)
         )
 
@@ -234,7 +235,7 @@ class GeradorAta:
                 log(" -", nome)
 
             # ---------- gera relatório ----------
-            pasta_rel = "dados/relatorios"
+            pasta_rel = data_dir("relatorios")
             os.makedirs(pasta_rel, exist_ok=True)
 
             caminho_rel = os.path.join(
@@ -501,7 +502,7 @@ class GeradorAta:
                 os.makedirs(pasta, exist_ok=True)
             caminho = caminho_saida
         else:
-            pasta = "dados/atas"
+            pasta = data_dir("atas")
             os.makedirs(pasta, exist_ok=True)
             caminho = os.path.join(
                 pasta,

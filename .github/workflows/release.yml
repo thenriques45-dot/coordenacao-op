@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build EXE
+        shell: pwsh
+        run: ./scripts/build_windows.ps1
+
+      - name: Package artifacts
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/CoordenacaoOP.exe -DestinationPath dist/CoordenacaoOP-windows.zip
+
+      - name: Upload windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist/CoordenacaoOP-windows.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 wget
+
+      - name: Build AppImage
+        run: |
+          chmod +x scripts/build_linux_appimage.sh
+          ./scripts/build_linux_appimage.sh
+
+      - name: Upload linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: dist/CoordenacaoOP-x86_64.AppImage
+
+  publish:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: artifacts
+
+      - name: Download linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-artifacts
+          path: artifacts
+
+      - name: Checksums
+        run: |
+          cd artifacts
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create/Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*
+          generate_release_notes: true

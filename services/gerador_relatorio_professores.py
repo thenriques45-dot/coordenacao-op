@@ -6,6 +6,7 @@ from docx.shared import Pt
 from services.avaliador_frequencia import AvaliadorFrequencia
 from services.configuracao import Configuracao
 from services.periodo_letivo import garantir_bimestre_operacional
+from services.runtime_paths import data_dir
 
 
 class GeradorRelatorioProfessores:
@@ -115,7 +116,7 @@ class GeradorRelatorioProfessores:
                 os.makedirs(pasta, exist_ok=True)
             caminho = caminho_saida
         else:
-            pasta = "dados/relatorios"
+            pasta = data_dir("relatorios")
             os.makedirs(pasta, exist_ok=True)
             caminho = os.path.join(
                 pasta,

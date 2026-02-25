@@ -3,5 +3,10 @@ __pycache__/
 *.csv
 *.xlsx
 *.xls
+build/
+dist/
+AppDir/
+*.AppImage
+*.spec
 dados/**
 !dados/imagens/**

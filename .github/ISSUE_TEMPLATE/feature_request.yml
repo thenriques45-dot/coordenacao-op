@@ -1,0 +1,21 @@
+name: Feature request
+description: Sugerir nova funcionalidade
+title: "[FEAT] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema que deseja resolver
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta de solução
+    validations:
+      required: true
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impacto esperado no fluxo da coordenação
