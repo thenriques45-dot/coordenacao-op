@@ -64,3 +64,13 @@ Veja [ROADMAP_GERENCIADOR.md](ROADMAP_GERENCIADOR.md) e [CHECKLIST_v0.9.0.md](CH
 - Segurança: [SECURITY.md](SECURITY.md)
 - Guia de contribuição: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Código de conduta: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+
+## Assinatura digital do EXE (opcional no GitHub Actions)
+
+O workflow de release suporta assinatura Authenticode do `CoordenacaoOP.exe` quando os secrets abaixo estao configurados:
+
+- `CODESIGN_PFX_B64`: conteudo do certificado `.pfx` em Base64
+- `CODESIGN_PFX_PASSWORD`: senha do `.pfx`
+- `CODESIGN_TIMESTAMP_URL` (opcional): servidor de timestamp. Padrao: `http://timestamp.digicert.com`
+
+Sem esses secrets, o release continua funcionando e publica o binario sem assinatura.
