@@ -1,76 +1,65 @@
 # CoordenacaoOP
 
-Software de apoio à coordenação pedagógica para gestão de turmas, importação de mapões e geração de documentos (ata de conselho e relatório para professores).
+Software de apoio à coordenação pedagógica para organizar turmas, importar dados e gerar documentos de conselho de classe.
+
+## O que o aplicativo faz
+
+- cadastra e gerencia turmas
+- importa alunos por CSV
+- importa mapões FGB e IF
+- registra encaminhamentos por aluno em cada conselho
+- gera ata de conselho em `.docx`
+- gera relatório para professores em `.docx`
+- verifica atualizações pelo menu `Ajuda > Verificar atualizacoes`
+
+## Para quem ele foi pensado
+
+O aplicativo foi pensado para uso prático no cotidiano da coordenação pedagógica, com foco em reduzir trabalho manual na preparação e no registro dos conselhos de classe.
+
+## Como baixar
+
+As versões prontas para uso ficam na página de Releases do GitHub:
+
+<https://github.com/thenriques45-dot/coordenacao-op/releases>
+
+Arquivos publicados:
+
+- Windows: `CoordenacaoOP-windows.zip`
+- Linux: `CoordenacaoOP-x86_64.AppImage`
+
+## Como usar no Windows
+
+1. Baixe o arquivo `CoordenacaoOP-windows.zip` da versão desejada.
+2. Extraia o conteúdo do `.zip` para uma pasta.
+3. Execute o arquivo `CoordenacaoOP.exe`.
+
+Observação:
+Sem assinatura digital, o Windows pode exibir alerta do SmartScreen ao abrir o programa.
+
+## Como usar no Linux
+
+1. Baixe o arquivo `CoordenacaoOP-x86_64.AppImage`.
+2. Dê permissão de execução ao arquivo.
+3. Execute o AppImage.
+
+## Sobre o desenvolvimento
+
+Este projeto é desenvolvido com forte uso de vibe coding: a evolução do software acontece com apoio intenso de IA, sempre com revisão, testes e ajustes práticos orientados pelo uso real do aplicativo.
+
+## Informações técnicas
+
+Se você pretende rodar o projeto a partir do código-fonte:
+
+- Python 3.11+ (recomendado 3.12)
+- dependências em `requirements.txt`
+- execução principal por `python main_gui.py`
 
 ## Licença
 
 Este projeto é distribuído sob a licença **GPL-3.0-or-later**. Veja [LICENSE](LICENSE).
 
-## Funcionalidades principais
-
-- Cadastro e gestão de turmas
-- Importação de alunos via CSV
-- Importação de mapões (FGB e IF)
-- Gestão de conselho por bimestre (aluno a aluno)
-- Registro de encaminhamentos (ENC 1..10) por aluno
-- Geração de ata de conselho (.docx)
-- Geração de relatório para professores (.docx)
-- Verificação de atualizações pelo menu `Ajuda > Verificar atualizacoes`
-
-## Requisitos (execução em código-fonte)
-
-- Python 3.11+ (recomendado 3.12)
-- Dependências em `requirements.txt`
-
-Instalação:
-
-```bash
-pip install -r requirements.txt
-```
-
-Execução da GUI:
-
-```bash
-python main_gui.py
-```
-
-## Builds para usuários finais
-
-Os binários para Windows e Linux são publicados em **Releases** do GitHub.
-
-- Windows: `CoordenacaoOP.exe` (zipado no release)
-- Linux: `CoordenacaoOP-x86_64.AppImage`
-
-## Estrutura de release automática
-
-- CI de testes: `.github/workflows/ci.yml`
-- Build e publicação de release por tag `v*`: `.github/workflows/release.yml`
-
-## Como lançar uma nova versão
-
-1. Atualize changelog e confirme testes
-2. Crie a tag:
-   - `git tag vX.Y.Z`
-3. Publique:
-   - `git push origin vX.Y.Z`
-4. O GitHub Actions gera os artefatos e publica no release
-
-## Roadmap
-
-Veja [ROADMAP_GERENCIADOR.md](ROADMAP_GERENCIADOR.md) e [CHECKLIST_v0.9.0.md](CHECKLIST_v0.9.0.md).
-
-## Segurança e contribuição
+## Documentos adicionais
 
 - Segurança: [SECURITY.md](SECURITY.md)
-- Guia de contribuição: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Contribuição: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Código de conduta: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-
-## Assinatura digital do EXE (opcional no GitHub Actions)
-
-O workflow de release suporta assinatura Authenticode do `CoordenacaoOP.exe` quando os secrets abaixo estao configurados:
-
-- `CODESIGN_PFX_B64`: conteudo do certificado `.pfx` em Base64
-- `CODESIGN_PFX_PASSWORD`: senha do `.pfx`
-- `CODESIGN_TIMESTAMP_URL` (opcional): servidor de timestamp. Padrao: `http://timestamp.digicert.com`
-
-Sem esses secrets, o release continua funcionando e publica o binario sem assinatura.
