@@ -9,6 +9,7 @@ class Turma:
 
         self.alunos = {}                  # {matricula: Aluno}
         self.carga_horaria = {}           # {bimestre: {disciplina: total_aulas}}
+        self.textos_ata = {}              # {bimestre: {"cabecalho": str, "corpo": str}}
 
     def adicionar_aluno(self, aluno):
         self.alunos[aluno.matricula] = aluno

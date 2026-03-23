@@ -1,0 +1,35 @@
+Changelog v1.2.x
+
+v1.2.0 - Ata personalizavel no conselho e refinamentos de usabilidade
+- Tela de conselho passou a permitir editar o texto da ata por bimestre:
+  - cabeçalho inicial sugerido dinamicamente com data, direção e abertura do conselho
+  - corpo padrão da ata sugerido como texto-base editável
+  - personalização salva por bimestre na turma
+  - geração da ata usa automaticamente o texto salvo no conselho
+- Título da ata ficou mais completo:
+  - formato com bimestre, ano, turma e sala
+  - exemplo: `CONSELHO DE CLASSE - 1º BIM/2026 - 2a SERIE A - SALA 04`
+- Compatibilidade com turmas antigas melhorada:
+  - turmas legadas do Ensino Médio como `2A` passam a ser exibidas como `2a SERIE A`
+  - persistência agora salva e restaura `serie`, `sala`, `periodo` e `ciclo`
+- Tela de conselho refinada:
+  - data do conselho sem truncamento no cabeçalho
+  - distribuição mais horizontal dos painéis
+  - largura do editor da ata ajustada para leitura mais confortável
+- Workflows do GitHub Actions atualizados para versões compatíveis com a migração do Node 24:
+  - `actions/checkout@v5`
+  - `actions/setup-python@v6`
+  - `actions/upload-artifact@v6`
+  - `actions/download-artifact@v5`
+- Novos testes cobrindo montagem do texto/título da ata e persistência do texto editável
+
+Arquivos principais do ciclo 1.2.x
+- gui/app.py
+- services/gerador_ata.py
+- services/persistencia.py
+- domain/turma.py
+- tests/test_gerador_ata_intro.py
+- .github/workflows/ci.yml
+- .github/workflows/release.yml
+- VERSION
+- services/version.py

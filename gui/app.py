@@ -381,9 +381,13 @@ class CoordenacaoApp(tk.Tk):
             for arquivo in sorted(os.listdir(pasta_ano)):
                 if not arquivo.endswith(".json"):
                     continue
-                codigo = arquivo.replace("turma_", "").replace(".json", "")
                 caminho = os.path.join(pasta_ano, arquivo)
-                resultados.append((ano, codigo, caminho))
+                try:
+                    turma = PersistenciaJSON.carregar_turma(caminho)
+                    codigo_exibicao = self._rotulo_turma(turma)
+                except Exception:
+                    codigo_exibicao = arquivo.replace("turma_", "").replace(".json", "")
+                resultados.append((ano, codigo_exibicao, caminho))
         return resultados
 
     def _carregar_catalogo_turmas(self):
@@ -464,7 +468,7 @@ class CoordenacaoApp(tk.Tk):
             self._atualizar_status_bimestre()
             return
         self.turma_status.set(
-            f"Turma atual: {self.turma.codigo} ({self.turma.ano}) - {len(self.turma.alunos)} alunos"
+            f"Turma atual: {self._rotulo_turma(self.turma)} ({self.turma.ano}) - {len(self.turma.alunos)} alunos"
         )
         self.proximo_passo_var.set(
             "Com a turma aberta, atualize alunos, importe mapoes e gere os documentos do periodo."
@@ -509,9 +513,17 @@ class CoordenacaoApp(tk.Tk):
 
     def _codigo_turma(self, serie, turma_letra, ciclo):
         letra = turma_letra.strip().upper()
-        if ciclo == "EM":
-            return f"{serie[0]}{letra}"
         return f"{serie} {letra}"
+
+    def _rotulo_turma(self, turma):
+        codigo = getattr(turma, "codigo", "")
+        serie = getattr(turma, "serie", "")
+        ciclo = getattr(turma, "ciclo", "")
+
+        if ciclo == "EM" and serie and len(codigo) == 2 and codigo[0] in {"1", "2", "3"} and codigo[1].isalpha():
+            return f"{serie} {codigo[1].upper()}"
+
+        return codigo
 
     def _centralizar_janela(self, janela, largura=None, altura=None):
         janela.update_idletasks()
@@ -594,6 +606,62 @@ class CoordenacaoApp(tk.Tk):
         self._atualizar_status_turma()
         self._carregar_catalogo_turmas()
         return turma
+
+    def _obter_data_conselho_atual(self, silencioso=False):
+        data_texto = self.data_conselho_var.get().strip()
+        if not data_texto:
+            return date.today()
+        try:
+            return datetime.strptime(data_texto, "%d/%m/%Y").date()
+        except ValueError:
+            if not silencioso:
+                messagebox.showwarning("Data", "Use o formato DD/MM/AAAA para a data do conselho.")
+            return None
+
+    def _texto_ata_salvo(self, bimestre):
+        textos_ata = getattr(self.turma, "textos_ata", {}) if self.turma is not None else {}
+        texto_bimestre = textos_ata.get(str(bimestre), {})
+        if not isinstance(texto_bimestre, dict):
+            return {}
+        return {
+            "cabecalho": str(texto_bimestre.get("cabecalho", "")).strip(),
+            "corpo": str(texto_bimestre.get("corpo", "")).strip(),
+        }
+
+    def _texto_ata_sugerido(self, bimestre, data_conselho=None):
+        if self.turma is None:
+            return {"cabecalho": "", "corpo": ""}
+        data_base = data_conselho or self._obter_data_conselho_atual(silencioso=True) or date.today()
+        cabecalho, corpo = GeradorAta.montar_intro_padrao(self.turma, data_base)
+        return {"cabecalho": cabecalho, "corpo": corpo}
+
+    def _texto_ata_para_edicao(self, bimestre, data_conselho=None):
+        sugerido = self._texto_ata_sugerido(bimestre, data_conselho=data_conselho)
+        salvo = self._texto_ata_salvo(bimestre)
+        return {
+            "cabecalho": salvo.get("cabecalho") or sugerido["cabecalho"],
+            "corpo": salvo.get("corpo") or sugerido["corpo"],
+        }
+
+    def _salvar_texto_ata_bimestre(self, bimestre, cabecalho, corpo, data_conselho=None):
+        if self.turma is None:
+            return
+        bimestre = str(bimestre)
+        cabecalho = cabecalho.strip()
+        corpo = corpo.strip()
+        sugerido = self._texto_ata_sugerido(bimestre, data_conselho=data_conselho)
+
+        textos_ata = getattr(self.turma, "textos_ata", {})
+        if not isinstance(textos_ata, dict):
+            textos_ata = {}
+
+        if cabecalho == sugerido["cabecalho"] and corpo == sugerido["corpo"]:
+            textos_ata.pop(bimestre, None)
+        else:
+            textos_ata[bimestre] = {"cabecalho": cabecalho, "corpo": corpo}
+
+        self.turma.textos_ata = textos_ata
+        self._salvar_turma()
 
     def _garantir_turma_selecionada(self):
         if self.turma is not None:
@@ -842,31 +910,39 @@ class CoordenacaoApp(tk.Tk):
         dialog.title(f"Conselho - {bimestre}º bimestre - {self.turma.codigo}")
         dialog.transient(self)
         dialog.grab_set()
-        dialog.geometry("1020x640")
+        dialog.geometry("1200x720")
 
         if not self.data_conselho_var.get().strip():
             self.data_conselho_var.set(date.today().strftime("%d/%m/%Y"))
 
         root = ttk.Frame(dialog, padding=12)
         root.grid(sticky="nsew")
+        root.columnconfigure(0, weight=1)
         root.columnconfigure(1, weight=1)
+        root.columnconfigure(2, weight=1)
         root.rowconfigure(2, weight=1)
-        root.rowconfigure(3, weight=0)
+        root.rowconfigure(3, weight=1)
 
         aluno_pos_var = tk.StringVar()
         aluno_nome_var = tk.StringVar()
         aluno_numero_var = tk.StringVar()
-        aluno_foto_var = tk.StringVar(value="Foto do aluno: (pendente implementacao)")
 
-        ttk.Label(root, textvariable=aluno_pos_var).grid(row=0, column=0, columnspan=2, sticky="w")
-        ttk.Label(root, textvariable=aluno_nome_var).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
-        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=1, sticky="e", pady=(6, 0))
-        ttk.Label(root, text="Data do conselho (DD/MM/AAAA)").grid(row=0, column=1, sticky="e")
-        ttk.Entry(root, textvariable=self.data_conselho_var, width=14).grid(row=0, column=1, sticky="e", padx=(0, 180))
-        ttk.Label(root, textvariable=aluno_foto_var).grid(row=2, column=0, sticky="nw", pady=(8, 0))
+        topo_esquerda = ttk.Frame(root)
+        topo_esquerda.grid(row=0, column=0, sticky="w")
+        ttk.Label(topo_esquerda, textvariable=aluno_pos_var).grid(row=0, column=0, sticky="w")
+
+        topo_direita = ttk.Frame(root)
+        topo_direita.grid(row=0, column=1, sticky="e")
+        ttk.Label(topo_direita, text="Data do conselho (DD/MM/AAAA)").grid(row=0, column=0, sticky="e")
+        ttk.Entry(topo_direita, textvariable=self.data_conselho_var, width=14).grid(
+            row=0, column=1, sticky="e", padx=(8, 0)
+        )
+
+        ttk.Label(root, textvariable=aluno_nome_var).grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=2, sticky="e", pady=(6, 0))
 
         notas_box = ttk.LabelFrame(root, text="Disciplinas e notas", padding=8)
-        notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 0))
+        notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 10))
         notas_box.columnconfigure(0, weight=1)
         notas_box.rowconfigure(0, weight=1)
         tree_notas = ttk.Treeview(
@@ -878,7 +954,7 @@ class CoordenacaoApp(tk.Tk):
         tree_notas.heading("disciplina", text="Disciplina")
         tree_notas.heading("media", text="Media")
         tree_notas.heading("situacao", text="Situacao")
-        tree_notas.column("disciplina", width=280, anchor="w")
+        tree_notas.column("disciplina", width=240, anchor="w")
         tree_notas.column("media", width=80, anchor="center")
         tree_notas.column("situacao", width=120, anchor="center")
         tree_notas.tag_configure("abaixo", foreground="#b00020")
@@ -900,7 +976,7 @@ class CoordenacaoApp(tk.Tk):
         tree_freq.heading("faltas", text="Faltas")
         tree_freq.heading("aulas", text="Aulas")
         tree_freq.heading("percentual", text="% Faltas")
-        tree_freq.column("disciplina", width=280, anchor="w")
+        tree_freq.column("disciplina", width=240, anchor="w")
         tree_freq.column("faltas", width=80, anchor="center")
         tree_freq.column("aulas", width=80, anchor="center")
         tree_freq.column("percentual", width=100, anchor="center")
@@ -934,8 +1010,70 @@ class CoordenacaoApp(tk.Tk):
             row=5, column=0, columnspan=2, sticky="w", pady=(8, 0)
         )
 
+        ata_box = ttk.LabelFrame(root, text="Texto da ata", padding=8)
+        ata_box.grid(row=2, column=2, rowspan=2, sticky="nsew", pady=(8, 0))
+        ata_box.columnconfigure(0, weight=1)
+        ata_box.rowconfigure(1, weight=0)
+        ata_box.rowconfigure(3, weight=1)
+
+        ttk.Label(
+            ata_box,
+            text="Cabeçalho dinâmico da abertura",
+        ).grid(row=0, column=0, sticky="w")
+        texto_cabecalho_ata = tk.Text(ata_box, height=5, width=42, wrap="word")
+        texto_cabecalho_ata.grid(row=1, column=0, sticky="nsew", pady=(4, 8))
+
+        ttk.Label(
+            ata_box,
+            text="Texto-base do conselho",
+        ).grid(row=2, column=0, sticky="w")
+        texto_corpo_ata = tk.Text(ata_box, height=12, width=42, wrap="word")
+        texto_corpo_ata.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
+
+        botoes_ata = ttk.Frame(ata_box)
+        botoes_ata.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+
+        def preencher_texto_ata_sugerido():
+            data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
+            texto = self._texto_ata_para_edicao(bimestre, data_conselho=data_conselho)
+            texto_cabecalho_ata.delete("1.0", "end")
+            texto_cabecalho_ata.insert("1.0", texto["cabecalho"])
+            texto_corpo_ata.delete("1.0", "end")
+            texto_corpo_ata.insert("1.0", texto["corpo"])
+
+        def salvar_texto_ata_atual(mostrar_feedback=False):
+            data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
+            cabecalho = texto_cabecalho_ata.get("1.0", "end").strip()
+            corpo = texto_corpo_ata.get("1.0", "end").strip()
+            self._salvar_texto_ata_bimestre(
+                bimestre,
+                cabecalho,
+                corpo,
+                data_conselho=data_conselho,
+            )
+            if mostrar_feedback:
+                messagebox.showinfo("Ata", "Texto da ata salvo para este conselho.")
+
+        ttk.Button(
+            botoes_ata,
+            text="Usar texto sugerido",
+            command=preencher_texto_ata_sugerido,
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Button(
+            botoes_ata,
+            text="Salvar texto da ata",
+            command=lambda: salvar_texto_ata_atual(mostrar_feedback=True),
+        ).grid(row=0, column=1, sticky="w", padx=(8, 0))
+
+        def fechar_conselho():
+            salvar_encaminhamentos_atual()
+            salvar_texto_ata_atual()
+            dialog.destroy()
+
+        dialog.protocol("WM_DELETE_WINDOW", fechar_conselho)
+
         controle = ttk.Frame(root)
-        controle.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        controle.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         controle.columnconfigure((0, 1, 2, 3, 4), weight=1)
         nota_minima = Configuracao.obter_nota_minima()
 
@@ -1003,6 +1141,7 @@ class CoordenacaoApp(tk.Tk):
 
         def proximo(delta):
             salvar_encaminhamentos_atual()
+            salvar_texto_ata_atual()
             novo = estado["idx"] + delta
             if novo < 0 or novo >= len(alunos):
                 return
@@ -1011,15 +1150,18 @@ class CoordenacaoApp(tk.Tk):
 
         def concluir():
             salvar_encaminhamentos_atual()
+            salvar_texto_ata_atual()
             messagebox.showinfo("Conselho", "Encaminhamentos salvos para este bimestre.")
             dialog.destroy()
 
         def gerar_ata_deste_conselho():
             salvar_encaminhamentos_atual()
+            salvar_texto_ata_atual()
             self._gerar_ata_bimestre(bimestre)
 
         def gerar_relatorio_deste_conselho():
             salvar_encaminhamentos_atual()
+            salvar_texto_ata_atual()
             self._gerar_relatorio_bimestre(bimestre)
 
         ttk.Button(controle, text="Aluno anterior", command=lambda: proximo(-1)).grid(
@@ -1043,9 +1185,10 @@ class CoordenacaoApp(tk.Tk):
         ).grid(row=0, column=3, sticky="ew", padx=(6, 0))
 
         carregar_aluno()
+        preencher_texto_ata_sugerido()
         dialog.bind("<Left>", lambda _e: proximo(-1))
         dialog.bind("<Right>", lambda _e: proximo(1))
-        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1120, altura_min=760, redimensionavel=True)
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1180, altura_min=720, redimensionavel=True)
         return dialog
 
     def _abrir_dialogo_criar_turma(self):
@@ -1827,6 +1970,7 @@ class CoordenacaoApp(tk.Tk):
             return
 
         try:
+            texto_ata = self._texto_ata_para_edicao(bimestre, data_conselho=data_conselho)
             caminho = GeradorAta.gerar(
                 self.turma,
                 bimestre,
@@ -1834,6 +1978,8 @@ class CoordenacaoApp(tk.Tk):
                 confirmar_continuacao=self._confirmar_continuacao_ata,
                 log=self._log,
                 caminho_saida=caminho_destino,
+                intro_cabecalho=texto_ata["cabecalho"],
+                intro_corpo=texto_ata["corpo"],
             )
             if caminho:
                 messagebox.showinfo("Ata", f"Ata gerada em:\n{caminho}")

@@ -105,6 +105,69 @@ def data_por_extenso(data: date):
 # GERADOR
 # ======================================================
 class GeradorAta:
+    @staticmethod
+    def rotulo_turma(turma):
+        serie = str(getattr(turma, "serie", "") or "").strip()
+        codigo = str(getattr(turma, "codigo", "") or "").strip()
+        ciclo = str(getattr(turma, "ciclo", "") or "").strip()
+
+        if ciclo == "EM" and serie:
+            letra = codigo[-1].upper() if codigo and codigo[-1].isalpha() else ""
+            if letra:
+                return f"{serie} {letra}".strip()
+
+        if serie and codigo:
+            if codigo.startswith(serie):
+                return codigo
+            return f"{serie} {codigo}".strip()
+
+        return codigo or serie
+
+    @staticmethod
+    def montar_intro_cabecalho(turma, data_conselho):
+        direcao_nome, direcao_pronome = Configuracao.obter_direcao()
+        artigo = "da" if direcao_pronome == "F" else "do"
+        titulo_direcao = "Diretora Sra." if direcao_pronome == "F" else "Diretor Sr."
+        turma_rotulo = GeradorAta.rotulo_turma(turma)
+        return (
+            f"Aos {data_por_extenso(data_conselho)}, reuniram-se presencialmente a presidência {artigo} "
+            f"{titulo_direcao} {direcao_nome}, equipe gestora, professores, estudantes e responsáveis da turma do "
+            f"{turma_rotulo} para procederem ao CONSELHO DE CLASSE."
+        ).strip()
+
+    @staticmethod
+    def montar_intro_corpo(turma):
+        total = len(turma.alunos)
+        frequentes = sum(1 for a in turma.alunos.values() if a.ativo)
+        return (
+            "Na abertura a diretora pautou que no conselho de classe devem ser colocadas situações que mereçam "
+            "um estudo de caso e registro de alternativas para intervenções pedagógicas que tenham como meta "
+            "o desenvolvimento do processo ensino/aprendizagem dos alunos. Foram tratados também os seguintes assuntos: "
+            "(1) levantamento de estudantes que não realizaram nenhuma das atividades e projetos; "
+            "(2) levantamento de estudantes que necessitam de compensação de ausência; "
+            "(3) estudantes com defasagem de habilidades e conteúdos para a respectiva série que necessitam de acompanhamento pedagógico; "
+            "(4) levantamento de estudantes que necessitam de recuperação e aprofundamento. "
+            f"Para efeito de registro documental, verificou-se que a turma é composta por {total} estudantes matriculados, "
+            f"sendo {frequentes} alunos frequentes, e destes estudantes frequentes não alcançaram a menção mínima nas disciplinas:"
+        )
+
+    @staticmethod
+    def montar_intro_padrao(turma, data_conselho):
+        return (
+            GeradorAta.montar_intro_cabecalho(turma, data_conselho),
+            GeradorAta.montar_intro_corpo(turma),
+        )
+
+    @staticmethod
+    def montar_titulo(turma, bimestre):
+        turma_rotulo = GeradorAta.rotulo_turma(turma)
+        sala = str(getattr(turma, "sala", "") or "").strip()
+        partes = [f"CONSELHO DE CLASSE - {bimestre}º BIM/{turma.ano}"]
+        if turma_rotulo:
+            partes.append(turma_rotulo)
+        if sala:
+            partes.append(f"SALA {sala}")
+        return " - ".join(partes)
 
     @staticmethod
     def gerar(
@@ -113,7 +176,9 @@ class GeradorAta:
         data_conselho=None,
         confirmar_continuacao=None,
         log=None,
-        caminho_saida=None
+        caminho_saida=None,
+        intro_cabecalho=None,
+        intro_corpo=None,
     ):
         bimestre = garantir_bimestre_operacional(bimestre)
         if log is None:
@@ -160,7 +225,7 @@ class GeradorAta:
         titulo = doc.add_paragraph()
         titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        r = titulo.add_run(f"CONSELHO DE CLASSE - {bimestre}º BIM/{turma.ano}")
+        r = titulo.add_run(GeradorAta.montar_titulo(turma, bimestre))
         r.bold = True
         r.font.size = Pt(14)
         r.font.color.rgb = RGBColor(128, 0, 128)
@@ -172,30 +237,15 @@ class GeradorAta:
             entrada = input("Informe a data do Conselho (DD/MM/AAAA) ou Enter para hoje: ").strip()
             data_conselho = datetime.strptime(entrada, "%d/%m/%Y").date() if entrada else date.today()
 
-        total = len(turma.alunos)
-        frequentes = sum(1 for a in turma.alunos.values() if a.ativo)
-        direcao_nome, direcao_pronome = Configuracao.obter_direcao()
-        artigo = "da" if direcao_pronome == "F" else "do"
-        titulo_direcao = "Diretora Sra." if direcao_pronome == "F" else "Diretor Sr."
-        ciclo = getattr(turma,"ciclo","")
+        intro_padrao_cabecalho, intro_padrao_corpo = GeradorAta.montar_intro_padrao(turma, data_conselho)
+        intro_cabecalho = (intro_cabecalho or intro_padrao_cabecalho).strip()
+        intro_corpo = (intro_corpo or intro_padrao_corpo).strip()
 
         intro = doc.add_paragraph(style="TextoAta")
         intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-        intro.add_run(
-            f"Aos {data_por_extenso(data_conselho)}, reuniram-se presencialmente a presidência {artigo} "
-            f"{titulo_direcao} {direcao_nome}, equipe gestora, professores, estudantes e responsáveis da turma do "
-            f"{turma.serie or ''} {turma.codigo} {ciclo} para procederem ao CONSELHO DE CLASSE. "
-            f"Na abertura a diretora pautou que no conselho de classe devem ser colocadas situações que mereçam "
-            f"um estudo de caso e registro de alternativas para intervenções pedagógicas que tenham como meta "
-            f"o desenvolvimento do processo ensino/aprendizagem dos alunos. Foram tratados também os seguintes assuntos: "
-            f"(1) levantamento de estudantes que não realizaram nenhuma das atividades e projetos; "
-            f"(2) levantamento de estudantes que necessitam de compensação de ausência; "
-            f"(3) estudantes com defasagem de habilidades e conteúdos para a respectiva série que necessitam de acompanhamento pedagógico; "
-            f"(4) levantamento de estudantes que necessitam de recuperação e aprofundamento. "
-            f"Para efeito de registro documental, verificou-se que a turma é composta por {total} estudantes matriculados, "
-            f"sendo {frequentes} alunos frequentes, e destes estudantes frequentes não alcançaram a menção mínima nas disciplinas:"
-        )
+        texto_intro = f"{intro_cabecalho} {intro_corpo}".strip()
+        intro.add_run(texto_intro)
 
         # ======================================================
         # TABELA
