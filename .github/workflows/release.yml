@@ -168,10 +168,10 @@ jobs:
       - name: Prepare release notes
         run: |
           if [ "${{ needs.build-windows.outputs.signing-enabled }}" != "true" ]; then
-            cat <<'EOF' > artifacts/RELEASE_NOTES.txt
-            Aviso: o binario Windows (CoordenacaoOP.exe) pode estar sem assinatura digital Authenticode.
-            Dependendo das configuracoes do Windows/SmartScreen, pode aparecer alerta de aplicativo nao reconhecido.
-            EOF
+            printf '%s\n' \
+              'Aviso: o binario Windows (CoordenacaoOP.exe) pode estar sem assinatura digital Authenticode.' \
+              'Dependendo das configuracoes do Windows/SmartScreen, pode aparecer alerta de aplicativo nao reconhecido.' \
+              > artifacts/RELEASE_NOTES.txt
           else
             : > artifacts/RELEASE_NOTES.txt
           fi
