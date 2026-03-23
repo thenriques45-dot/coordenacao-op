@@ -1,5 +1,8 @@
 Changelog v1.2.x
 
+v1.2.1 - Ajuste fino na largura do editor da ata
+- Tela de conselho recebeu mais 20px aproximados na largura do texto da ata para melhorar o conforto de leitura sem voltar a exagerar na largura total da janela
+
 v1.2.0 - Ata personalizavel no conselho e refinamentos de usabilidade
 - Tela de conselho passou a permitir editar o texto da ata por bimestre:
   - cabeçalho inicial sugerido dinamicamente com data, direção e abertura do conselho

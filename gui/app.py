@@ -1020,14 +1020,14 @@ class CoordenacaoApp(tk.Tk):
             ata_box,
             text="Cabeçalho dinâmico da abertura",
         ).grid(row=0, column=0, sticky="w")
-        texto_cabecalho_ata = tk.Text(ata_box, height=5, width=42, wrap="word")
+        texto_cabecalho_ata = tk.Text(ata_box, height=5, width=44, wrap="word")
         texto_cabecalho_ata.grid(row=1, column=0, sticky="nsew", pady=(4, 8))
 
         ttk.Label(
             ata_box,
             text="Texto-base do conselho",
         ).grid(row=2, column=0, sticky="w")
-        texto_corpo_ata = tk.Text(ata_box, height=12, width=42, wrap="word")
+        texto_corpo_ata = tk.Text(ata_box, height=12, width=44, wrap="word")
         texto_corpo_ata.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
 
         botoes_ata = ttk.Frame(ata_box)
