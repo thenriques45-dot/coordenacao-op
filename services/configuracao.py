@@ -6,6 +6,7 @@ from services.runtime_paths import config_dir
 class Configuracao:
     CAMINHO_PADRAO = config_dir("configuracoes.json")
     CAMINHO_LEGADO = config_dir("criterios.json")
+    DIRECAO_PADRAO = "________________________________"
 
     # ===================== LEITURA =====================
 
@@ -48,7 +49,7 @@ class Configuracao:
     @staticmethod
     def obter_direcao():
         dados = Configuracao._carregar()
-        nome = dados.get("direcao_nome", "________________________________")
+        nome = dados.get("direcao_nome", Configuracao.DIRECAO_PADRAO)
         pronome = dados.get("direcao_pronome", "F")  # F = ela/dela, M = ele/dele
         return nome, pronome
 
@@ -58,3 +59,9 @@ class Configuracao:
         dados["direcao_nome"] = nome.strip().upper()
         dados["direcao_pronome"] = pronome.strip().upper()
         Configuracao._salvar(dados)
+
+    @staticmethod
+    def configuracao_inicial_pendente():
+        dados = Configuracao._carregar()
+        direcao_nome = str(dados.get("direcao_nome", Configuracao.DIRECAO_PADRAO)).strip()
+        return "nota_minima" not in dados or not direcao_nome or direcao_nome == Configuracao.DIRECAO_PADRAO
