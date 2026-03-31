@@ -1,5 +1,21 @@
 Changelog v1.3.x
 
+v1.3.1 - Backup transportavel entre computadores e textos mais claros na interface
+- Novo fluxo para transporte de dados entre computadores:
+  - exportacao de dados para um unico arquivo `.zip`
+  - adicao de dados de outro backup sem apagar os dados locais
+  - substituicao completa dos dados locais por um backup escolhido
+  - backup de seguranca automatico antes da substituicao completa
+- Regras de importacao mais seguras:
+  - arquivos ja existentes localmente sao mantidos
+  - conflitos sao ignorados e informados ao usuario
+- Textos do menu foram ajustados para ficar mais claros para uso leigo:
+  - `Exportar dados...`
+  - `Adicionar dados de backup...`
+  - `Substituir dados pelo backup...`
+- Rotina de substituicao de dados no Windows ficou mais robusta contra arquivos travados
+- Novos testes cobrindo exportacao, restauracao e mesclagem de backups
+
 v1.3.0 - Ajustes de medias no conselho e documentacao final mais objetiva
 - Tela de conselho passou a permitir ajuste de media por disciplina:
   - exibicao da media original e da media ajustada no conselho

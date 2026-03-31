@@ -9,6 +9,7 @@ from gui.session import TurmaSession, TurmaWindowRegistry
 from services.encaminhamentos import ENCAMINHAMENTOS
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
+from services.backup import BackupDados
 from services.configuracao import Configuracao
 from services.gerador_ata import GeradorAta
 from services.gerador_relatorio_professores import GeradorRelatorioProfessores
@@ -124,6 +125,10 @@ class CoordenacaoApp(tk.Tk):
         )
         menu_arquivo.add_command(label="Excluir turma selecionada...", command=self._excluir_turma_selecionada)
         menu_arquivo.add_command(label="Gerenciar alunos...", command=self._abrir_dialogo_gerenciar_alunos)
+        menu_arquivo.add_separator()
+        menu_arquivo.add_command(label="Exportar dados...", command=self._exportar_backup)
+        menu_arquivo.add_command(label="Adicionar dados de backup...", command=self._importar_backup)
+        menu_arquivo.add_command(label="Substituir dados pelo backup...", command=self._restaurar_backup)
         menu_arquivo.add_separator()
         menu_arquivo.add_command(
             label=f"Sair ({self.platform_ui.quit_shortcut_label})",
@@ -468,6 +473,97 @@ class CoordenacaoApp(tk.Tk):
             self._atualizar_status_turma()
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao abrir turma:\n{exc}")
+
+    def _resetar_estado_local(self):
+        self.turma = None
+        self.turma_caminho = None
+        self.turma_session = None
+        self._carregar_configuracoes()
+        self._carregar_catalogo_turmas()
+        self._atualizar_status_turma()
+
+    def _exportar_backup(self):
+        caminho = filedialog.asksaveasfilename(
+            title="Exportar backup",
+            initialdir=BackupDados.pasta_padrao_backup(),
+            initialfile=BackupDados.nome_padrao_backup(),
+            defaultextension=".zip",
+            filetypes=[("Backup ZIP", "*.zip"), ("Todos", "*.*")],
+        )
+        if not caminho:
+            return
+
+        try:
+            info = BackupDados.exportar_backup(caminho)
+            messagebox.showinfo(
+                "Backup",
+                f"Backup exportado com sucesso.\n\nArquivo:\n{info['caminho']}\n\nItens copiados: {info['arquivos']}",
+            )
+        except Exception as exc:
+            messagebox.showerror("Erro", f"Falha ao exportar backup:\n{exc}")
+
+    def _restaurar_backup(self):
+        caminho = filedialog.askopenfilename(
+            title="Selecionar backup",
+            initialdir=BackupDados.pasta_padrao_backup(),
+            filetypes=[("Backup ZIP", "*.zip"), ("Todos", "*.*")],
+        )
+        if not caminho:
+            return
+
+        confirma = messagebox.askyesno(
+            "Substituir dados pelo backup",
+            "Esta opcao vai substituir os dados locais atuais por aqueles contidos no backup.\n\n"
+            "Antes disso, o aplicativo criara automaticamente um backup de seguranca do estado atual.\n\n"
+            "Deseja continuar?",
+        )
+        if not confirma:
+            return
+
+        try:
+            info = BackupDados.restaurar_backup(caminho, criar_backup_seguranca=True)
+            self._resetar_estado_local()
+            mensagem = f"Backup restaurado com sucesso.\n\nItens restaurados: {info['arquivos_restaurados']}"
+            if info.get("backup_seguranca"):
+                mensagem += f"\n\nBackup de seguranca salvo em:\n{info['backup_seguranca']}"
+            messagebox.showinfo("Substituir dados pelo backup", mensagem)
+        except Exception as exc:
+            messagebox.showerror("Erro", f"Falha ao substituir os dados locais:\n{exc}")
+
+    def _importar_backup(self):
+        caminho = filedialog.askopenfilename(
+            title="Selecionar backup para importacao",
+            initialdir=BackupDados.pasta_padrao_backup(),
+            filetypes=[("Backup ZIP", "*.zip"), ("Todos", "*.*")],
+        )
+        if not caminho:
+            return
+
+        confirma = messagebox.askyesno(
+            "Adicionar dados de backup",
+            "Esta opcao vai adicionar ao aplicativo os dados que ainda nao existirem nesta maquina.\n\n"
+            "Se houver turma ou arquivo com o mesmo nome, o dado local sera mantido e o item do backup sera ignorado.\n\n"
+            "Deseja continuar?",
+        )
+        if not confirma:
+            return
+
+        try:
+            info = BackupDados.importar_backup_mesclando(caminho)
+            self._resetar_estado_local()
+            mensagem = (
+                f"Importacao concluida.\n\n"
+                f"Itens importados: {info['arquivos_importados']}\n"
+                f"Conflitos ignorados: {len(info['conflitos'])}"
+            )
+            if info["conflitos"]:
+                exemplos = "\n".join(info["conflitos"][:5])
+                mensagem += f"\n\nExemplos de conflitos mantidos localmente:\n{exemplos}"
+                if len(info["conflitos"]) > 5:
+                    mensagem += "\n..."
+            messagebox.showinfo("Adicionar dados de backup", mensagem)
+        except Exception as exc:
+            messagebox.showerror("Erro", f"Falha ao adicionar os dados do backup:\n{exc}")
 
     def _atualizar_status_turma(self):
         if self.turma is None:
