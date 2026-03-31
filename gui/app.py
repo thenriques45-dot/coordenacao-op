@@ -246,7 +246,7 @@ class CoordenacaoApp(tk.Tk):
         self.tree_turmas.column("codigo", width=120, anchor="center")
         self.tree_turmas.column("arquivo", width=520, anchor="w")
         self.tree_turmas.grid(row=0, column=0, sticky="nsew")
-        self.tree_turmas.bind("<Double-1>", self._abrir_turma_da_lista)
+        self.tree_turmas.bind("<Double-1>", self._abrir_gestao_da_turma_da_lista)
 
         scroll = ttk.Scrollbar(tree_wrap, orient="vertical", command=self.tree_turmas.yview)
         scroll.grid(row=0, column=1, sticky="ns")
@@ -449,6 +449,16 @@ class CoordenacaoApp(tk.Tk):
         if not valores:
             return
         self._abrir_turma_por_caminho(valores[2])
+
+    def _abrir_gestao_da_turma_da_lista(self, _event=None):
+        selecionado = self.tree_turmas.focus()
+        if not selecionado:
+            return
+        valores = self.tree_turmas.item(selecionado, "values")
+        if not valores:
+            return
+        self._abrir_turma_por_caminho(valores[2])
+        self._abrir_dialogo_gerir_turma()
 
     def _abrir_turma_por_caminho(self, caminho):
         try:
@@ -919,7 +929,6 @@ class CoordenacaoApp(tk.Tk):
         root.grid(sticky="nsew")
         root.columnconfigure(0, weight=1)
         root.columnconfigure(1, weight=1)
-        root.columnconfigure(2, weight=1)
         root.rowconfigure(2, weight=1)
         root.rowconfigure(3, weight=1)
 
@@ -931,36 +940,40 @@ class CoordenacaoApp(tk.Tk):
         topo_esquerda.grid(row=0, column=0, sticky="w")
         ttk.Label(topo_esquerda, textvariable=aluno_pos_var).grid(row=0, column=0, sticky="w")
 
-        topo_direita = ttk.Frame(root)
-        topo_direita.grid(row=0, column=1, sticky="e")
-        ttk.Label(topo_direita, text="Data do conselho (DD/MM/AAAA)").grid(row=0, column=0, sticky="e")
-        ttk.Entry(topo_direita, textvariable=self.data_conselho_var, width=14).grid(
-            row=0, column=1, sticky="e", padx=(8, 0)
-        )
-
         ttk.Label(root, textvariable=aluno_nome_var).grid(row=1, column=0, sticky="w", pady=(6, 0))
-        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=2, sticky="e", pady=(6, 0))
+        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=1, sticky="e", pady=(6, 0))
 
         notas_box = ttk.LabelFrame(root, text="Disciplinas e notas", padding=8)
-        notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 10))
+        notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 0))
         notas_box.columnconfigure(0, weight=1)
         notas_box.rowconfigure(0, weight=1)
         tree_notas = ttk.Treeview(
             notas_box,
-            columns=("disciplina", "media", "situacao"),
+            columns=("disciplina", "media_original", "media_ajustada", "situacao"),
             show="headings",
             height=8,
         )
         tree_notas.heading("disciplina", text="Disciplina")
-        tree_notas.heading("media", text="Media")
+        tree_notas.heading("media_original", text="Media original")
+        tree_notas.heading("media_ajustada", text="Media conselho")
         tree_notas.heading("situacao", text="Situacao")
-        tree_notas.column("disciplina", width=240, anchor="w")
-        tree_notas.column("media", width=80, anchor="center")
-        tree_notas.column("situacao", width=120, anchor="center")
+        tree_notas.column("disciplina", width=210, anchor="w")
+        tree_notas.column("media_original", width=90, anchor="center")
+        tree_notas.column("media_ajustada", width=90, anchor="center")
+        tree_notas.column("situacao", width=130, anchor="center")
         tree_notas.tag_configure("abaixo", foreground="#b00020")
         tree_notas.tag_configure("limite", foreground="#b36b00")
         tree_notas.tag_configure("adequada", foreground="#127a2a")
+        tree_notas.tag_configure("ajustada", foreground="#0b5cab")
         tree_notas.grid(row=0, column=0, sticky="nsew")
+        ttk.Label(
+            notas_box,
+            text="Ajustes feitos aqui nao alteram a Sala do Futuro automaticamente.",
+            foreground="#7a3d00",
+        ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+
+        botoes_notas = ttk.Frame(notas_box)
+        botoes_notas.grid(row=2, column=0, sticky="ew", pady=(8, 0))
 
         freq_box = ttk.LabelFrame(root, text="Frequencia por disciplina", padding=8)
         freq_box.grid(row=3, column=0, columnspan=1, sticky="new", pady=(10, 0))
@@ -1010,72 +1023,29 @@ class CoordenacaoApp(tk.Tk):
             row=5, column=0, columnspan=2, sticky="w", pady=(8, 0)
         )
 
-        ata_box = ttk.LabelFrame(root, text="Texto da ata", padding=8)
-        ata_box.grid(row=2, column=2, rowspan=2, sticky="nsew", pady=(8, 0))
-        ata_box.columnconfigure(0, weight=1)
-        ata_box.rowconfigure(1, weight=0)
-        ata_box.rowconfigure(3, weight=1)
-
-        ttk.Label(
-            ata_box,
-            text="Cabeçalho dinâmico da abertura",
-        ).grid(row=0, column=0, sticky="w")
-        texto_cabecalho_ata = tk.Text(ata_box, height=5, width=44, wrap="word")
-        texto_cabecalho_ata.grid(row=1, column=0, sticky="nsew", pady=(4, 8))
-
-        ttk.Label(
-            ata_box,
-            text="Texto-base do conselho",
-        ).grid(row=2, column=0, sticky="w")
-        texto_corpo_ata = tk.Text(ata_box, height=12, width=44, wrap="word")
-        texto_corpo_ata.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
-
-        botoes_ata = ttk.Frame(ata_box)
-        botoes_ata.grid(row=4, column=0, sticky="ew", pady=(8, 0))
-
-        def preencher_texto_ata_sugerido():
-            data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
-            texto = self._texto_ata_para_edicao(bimestre, data_conselho=data_conselho)
-            texto_cabecalho_ata.delete("1.0", "end")
-            texto_cabecalho_ata.insert("1.0", texto["cabecalho"])
-            texto_corpo_ata.delete("1.0", "end")
-            texto_corpo_ata.insert("1.0", texto["corpo"])
-
-        def salvar_texto_ata_atual(mostrar_feedback=False):
-            data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
-            cabecalho = texto_cabecalho_ata.get("1.0", "end").strip()
-            corpo = texto_corpo_ata.get("1.0", "end").strip()
-            self._salvar_texto_ata_bimestre(
-                bimestre,
-                cabecalho,
-                corpo,
-                data_conselho=data_conselho,
-            )
-            if mostrar_feedback:
-                messagebox.showinfo("Ata", "Texto da ata salvo para este conselho.")
-
-        ttk.Button(
-            botoes_ata,
-            text="Usar texto sugerido",
-            command=preencher_texto_ata_sugerido,
-        ).grid(row=0, column=0, sticky="w")
-        ttk.Button(
-            botoes_ata,
-            text="Salvar texto da ata",
-            command=lambda: salvar_texto_ata_atual(mostrar_feedback=True),
-        ).grid(row=0, column=1, sticky="w", padx=(8, 0))
-
-        def fechar_conselho():
-            salvar_encaminhamentos_atual()
-            salvar_texto_ata_atual()
-            dialog.destroy()
-
-        dialog.protocol("WM_DELETE_WINDOW", fechar_conselho)
-
         controle = ttk.Frame(root)
         controle.grid(row=5, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        controle.columnconfigure((0, 1, 2, 3, 4), weight=1)
+        controle.columnconfigure((0, 1, 2), weight=1)
         nota_minima = Configuracao.obter_nota_minima()
+        estado["salvando_texto_ata"] = False
+        estado["agendamento_texto_ata"] = None
+
+        def _ajustes_media(aluno):
+            return getattr(aluno, "ajustes_medias_conselho", {}).get(bimestre, {})
+
+        def _media_vigente(aluno, disciplina, media_original):
+            ajuste = _ajustes_media(aluno).get(disciplina, {})
+            media_ajustada = ajuste.get("media_ajustada")
+            if media_ajustada is None:
+                return media_original
+            return media_ajustada
+
+        def _classificar_media(media):
+            if media < nota_minima:
+                return "ABAIXO MINIMA", "abaixo"
+            if media == nota_minima:
+                return "NO LIMITE", "limite"
+            return "ADEQUADA", "adequada"
 
         def salvar_encaminhamentos_atual():
             aluno = alunos[estado["idx"]]
@@ -1088,6 +1058,337 @@ class CoordenacaoApp(tk.Tk):
                 if bimestre in aluno.encaminhamentos_conselho:
                     aluno.encaminhamentos_conselho.pop(bimestre, None)
             self._salvar_turma()
+
+        def salvar_ajuste_media_atual(disciplina, media_original, media_ajustada, observacao):
+            aluno = alunos[estado["idx"]]
+            aluno.ajustes_medias_conselho.setdefault(bimestre, {})
+            ajustes_bim = aluno.ajustes_medias_conselho[bimestre]
+
+            if media_ajustada is None:
+                ajustes_bim.pop(disciplina, None)
+                if not ajustes_bim:
+                    aluno.ajustes_medias_conselho.pop(bimestre, None)
+            else:
+                ajustes_bim[disciplina] = {
+                    "media_original": media_original,
+                    "media_ajustada": media_ajustada,
+                    "observacao": observacao.strip(),
+                }
+
+            self._salvar_turma()
+
+        def salvar_texto_ata_atual(cabecalho, corpo):
+            data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
+            self._salvar_texto_ata_bimestre(
+                bimestre,
+                cabecalho,
+                corpo,
+                data_conselho=data_conselho,
+            )
+
+        def escolher_caminho_ata():
+            return filedialog.asksaveasfilename(
+                title="Salvar ata do conselho",
+                initialdir=data_dir("atas"),
+                initialfile=f"ata_{self.turma.codigo}_bimestre_{bimestre}.docx",
+                defaultextension=".docx",
+                filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+            )
+
+        def escolher_caminho_relatorio():
+            return filedialog.asksaveasfilename(
+                title="Salvar relatorio para professores",
+                initialdir=data_dir("relatorios"),
+                initialfile=f"relatorio_professores_{self.turma.codigo}_bim_{bimestre}.docx",
+                defaultextension=".docx",
+                filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+            )
+
+        def abrir_finalizacao():
+            salvar_encaminhamentos_atual()
+
+            final = tk.Toplevel(dialog)
+            final.title("Finalizar conselho")
+            final.transient(dialog)
+            final.grab_set()
+            final.geometry("860x620")
+
+            frame = ttk.Frame(final, padding=12)
+            frame.grid(sticky="nsew")
+            frame.columnconfigure(0, weight=1)
+            frame.rowconfigure(4, weight=1)
+            frame.rowconfigure(6, weight=1)
+
+            gerar_ata_var = tk.BooleanVar(value=False)
+            gerar_relatorio_var = tk.BooleanVar(value=False)
+            caminho_ata_var = tk.StringVar()
+            caminho_relatorio_var = tk.StringVar()
+
+            ttk.Label(frame, text="Data do conselho (DD/MM/AAAA)").grid(row=0, column=0, sticky="w")
+            ttk.Entry(frame, textvariable=self.data_conselho_var, width=16).grid(row=1, column=0, sticky="w", pady=(4, 0))
+
+            def texto_atual():
+                return self._texto_ata_para_edicao(
+                    bimestre,
+                    data_conselho=self._obter_data_conselho_atual(silencioso=True) or date.today(),
+                )
+
+            cabecalho_inicial = texto_atual()
+            texto_cabecalho_ata = tk.Text(frame, height=6, wrap="word")
+            texto_corpo_ata = tk.Text(frame, height=12, wrap="word")
+
+            ttk.Label(frame, text="Cabeçalho dinâmico da abertura").grid(row=2, column=0, sticky="w", pady=(10, 0))
+            texto_cabecalho_ata.grid(row=3, column=0, sticky="nsew", pady=(4, 0))
+            texto_cabecalho_ata.insert("1.0", cabecalho_inicial["cabecalho"])
+
+            topo_texto = ttk.Frame(frame)
+            topo_texto.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+            topo_texto.columnconfigure(0, weight=1)
+            ttk.Label(topo_texto, text="Texto-base do conselho").grid(row=0, column=0, sticky="w")
+            ttk.Button(
+                topo_texto,
+                text="Restaurar texto padrao",
+                command=lambda: restaurar_texto_padrao(),
+            ).grid(row=0, column=1, sticky="e")
+
+            texto_corpo_ata.grid(row=5, column=0, sticky="nsew", pady=(4, 0))
+            texto_corpo_ata.insert("1.0", cabecalho_inicial["corpo"])
+
+            docs_box = ttk.LabelFrame(frame, text="Documentacao", padding=8)
+            docs_box.grid(row=6, column=0, sticky="nsew", pady=(12, 0))
+            docs_box.columnconfigure(1, weight=1)
+
+            def agendar_salvar_texto(_event=None):
+                if estado["salvando_texto_ata"]:
+                    return
+                if estado["agendamento_texto_ata"] is not None:
+                    final.after_cancel(estado["agendamento_texto_ata"])
+                estado["agendamento_texto_ata"] = final.after(400, salvar_texto_digitado)
+
+            def salvar_texto_digitado():
+                estado["agendamento_texto_ata"] = None
+                estado["salvando_texto_ata"] = True
+                try:
+                    salvar_texto_ata_atual(
+                        texto_cabecalho_ata.get("1.0", "end").strip(),
+                        texto_corpo_ata.get("1.0", "end").strip(),
+                    )
+                finally:
+                    estado["salvando_texto_ata"] = False
+
+            def restaurar_texto_padrao():
+                data_conselho = self._obter_data_conselho_atual(silencioso=True) or date.today()
+                texto = self._texto_ata_sugerido(bimestre, data_conselho=data_conselho)
+                texto_cabecalho_ata.delete("1.0", "end")
+                texto_cabecalho_ata.insert("1.0", texto["cabecalho"])
+                texto_corpo_ata.delete("1.0", "end")
+                texto_corpo_ata.insert("1.0", texto["corpo"])
+                salvar_texto_digitado()
+
+            def selecionar_ata():
+                if gerar_ata_var.get():
+                    caminho = escolher_caminho_ata()
+                    if caminho:
+                        caminho_ata_var.set(caminho)
+                    else:
+                        gerar_ata_var.set(False)
+                        caminho_ata_var.set("")
+                else:
+                    caminho_ata_var.set("")
+
+            def selecionar_relatorio():
+                if gerar_relatorio_var.get():
+                    caminho = escolher_caminho_relatorio()
+                    if caminho:
+                        caminho_relatorio_var.set(caminho)
+                    else:
+                        gerar_relatorio_var.set(False)
+                        caminho_relatorio_var.set("")
+                else:
+                    caminho_relatorio_var.set("")
+
+            ttk.Checkbutton(
+                docs_box,
+                text="Gerar ata deste conselho",
+                variable=gerar_ata_var,
+                command=selecionar_ata,
+            ).grid(row=0, column=0, sticky="w")
+            ttk.Label(docs_box, textvariable=caminho_ata_var).grid(row=0, column=1, sticky="w", padx=(8, 0))
+
+            ttk.Checkbutton(
+                docs_box,
+                text="Gerar relatorio de encaminhamento aos professores",
+                variable=gerar_relatorio_var,
+                command=selecionar_relatorio,
+            ).grid(row=1, column=0, sticky="w", pady=(8, 0))
+            ttk.Label(docs_box, textvariable=caminho_relatorio_var, wraplength=420).grid(
+                row=1, column=1, sticky="w", padx=(8, 0), pady=(8, 0)
+            )
+
+            texto_cabecalho_ata.bind("<KeyRelease>", agendar_salvar_texto)
+            texto_corpo_ata.bind("<KeyRelease>", agendar_salvar_texto)
+
+            botoes = ttk.Frame(frame)
+            botoes.grid(row=7, column=0, sticky="e", pady=(12, 0))
+
+            def retornar():
+                if estado["agendamento_texto_ata"] is not None:
+                    final.after_cancel(estado["agendamento_texto_ata"])
+                    estado["agendamento_texto_ata"] = None
+                salvar_texto_digitado()
+                final.destroy()
+
+            def finalizar():
+                if estado["agendamento_texto_ata"] is not None:
+                    final.after_cancel(estado["agendamento_texto_ata"])
+                    estado["agendamento_texto_ata"] = None
+
+                data_conselho = self._obter_data_conselho_atual(silencioso=True)
+                if data_conselho is None:
+                    messagebox.showwarning("Data", "Use o formato DD/MM/AAAA para a data do conselho.")
+                    return
+
+                salvar_encaminhamentos_atual()
+                salvar_texto_digitado()
+
+                if not gerar_ata_var.get() and not gerar_relatorio_var.get():
+                    continuar = messagebox.askyesno(
+                        "Finalizar sem documentos",
+                        (
+                            "Nenhuma documentacao foi marcada para geracao.\n\n"
+                            "Deseja finalizar o conselho mesmo assim?"
+                        ),
+                    )
+                    if not continuar:
+                        return
+
+                if gerar_ata_var.get() and not caminho_ata_var.get().strip():
+                    messagebox.showwarning("Ata", "Selecione o local para salvar a ata.")
+                    return
+                if gerar_relatorio_var.get() and not caminho_relatorio_var.get().strip():
+                    messagebox.showwarning("Relatorio", "Selecione o local para salvar o relatorio.")
+                    return
+
+                if gerar_ata_var.get():
+                    caminho = self._gerar_ata_bimestre_com_caminho(
+                        bimestre,
+                        caminho_destino=caminho_ata_var.get().strip(),
+                        data_conselho=data_conselho,
+                    )
+                    if not caminho:
+                        return
+
+                if gerar_relatorio_var.get():
+                    caminho = self._gerar_relatorio_bimestre_com_caminho(
+                        bimestre,
+                        caminho_destino=caminho_relatorio_var.get().strip(),
+                    )
+                    if not caminho:
+                        return
+
+                final.destroy()
+                dialog.destroy()
+                messagebox.showinfo("Conselho", "Conselho finalizado com sucesso.")
+
+            ttk.Button(botoes, text="Retornar ao conselho", command=retornar).grid(row=0, column=0, padx=(0, 8))
+            ttk.Button(botoes, text="Finalizar", command=finalizar).grid(row=0, column=1)
+
+            self._ajustar_dialogo_ao_conteudo(final, largura_min=860, altura_min=620, redimensionavel=True)
+
+        def fechar_conselho():
+            salvar_encaminhamentos_atual()
+            dialog.destroy()
+
+        dialog.protocol("WM_DELETE_WINDOW", fechar_conselho)
+
+        def editar_media_disciplina():
+            selecionado = tree_notas.focus()
+            if not selecionado:
+                messagebox.showwarning("Conselho", "Selecione uma disciplina para ajustar a media.")
+                return
+
+            valores = tree_notas.item(selecionado, "values")
+            if not valores:
+                return
+
+            disciplina = valores[0]
+            aluno = alunos[estado["idx"]]
+            media_original = getattr(aluno, "medias", {}).get(bimestre, {}).get(disciplina)
+            ajuste_atual = _ajustes_media(aluno).get(disciplina, {})
+
+            editor = tk.Toplevel(dialog)
+            editor.title("Ajustar media do conselho")
+            editor.transient(dialog)
+            editor.grab_set()
+            editor.resizable(False, False)
+
+            frame = ttk.Frame(editor, padding=12)
+            frame.grid(sticky="nsew")
+            frame.columnconfigure(1, weight=1)
+
+            media_var = tk.StringVar(
+                value=""
+                if ajuste_atual.get("media_ajustada") is None
+                else f"{ajuste_atual['media_ajustada']:.1f}"
+            )
+
+            ttk.Label(frame, text="Disciplina").grid(row=0, column=0, sticky="w")
+            ttk.Label(frame, text=disciplina).grid(row=0, column=1, sticky="w")
+
+            ttk.Label(frame, text="Media original").grid(row=1, column=0, sticky="w", pady=(8, 0))
+            ttk.Label(frame, text=f"{media_original:.1f}").grid(row=1, column=1, sticky="w", pady=(8, 0))
+
+            ttk.Label(frame, text="Media ajustada no conselho").grid(row=2, column=0, sticky="w", pady=(8, 0))
+            ttk.Entry(frame, textvariable=media_var, width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))
+
+            ttk.Label(
+                frame,
+                text="Observacao para o relatorio / lancamento manual",
+            ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(8, 0))
+            texto_obs = tk.Text(frame, height=4, width=48, wrap="word")
+            texto_obs.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+            texto_obs.insert("1.0", ajuste_atual.get("observacao", ""))
+
+            ttk.Label(
+                frame,
+                text="A media ajustada precisa ser registrada manualmente depois na Sala do Futuro.",
+                foreground="#7a3d00",
+            ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
+            botoes = ttk.Frame(frame)
+            botoes.grid(row=6, column=0, columnspan=2, sticky="e", pady=(12, 0))
+
+            def confirmar():
+                bruto = media_var.get().strip().replace(",", ".")
+                observacao = texto_obs.get("1.0", "end").strip()
+                if not bruto:
+                    messagebox.showwarning("Conselho", "Informe a media ajustada ou use 'Remover ajuste'.")
+                    return
+                try:
+                    media_ajustada = float(bruto)
+                except ValueError:
+                    messagebox.showwarning("Conselho", "Use um numero valido para a media ajustada.")
+                    return
+                if media_ajustada < 0 or media_ajustada > 10:
+                    messagebox.showwarning("Conselho", "A media ajustada deve ficar entre 0 e 10.")
+                    return
+
+                salvar_ajuste_media_atual(disciplina, media_original, media_ajustada, observacao)
+                carregar_aluno()
+                editor.destroy()
+
+            def remover():
+                salvar_ajuste_media_atual(disciplina, media_original, None, "")
+                carregar_aluno()
+                editor.destroy()
+
+            ttk.Button(botoes, text="Salvar ajuste", command=confirmar).grid(row=0, column=0, padx=(0, 8))
+            ttk.Button(botoes, text="Remover ajuste", command=remover).grid(row=0, column=1, padx=(0, 8))
+            ttk.Button(botoes, text="Cancelar", command=editor.destroy).grid(row=0, column=2)
+
+            self._ajustar_dialogo_ao_conteudo(editor, largura_min=520, altura_min=320, redimensionavel=False)
+            editor.wait_visibility()
+            editor.focus_force()
 
         def carregar_aluno():
             aluno = alunos[estado["idx"]]
@@ -1106,18 +1407,33 @@ class CoordenacaoApp(tk.Tk):
             for disciplina, media in sorted(medias.items()):
                 if media is None:
                     continue
-                if media < nota_minima:
-                    linhas_notas.append((0, disciplina, media, "ABAIXO MINIMA", "abaixo"))
-                elif media == nota_minima:
-                    linhas_notas.append((1, disciplina, media, "NO LIMITE", "limite"))
-                else:
-                    linhas_notas.append((2, disciplina, media, "ADEQUADA", "adequada"))
+                ajuste = _ajustes_media(aluno).get(disciplina, {})
+                media_ajustada = ajuste.get("media_ajustada")
+                media_vigente = _media_vigente(aluno, disciplina, media)
+                situacao, tag_base = _classificar_media(media_vigente)
+                tag = "ajustada" if media_ajustada is not None else tag_base
+                ordem = 0 if media_vigente < nota_minima else 1 if media_vigente == nota_minima else 2
+                linhas_notas.append(
+                    (
+                        ordem,
+                        disciplina,
+                        media,
+                        media_ajustada,
+                        situacao,
+                        tag,
+                    )
+                )
 
             linhas_notas.sort(key=lambda x: (x[0], x[1]))
-            for _, disciplina, media, situacao, tag in linhas_notas:
+            for _, disciplina, media, media_ajustada, situacao, tag in linhas_notas:
                 tree_notas.insert(
                     "", "end",
-                    values=(disciplina, f"{media:.1f}", situacao),
+                    values=(
+                        disciplina,
+                        f"{media:.1f}",
+                        "" if media_ajustada is None else f"{media_ajustada:.1f}",
+                        situacao,
+                    ),
                     tags=(tag,),
                 )
 
@@ -1141,28 +1457,11 @@ class CoordenacaoApp(tk.Tk):
 
         def proximo(delta):
             salvar_encaminhamentos_atual()
-            salvar_texto_ata_atual()
             novo = estado["idx"] + delta
             if novo < 0 or novo >= len(alunos):
                 return
             estado["idx"] = novo
             carregar_aluno()
-
-        def concluir():
-            salvar_encaminhamentos_atual()
-            salvar_texto_ata_atual()
-            messagebox.showinfo("Conselho", "Encaminhamentos salvos para este bimestre.")
-            dialog.destroy()
-
-        def gerar_ata_deste_conselho():
-            salvar_encaminhamentos_atual()
-            salvar_texto_ata_atual()
-            self._gerar_ata_bimestre(bimestre)
-
-        def gerar_relatorio_deste_conselho():
-            salvar_encaminhamentos_atual()
-            salvar_texto_ata_atual()
-            self._gerar_relatorio_bimestre(bimestre)
 
         ttk.Button(controle, text="Aluno anterior", command=lambda: proximo(-1)).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
@@ -1170,25 +1469,23 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(controle, text="Proximo aluno", command=lambda: proximo(1)).grid(
             row=0, column=1, sticky="ew", padx=(6, 6)
         )
-        ttk.Button(controle, text="Concluir conselho", command=concluir).grid(
-            row=0, column=4, sticky="ew", padx=(6, 0)
-        )
         ttk.Button(
             controle,
-            text="Gerar ata deste conselho",
-            command=gerar_ata_deste_conselho,
+            text="Concluir conselho e gerar documentacao",
+            command=abrir_finalizacao,
         ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
+
         ttk.Button(
-            controle,
-            text="Encaminhamentos professores",
-            command=gerar_relatorio_deste_conselho,
-        ).grid(row=0, column=3, sticky="ew", padx=(6, 0))
+            botoes_notas,
+            text="Ajustar media selecionada",
+            command=editar_media_disciplina,
+        ).grid(row=0, column=0, sticky="w")
 
         carregar_aluno()
-        preencher_texto_ata_sugerido()
+        tree_notas.bind("<Double-1>", lambda _e: editar_media_disciplina())
         dialog.bind("<Left>", lambda _e: proximo(-1))
         dialog.bind("<Right>", lambda _e: proximo(1))
-        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1180, altura_min=720, redimensionavel=True)
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=720, redimensionavel=True)
         return dialog
 
     def _abrir_dialogo_criar_turma(self):
@@ -1926,48 +2223,60 @@ class CoordenacaoApp(tk.Tk):
         self._gerar_relatorio_bimestre(bimestre)
 
     def _gerar_relatorio_bimestre(self, bimestre):
+        return self._gerar_relatorio_bimestre_com_caminho(bimestre)
+
+    def _gerar_relatorio_bimestre_com_caminho(self, bimestre, caminho_destino=None):
         if not self._exigir_turma():
-            return
+            return None
         caminho_sugerido = f"relatorio_professores_{self.turma.codigo}_bim_{bimestre}.docx"
-        caminho = filedialog.asksaveasfilename(
-            title="Salvar relatorio para professores",
-            initialdir=data_dir("relatorios"),
-            initialfile=caminho_sugerido,
-            defaultextension=".docx",
-            filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
-        )
+        caminho = caminho_destino
         if not caminho:
-            return
+            caminho = filedialog.asksaveasfilename(
+                title="Salvar relatorio para professores",
+                initialdir=data_dir("relatorios"),
+                initialfile=caminho_sugerido,
+                defaultextension=".docx",
+                filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+            )
+        if not caminho:
+            return None
 
         try:
             caminho = GeradorRelatorioProfessores.gerar(self.turma, bimestre, caminho_saida=caminho)
             messagebox.showinfo("Relatorio", f"Relatorio gerado em:\n{caminho}")
+            return caminho
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao gerar relatorio:\n{exc}")
+            return None
 
     def _gerar_ata_bimestre(self, bimestre):
-        if not self._exigir_turma():
-            return
+        return self._gerar_ata_bimestre_com_caminho(bimestre)
 
-        data_texto = self.data_conselho_var.get().strip()
-        data_conselho = date.today()
-        if data_texto:
-            try:
-                data_conselho = datetime.strptime(data_texto, "%d/%m/%Y").date()
-            except ValueError:
-                messagebox.showwarning("Data", "Use o formato DD/MM/AAAA para a data do conselho.")
-                return
+    def _gerar_ata_bimestre_com_caminho(self, bimestre, caminho_destino=None, data_conselho=None):
+        if not self._exigir_turma():
+            return None
+
+        if data_conselho is None:
+            data_texto = self.data_conselho_var.get().strip()
+            data_conselho = date.today()
+            if data_texto:
+                try:
+                    data_conselho = datetime.strptime(data_texto, "%d/%m/%Y").date()
+                except ValueError:
+                    messagebox.showwarning("Data", "Use o formato DD/MM/AAAA para a data do conselho.")
+                    return None
 
         caminho_sugerido = f"ata_{self.turma.codigo}_bimestre_{bimestre}.docx"
-        caminho_destino = filedialog.asksaveasfilename(
-            title="Salvar ata do conselho",
-            initialdir=data_dir("atas"),
-            initialfile=caminho_sugerido,
-            defaultextension=".docx",
-            filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
-        )
         if not caminho_destino:
-            return
+            caminho_destino = filedialog.asksaveasfilename(
+                title="Salvar ata do conselho",
+                initialdir=data_dir("atas"),
+                initialfile=caminho_sugerido,
+                defaultextension=".docx",
+                filetypes=[("Documento Word", "*.docx"), ("Todos", "*.*")],
+            )
+        if not caminho_destino:
+            return None
 
         try:
             texto_ata = self._texto_ata_para_edicao(bimestre, data_conselho=data_conselho)
@@ -1983,8 +2292,10 @@ class CoordenacaoApp(tk.Tk):
             )
             if caminho:
                 messagebox.showinfo("Ata", f"Ata gerada em:\n{caminho}")
+            return caminho
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao gerar ata:\n{exc}")
+            return None
 
     def _gerar_ata(self):
         bimestre = self._obter_bimestre()

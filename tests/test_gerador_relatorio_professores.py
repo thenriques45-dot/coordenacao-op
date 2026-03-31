@@ -22,7 +22,12 @@ class TestGeradorRelatorioProfessores(unittest.TestCase):
 
     def _texto_docx(self, caminho):
         doc = Document(caminho)
-        return "\n".join(p.text for p in doc.paragraphs)
+        textos = [p.text for p in doc.paragraphs]
+        for tabela in doc.tables:
+            for row in tabela.rows:
+                for cell in row.cells:
+                    textos.extend(p.text for p in cell.paragraphs)
+        return "\n".join(t for t in textos if t)
 
     def test_ignora_alunos_inativos(self):
         turma = Turma("2A", 2026)
@@ -74,8 +79,54 @@ class TestGeradorRelatorioProfessores(unittest.TestCase):
             caminho = GeradorRelatorioProfessores.gerar(turma, "1")
 
         texto = self._texto_docx(caminho)
-        self.assertIn("Aluno Teste - 6/20 (30.0%)", texto)
-        self.assertNotIn("Aluno Teste - 4/20 (20.0%)", texto)
+        self.assertIn("Compensar faltas", texto)
+        self.assertIn("Aluno Teste", texto)
+        self.assertIn("30.0%", texto)
+        self.assertNotIn("20.0%", texto)
+
+    def test_relatorio_destaca_ajuste_de_nota_com_observacao(self):
+        turma = Turma("2A", 2026)
+        turma.carga_horaria["1"] = {"MATEMATICA": 20}
+
+        aluno = Aluno("1", "ALUNO TESTE", ativo=True)
+        aluno.medias["1"] = {"MATEMATICA": 4.0}
+        aluno.frequencia["1"] = {"MATEMATICA": 0}
+        aluno.ajustes_medias_conselho = {
+            "1": {
+                "MATEMATICA": {
+                    "media_original": 4.0,
+                    "media_ajustada": 5.5,
+                    "observacao": "Ajustar apos recuperacao paralela",
+                }
+            }
+        }
+        turma.adicionar_aluno(aluno)
+
+        with patch("services.gerador_relatorio_professores.Configuracao.obter_nota_minima", return_value=5.0):
+            caminho = GeradorRelatorioProfessores.gerar(turma, "1")
+
+        texto = self._texto_docx(caminho)
+        self.assertIn("Ajustar notas na Sala do Futuro", texto)
+        self.assertIn("Aluno Teste", texto)
+        self.assertIn("5.5", texto)
+        self.assertIn("Ajustar apos recuperacao paralela", texto)
+
+    def test_relatorio_separa_defasagem_sem_ajuste(self):
+        turma = Turma("2A", 2026)
+        turma.carga_horaria["1"] = {"MATEMATICA": 20}
+
+        aluno = Aluno("1", "ALUNO DEFASAGEM", ativo=True)
+        aluno.medias["1"] = {"MATEMATICA": 4.0}
+        aluno.frequencia["1"] = {"MATEMATICA": 0}
+        turma.adicionar_aluno(aluno)
+
+        with patch("services.gerador_relatorio_professores.Configuracao.obter_nota_minima", return_value=5.0):
+            caminho = GeradorRelatorioProfessores.gerar(turma, "1")
+
+        texto = self._texto_docx(caminho)
+        self.assertIn("Alunos com defasagem de nota sem ajuste", texto)
+        self.assertIn("Aluno Defasagem", texto)
+        self.assertIn("4.0", texto)
 
 
 if __name__ == "__main__":

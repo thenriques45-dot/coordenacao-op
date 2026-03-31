@@ -1,0 +1,37 @@
+Changelog v1.3.x
+
+v1.3.0 - Ajustes de medias no conselho e documentacao final mais objetiva
+- Tela de conselho passou a permitir ajuste de media por disciplina:
+  - exibicao da media original e da media ajustada no conselho
+  - edicao por selecao da disciplina ou duplo clique na linha
+  - observacao livre para orientar o lancamento manual posterior
+  - destaque visual para disciplinas com ajuste registrado
+- Ajustes de media agora sao persistidos na turma:
+  - armazenamento de media original
+  - armazenamento de media ajustada
+  - armazenamento da observacao do conselho
+- Fluxo de fechamento do conselho foi reorganizado:
+  - tela principal ficou mais enxuta para navegacao entre alunos
+  - nova janela de finalizacao concentra data, texto da ata e geracao de documentos
+  - texto da ata passou a salvar automaticamente durante a digitacao
+  - botao para restaurar o texto padrao da ata
+  - selecao de local para salvar ata e relatorio acontece ao marcar cada checkbox
+  - confirmacao extra ao finalizar sem gerar nenhum documento
+- Relatorio de encaminhamento aos professores foi reformulado para impressao:
+  - organizacao por disciplina em formato de folha de tarefas
+  - bloco para ajustar notas na Sala do Futuro
+  - bloco para compensar faltas
+  - bloco para alunos com defasagem de nota sem ajuste
+  - separacao visual maior entre as tabelas para melhorar a leitura
+- Tela inicial recebeu melhoria de usabilidade:
+  - duplo clique sobre a turma no catalogo abre diretamente a gestao da turma
+- Testes atualizados para cobrir o novo relatorio por tarefas e os ajustes de media
+
+Arquivos principais do ciclo 1.3.x
+- gui/app.py
+- services/gerador_relatorio_professores.py
+- services/persistencia.py
+- domain/aluno.py
+- tests/test_gerador_relatorio_professores.py
+- VERSION
+- services/version.py

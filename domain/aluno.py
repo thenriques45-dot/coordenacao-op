@@ -14,6 +14,7 @@ class Aluno:
         self.resultados = {}   # {bimestre: True/False}
         self.defasagem_frequencia = {}  # {bimestre: {disciplina: True/False}}
         self.encaminhamentos_conselho = {}  # {bimestre: [codigos 1..10]}
+        self.ajustes_medias_conselho = {}  # {bimestre: {disciplina: {media_original, media_ajustada, observacao}}}
 
 
     def adicionar_notas(self, bimestre, notas):
