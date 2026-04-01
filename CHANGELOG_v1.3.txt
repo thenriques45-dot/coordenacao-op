@@ -1,5 +1,10 @@
 Changelog v1.3.x
 
+v1.3.3 - Refinos finais do logo no GitHub e do icone no Windows
+- Icone do app/release regenerado com melhor ocupacao visual para o Windows
+- Logo do repositório ganhou versao com fundo branco para melhor leitura no GitHub em modo escuro
+- `README` atualizado para usar a versao do logo pensada para a página do GitHub
+
 v1.3.2 - Identidade visual aplicada ao app e ao repositório
 - Logotipo exibido no topo do `README` para aparecer na página do GitHub
 - Ícone aplicado à janela do programa
