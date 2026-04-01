@@ -16,7 +16,7 @@ from services.gerador_relatorio_professores import GeradorRelatorioProfessores
 from services.importador_mapao import ImportadorMapao
 from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
-from services.runtime_paths import data_dir
+from services.runtime_paths import asset_path, data_dir
 from services.updater import REPO_NAME, REPO_OWNER, check_for_updates, open_release_page
 from services.version import APP_NAME, APP_VERSION
 
@@ -73,6 +73,7 @@ class CoordenacaoApp(tk.Tk):
         self.title(f"{APP_NAME} v{APP_VERSION}")
         self.geometry("1180x720")
         self.minsize(1040, 640)
+        self._aplicar_icone_aplicacao()
 
         self.turma = None
         self.turma_caminho = None
@@ -107,6 +108,26 @@ class CoordenacaoApp(tk.Tk):
         self.bimestre_var.trace_add("write", lambda *_args: self._atualizar_status_bimestre())
         self.after(50, self._ajustar_janela_principal_inicial)
         self.after(150, self._talvez_abrir_wizard_inicial)
+
+    def _aplicar_icone_aplicacao(self):
+        try:
+            caminho_icone = asset_path("dados", "imagens", "icone_coordenacaoop.png")
+            if os.path.exists(caminho_icone):
+                self._app_icon = tk.PhotoImage(file=caminho_icone)
+                self.iconphoto(True, self._app_icon)
+        except Exception:
+            self._app_icon = None
+
+    def _carregar_logo_principal(self):
+        try:
+            caminho_logo = asset_path("dados", "imagens", "logo_coordenacaoop_ui.png")
+            if os.path.exists(caminho_logo):
+                self._hero_logo = tk.PhotoImage(file=caminho_logo)
+                return self._hero_logo
+        except Exception:
+            pass
+        self._hero_logo = None
+        return None
 
     def _build_menu(self):
         menu = tk.Menu(self)
@@ -170,15 +191,21 @@ class CoordenacaoApp(tk.Tk):
         hero.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 16))
         hero.columnconfigure(0, weight=1)
 
-        ttk.Label(hero, text=APP_NAME, style="HeroTitle.TLabel").grid(row=0, column=0, sticky="w")
+        hero_brand = ttk.Frame(hero, style="App.TFrame")
+        hero_brand.grid(row=0, column=0, sticky="w")
+        hero_brand.columnconfigure(1, weight=1)
+
+        logo = self._carregar_logo_principal()
+        if logo is not None:
+            ttk.Label(hero_brand, image=logo, style="App.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 14))
         ttk.Label(
-            hero,
+            hero_brand,
             text=(
                 "Gestao pedagogica de turmas, importacao de mapoes e geracao de documentos "
                 "em uma interface mais clara para a rotina da coordenacao."
             ),
             style="HeroSubtitle.TLabel",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
 
         hero_actions = ttk.Frame(hero, style="App.TFrame")
         hero_actions.grid(row=0, column=1, rowspan=2, sticky="e")

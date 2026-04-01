@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/imagens/logo_coordenacaoop.png" alt="Logotipo do CoordenacaoOP" width="720">
+</p>
+
 # CoordenacaoOP
 
 Software de apoio à coordenação pedagógica para organizar turmas, importar dados e gerar documentos de conselho de classe.

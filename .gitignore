@@ -1,6 +1,8 @@
 __pycache__/
 .env
 .venv/
+1x/
+*.ai
 *.csv
 *.xlsx
 *.xls
@@ -11,4 +13,5 @@ backups/
 *.AppImage
 *.spec
 dados/**
+!dados/imagens/
 !dados/imagens/**

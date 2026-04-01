@@ -10,6 +10,7 @@ python -m PyInstaller `
   --onefile `
   --windowed `
   --name CoordenacaoOP `
+  --icon "dados/imagens/icone_coordenacaoop.ico" `
   --add-data "VERSION;." `
   --add-data "dados/imagens;dados/imagens" `
   main_gui.py

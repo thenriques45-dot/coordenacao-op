@@ -1,5 +1,15 @@
 Changelog v1.3.x
 
+v1.3.2 - Identidade visual aplicada ao app e ao repositório
+- Logotipo exibido no topo do `README` para aparecer na página do GitHub
+- Ícone aplicado à janela do programa
+- Ícone `.ico` gerado para o empacotamento do executável Windows
+- Build Linux atualizado para usar a arte real do ícone
+- Cabeçalho principal do app passou a exibir o logotipo em versão tratada para interface:
+  - recorte sem sobra de prancheta
+  - melhor nitidez
+  - uso do logotipo sem repetição do nome em texto
+
 v1.3.1 - Backup transportavel entre computadores e textos mais claros na interface
 - Novo fluxo para transporte de dados entre computadores:
   - exportacao de dados para um unico arquivo `.zip`
