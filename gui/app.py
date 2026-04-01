@@ -9,6 +9,7 @@ from gui.session import TurmaSession, TurmaWindowRegistry
 from services.encaminhamentos import ENCAMINHAMENTOS
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
+from services.acompanhamento_ajustes import AcompanhamentoAjustes
 from services.backup import BackupDados
 from services.configuracao import Configuracao
 from services.gerador_ata import GeradorAta
@@ -908,13 +909,20 @@ class CoordenacaoApp(tk.Tk):
         )
         ttk.Button(
             botoes,
-            text="Excluir turma",
-            command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
+            text="Verificar ajustes de notas",
+            command=self._abrir_dialogo_verificar_ajustes_notas,
         ).grid(
             row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
+        ttk.Button(
+            botoes,
+            text="Excluir turma",
+            command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
+        ).grid(
+            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+        )
         ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
-            row=2, column=0, columnspan=2, sticky="ew", pady=(8, 0)
+            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
         render_painel_conselho()
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=620, redimensionavel=True)
@@ -1198,6 +1206,7 @@ class CoordenacaoApp(tk.Tk):
                     "observacao": observacao.strip(),
                 }
 
+            AcompanhamentoAjustes.reconciliar_aluno(aluno, bimestre)
             self._salvar_turma()
 
         def salvar_texto_ata_atual(cabecalho, corpo):
@@ -2328,14 +2337,133 @@ class CoordenacaoApp(tk.Tk):
             ImportadorMapao.importar(caminho_fgb, self.turma, bimestre)
             if caminho_if:
                 ImportadorMapao.importar(caminho_if, self.turma, bimestre)
+            resumo_ajustes = AcompanhamentoAjustes.reconciliar_turma(self.turma, bimestre)
             self._salvar_turma()
             if callback_sucesso is not None:
                 callback_sucesso()
-            messagebox.showinfo("Mapao", "Mapoes importados com sucesso.")
+            mensagem = "Mapoes importados com sucesso."
+            if resumo_ajustes["total"]:
+                mensagem += (
+                    "\n\nAcompanhamento dos ajustes de nota:\n"
+                    f"- Aplicados: {resumo_ajustes[AcompanhamentoAjustes.STATUS_APLICADO]}\n"
+                    f"- Pendentes: {resumo_ajustes[AcompanhamentoAjustes.STATUS_PENDENTE]}\n"
+                    f"- Divergentes: {resumo_ajustes[AcompanhamentoAjustes.STATUS_DIVERGENTE]}\n\n"
+                    "Use 'Verificar ajustes de notas' para ver os detalhes."
+                )
+            messagebox.showinfo("Mapao", mensagem)
             return True
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao importar mapao:\n{exc}")
             return False
+
+    def _abrir_dialogo_verificar_ajustes_notas(self):
+        if not self._exigir_turma():
+            return
+
+        bimestre = self._obter_bimestre()
+        if not bimestre:
+            return
+
+        AcompanhamentoAjustes.reconciliar_turma(self.turma, bimestre)
+        linhas = AcompanhamentoAjustes.listar_linhas_turma(self.turma, bimestre)
+        resumo = AcompanhamentoAjustes.resumo_turma(self.turma, bimestre)
+
+        dialog = tk.Toplevel(self)
+        dialog.title(f"Acompanhamento de ajustes de notas - {bimestre}º bimestre")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.geometry("1060x560")
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(2, weight=1)
+
+        ttk.Label(
+            frame,
+            text=f"Turma {self._rotulo_turma(self.turma)} ({self.turma.ano}) - {bimestre}º bimestre",
+        ).grid(row=0, column=0, sticky="w")
+
+        resumo_box = ttk.Frame(frame)
+        resumo_box.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        resumo_box.columnconfigure((0, 1, 2, 3), weight=1)
+        ttk.Label(
+            resumo_box,
+            text=f"Total de ajustes: {resumo['total']}",
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            resumo_box,
+            text=f"Aplicados: {resumo[AcompanhamentoAjustes.STATUS_APLICADO]}",
+            foreground="#127a2a",
+        ).grid(row=0, column=1, sticky="w")
+        ttk.Label(
+            resumo_box,
+            text=f"Pendentes: {resumo[AcompanhamentoAjustes.STATUS_PENDENTE]}",
+            foreground="#b36b00",
+        ).grid(row=0, column=2, sticky="w")
+        ttk.Label(
+            resumo_box,
+            text=f"Divergentes: {resumo[AcompanhamentoAjustes.STATUS_DIVERGENTE]}",
+            foreground="#b00020",
+        ).grid(row=0, column=3, sticky="w")
+
+        if not linhas:
+            ttk.Label(
+                frame,
+                text="Nenhum ajuste de nota foi registrado para este bimestre.",
+            ).grid(row=2, column=0, sticky="nw", pady=(14, 0))
+            ttk.Button(frame, text="Fechar", command=dialog.destroy).grid(row=3, column=0, sticky="e", pady=(12, 0))
+            self._ajustar_dialogo_ao_conteudo(dialog, largura_min=760, altura_min=220, redimensionavel=False)
+            return
+
+        tabela = ttk.Treeview(
+            frame,
+            columns=("aluno", "disciplina", "original", "conselho", "mapao", "status", "observacao"),
+            show="headings",
+            height=16,
+        )
+        tabela.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
+        tabela.heading("aluno", text="Aluno")
+        tabela.heading("disciplina", text="Disciplina")
+        tabela.heading("original", text="Media original")
+        tabela.heading("conselho", text="Media conselho")
+        tabela.heading("mapao", text="Media no novo mapao")
+        tabela.heading("status", text="Status")
+        tabela.heading("observacao", text="Observacao")
+        tabela.column("aluno", width=220, anchor="w")
+        tabela.column("disciplina", width=160, anchor="w")
+        tabela.column("original", width=95, anchor="center")
+        tabela.column("conselho", width=100, anchor="center")
+        tabela.column("mapao", width=120, anchor="center")
+        tabela.column("status", width=95, anchor="center")
+        tabela.column("observacao", width=240, anchor="w")
+        tabela.tag_configure(AcompanhamentoAjustes.STATUS_APLICADO, foreground="#127a2a")
+        tabela.tag_configure(AcompanhamentoAjustes.STATUS_PENDENTE, foreground="#b36b00")
+        tabela.tag_configure(AcompanhamentoAjustes.STATUS_DIVERGENTE, foreground="#b00020")
+
+        for linha in linhas:
+            status = linha["status_aplicacao"]
+            tabela.insert(
+                "",
+                "end",
+                values=(
+                    linha["aluno"],
+                    linha["disciplina"],
+                    "" if linha["media_original"] is None else f"{linha['media_original']:.1f}",
+                    "" if linha["media_ajustada"] is None else f"{linha['media_ajustada']:.1f}",
+                    "" if linha["media_mapao_atual"] is None else f"{linha['media_mapao_atual']:.1f}",
+                    AcompanhamentoAjustes.rotulo_status(status),
+                    linha["observacao"] or "-",
+                ),
+                tags=(status,),
+            )
+
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=tabela.yview)
+        scrollbar.grid(row=2, column=1, sticky="ns", pady=(12, 0))
+        tabela.configure(yscrollcommand=scrollbar.set)
+
+        ttk.Button(frame, text="Fechar", command=dialog.destroy).grid(row=3, column=0, sticky="e", pady=(12, 0))
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1060, altura_min=560, redimensionavel=True)
 
     def _gerar_relatorio(self):
         if not self._exigir_turma():

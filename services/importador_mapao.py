@@ -1,4 +1,5 @@
 import pandas as pd
+from services.acompanhamento_ajustes import AcompanhamentoAjustes
 from services.leitor_aulas_mapao import extrair_aulas_por_disciplina
 from services.configuracao import Configuracao
 from services.periodo_letivo import garantir_bimestre_operacional
@@ -25,8 +26,6 @@ class ImportadorMapao:
         # =====================================================
         # ⭐ LINHA REAL DOS RÓTULOS (onde está Fre An(%))
         # =====================================================
-        cabecalho = df.iloc[linha_inicio + 1].tolist()
-
         # =====================================================
         # ⭐ procurar "Fre An(%)" nas próximas linhas (robusto)
         # =====================================================
@@ -131,12 +130,13 @@ class ImportadorMapao:
                     except:
                         media = None
 
-                if disciplina not in aluno.medias[bimestre] and media is not None:
+                if media is not None:
                     aluno.medias[bimestre][disciplina] = media
 
-                if disciplina not in aluno.defasagens[bimestre]:
-                    if media is not None and media < nota_minima:
-                        aluno.defasagens[bimestre][disciplina] = True
+                if media is not None and media < nota_minima:
+                    aluno.defasagens[bimestre][disciplina] = True
+                else:
+                    aluno.defasagens[bimestre].pop(disciplina, None)
 
                 # -------- FALTAS --------
                 col_faltas = inicio + 1
@@ -147,8 +147,7 @@ class ImportadorMapao:
                     faltas = int(linha.iloc[col_faltas]) if not pd.isna(linha.iloc[col_faltas]) else 0
                 except:
                     faltas = 0
-                if disciplina not in aluno.frequencia[bimestre]:
-                    aluno.frequencia[bimestre][disciplina] = faltas
+                aluno.frequencia[bimestre][disciplina] = faltas
 
             # =====================================================
             # ⭐ FREQUÊNCIA CONSOLIDADA DO MAPÃO (OFICIAL)
@@ -175,3 +174,5 @@ class ImportadorMapao:
             except:
                 if getattr(aluno, "frequencia_percentual", "") in ("", None):
                     aluno.frequencia_percentual = ""
+
+            AcompanhamentoAjustes.reconciliar_aluno(aluno, bimestre)

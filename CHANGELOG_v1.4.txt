@@ -1,0 +1,27 @@
+Changelog v1.4.x
+
+v1.4.0 - Acompanhamento de ajustes de nota apos o conselho
+- Novo acompanhamento para verificar se os ajustes de nota combinados no conselho foram aplicados:
+  - status `Aplicado` quando o novo mapao traz a media esperada
+  - status `Pendente` quando a media original ainda permanece
+  - status `Divergente` quando o novo mapao traz um valor diferente do acordado
+- Nova tela `Verificar ajustes de notas` na gestao da turma:
+  - resumo por bimestre com totais aplicados, pendentes e divergentes
+  - listagem por aluno e disciplina com medias original, do conselho e do mapao atual
+  - exibicao da observacao registrada no ajuste
+- Importacao de mapoes passou a reconciliar automaticamente os ajustes registrados no conselho
+- Reimportacao de mapoes ficou mais segura para o fluxo FGB + IF:
+  - medias validas atualizam os dados da turma
+  - valores vazios nao apagam medias ja importadas
+  - disciplinas repetidas em mapoes diferentes deixam de sobrescrever nota com vazio
+- Mensagem de sucesso da importacao agora informa o resumo dos ajustes de nota quando houver dados para acompanhar
+- Novos testes cobrindo reconciliacao de ajustes e reimportacao de mapoes
+
+Arquivos principais do ciclo 1.4.x
+- gui/app.py
+- services/importador_mapao.py
+- services/acompanhamento_ajustes.py
+- tests/test_acompanhamento_ajustes.py
+- tests/test_importador_mapao.py
+- VERSION
+- services/version.py
