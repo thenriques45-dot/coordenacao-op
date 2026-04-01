@@ -27,7 +27,7 @@ def _resolve_version():
     if file_version:
         return file_version
 
-    return "1.4.0"
+    return "1.4.1"
 
 
 APP_VERSION = _resolve_version()

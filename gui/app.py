@@ -10,6 +10,7 @@ from services.encaminhamentos import ENCAMINHAMENTOS
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
 from services.acompanhamento_ajustes import AcompanhamentoAjustes
+from services.acompanhamento_frequencia import AcompanhamentoFrequencia
 from services.backup import BackupDados
 from services.configuracao import Configuracao
 from services.gerador_ata import GeradorAta
@@ -916,13 +917,20 @@ class CoordenacaoApp(tk.Tk):
         )
         ttk.Button(
             botoes,
-            text="Excluir turma",
-            command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
+            text="Acompanhar faltas e compensacoes",
+            command=self._abrir_dialogo_acompanhar_frequencia,
         ).grid(
             row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
-        ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
+        ttk.Button(
+            botoes,
+            text="Excluir turma",
+            command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
+        ).grid(
             row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+        )
+        ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
+            row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0)
         )
         render_painel_conselho()
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=620, redimensionavel=True)
@@ -2464,6 +2472,104 @@ class CoordenacaoApp(tk.Tk):
 
         ttk.Button(frame, text="Fechar", command=dialog.destroy).grid(row=3, column=0, sticky="e", pady=(12, 0))
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1060, altura_min=560, redimensionavel=True)
+
+    def _abrir_dialogo_acompanhar_frequencia(self):
+        if not self._exigir_turma():
+            return
+
+        resumo = AcompanhamentoFrequencia.resumo_turma(self.turma)
+        linhas = AcompanhamentoFrequencia.listar_linhas_turma(self.turma)
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Acompanhamento anual de faltas e compensacoes")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.geometry("1160x580")
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(0, weight=1)
+        frame.rowconfigure(2, weight=1)
+
+        bimestres = ", ".join(f"{b}o bim" for b in resumo["bimestres"]) if resumo["bimestres"] else "nenhum"
+        ttk.Label(
+            frame,
+            text=f"Turma {self._rotulo_turma(self.turma)} ({self.turma.ano}) - Bimestres importados: {bimestres}",
+        ).grid(row=0, column=0, sticky="w")
+
+        topo = ttk.Frame(frame)
+        topo.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        topo.columnconfigure((0, 1, 2), weight=1)
+        ttk.Label(topo, text=f"Registros acompanhados: {resumo['total']}").grid(row=0, column=0, sticky="w")
+        ttk.Label(topo, text=f"Em excesso apos compensacao: {resumo['excesso']}", foreground="#b00020").grid(
+            row=0, column=1, sticky="w"
+        )
+        ttk.Label(topo, text=f"Dentro do limite: {resumo['ok']}", foreground="#127a2a").grid(
+            row=0, column=2, sticky="w"
+        )
+
+        if not linhas:
+            ttk.Label(
+                frame,
+                text="Ainda nao ha dados suficientes de faltas ou compensacoes para montar o acompanhamento anual.",
+            ).grid(row=2, column=0, sticky="nw", pady=(14, 0))
+            ttk.Button(frame, text="Fechar", command=dialog.destroy).grid(row=3, column=0, sticky="e", pady=(12, 0))
+            self._ajustar_dialogo_ao_conteudo(dialog, largura_min=780, altura_min=220, redimensionavel=False)
+            return
+
+        tabela = ttk.Treeview(
+            frame,
+            columns=("aluno", "disciplina", "faltas", "compensadas", "aulas", "saldo", "percentual", "status"),
+            show="headings",
+            height=16,
+        )
+        tabela.grid(row=2, column=0, sticky="nsew", pady=(12, 0))
+        tabela.heading("aluno", text="Aluno")
+        tabela.heading("disciplina", text="Disciplina")
+        tabela.heading("faltas", text="Faltas acumuladas")
+        tabela.heading("compensadas", text="Compensadas")
+        tabela.heading("aulas", text="Aulas acumuladas")
+        tabela.heading("saldo", text="Saldo pendente")
+        tabela.heading("percentual", text="% apos compensacao")
+        tabela.heading("status", text="Status")
+        tabela.column("aluno", width=240, anchor="w")
+        tabela.column("disciplina", width=170, anchor="w")
+        tabela.column("faltas", width=110, anchor="center")
+        tabela.column("compensadas", width=100, anchor="center")
+        tabela.column("aulas", width=110, anchor="center")
+        tabela.column("saldo", width=105, anchor="center")
+        tabela.column("percentual", width=125, anchor="center")
+        tabela.column("status", width=100, anchor="center")
+        tabela.tag_configure("EXCESSO", foreground="#b00020")
+        tabela.tag_configure("OK", foreground="#127a2a")
+
+        for linha in linhas:
+            tabela.insert(
+                "",
+                "end",
+                values=(
+                    linha["aluno"],
+                    linha["disciplina"],
+                    linha["faltas"],
+                    linha["compensadas"],
+                    linha["aulas"],
+                    linha["saldo"],
+                    f"{linha['percentual']:.1f}%",
+                    linha["status"],
+                ),
+                tags=(linha["status"],),
+            )
+
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=tabela.yview)
+        scrollbar.grid(row=2, column=1, sticky="ns", pady=(12, 0))
+        tabela.configure(yscrollcommand=scrollbar.set)
+
+        ttk.Label(
+            frame,
+            text="O saldo pendente considera faltas acumuladas menos ausencias compensadas ao longo dos bimestres importados.",
+        ).grid(row=3, column=0, sticky="w", pady=(12, 0))
+        ttk.Button(frame, text="Fechar", command=dialog.destroy).grid(row=4, column=0, sticky="e", pady=(12, 0))
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=1160, altura_min=580, redimensionavel=True)
 
     def _gerar_relatorio(self):
         if not self._exigir_turma():

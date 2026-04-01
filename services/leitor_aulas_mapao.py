@@ -1,5 +1,6 @@
 import re
 import pandas as pd
+from services.normalizacao import normalizar_disciplina
 
 
 def extrair_aulas_por_disciplina(caminho_excel):
@@ -23,7 +24,7 @@ def extrair_aulas_por_disciplina(caminho_excel):
     while idx < len(cabecalho):
         nome = cabecalho[idx]
         if isinstance(nome, str) and "\n" in nome:
-            disciplina = nome.split("\n")[0].strip().upper()
+            disciplina = normalizar_disciplina(nome.split("\n")[0])
             inicio = idx
             fim = idx
 

@@ -59,6 +59,7 @@ class PersistenciaJSON:
                 "numero_chamada": aluno.numero_chamada,
                 "notas": aluno.notas,
                 "frequencia": aluno.frequencia,
+                "compensacao_ausencias": getattr(aluno, "compensacao_ausencias", {}),
                 "defasagens": aluno.defasagens,
                 "medias": getattr(aluno, "medias", {}),
                 "defasagem_frequencia": getattr(aluno, "defasagem_frequencia", ""),
@@ -100,6 +101,7 @@ class PersistenciaJSON:
 
             aluno.notas = info.get("notas", {})
             aluno.frequencia = info.get("frequencia", {})
+            aluno.compensacao_ausencias = info.get("compensacao_ausencias", {})
             aluno.defasagens = info.get("defasagens", {})
             aluno.medias = info.get("medias", {})
             aluno.defasagem_frequencia = info.get("defasagem_frequencia", {})

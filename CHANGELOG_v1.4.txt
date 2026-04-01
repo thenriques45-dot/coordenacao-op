@@ -1,5 +1,20 @@
 Changelog v1.4.x
 
+v1.4.1 - Acompanhamento anual de faltas e normalizacao das disciplinas
+- Nova tela `Acompanhar faltas e compensacoes` na gestao da turma:
+  - acumulado anual por aluno e disciplina
+  - soma de faltas, aulas e ausencias compensadas ao longo dos bimestres importados
+  - saldo pendente apos compensacao e identificacao de excesso
+- Importacao de mapoes passou a ler a coluna `AC` como ausencia compensada dentro do bloco de cada disciplina
+- Reimportacao segue segura para o fluxo FGB + IF:
+  - valores vazios nao apagam faltas, compensacoes ou medias ja importadas
+- Nomes de disciplinas vindos do mapao agora sao normalizados para evitar duplicidade visual:
+  - remocao de acentos
+  - padronizacao em caixa alta
+  - exemplo: `EDUCAÇÃO FINANCEIRA` passa a ser consolidada como `EDUCACAO FINANCEIRA`
+- Abreviacoes da ata foram ajustadas para continuar funcionando com os nomes normalizados
+- Novos testes cobrindo leitura de `AC`, acumulado de frequencia e normalizacao de disciplinas
+
 v1.4.0 - Acompanhamento de ajustes de nota apos o conselho
 - Novo acompanhamento para verificar se os ajustes de nota combinados no conselho foram aplicados:
   - status `Aplicado` quando o novo mapao traz a media esperada

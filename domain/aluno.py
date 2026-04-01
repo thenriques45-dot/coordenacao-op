@@ -8,6 +8,7 @@ class Aluno:
         self.ativo = ativo
         self.numero_chamada = numero_chamada
         self.frequencia = {}    # {bimestre: {disciplina: faltas}}
+        self.compensacao_ausencias = {}  # {bimestre: {disciplina: compensadas}}
         self.defasagens = {}  # {bimestre: {disciplina: True/False}}
         self.medias = {}       # {bimestre: {disciplina: media}}
         self.notas = {}        # {bimestre: [n1, n2, n3]}
