@@ -9,6 +9,17 @@ STATUS_MAPA = {
 
 
 class PreparadorAta:
+    @staticmethod
+    def _media_para_ata(aluno, bimestre, disciplina):
+        medias_bim = getattr(aluno, "medias", {}).get(bimestre, {})
+        media_mapao = medias_bim.get(disciplina)
+        ajustes_bim = getattr(aluno, "ajustes_medias_conselho", {}).get(bimestre, {})
+        ajuste = ajustes_bim.get(disciplina, {}) if isinstance(ajustes_bim, dict) else {}
+
+        if isinstance(ajuste, dict) and ajuste.get("media_ajustada") is not None:
+            return ajuste.get("media_ajustada")
+
+        return media_mapao
 
     @staticmethod
     def levantar_disciplinas(turma):
@@ -38,6 +49,7 @@ class PreparadorAta:
         (inteiro, sem cálculo).
         """
         alunos_tabela = []
+        nota_minima = Configuracao.obter_nota_minima()
 
         for aluno in turma.alunos.values():
 
@@ -56,10 +68,16 @@ class PreparadorAta:
 
             # -------- DEFASAGENS --------
             defasagens = set()
-            if bimestre in aluno.defasagens:
-                for disciplina, em_def in aluno.defasagens[bimestre].items():
-                    if em_def:
-                        defasagens.add(disciplina)
+            disciplinas_bimestre = set()
+            disciplinas_bimestre.update(getattr(aluno, "defasagens", {}).get(bimestre, {}).keys())
+            disciplinas_bimestre.update(getattr(aluno, "medias", {}).get(bimestre, {}).keys())
+            disciplinas_bimestre.update(
+                getattr(aluno, "ajustes_medias_conselho", {}).get(bimestre, {}).keys()
+            )
+            for disciplina in disciplinas_bimestre:
+                media_vigente = PreparadorAta._media_para_ata(aluno, bimestre, disciplina)
+                if media_vigente is not None and media_vigente < nota_minima:
+                    defasagens.add(disciplina)
 
             # -------- FREQUÊNCIA (DIRETO DO MAPÃO) --------
             freq_pct = ""
