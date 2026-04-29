@@ -1,5 +1,11 @@
 Changelog v1.4.x
 
+v1.4.5 - Edicao dos dados da turma
+- Nova opcao `Editar dados da turma` na tela de gestao da turma
+- Permite alterar turma, numero da sala e periodo apos a criacao
+- Exibe ciclo, serie e ano letivo como informacoes bloqueadas para consulta
+- Atualiza o codigo e o arquivo persistido quando a identificacao da turma muda
+
 v1.4.4 - Ajustes no fluxo de turmas e lista de alunos
 - Removido o botao `Abrir selecionada`, que deixava o fluxo de turmas confuso
 - As acoes rapidas agora usam automaticamente a turma selecionada na lista

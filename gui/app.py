@@ -845,10 +845,24 @@ class CoordenacaoApp(tk.Tk):
         frame.columnconfigure(1, weight=1)
         frame.columnconfigure(3, weight=1)
 
-        ttk.Label(
-            frame,
-            text=f"Turma atual: {self.turma.codigo} ({self.turma.ano}) - {len(self.turma.alunos)} alunos",
-        ).grid(row=0, column=0, columnspan=3, sticky="w")
+        cabecalho_turma_var = tk.StringVar()
+        ttk.Label(frame, textvariable=cabecalho_turma_var).grid(row=0, column=0, columnspan=3, sticky="w")
+        dados_turma_var = tk.StringVar()
+
+        def atualizar_resumo_turma():
+            cabecalho_turma_var.set(
+                f"Turma atual: {self._rotulo_turma(self.turma)} ({self.turma.ano}) - {len(self.turma.alunos)} alunos"
+            )
+            dados_turma_var.set(
+                f"Ciclo: {getattr(self.turma, 'ciclo', '') or '-'} | "
+                f"Serie: {getattr(self.turma, 'serie', '') or '-'} | "
+                f"Sala: {getattr(self.turma, 'sala', '') or '-'} | "
+                f"Periodo: {getattr(self.turma, 'periodo', '') or '-'}"
+            )
+            dialog.title(f"Gerir turma - {self._rotulo_turma(self.turma)}")
+
+        ttk.Label(frame, textvariable=dados_turma_var).grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        atualizar_resumo_turma()
 
         conselho = ttk.LabelFrame(frame, text="Conselho por bimestre", padding=8)
         conselho.grid(row=0, column=3, rowspan=8, sticky="nsew", padx=(12, 0))
@@ -879,61 +893,186 @@ class CoordenacaoApp(tk.Tk):
             if janela is not None:
                 janela.bind("<Destroy>", lambda _e: render_painel_conselho(), add="+")
 
-        ttk.Label(frame, text="Periodo").grid(row=1, column=0, sticky="w", pady=(10, 0))
+        ttk.Label(frame, text="Periodo").grid(row=2, column=0, sticky="w", pady=(10, 0))
         ttk.Combobox(
             frame,
             textvariable=self.bimestre_var,
             values=TODOS_PERIODOS_EXIBICAO,
             state="readonly",
             width=24,
-        ).grid(row=1, column=1, sticky="w", pady=(10, 0))
+        ).grid(row=2, column=1, sticky="w", pady=(10, 0))
 
         botoes = ttk.Frame(frame)
-        botoes.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        botoes.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         botoes.columnconfigure((0, 1), weight=1)
+        ttk.Button(
+            botoes,
+            text="Editar dados da turma",
+            command=lambda: self._abrir_dialogo_editar_dados_turma(callback_sucesso=atualizar_resumo_turma),
+        ).grid(
+            row=0, column=0, sticky="ew", padx=(0, 6)
+        )
         ttk.Button(
             botoes,
             text="Atualizar/substituir alunos por CSV",
             command=self._abrir_dialogo_atualizar_turma_csv,
         ).grid(
-            row=0, column=0, sticky="ew", padx=(0, 6)
+            row=0, column=1, sticky="ew", padx=(6, 0)
         )
         ttk.Button(
             botoes,
             text="Importar mapoes",
             command=lambda: self._abrir_dialogo_importar_mapoes(callback_sucesso=render_painel_conselho),
         ).grid(
-            row=0, column=1, sticky="ew", padx=(6, 0)
+            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
         ttk.Button(botoes, text="Gerenciar alunos", command=self._abrir_dialogo_gerenciar_alunos).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
         ttk.Button(
             botoes,
             text="Verificar ajustes de notas",
             command=self._abrir_dialogo_verificar_ajustes_notas,
         ).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
         ttk.Button(
             botoes,
             text="Acompanhar faltas e compensacoes",
             command=self._abrir_dialogo_acompanhar_frequencia,
         ).grid(
-            row=2, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
+            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
         ttk.Button(
             botoes,
             text="Excluir turma",
             command=lambda: self._excluir_turma_selecionada(fechar_dialogo=dialog),
         ).grid(
-            row=2, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
+            row=3, column=0, sticky="ew", padx=(0, 6), pady=(8, 0)
         )
         ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
-            row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0)
+            row=3, column=1, sticky="ew", padx=(6, 0), pady=(8, 0)
         )
         render_painel_conselho()
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=620, redimensionavel=True)
+
+    def _letra_turma_atual(self):
+        codigo = str(getattr(self.turma, "codigo", "") or "").strip()
+        serie = str(getattr(self.turma, "serie", "") or "").strip()
+
+        if serie and codigo.upper().startswith(serie.upper()):
+            resto = codigo[len(serie):].strip()
+            if resto:
+                return resto.split()[-1].upper()
+
+        if codigo:
+            ultimo = codigo.split()[-1].strip()
+            if len(ultimo) == 1 and ultimo.isalpha():
+                return ultimo.upper()
+            if len(codigo) >= 2 and codigo[-1].isalpha():
+                return codigo[-1].upper()
+
+        return ""
+
+    def _abrir_dialogo_editar_dados_turma(self, callback_sucesso=None):
+        if not self._exigir_turma():
+            return
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Editar dados da turma")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.resizable(False, False)
+
+        frame = ttk.Frame(dialog, padding=12)
+        frame.grid(sticky="nsew")
+        frame.columnconfigure(1, weight=1)
+
+        ciclo_var = tk.StringVar(value=getattr(self.turma, "ciclo", "") or "")
+        serie_var = tk.StringVar(value=getattr(self.turma, "serie", "") or "")
+        ano_var = tk.StringVar(value=str(getattr(self.turma, "ano", "") or ""))
+        letra_var = tk.StringVar(value=self._letra_turma_atual())
+        sala_var = tk.StringVar(value=getattr(self.turma, "sala", "") or "")
+        periodo_var = tk.StringVar(value=getattr(self.turma, "periodo", "") or (PERIODOS[0] if PERIODOS else ""))
+        codigo_preview_var = tk.StringVar()
+
+        def atualizar_codigo(_event=None):
+            codigo_preview_var.set(self._codigo_turma(serie_var.get(), letra_var.get() or "", ciclo_var.get()))
+
+        ttk.Label(frame, text="Ciclo").grid(row=0, column=0, sticky="w")
+        ttk.Entry(frame, textvariable=ciclo_var, state="readonly", width=26).grid(row=0, column=1, sticky="ew")
+
+        ttk.Label(frame, text="Serie").grid(row=1, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=serie_var, state="readonly").grid(row=1, column=1, sticky="ew", pady=(8, 0))
+
+        ttk.Label(frame, text="Ano letivo").grid(row=2, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=ano_var, state="readonly", width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))
+
+        ttk.Separator(frame).grid(row=3, column=0, columnspan=2, sticky="ew", pady=12)
+
+        ttk.Label(frame, text="Turma").grid(row=4, column=0, sticky="w")
+        entry_letra = ttk.Entry(frame, textvariable=letra_var, width=8)
+        entry_letra.grid(row=4, column=1, sticky="w")
+        entry_letra.bind("<KeyRelease>", atualizar_codigo)
+
+        ttk.Label(frame, text="Numero da sala").grid(row=5, column=0, sticky="w", pady=(8, 0))
+        ttk.Entry(frame, textvariable=sala_var, width=14).grid(row=5, column=1, sticky="w", pady=(8, 0))
+
+        ttk.Label(frame, text="Periodo").grid(row=6, column=0, sticky="w", pady=(8, 0))
+        ttk.Combobox(
+            frame,
+            textvariable=periodo_var,
+            values=PERIODOS,
+            state="readonly",
+            width=24,
+        ).grid(row=6, column=1, sticky="w", pady=(8, 0))
+
+        ttk.Label(frame, text="Codigo da turma").grid(row=7, column=0, sticky="w", pady=(10, 0))
+        ttk.Label(frame, textvariable=codigo_preview_var).grid(row=7, column=1, sticky="w", pady=(10, 0))
+        atualizar_codigo()
+
+        botoes = ttk.Frame(frame)
+        botoes.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        botoes.columnconfigure((0, 1), weight=1)
+
+        def salvar():
+            letra = letra_var.get().strip().upper()
+            sala = sala_var.get().strip()
+            periodo = periodo_var.get().strip()
+
+            if not letra:
+                messagebox.showwarning("Turma", "Informe a turma.")
+                return
+            if periodo not in PERIODOS:
+                messagebox.showwarning("Turma", "Selecione um periodo valido.")
+                return
+
+            caminho_antigo = self.turma_caminho
+            self.turma.codigo = self._codigo_turma(self.turma.serie, letra, self.turma.ciclo)
+            self.turma.sala = sala
+            self.turma.periodo = periodo
+
+            try:
+                self._salvar_turma()
+                if (
+                    caminho_antigo
+                    and self.turma_caminho
+                    and os.path.normcase(caminho_antigo) != os.path.normcase(self.turma_caminho)
+                    and os.path.exists(caminho_antigo)
+                ):
+                    os.remove(caminho_antigo)
+                self._carregar_catalogo_turmas()
+                self._atualizar_status_turma()
+                if callback_sucesso is not None:
+                    callback_sucesso()
+                messagebox.showinfo("Turma", "Dados da turma atualizados.")
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror("Erro", f"Nao foi possivel atualizar os dados da turma:\n{exc}")
+
+        ttk.Button(botoes, text="Cancelar", command=dialog.destroy).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ttk.Button(botoes, text="Salvar", command=salvar).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=520, altura_min=360, redimensionavel=False)
 
     def _excluir_turma_selecionada(self, fechar_dialogo=None):
         caminho = None
