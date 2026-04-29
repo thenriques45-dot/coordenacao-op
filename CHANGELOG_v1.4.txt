@@ -1,5 +1,12 @@
 Changelog v1.4.x
 
+v1.4.4 - Ajustes no fluxo de turmas e lista de alunos
+- Removido o botao `Abrir selecionada`, que deixava o fluxo de turmas confuso
+- As acoes rapidas agora usam automaticamente a turma selecionada na lista
+- A atualizacao por CSV ganhou a opcao de substituir completamente a lista de alunos
+- A tela de gerenciamento de alunos ganhou a opcao de apagar a lista atual
+- Confirmacoes adicionadas para deixar claro quando notas, frequencias, ajustes e encaminhamentos vinculados aos alunos serao removidos
+
 v1.4.1 - Acompanhamento anual de faltas e normalizacao das disciplinas
 - Nova tela `Acompanhar faltas e compensacoes` na gestao da turma:
   - acumulado anual por aluno e disciplina

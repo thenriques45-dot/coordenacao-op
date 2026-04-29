@@ -255,11 +255,8 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(toolbar, text="Atualizar lista", command=self._carregar_catalogo_turmas).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Button(toolbar, text="Abrir selecionada", command=self._abrir_turma_da_lista).grid(
-            row=0, column=1, sticky="w", padx=(8, 0)
-        )
         ttk.Button(toolbar, text="Excluir selecionada", command=self._excluir_turma_selecionada).grid(
-            row=0, column=2, sticky="w", padx=(8, 0)
+            row=0, column=1, sticky="w", padx=(8, 0)
         )
 
         tree_wrap = ttk.Frame(catalogo, style="Surface.TFrame")
@@ -317,7 +314,7 @@ class CoordenacaoApp(tk.Tk):
         botoes_acao = [
             ("Gerir turma selecionada", self._abrir_dialogo_gerir_turma),
             ("Gerenciar alunos", self._abrir_dialogo_gerenciar_alunos),
-            ("Atualizar turma por CSV", self._abrir_dialogo_atualizar_turma_csv),
+            ("Atualizar/substituir alunos por CSV", self._abrir_dialogo_atualizar_turma_csv),
             ("Importar mapoes", self._abrir_dialogo_importar_mapoes),
             ("Gerar ata", self._gerar_ata),
             ("Gerar relatorio", self._gerar_relatorio),
@@ -360,8 +357,8 @@ class CoordenacaoApp(tk.Tk):
         orientacao.grid(row=3, column=0, sticky="ew", pady=(12, 0))
         orientacao.columnconfigure(0, weight=1)
         orientacao_textos = (
-            "1. Abra ou crie uma turma.",
-            "2. Atualize os alunos por CSV quando necessario.",
+            "1. Selecione ou crie uma turma.",
+            "2. Atualize ou substitua os alunos por CSV quando necessario.",
             "3. Importe os mapoes do periodo.",
             "4. Gere ata e relatorio ao final do conselho.",
         )
@@ -476,19 +473,13 @@ class CoordenacaoApp(tk.Tk):
         self._abrir_turma_por_caminho(caminho)
 
     def _abrir_turma_da_lista(self, _event=None):
-        selecionado = self.tree_turmas.focus()
-        if not selecionado:
-            return
-        valores = self.tree_turmas.item(selecionado, "values")
+        valores = self._obter_turma_da_lista_selecionada()
         if not valores:
             return
         self._abrir_turma_por_caminho(valores[2])
 
     def _abrir_gestao_da_turma_da_lista(self, _event=None):
-        selecionado = self.tree_turmas.focus()
-        if not selecionado:
-            return
-        valores = self.tree_turmas.item(selecionado, "values")
+        valores = self._obter_turma_da_lista_selecionada()
         if not valores:
             return
         self._abrir_turma_por_caminho(valores[2])
@@ -799,18 +790,27 @@ class CoordenacaoApp(tk.Tk):
         self._salvar_turma()
 
     def _garantir_turma_selecionada(self):
+        valores = self._obter_turma_da_lista_selecionada()
+        if valores:
+            caminho = valores[2]
+            if not self.turma_caminho or os.path.normcase(self.turma_caminho) != os.path.normcase(caminho):
+                self._abrir_turma_por_caminho(caminho)
+            return self.turma is not None
+
         if self.turma is not None:
             return True
 
-        selecionado = self.tree_turmas.focus()
-        if selecionado:
-            valores = self.tree_turmas.item(selecionado, "values")
-            if valores and len(valores) >= 3:
-                self._abrir_turma_por_caminho(valores[2])
-                return self.turma is not None
-
         messagebox.showwarning("Turma", "Selecione ou abra uma turma para continuar.")
         return False
+
+    def _obter_turma_da_lista_selecionada(self):
+        selecionado = self.tree_turmas.focus()
+        if not selecionado:
+            return None
+        valores = self.tree_turmas.item(selecionado, "values")
+        if not valores or len(valores) < 3:
+            return None
+        return valores
 
     def _abrir_dialogo_gerir_turma(self):
         if not self._garantir_turma_selecionada():
@@ -893,7 +893,7 @@ class CoordenacaoApp(tk.Tk):
         botoes.columnconfigure((0, 1), weight=1)
         ttk.Button(
             botoes,
-            text="Atualizar turma por CSV",
+            text="Atualizar/substituir alunos por CSV",
             command=self._abrir_dialogo_atualizar_turma_csv,
         ).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
@@ -2119,6 +2119,34 @@ class CoordenacaoApp(tk.Tk):
             self._atualizar_status_turma()
             messagebox.showinfo("5C", "Conceito salvo.")
 
+        def limpar_lista_alunos():
+            total_alunos = len(self.turma.alunos)
+            if total_alunos == 0:
+                messagebox.showinfo("Alunos", "A lista de alunos ja esta vazia.")
+                return
+
+            confirma = messagebox.askyesno(
+                "Apagar lista de alunos",
+                (
+                    f"Apagar os {total_alunos} aluno(s) da turma {self._rotulo_turma(self.turma)}?\n\n"
+                    "Esta acao tambem remove notas, frequencias, ajustes e encaminhamentos vinculados "
+                    "a estes alunos."
+                ),
+            )
+            if not confirma:
+                return
+
+            self.turma.alunos.clear()
+            self._salvar_turma()
+            self._atualizar_status_turma()
+            matricula_var.set("")
+            nome_var.set("")
+            numero_var.set("")
+            ativo_var.set(True)
+            valor_5c_var.set("")
+            repopular_lista()
+            messagebox.showinfo("Alunos", "Lista de alunos apagada.")
+
         filtro_var.trace_add("write", lambda *_: repopular_lista())
         tree.bind("<<TreeviewSelect>>", carregar_aluno)
         combo_disc_5c.bind("<<ComboboxSelected>>", carregar_5c_aluno)
@@ -2126,23 +2154,23 @@ class CoordenacaoApp(tk.Tk):
 
         botoes = ttk.Frame(form)
         botoes.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 0))
-        botoes.columnconfigure((0, 1, 2), weight=1)
+        botoes.columnconfigure((0, 1, 2, 3), weight=1)
         ttk.Button(botoes, text="Salvar alteracoes", command=salvar_alteracoes).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
         )
         ttk.Button(botoes, text=f"Salvar {CONCEITO_FINAL}", command=salvar_5c).grid(
             row=0, column=1, sticky="ew", padx=(6, 6)
         )
+        ttk.Button(botoes, text="Apagar lista", command=limpar_lista_alunos).grid(
+            row=0, column=2, sticky="ew", padx=(6, 6)
+        )
         ttk.Button(botoes, text="Fechar", command=dialog.destroy).grid(
-            row=0, column=2, sticky="ew", padx=(6, 0)
+            row=0, column=3, sticky="ew", padx=(6, 0)
         )
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=640, redimensionavel=True)
 
     def _exigir_turma(self):
-        if self.turma is None:
-            messagebox.showwarning("Turma", "Abra uma turma antes de executar esta operacao.")
-            return False
-        return True
+        return self._garantir_turma_selecionada()
 
     def _obter_bimestre(self):
         entrada = self.bimestre_var.get().strip()
@@ -2163,7 +2191,7 @@ class CoordenacaoApp(tk.Tk):
             return
 
         dialog = tk.Toplevel(self)
-        dialog.title("Atualizar turma por CSV")
+        dialog.title("Atualizar/substituir alunos por CSV")
         dialog.transient(self)
         dialog.grab_set()
         dialog.resizable(False, False)
@@ -2173,7 +2201,7 @@ class CoordenacaoApp(tk.Tk):
         frame.columnconfigure(1, weight=1)
 
         caminho_var = tk.StringVar(value=self.csv_update_var.get().strip())
-        ttk.Label(frame, text="CSV atualizado").grid(row=0, column=0, sticky="w")
+        ttk.Label(frame, text="CSV de alunos").grid(row=0, column=0, sticky="w")
         ttk.Entry(frame, textvariable=caminho_var, width=54).grid(row=0, column=1, sticky="ew")
         ttk.Button(
             frame,
@@ -2184,29 +2212,86 @@ class CoordenacaoApp(tk.Tk):
             ),
         ).grid(row=0, column=2, padx=(8, 0))
 
-        botoes = ttk.Frame(frame)
-        botoes.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(12, 0))
-        botoes.columnconfigure((0, 1), weight=1)
+        ttk.Label(
+            frame,
+            text=(
+                "Atualizar preserva dados dos alunos existentes e inativa ausentes. "
+                "Substituir apaga a lista atual e importa apenas o CSV escolhido."
+            ),
+            wraplength=720,
+        ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(10, 0))
 
-        def confirmar():
+        botoes = ttk.Frame(frame)
+        botoes.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        botoes.columnconfigure((0, 1, 2), weight=1)
+
+        def obter_caminho_csv():
             caminho_csv = caminho_var.get().strip()
             if not caminho_csv:
-                messagebox.showwarning("CSV", "Informe o caminho do CSV atualizado.")
+                messagebox.showwarning("CSV", "Informe o caminho do CSV de alunos.")
+                return None
+            return caminho_csv
+
+        def confirmar():
+            caminho_csv = obter_caminho_csv()
+            if not caminho_csv:
                 return
             try:
-                AtualizadorTurma.atualizar_turma(self.turma, caminho_csv)
+                resumo = AtualizadorTurma.atualizar_turma(self.turma, caminho_csv)
                 self.csv_update_var.set(caminho_csv)
                 self._salvar_turma()
-                messagebox.showinfo("Turma", "Turma atualizada com sucesso.")
+                self._atualizar_status_turma()
+                messagebox.showinfo(
+                    "Turma",
+                    (
+                        "Turma atualizada com sucesso.\n\n"
+                        f"Adicionados: {resumo['adicionados']}\n"
+                        f"Reativados: {resumo['reativados']}\n"
+                        f"Inativados: {resumo['inativados']}"
+                    ),
+                )
                 dialog.destroy()
             except Exception as exc:
                 messagebox.showerror("Erro", f"Falha ao atualizar turma:\n{exc}")
 
+        def substituir_lista():
+            caminho_csv = obter_caminho_csv()
+            if not caminho_csv:
+                return
+
+            confirma = messagebox.askyesno(
+                "Substituir lista de alunos",
+                (
+                    f"Substituir todos os alunos da turma {self._rotulo_turma(self.turma)}?\n\n"
+                    "Esta acao apaga a lista atual e tambem remove notas, frequencias, ajustes e "
+                    "encaminhamentos vinculados aos alunos atuais.\n\n"
+                    "Depois disso serao importados apenas os alunos do CSV selecionado."
+                ),
+            )
+            if not confirma:
+                return
+
+            try:
+                alunos = ImportadorCSV.importar_alunos(caminho_csv)
+                self.turma.alunos.clear()
+                for aluno in alunos:
+                    self.turma.adicionar_aluno(aluno)
+                self.csv_update_var.set(caminho_csv)
+                self._salvar_turma()
+                self._atualizar_status_turma()
+                messagebox.showinfo("Turma", f"Lista substituida com sucesso.\n\nAlunos importados: {len(alunos)}")
+                dialog.destroy()
+            except Exception as exc:
+                messagebox.showerror("Erro", f"Falha ao substituir lista de alunos:\n{exc}")
+
         ttk.Button(botoes, text="Atualizar", command=confirmar).grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        ttk.Button(botoes, text="Cancelar", command=dialog.destroy).grid(
-            row=0, column=1, sticky="ew", padx=(6, 0)
+        ttk.Button(botoes, text="Substituir lista", command=substituir_lista).grid(
+            row=0, column=1, sticky="ew", padx=(6, 6)
         )
-        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=760, altura_min=180, redimensionavel=False)
+        ttk.Button(botoes, text="Cancelar", command=dialog.destroy).grid(
+            row=0, column=2, sticky="ew", padx=(6, 0)
+        )
+        self._ajustar_dialogo_ao_conteudo(dialog, largura_min=780, altura_min=230, redimensionavel=False)
 
     def _abrir_dialogo_importar_mapoes(self, callback_sucesso=None):
         if not self._exigir_turma():
