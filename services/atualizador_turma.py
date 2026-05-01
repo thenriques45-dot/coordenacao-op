@@ -31,6 +31,8 @@ class AtualizadorTurma:
                 aluno_existente.nome = aluno_csv.nome
                 aluno_existente.numero_chamada = aluno_csv.numero_chamada
                 aluno_existente.ativo = True
+                if getattr(aluno_csv, "deficiencias", []):
+                    aluno_existente.deficiencias = aluno_csv.deficiencias
 
             else:
                 turma.adicionar_aluno(aluno_csv)

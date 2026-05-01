@@ -16,6 +16,7 @@ class Aluno:
         self.defasagem_frequencia = {}  # {bimestre: {disciplina: True/False}}
         self.encaminhamentos_conselho = {}  # {bimestre: [codigos 1..10]}
         self.ajustes_medias_conselho = {}  # {bimestre: {disciplina: {media_original, media_ajustada, observacao}}}
+        self.deficiencias = []  # lista de necessidades especiais/deficiencias do aluno
 
 
     def adicionar_notas(self, bimestre, notas):

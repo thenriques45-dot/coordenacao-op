@@ -1,5 +1,21 @@
 import csv
 from domain.aluno import Aluno
+from services.normalizacao import normalizar_disciplina, normalizar_lista_texto
+
+
+COLUNAS_DEFICIENCIA = {
+    "DEFICIENCIA",
+    "DEFICIENCIAS",
+    "TIPO DE DEFICIENCIA",
+    "NECESSIDADE ESPECIAL",
+    "NECESSIDADES ESPECIAIS",
+    "NEE",
+    "PUBLICO ALVO",
+    "PUBLICO ALVO AEE",
+}
+
+MARCADORES_NEGATIVOS = {"", "NAO", "N", "NAO SE APLICA", "NAO POSSUI", "SEM DEFICIENCIA"}
+MARCADORES_POSITIVOS = {"SIM", "S", "ELEGIVEL", "ALUNO ELEGIVEL"}
 
 
 class ImportadorCSV:
@@ -45,7 +61,25 @@ class ImportadorCSV:
                     ativo=ativo,
                     numero_chamada=numero_chamada
                 )
+                aluno.deficiencias = ImportadorCSV._extrair_deficiencias(registro)
 
                 alunos.append(aluno)
 
         return alunos
+
+    @staticmethod
+    def _extrair_deficiencias(registro):
+        deficiencias = []
+        for coluna, valor in registro.items():
+            if normalizar_disciplina(coluna) not in COLUNAS_DEFICIENCIA:
+                continue
+
+            texto_normalizado = normalizar_disciplina(valor)
+            if texto_normalizado in MARCADORES_NEGATIVOS:
+                continue
+            if texto_normalizado in MARCADORES_POSITIVOS:
+                deficiencias.append("Aluno elegivel")
+                continue
+            deficiencias.extend(normalizar_lista_texto(valor))
+
+        return normalizar_lista_texto(deficiencias)
