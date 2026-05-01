@@ -3,6 +3,7 @@ import os
 import re
 from domain.turma import Turma
 from domain.aluno import Aluno
+from services.normalizacao import normalizar_lista_texto
 from services.runtime_paths import data_dir
 
 
@@ -34,11 +35,15 @@ class PersistenciaJSON:
         }
 
     @staticmethod
-    def salvar_turma(turma):
-        pasta = data_dir("persistidos", str(turma.ano))
-        os.makedirs(pasta, exist_ok=True)
-
-        caminho = os.path.join(pasta, f"turma_{turma.codigo}.json")
+    def salvar_turma(turma, caminho=None):
+        if caminho is None:
+            pasta = data_dir("persistidos", str(turma.ano))
+            os.makedirs(pasta, exist_ok=True)
+            caminho = os.path.join(pasta, f"turma_{turma.codigo}.json")
+        else:
+            pasta = os.path.dirname(caminho)
+            if pasta:
+                os.makedirs(pasta, exist_ok=True)
 
         dados = {
             "codigo": turma.codigo,
@@ -67,6 +72,7 @@ class PersistenciaJSON:
                 "frequencia_percentual": getattr(aluno, "frequencia_percentual", ""),
                 "encaminhamentos_conselho": getattr(aluno, "encaminhamentos_conselho", {}),
                 "ajustes_medias_conselho": getattr(aluno, "ajustes_medias_conselho", {}),
+                "deficiencias": normalizar_lista_texto(getattr(aluno, "deficiencias", [])),
             }
 
         with open(caminho, "w", encoding="utf-8") as f:
@@ -110,6 +116,7 @@ class PersistenciaJSON:
             aluno.frequencia_percentual = info.get("frequencia_percentual", "")
             aluno.encaminhamentos_conselho = info.get("encaminhamentos_conselho", {})
             aluno.ajustes_medias_conselho = info.get("ajustes_medias_conselho", {})
+            aluno.deficiencias = normalizar_lista_texto(info.get("deficiencias", []))
 
             turma.alunos[matricula] = aluno
 
