@@ -1,5 +1,9 @@
 Changelog v1.4.x
 
+v1.4.6 - Correcao no campo de ano letivo
+- Corrigida a exibicao do ano letivo na tela `Editar dados da turma`
+- Mantidas as informacoes bloqueadas de ciclo, serie e ano visiveis durante o uso do dialogo
+
 v1.4.5 - Edicao dos dados da turma
 - Nova opcao `Editar dados da turma` na tela de gestao da turma
 - Permite alterar turma, numero da sala e periodo apos a criacao

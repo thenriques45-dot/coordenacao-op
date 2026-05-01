@@ -1,12 +1,14 @@
 import os
 import tkinter as tk
 from datetime import date, datetime
+from tkinter import font as tkfont
 from tkinter import filedialog, messagebox, ttk
 
 from domain.turma import Turma
 from gui.platform_ui import apply_theme, detect_platform_ui
 from gui.session import TurmaSession, TurmaWindowRegistry
 from services.encaminhamentos import ENCAMINHAMENTOS
+from services.importador_alunos_especiais import ImportadorAlunosEspeciais
 from services.importador_dados import ImportadorCSV
 from services.atualizador_turma import AtualizadorTurma
 from services.acompanhamento_ajustes import AcompanhamentoAjustes
@@ -16,6 +18,7 @@ from services.configuracao import Configuracao
 from services.gerador_ata import GeradorAta
 from services.gerador_relatorio_professores import GeradorRelatorioProfessores
 from services.importador_mapao import ImportadorMapao
+from services.normalizacao import normalizar_lista_texto
 from services.periodo_letivo import CONCEITO_FINAL, garantir_bimestre_operacional, normalizar_periodo
 from services.persistencia import PersistenciaJSON
 from services.runtime_paths import asset_path, data_dir
@@ -148,6 +151,10 @@ class CoordenacaoApp(tk.Tk):
         )
         menu_arquivo.add_command(label="Excluir turma selecionada...", command=self._excluir_turma_selecionada)
         menu_arquivo.add_command(label="Gerenciar alunos...", command=self._abrir_dialogo_gerenciar_alunos)
+        menu_arquivo.add_command(
+            label="Importar alunos elegiveis da escola...",
+            command=self._importar_alunos_especiais_escola,
+        )
         menu_arquivo.add_separator()
         menu_arquivo.add_command(label="Exportar dados...", command=self._exportar_backup)
         menu_arquivo.add_command(label="Adicionar dados de backup...", command=self._importar_backup)
@@ -585,6 +592,44 @@ class CoordenacaoApp(tk.Tk):
         except Exception as exc:
             messagebox.showerror("Erro", f"Falha ao adicionar os dados do backup:\n{exc}")
 
+    def _importar_alunos_especiais_escola(self):
+        caminho = filedialog.askopenfilename(
+            title="Selecionar CSV de alunos elegiveis",
+            initialdir=data_dir(),
+            filetypes=[("CSV", "*.csv"), ("Todos", "*.*")],
+        )
+        if not caminho:
+            return
+
+        try:
+            resumo = ImportadorAlunosEspeciais.importar_para_turmas_persistidas(caminho)
+            self._carregar_catalogo_turmas()
+            if self.turma_caminho:
+                caminho_atual = os.path.abspath(self.turma_caminho)
+                for _, _, caminho_turma in self.catalogo_turmas:
+                    if os.path.abspath(caminho_turma) == caminho_atual:
+                        self.turma = PersistenciaJSON.carregar_turma(self.turma_caminho)
+                        self.turma_session = TurmaSession(self.turma, self.turma_caminho)
+                        self._atualizar_status_turma()
+                        break
+
+            detalhes = [
+                f"Registros lidos no CSV: {resumo['registros_csv']}",
+                f"Turmas verificadas: {resumo['turmas_lidas']}",
+                f"Turmas atualizadas: {resumo['turmas_atualizadas']}",
+                f"Alunos atualizados: {resumo['alunos_atualizados']}",
+                f"Encontrados por RA: {resumo['por_matricula']}",
+                f"Encontrados por nome: {resumo['por_nome']}",
+            ]
+            if resumo["nao_encontrados"]:
+                detalhes.append(f"Nao encontrados: {len(resumo['nao_encontrados'])}")
+            if resumo["nomes_ambiguos"]:
+                detalhes.append(f"Nomes ambiguos ignorados: {len(resumo['nomes_ambiguos'])}")
+
+            messagebox.showinfo("Alunos elegiveis", "\n".join(detalhes))
+        except Exception as exc:
+            messagebox.showerror("Alunos elegiveis", f"Falha ao importar CSV:\n{exc}")
+
     def _atualizar_status_turma(self):
         if self.turma is None:
             self.turma_caminho = None
@@ -995,6 +1040,7 @@ class CoordenacaoApp(tk.Tk):
         sala_var = tk.StringVar(value=getattr(self.turma, "sala", "") or "")
         periodo_var = tk.StringVar(value=getattr(self.turma, "periodo", "") or (PERIODOS[0] if PERIODOS else ""))
         codigo_preview_var = tk.StringVar()
+        dialog._dados_turma_vars = (ciclo_var, serie_var, ano_var, letra_var, sala_var, periodo_var, codigo_preview_var)
 
         def atualizar_codigo(_event=None):
             codigo_preview_var.set(self._codigo_turma(serie_var.get(), letra_var.get() or "", ciclo_var.get()))
@@ -1213,13 +1259,39 @@ class CoordenacaoApp(tk.Tk):
         aluno_pos_var = tk.StringVar()
         aluno_nome_var = tk.StringVar()
         aluno_numero_var = tk.StringVar()
+        aluno_elegivel_var = tk.StringVar(value="ALUNO ELEGIVEL")
+        fonte_nome_aluno = tkfont.Font(root=root, font="TkDefaultFont")
+        fonte_nome_aluno.configure(size=15, weight="bold")
+        fonte_selo_elegivel = tkfont.Font(root=root, font="TkDefaultFont")
+        fonte_selo_elegivel.configure(size=10, weight="bold")
 
         topo_esquerda = ttk.Frame(root)
         topo_esquerda.grid(row=0, column=0, sticky="w")
         ttk.Label(topo_esquerda, textvariable=aluno_pos_var).grid(row=0, column=0, sticky="w")
 
-        ttk.Label(root, textvariable=aluno_nome_var).grid(row=1, column=0, sticky="w", pady=(6, 0))
-        ttk.Label(root, textvariable=aluno_numero_var).grid(row=1, column=1, sticky="e", pady=(6, 0))
+        aluno_header = ttk.Frame(root)
+        aluno_header.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        aluno_header.columnconfigure(0, weight=1)
+
+        nome_selo_frame = ttk.Frame(aluno_header)
+        nome_selo_frame.grid(row=0, column=0, sticky="w")
+        ttk.Label(nome_selo_frame, textvariable=aluno_nome_var, font=fonte_nome_aluno).grid(
+            row=0, column=0, sticky="w"
+        )
+        selo_elegivel = tk.Label(
+            nome_selo_frame,
+            textvariable=aluno_elegivel_var,
+            bg="#ffe0b2",
+            fg="#7a3d00",
+            font=fonte_selo_elegivel,
+            padx=10,
+            pady=3,
+        )
+        selo_elegivel.grid(row=0, column=1, sticky="w", padx=(6, 0))
+
+        ttk.Label(aluno_header, textvariable=aluno_numero_var, font=fonte_nome_aluno).grid(
+            row=0, column=1, sticky="e", padx=(12, 0)
+        )
 
         notas_box = ttk.LabelFrame(root, text="Disciplinas e notas", padding=8)
         notas_box.grid(row=2, column=1, rowspan=2, sticky="nsew", pady=(8, 0), padx=(10, 0))
@@ -1671,10 +1743,16 @@ class CoordenacaoApp(tk.Tk):
 
         def carregar_aluno():
             aluno = alunos[estado["idx"]]
+            deficiencias = normalizar_lista_texto(getattr(aluno, "deficiencias", []))
             aluno_pos_var.set(f"Aluno {estado['idx'] + 1} de {len(alunos)}")
-            aluno_nome_var.set(f"Nome: {aluno.nome}")
+            aluno_nome_var.set(aluno.nome)
             numero_txt = "" if aluno.numero_chamada is None else str(aluno.numero_chamada)
             aluno_numero_var.set(f"Nº chamada: {numero_txt}")
+            aluno_elegivel_var.set("ALUNO ELEGÍVEL" if deficiencias else "")
+            if deficiencias:
+                selo_elegivel.grid()
+            else:
+                selo_elegivel.grid_remove()
 
             for item in tree_notas.get_children():
                 tree_notas.delete(item)
@@ -2080,7 +2158,7 @@ class CoordenacaoApp(tk.Tk):
 
         tree = ttk.Treeview(
             root,
-            columns=("matricula", "nome", "numero", "ativo"),
+            columns=("matricula", "nome", "numero", "ativo", "elegivel"),
             show="headings",
             height=12,
         )
@@ -2088,10 +2166,12 @@ class CoordenacaoApp(tk.Tk):
         tree.heading("nome", text="Nome")
         tree.heading("numero", text="No")
         tree.heading("ativo", text="Ativo")
+        tree.heading("elegivel", text="Elegivel")
         tree.column("matricula", width=120, anchor="center")
-        tree.column("nome", width=420, anchor="w")
+        tree.column("nome", width=360, anchor="w")
         tree.column("numero", width=70, anchor="center")
         tree.column("ativo", width=70, anchor="center")
+        tree.column("elegivel", width=80, anchor="center")
         tree.grid(row=1, column=0, sticky="nsew", pady=(8, 0))
 
         scroll = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
@@ -2133,6 +2213,10 @@ class CoordenacaoApp(tk.Tk):
 
         ttk.Label(form, text=f"Valor {CONCEITO_FINAL}").grid(row=6, column=0, sticky="w", pady=(8, 0))
         ttk.Entry(form, textvariable=valor_5c_var, width=12).grid(row=6, column=1, sticky="w", pady=(8, 0))
+        ttk.Separator(form).grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 4))
+        ttk.Label(form, text="Necessidades especiais / deficiencias").grid(row=8, column=0, sticky="nw")
+        texto_deficiencias = tk.Text(form, height=3, width=48, wrap="word")
+        texto_deficiencias.grid(row=8, column=1, sticky="ew")
 
         def obter_alunos_filtrados():
             termo = filtro_var.get().strip().lower()
@@ -2159,6 +2243,7 @@ class CoordenacaoApp(tk.Tk):
                         aluno.nome,
                         "" if aluno.numero_chamada is None else aluno.numero_chamada,
                         "Sim" if aluno.ativo else "Nao",
+                        "Sim" if normalizar_lista_texto(getattr(aluno, "deficiencias", [])) else "Nao",
                     ),
                 )
 
@@ -2173,6 +2258,11 @@ class CoordenacaoApp(tk.Tk):
             nome_var.set(aluno.nome)
             numero_var.set("" if aluno.numero_chamada is None else str(aluno.numero_chamada))
             ativo_var.set(bool(aluno.ativo))
+            texto_deficiencias.delete("1.0", "end")
+            texto_deficiencias.insert(
+                "1.0",
+                "\n".join(normalizar_lista_texto(getattr(aluno, "deficiencias", []))),
+            )
             carregar_5c_aluno()
 
         def carregar_5c_aluno(_event=None):
@@ -2216,6 +2306,7 @@ class CoordenacaoApp(tk.Tk):
             aluno.nome = nome
             aluno.numero_chamada = numero
             aluno.ativo = bool(ativo_var.get())
+            aluno.deficiencias = normalizar_lista_texto(texto_deficiencias.get("1.0", "end"))
 
             self._salvar_turma()
             self._atualizar_status_turma()
@@ -2283,6 +2374,7 @@ class CoordenacaoApp(tk.Tk):
             numero_var.set("")
             ativo_var.set(True)
             valor_5c_var.set("")
+            texto_deficiencias.delete("1.0", "end")
             repopular_lista()
             messagebox.showinfo("Alunos", "Lista de alunos apagada.")
 
@@ -2292,7 +2384,7 @@ class CoordenacaoApp(tk.Tk):
         repopular_lista()
 
         botoes = ttk.Frame(form)
-        botoes.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        botoes.grid(row=9, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         botoes.columnconfigure((0, 1, 2, 3), weight=1)
         ttk.Button(botoes, text="Salvar alteracoes", command=salvar_alteracoes).grid(
             row=0, column=0, sticky="ew", padx=(0, 6)
