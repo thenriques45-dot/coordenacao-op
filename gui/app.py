@@ -1387,10 +1387,8 @@ class CoordenacaoApp(tk.Tk):
         aluno_header.columnconfigure(0, weight=1)
 
         nome_selo_frame = ttk.Frame(aluno_header)
-        nome_selo_frame.grid(row=0, column=0, sticky="w")
-        ttk.Label(nome_selo_frame, textvariable=aluno_nome_var, font=fonte_nome_aluno).grid(
-            row=0, column=0, sticky="w"
-        )
+        nome_selo_frame.grid(row=0, column=0, sticky="ew")
+        nome_selo_frame.columnconfigure(1, weight=1)
         selo_elegivel = tk.Label(
             nome_selo_frame,
             textvariable=aluno_elegivel_var,
@@ -1400,7 +1398,10 @@ class CoordenacaoApp(tk.Tk):
             padx=10,
             pady=3,
         )
-        selo_elegivel.grid(row=0, column=1, sticky="w", padx=(6, 0))
+        selo_elegivel.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        ttk.Label(nome_selo_frame, textvariable=aluno_nome_var, font=fonte_nome_aluno).grid(
+            row=0, column=1, sticky="w"
+        )
 
         ttk.Label(aluno_header, textvariable=aluno_numero_var, font=fonte_nome_aluno).grid(
             row=0, column=1, sticky="e", padx=(12, 0)

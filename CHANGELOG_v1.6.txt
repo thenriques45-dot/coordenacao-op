@@ -1,5 +1,9 @@
 Changelog v1.6
 
+v1.6.4 - Selo de aluno elegivel no conselho
+- Selo `ALUNO ELEGIVEL` passou a aparecer antes do nome do aluno.
+- Evita que nomes longos escondam a indicacao na tela de conselho.
+
 v1.6.3 - Ajuste da tela de conselho maximizada
 - Janela de conselho maximizada agora respeita uma folga inferior no Windows.
 - Evita que os botoes de navegacao e finalizacao fiquem cobertos pela barra de iniciar.
