@@ -119,11 +119,10 @@ class ImportadorAlunosEspeciais:
             arquivo.seek(0)
             try:
                 dialeto = csv.Sniffer().sniff(amostra, delimiters=";,")
+                leitor = ImportadorAlunosEspeciais._criar_leitor_com_cabecalho(arquivo, dialeto=dialeto)
             except csv.Error:
-                dialeto = csv.excel
-                dialeto.delimiter = ";"
+                leitor = ImportadorAlunosEspeciais._criar_leitor_com_cabecalho(arquivo, delimiter=";")
 
-            leitor = ImportadorAlunosEspeciais._criar_leitor_com_cabecalho(arquivo, dialeto)
             registros = []
             for linha in leitor:
                 registro = ImportadorAlunosEspeciais._normalizar_linha(linha)
@@ -151,8 +150,11 @@ class ImportadorAlunosEspeciais:
         }
 
     @staticmethod
-    def _criar_leitor_com_cabecalho(arquivo, dialeto):
-        linhas = list(csv.reader(arquivo, dialect=dialeto))
+    def _criar_leitor_com_cabecalho(arquivo, dialeto=None, delimiter=None):
+        if dialeto is not None:
+            linhas = list(csv.reader(arquivo, dialect=dialeto))
+        else:
+            linhas = list(csv.reader(arquivo, delimiter=delimiter or ";"))
         if not linhas:
             return []
 

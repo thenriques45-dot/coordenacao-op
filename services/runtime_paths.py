@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -10,21 +11,54 @@ except Exception:  # pragma: no cover
 
 APP_NAME = "CoordenacaoOP"
 APP_AUTHOR = "CoordenacaoOP"
+_MIGRACAO_PORTATIL_VERIFICADA = False
 
 
 def is_frozen():
     return bool(getattr(sys, "frozen", False))
 
 
-def app_base_dir():
+def _legacy_user_base_dir():
+    if user_data_dir is not None:
+        return Path(user_data_dir(APP_NAME, APP_AUTHOR))
+    return Path.home() / ".coordenacaoop"
+
+
+def _portable_base_dir():
+    env_base = os.environ.get("COORDENACAOOP_HOME")
+    if env_base:
+        return Path(env_base)
+
     if is_frozen():
-        if user_data_dir is not None:
-            base = Path(user_data_dir(APP_NAME, APP_AUTHOR))
-        else:
-            base = Path.home() / ".coordenacaoop"
-    else:
-        base = Path.cwd()
+        return Path(sys.executable).resolve().parent
+
+    return Path.cwd()
+
+
+def _migrar_dados_usuario_para_portatil(base):
+    global _MIGRACAO_PORTATIL_VERIFICADA
+    if _MIGRACAO_PORTATIL_VERIFICADA:
+        return
+    _MIGRACAO_PORTATIL_VERIFICADA = True
+
+    if not is_frozen():
+        return
+
+    legado = _legacy_user_base_dir()
+    if legado.resolve() == base.resolve() or not legado.exists():
+        return
+
+    for nome in ("dados", "config", "backups"):
+        origem = legado / nome
+        destino = base / nome
+        if origem.exists() and not destino.exists():
+            shutil.copytree(origem, destino)
+
+
+def app_base_dir():
+    base = _portable_base_dir()
     base.mkdir(parents=True, exist_ok=True)
+    _migrar_dados_usuario_para_portatil(base)
     return base
 
 

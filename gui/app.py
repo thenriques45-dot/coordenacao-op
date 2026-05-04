@@ -84,6 +84,7 @@ class CoordenacaoApp(tk.Tk):
         self.turma_caminho = None
         self.turma_session = None
         self.turma_window_registry = TurmaWindowRegistry()
+        self._janelas_conselho = []
 
         self.turma_status = tk.StringVar(value="Turma atual: nenhuma")
         self.bimestre_var = tk.StringVar(value=PERIODO_EXIBICAO["1"])
@@ -149,7 +150,7 @@ class CoordenacaoApp(tk.Tk):
             label="Gestao em nova janela (experimental)",
             variable=self.gestao_nova_janela_var,
         )
-        menu_arquivo.add_command(label="Excluir turma selecionada...", command=self._excluir_turma_selecionada)
+        menu_arquivo.add_command(label="Excluir turmas selecionadas...", command=self._excluir_turma_selecionada)
         menu_arquivo.add_command(label="Gerenciar alunos...", command=self._abrir_dialogo_gerenciar_alunos)
         menu_arquivo.add_command(
             label="Importar alunos elegiveis da escola...",
@@ -262,7 +263,7 @@ class CoordenacaoApp(tk.Tk):
         ttk.Button(toolbar, text="Atualizar lista", command=self._carregar_catalogo_turmas).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Button(toolbar, text="Excluir selecionada", command=self._excluir_turma_selecionada).grid(
+        ttk.Button(toolbar, text="Excluir selecionadas", command=self._excluir_turma_selecionada).grid(
             row=0, column=1, sticky="w", padx=(8, 0)
         )
 
@@ -276,6 +277,7 @@ class CoordenacaoApp(tk.Tk):
             columns=("ano", "codigo", "arquivo"),
             show="headings",
             height=12,
+            selectmode="extended",
         )
         self.tree_turmas.heading("ano", text="Ano")
         self.tree_turmas.heading("codigo", text="Turma")
@@ -718,6 +720,18 @@ class CoordenacaoApp(tk.Tk):
         dialog.resizable(redimensionavel, redimensionavel)
         self._centralizar_janela(dialog, largura, altura)
 
+    def _maximizar_janela(self, janela):
+        janela.update_idletasks()
+        try:
+            janela.state("zoomed")
+            return
+        except tk.TclError:
+            pass
+
+        largura = janela.winfo_screenwidth()
+        altura = janela.winfo_screenheight()
+        janela.geometry(f"{largura}x{altura}+0+0")
+
     def _ajustar_janela_principal_inicial(self):
         self.update_idletasks()
 
@@ -856,6 +870,25 @@ class CoordenacaoApp(tk.Tk):
         if not valores or len(valores) < 3:
             return None
         return valores
+
+    def _obter_turmas_da_lista_selecionadas(self):
+        selecionados = list(self.tree_turmas.selection())
+        if not selecionados:
+            foco = self.tree_turmas.focus()
+            selecionados = [foco] if foco else []
+
+        turmas = []
+        vistos = set()
+        for item in selecionados:
+            valores = self.tree_turmas.item(item, "values")
+            if not valores or len(valores) < 3:
+                continue
+            caminho_norm = os.path.normcase(os.path.abspath(valores[2]))
+            if caminho_norm in vistos:
+                continue
+            vistos.add(caminho_norm)
+            turmas.append((valores[0], valores[1], valores[2]))
+        return turmas
 
     def _abrir_dialogo_gerir_turma(self):
         if not self._garantir_turma_selecionada():
@@ -1121,61 +1154,75 @@ class CoordenacaoApp(tk.Tk):
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=520, altura_min=360, redimensionavel=False)
 
     def _excluir_turma_selecionada(self, fechar_dialogo=None):
-        caminho = None
-        codigo = ""
-        ano = ""
-
         if fechar_dialogo is not None and self.turma is not None and self.turma_caminho:
-            caminho = self.turma_caminho
-            codigo = self.turma.codigo
-            ano = str(self.turma.ano)
+            turmas = [(str(self.turma.ano), self.turma.codigo, self.turma_caminho)]
         else:
-            selecionado = self.tree_turmas.focus()
-            if not selecionado:
-                messagebox.showwarning("Excluir turma", "Selecione uma turma na lista.")
+            turmas = self._obter_turmas_da_lista_selecionadas()
+            if not turmas:
+                messagebox.showwarning("Excluir turma", "Selecione uma ou mais turmas na lista.")
                 return
-            valores = self.tree_turmas.item(selecionado, "values")
-            if not valores or len(valores) < 3:
+            if any(len(turma) < 3 for turma in turmas):
                 messagebox.showwarning("Excluir turma", "Nao foi possivel identificar o arquivo da turma.")
                 return
-            ano, codigo, caminho = valores[0], valores[1], valores[2]
 
-        confirma = messagebox.askyesno(
-            "Confirmar exclusao",
-            (
+        total = len(turmas)
+        if total == 1:
+            ano, codigo, caminho = turmas[0]
+            mensagem = (
                 f"Excluir a turma {codigo} ({ano})?\n\n"
                 f"Arquivo:\n{caminho}\n\n"
                 "Esta acao remove apenas o JSON da turma e nao pode ser desfeita."
-            ),
+            )
+        else:
+            exemplos = "\n".join(f"- {codigo} ({ano})" for ano, codigo, _ in turmas[:8])
+            if total > 8:
+                exemplos += "\n..."
+            mensagem = (
+                f"Excluir {total} turmas selecionadas?\n\n"
+                f"{exemplos}\n\n"
+                "Esta acao remove apenas os JSONs das turmas e nao pode ser desfeita."
+            )
+
+        confirma = messagebox.askyesno(
+            "Confirmar exclusao",
+            mensagem,
         )
         if not confirma:
             return
 
         try:
-            if not os.path.exists(caminho):
-                messagebox.showwarning("Excluir turma", "Arquivo da turma nao existe mais.")
-                self._carregar_catalogo_turmas()
-                return
+            removidas = 0
+            ausentes = 0
+            caminho_atual = os.path.normcase(os.path.abspath(self.turma_caminho)) if self.turma_caminho else None
 
-            os.remove(caminho)
+            for _, _, caminho in turmas:
+                if not os.path.exists(caminho):
+                    ausentes += 1
+                    continue
 
-            pasta_ano = os.path.dirname(caminho)
-            try:
-                if os.path.isdir(pasta_ano) and not os.listdir(pasta_ano):
-                    os.rmdir(pasta_ano)
-            except OSError:
-                pass
+                os.remove(caminho)
+                removidas += 1
 
-            if self.turma_caminho and os.path.normcase(self.turma_caminho) == os.path.normcase(caminho):
-                self.turma = None
-                self.turma_caminho = None
-                self.turma_session = None
-                self._atualizar_status_turma()
+                pasta_ano = os.path.dirname(caminho)
+                try:
+                    if os.path.isdir(pasta_ano) and not os.listdir(pasta_ano):
+                        os.rmdir(pasta_ano)
+                except OSError:
+                    pass
+
+                if caminho_atual and os.path.normcase(os.path.abspath(caminho)) == caminho_atual:
+                    self.turma = None
+                    self.turma_caminho = None
+                    self.turma_session = None
+                    self._atualizar_status_turma()
 
             self._carregar_catalogo_turmas()
             if fechar_dialogo is not None and fechar_dialogo.winfo_exists():
                 fechar_dialogo.destroy()
-            messagebox.showinfo("Excluir turma", "Turma excluida com sucesso.")
+            mensagem_final = f"Turma(s) excluida(s): {removidas}."
+            if ausentes:
+                mensagem_final += f"\nArquivo(s) que ja nao existiam: {ausentes}."
+            messagebox.showinfo("Excluir turma", mensagem_final)
         except Exception as exc:
             messagebox.showerror("Erro", f"Nao foi possivel excluir a turma:\n{exc}")
 
@@ -1245,6 +1292,24 @@ class CoordenacaoApp(tk.Tk):
         dialog.transient(self)
         dialog.grab_set()
         dialog.geometry("1200x720")
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(0, weight=1)
+        self._janelas_conselho.append(dialog)
+
+        def esquecer_janela_conselho(event=None):
+            if event is not None and event.widget is not dialog:
+                return
+            if dialog in self._janelas_conselho:
+                self._janelas_conselho.remove(dialog)
+
+        dialog.bind("<Destroy>", esquecer_janela_conselho, add="+")
+
+        def restaurar_tamanho_conselho():
+            try:
+                dialog.state("normal")
+            except tk.TclError:
+                pass
+            self._centralizar_janela(dialog, 1200, 720)
 
         if not self.data_conselho_var.get().strip():
             self.data_conselho_var.set(date.today().strftime("%d/%m/%Y"))
@@ -1261,13 +1326,46 @@ class CoordenacaoApp(tk.Tk):
         aluno_numero_var = tk.StringVar()
         aluno_elegivel_var = tk.StringVar(value="ALUNO ELEGIVEL")
         fonte_nome_aluno = tkfont.Font(root=root, font="TkDefaultFont")
-        fonte_nome_aluno.configure(size=15, weight="bold")
+        fonte_nome_aluno.configure(size=18, weight="bold")
         fonte_selo_elegivel = tkfont.Font(root=root, font="TkDefaultFont")
-        fonte_selo_elegivel.configure(size=10, weight="bold")
+        fonte_selo_elegivel.configure(size=12, weight="bold")
+        fonte_conselho = tkfont.Font(root=root, font="TkDefaultFont")
+        fonte_conselho.configure(size=12)
+        fonte_conselho_bold = tkfont.Font(root=root, font="TkDefaultFont")
+        fonte_conselho_bold.configure(size=12, weight="bold")
+        fonte_tabela_conselho = tkfont.Font(root=root, font="TkDefaultFont")
+        fonte_tabela_conselho.configure(size=11)
+
+        estilo_conselho = ttk.Style(dialog)
+        estilo_conselho.configure("Conselho.Treeview", font=fonte_tabela_conselho, rowheight=34)
+        estilo_conselho.configure("Conselho.Treeview.Heading", font=fonte_conselho_bold)
+        dialog._referencias_conselho = {
+            "fontes": (
+                fonte_nome_aluno,
+                fonte_selo_elegivel,
+                fonte_conselho,
+                fonte_conselho_bold,
+                fonte_tabela_conselho,
+            ),
+            "variaveis": (
+                aluno_pos_var,
+                aluno_nome_var,
+                aluno_numero_var,
+                aluno_elegivel_var,
+            ),
+            "estilo": estilo_conselho,
+        }
 
         topo_esquerda = ttk.Frame(root)
         topo_esquerda.grid(row=0, column=0, sticky="w")
-        ttk.Label(topo_esquerda, textvariable=aluno_pos_var).grid(row=0, column=0, sticky="w")
+        ttk.Label(topo_esquerda, textvariable=aluno_pos_var, font=fonte_conselho).grid(row=0, column=0, sticky="w")
+
+        topo_acoes = ttk.Frame(root)
+        topo_acoes.grid(row=0, column=1, sticky="e")
+        ttk.Button(topo_acoes, text="Maximizar", command=lambda: self._maximizar_janela(dialog)).grid(
+            row=0, column=0, padx=(0, 6)
+        )
+        ttk.Button(topo_acoes, text="Restaurar", command=restaurar_tamanho_conselho).grid(row=0, column=1)
 
         aluno_header = ttk.Frame(root)
         aluno_header.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(6, 0))
@@ -1302,6 +1400,7 @@ class CoordenacaoApp(tk.Tk):
             columns=("disciplina", "media_original", "media_ajustada", "situacao"),
             show="headings",
             height=8,
+            style="Conselho.Treeview",
         )
         tree_notas.heading("disciplina", text="Disciplina")
         tree_notas.heading("media_original", text="Media original")
@@ -1320,20 +1419,22 @@ class CoordenacaoApp(tk.Tk):
             notas_box,
             text="Ajustes feitos aqui nao alteram a Sala do Futuro automaticamente.",
             foreground="#7a3d00",
+            font=fonte_conselho,
         ).grid(row=1, column=0, sticky="w", pady=(8, 0))
 
         botoes_notas = ttk.Frame(notas_box)
         botoes_notas.grid(row=2, column=0, sticky="ew", pady=(8, 0))
 
         freq_box = ttk.LabelFrame(root, text="Frequencia por disciplina", padding=8)
-        freq_box.grid(row=3, column=0, columnspan=1, sticky="new", pady=(10, 0))
+        freq_box.grid(row=3, column=0, columnspan=1, sticky="nsew", pady=(10, 0))
         freq_box.columnconfigure(0, weight=1)
-        freq_box.rowconfigure(0, weight=0)
+        freq_box.rowconfigure(0, weight=1)
         tree_freq = ttk.Treeview(
             freq_box,
             columns=("disciplina", "faltas", "aulas", "percentual"),
             show="headings",
             height=8,
+            style="Conselho.Treeview",
         )
         tree_freq.heading("disciplina", text="Disciplina")
         tree_freq.heading("faltas", text="Faltas")
@@ -1347,6 +1448,7 @@ class CoordenacaoApp(tk.Tk):
 
         enc_box = ttk.LabelFrame(root, text="Encaminhamentos (ENC 1..10)", padding=8)
         enc_box.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        enc_box.columnconfigure((0, 1), weight=1)
         enc_vars = {}
         estado = {"idx": 0, "carregando_enc": False}
 
@@ -1365,11 +1467,12 @@ class CoordenacaoApp(tk.Tk):
                 text=f"{i}. {ENCAMINHAMENTOS[i]}",
                 variable=var,
                 command=on_toggle_encaminhamento,
-                wraplength=300,
+                font=fonte_conselho,
+                wraplength=420,
                 justify="left",
                 anchor="w",
             ).grid(row=row, column=col, sticky="w", padx=(0, 12), pady=(2, 0))
-        ttk.Label(enc_box, text="Salvamento automatico: marcar/desmarcar ja atualiza.").grid(
+        ttk.Label(enc_box, text="Salvamento automatico: marcar/desmarcar ja atualiza.", font=fonte_conselho).grid(
             row=5, column=0, columnspan=2, sticky="w", pady=(8, 0)
         )
 
@@ -1665,6 +1768,12 @@ class CoordenacaoApp(tk.Tk):
             disciplina = valores[0]
             aluno = alunos[estado["idx"]]
             media_original = getattr(aluno, "medias", {}).get(bimestre, {}).get(disciplina)
+            if media_original is None:
+                messagebox.showwarning(
+                    "Conselho",
+                    "Esta disciplina esta sem media no mapao e nao pode ser ajustada no conselho.",
+                )
+                return
             ajuste_atual = _ajustes_media(aluno).get(disciplina, {})
 
             editor = tk.Toplevel(dialog)
@@ -1760,16 +1869,32 @@ class CoordenacaoApp(tk.Tk):
                 tree_freq.delete(item)
 
             medias = getattr(aluno, "medias", {}).get(bimestre, {})
+            carga_bim = self.turma.carga_horaria.get(bimestre, {})
+            faltas_bim = getattr(aluno, "frequencia", {}).get(bimestre, {})
+            compensacoes_bim = getattr(aluno, "compensacao_ausencias", {}).get(bimestre, {})
+            defasagens_bim = getattr(aluno, "defasagens", {}).get(bimestre, {})
+            disciplinas_notas = sorted(
+                set(carga_bim.keys())
+                | set(medias.keys())
+                | set(faltas_bim.keys())
+                | set(compensacoes_bim.keys())
+                | set(defasagens_bim.keys())
+                | set(_ajustes_media(aluno).keys())
+            )
             linhas_notas = []
-            for disciplina, media in sorted(medias.items()):
-                if media is None:
-                    continue
+            for disciplina in disciplinas_notas:
+                media = medias.get(disciplina)
                 ajuste = _ajustes_media(aluno).get(disciplina, {})
                 media_ajustada = ajuste.get("media_ajustada")
-                media_vigente = _media_vigente(aluno, disciplina, media)
-                situacao, tag_base = _classificar_media(media_vigente)
-                tag = "ajustada" if media_ajustada is not None else tag_base
-                ordem = 0 if media_vigente < nota_minima else 1 if media_vigente == nota_minima else 2
+                if media is None:
+                    situacao = "SEM NOTA"
+                    tag = ""
+                    ordem = 3
+                else:
+                    media_vigente = _media_vigente(aluno, disciplina, media)
+                    situacao, tag_base = _classificar_media(media_vigente)
+                    tag = "ajustada" if media_ajustada is not None else tag_base
+                    ordem = 0 if media_vigente < nota_minima else 1 if media_vigente == nota_minima else 2
                 linhas_notas.append(
                     (
                         ordem,
@@ -1787,15 +1912,13 @@ class CoordenacaoApp(tk.Tk):
                     "", "end",
                     values=(
                         disciplina,
-                        f"{media:.1f}",
+                        "-" if media is None else f"{media:.1f}",
                         "" if media_ajustada is None else f"{media_ajustada:.1f}",
                         situacao,
                     ),
                     tags=(tag,),
                 )
 
-            faltas_bim = getattr(aluno, "frequencia", {}).get(bimestre, {})
-            carga_bim = self.turma.carga_horaria.get(bimestre, {})
             disciplinas_freq = sorted(set(faltas_bim.keys()) | set(carga_bim.keys()))
             for disciplina in disciplinas_freq:
                 faltas = faltas_bim.get(disciplina, 0) or 0
@@ -1843,6 +1966,7 @@ class CoordenacaoApp(tk.Tk):
         dialog.bind("<Left>", lambda _e: proximo(-1))
         dialog.bind("<Right>", lambda _e: proximo(1))
         self._ajustar_dialogo_ao_conteudo(dialog, largura_min=980, altura_min=720, redimensionavel=True)
+        self._maximizar_janela(dialog)
         return dialog
 
     def _abrir_dialogo_criar_turma(self):
@@ -2660,7 +2784,17 @@ class CoordenacaoApp(tk.Tk):
         try:
             ImportadorMapao.importar(caminho_fgb, self.turma, bimestre)
             if caminho_if:
-                ImportadorMapao.importar(caminho_if, self.turma, bimestre)
+                disciplinas_fgb = set(getattr(self.turma, "carga_horaria", {}).get(bimestre, {}).keys())
+                for aluno in self.turma.alunos.values():
+                    disciplinas_fgb.update(getattr(aluno, "medias", {}).get(bimestre, {}).keys())
+                    disciplinas_fgb.update(getattr(aluno, "frequencia", {}).get(bimestre, {}).keys())
+                    disciplinas_fgb.update(getattr(aluno, "compensacao_ausencias", {}).get(bimestre, {}).keys())
+                ImportadorMapao.importar(
+                    caminho_if,
+                    self.turma,
+                    bimestre,
+                    disciplinas_preservadas=disciplinas_fgb,
+                )
             resumo_ajustes = AcompanhamentoAjustes.reconciliar_turma(self.turma, bimestre)
             self._salvar_turma()
             if callback_sucesso is not None:

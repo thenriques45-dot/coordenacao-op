@@ -125,6 +125,45 @@ class TestImportadorMapao(unittest.TestCase):
         self.assertEqual(turma.alunos["1"].medias["1"]["EDUCACAO FINANCEIRA"], 8.0)
         self.assertEqual(turma.alunos["1"].frequencia["1"]["EDUCACAO FINANCEIRA"], 1)
 
+    @patch("services.importador_mapao.extrair_aulas_por_disciplina", return_value={"MATEMATICA": 20})
+    @patch("services.importador_mapao.Configuracao.obter_nota_minima", return_value=5.0)
+    @patch("services.importador_mapao.pd.read_excel")
+    def test_mantem_disciplina_com_carga_quando_media_vem_vazia(self, read_excel_mock, _nota_minima_mock, _carga_mock):
+        turma = Turma("2A", 2026)
+        aluno = Aluno("1", "ALUNO TESTE")
+        turma.adicionar_aluno(aluno)
+
+        read_excel_mock.return_value = self._df_mapao(None)
+
+        ImportadorMapao.importar("mapao.xlsx", turma, "1")
+
+        self.assertEqual(turma.carga_horaria["1"]["MATEMATICA"], 20)
+        self.assertNotIn("MATEMATICA", turma.alunos["1"].medias.get("1", {}))
+        self.assertEqual(turma.alunos["1"].frequencia["1"]["MATEMATICA"], 0)
+
+    @patch("services.importador_mapao.extrair_aulas_por_disciplina", return_value={"MATEMATICA": 20})
+    @patch("services.importador_mapao.Configuracao.obter_nota_minima", return_value=5.0)
+    @patch("services.importador_mapao.pd.read_excel")
+    def test_importacao_if_nao_sobrescreve_disciplina_preservada_da_fgb(
+        self, read_excel_mock, _nota_minima_mock, _carga_mock
+    ):
+        turma = Turma("2A", 2026)
+        aluno = Aluno("1", "ALUNO TESTE")
+        turma.adicionar_aluno(aluno)
+
+        read_excel_mock.return_value = self._df_mapao(9.0)
+        ImportadorMapao.importar("mapao_fgb.xlsx", turma, "1")
+
+        read_excel_mock.return_value = self._df_mapao(4.0)
+        ImportadorMapao.importar(
+            "mapao_if.xlsx",
+            turma,
+            "1",
+            disciplinas_preservadas={"MATEMATICA"},
+        )
+
+        self.assertEqual(turma.alunos["1"].medias["1"]["MATEMATICA"], 9.0)
+
 
 if __name__ == "__main__":
     unittest.main()

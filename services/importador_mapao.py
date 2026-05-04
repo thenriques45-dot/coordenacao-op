@@ -69,8 +69,9 @@ class ImportadorMapao:
             return None
 
     @staticmethod
-    def importar(caminho_excel, turma, bimestre):
+    def importar(caminho_excel, turma, bimestre, disciplinas_preservadas=None):
         bimestre = garantir_bimestre_operacional(bimestre)
+        disciplinas_preservadas = set(disciplinas_preservadas or [])
         df = pd.read_excel(caminho_excel, header=None)
 
         # ----------------------------------------
@@ -189,6 +190,8 @@ class ImportadorMapao:
             # DISCIPLINAS (média + faltas)
             # =====================================================
             for disciplina, colunas in blocos.items():
+                if disciplina in disciplinas_preservadas:
+                    continue
 
                 # -------- MÉDIA --------
                 media = None

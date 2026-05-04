@@ -1,0 +1,32 @@
+Changelog v1.6
+
+v1.6 - Portabilidade, conselho ampliado e melhorias de turmas
+- Dados passaram a usar modo portatil quando o aplicativo estiver empacotado:
+  - `dados`, `config` e `backups` ficam junto do executavel
+  - dados antigos da pasta do usuario sao migrados automaticamente para a pasta portatil quando necessario
+- Tela de conselho recebeu ajustes de uso em tela cheia:
+  - botoes internos para maximizar e restaurar
+  - conteudo acompanha o tamanho da janela
+  - textos, tabelas e encaminhamentos ficaram maiores
+  - selo `ALUNO ELEGIVEL` destacado sem expor a deficiencia
+- Gerenciamento de turmas passou a permitir excluir varias salas selecionadas de uma vez.
+- Importacao de mapoes ficou mais segura para FGB + IF:
+  - disciplinas repetidas no IF nao sobrescrevem as disciplinas ja vindas do FGB
+  - disciplinas sem nota aparecem no conselho com `-`
+  - disciplinas sem media nao podem receber ajuste manual no conselho
+- Alunos elegiveis:
+  - importacao de CSV geral da escola por RA ou nome
+  - persistencia da lista de deficiencias no cadastro do aluno
+  - exibicao da lista apenas em `Gerenciar alunos`
+- Novos testes cobrindo portabilidade, importacao de alunos elegiveis e regras de mapao.
+
+Arquivos principais
+- gui/app.py
+- services/runtime_paths.py
+- services/importador_mapao.py
+- services/importador_alunos_especiais.py
+- services/importador_dados.py
+- services/persistencia.py
+- tests/test_runtime_paths.py
+- tests/test_importador_mapao.py
+- tests/test_alunos_necessidades_especiais.py
