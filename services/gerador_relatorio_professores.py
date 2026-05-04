@@ -21,6 +21,10 @@ class GeradorRelatorioProfessores:
         return getattr(aluno, "ajustes_medias_conselho", {}).get(bimestre, {})
 
     @staticmethod
+    def _formatar_media(valor):
+        return "-" if valor is None else f"{float(valor):.1f}"
+
+    @staticmethod
     def _adicionar_tabela(doc, titulo, colunas, linhas):
         doc.add_paragraph()
         bloco = doc.add_paragraph()
@@ -85,10 +89,11 @@ class GeradorRelatorioProfessores:
 
             medias_bim = getattr(aluno, "medias", {}).get(bimestre, {})
             ajustes_bim = GeradorRelatorioProfessores._ajustes_por_disciplina(aluno, bimestre)
-            for disciplina, media in medias_bim.items():
-                if media is None:
-                    continue
-                encontrou_medias = True
+            disciplinas_ajustes = set(ajustes_bim.keys())
+            for disciplina in sorted(set(medias_bim.keys()) | disciplinas_ajustes):
+                media = medias_bim.get(disciplina)
+                if media is not None:
+                    encontrou_medias = True
                 nome_fmt = GeradorRelatorioProfessores._nome_aluno(aluno)
                 ajuste = ajustes_bim.get(disciplina)
                 if ajuste and ajuste.get("media_ajustada") is not None:
@@ -100,7 +105,7 @@ class GeradorRelatorioProfessores:
                             ajuste.get("observacao", "").strip(),
                         )
                     )
-                elif media < nota_minima:
+                elif media is not None and media < nota_minima:
                     por_disciplina_defasagem.setdefault(disciplina, []).append((nome_fmt, media))
 
             faltas_bim = aluno.frequencia.get(bimestre, {})
@@ -166,8 +171,8 @@ class GeradorRelatorioProfessores:
                     [
                         (
                             nome,
-                            f"{media_original:.1f}",
-                            f"{media_ajustada:.1f}",
+                            GeradorRelatorioProfessores._formatar_media(media_original),
+                            GeradorRelatorioProfessores._formatar_media(media_ajustada),
                             observacao or "-",
                         )
                         for nome, media_original, media_ajustada, observacao in lista_ajustes

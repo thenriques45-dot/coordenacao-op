@@ -1768,12 +1768,6 @@ class CoordenacaoApp(tk.Tk):
             disciplina = valores[0]
             aluno = alunos[estado["idx"]]
             media_original = getattr(aluno, "medias", {}).get(bimestre, {}).get(disciplina)
-            if media_original is None:
-                messagebox.showwarning(
-                    "Conselho",
-                    "Esta disciplina esta sem media no mapao e nao pode ser ajustada no conselho.",
-                )
-                return
             ajuste_atual = _ajustes_media(aluno).get(disciplina, {})
 
             editor = tk.Toplevel(dialog)
@@ -1796,7 +1790,8 @@ class CoordenacaoApp(tk.Tk):
             ttk.Label(frame, text=disciplina).grid(row=0, column=1, sticky="w")
 
             ttk.Label(frame, text="Media original").grid(row=1, column=0, sticky="w", pady=(8, 0))
-            ttk.Label(frame, text=f"{media_original:.1f}").grid(row=1, column=1, sticky="w", pady=(8, 0))
+            media_original_txt = "-" if media_original is None else f"{media_original:.1f}"
+            ttk.Label(frame, text=media_original_txt).grid(row=1, column=1, sticky="w", pady=(8, 0))
 
             ttk.Label(frame, text="Media ajustada no conselho").grid(row=2, column=0, sticky="w", pady=(8, 0))
             ttk.Entry(frame, textvariable=media_var, width=12).grid(row=2, column=1, sticky="w", pady=(8, 0))

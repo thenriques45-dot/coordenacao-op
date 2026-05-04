@@ -111,6 +111,32 @@ class TestGeradorRelatorioProfessores(unittest.TestCase):
         self.assertIn("5.5", texto)
         self.assertIn("Ajustar apos recuperacao paralela", texto)
 
+    def test_relatorio_inclui_ajuste_para_disciplina_sem_media_no_mapao(self):
+        turma = Turma("2A", 2026)
+        turma.carga_horaria["1"] = {"MATEMATICA": 20}
+
+        aluno = Aluno("1", "ALUNO SEM NOTA", ativo=True)
+        aluno.frequencia["1"] = {"MATEMATICA": 0}
+        aluno.ajustes_medias_conselho = {
+            "1": {
+                "MATEMATICA": {
+                    "media_original": None,
+                    "media_ajustada": 6.0,
+                    "observacao": "Registrar nota ausente do mapao",
+                }
+            }
+        }
+        turma.adicionar_aluno(aluno)
+
+        with patch("services.gerador_relatorio_professores.Configuracao.obter_nota_minima", return_value=5.0):
+            caminho = GeradorRelatorioProfessores.gerar(turma, "1")
+
+        texto = self._texto_docx(caminho)
+        self.assertIn("Ajustar notas na Sala do Futuro", texto)
+        self.assertIn("Aluno Sem Nota", texto)
+        self.assertIn("6.0", texto)
+        self.assertIn("Registrar nota ausente do mapao", texto)
+
     def test_relatorio_separa_defasagem_sem_ajuste(self):
         turma = Turma("2A", 2026)
         turma.carga_horaria["1"] = {"MATEMATICA": 20}

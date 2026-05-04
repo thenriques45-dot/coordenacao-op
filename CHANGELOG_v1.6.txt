@@ -1,5 +1,13 @@
 Changelog v1.6
 
+v1.6.1 - Ajustes em disciplinas sem nota no conselho
+- Disciplinas sem nota no mapao continuam aparecendo com `-` no conselho.
+- Agora e possivel lancar media ajustada para disciplinas sem nota original.
+- Relatorio dos professores passou a incluir estes lancamentos:
+  - media original como `-`
+  - media ajustada informada no conselho
+  - observacao para orientar o registro manual na Sala do Futuro
+
 v1.6 - Portabilidade, conselho ampliado e melhorias de turmas
 - Dados passaram a usar modo portatil quando o aplicativo estiver empacotado:
   - `dados`, `config` e `backups` ficam junto do executavel
