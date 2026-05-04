@@ -722,15 +722,30 @@ class CoordenacaoApp(tk.Tk):
 
     def _maximizar_janela(self, janela):
         janela.update_idletasks()
-        try:
-            janela.state("zoomed")
-            return
-        except tk.TclError:
-            pass
+        x, y, largura, altura = self._obter_area_util_tela(janela)
+        folga_inferior = 80 if os.name == "nt" else 48
+        altura = max(altura - folga_inferior, 600)
+        janela.geometry(f"{largura}x{altura}+{x}+{y}")
 
-        largura = janela.winfo_screenwidth()
-        altura = janela.winfo_screenheight()
-        janela.geometry(f"{largura}x{altura}+0+0")
+    def _obter_area_util_tela(self, janela):
+        if os.name == "nt":
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                rect = wintypes.RECT()
+                spi_getworkarea = 0x0030
+                if ctypes.windll.user32.SystemParametersInfoW(spi_getworkarea, 0, ctypes.byref(rect), 0):
+                    largura = max(rect.right - rect.left, 800)
+                    altura = max(rect.bottom - rect.top, 600)
+                    return rect.left, rect.top, largura, altura
+            except Exception:
+                pass
+
+        margem = 24
+        largura = max(janela.winfo_screenwidth() - (margem * 2), 800)
+        altura = max(janela.winfo_screenheight() - (margem * 2), 600)
+        return margem, margem, largura, altura
 
     def _ajustar_janela_principal_inicial(self):
         self.update_idletasks()

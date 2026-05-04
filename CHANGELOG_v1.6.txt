@@ -1,5 +1,9 @@
 Changelog v1.6
 
+v1.6.3 - Ajuste da tela de conselho maximizada
+- Janela de conselho maximizada agora respeita uma folga inferior no Windows.
+- Evita que os botoes de navegacao e finalizacao fiquem cobertos pela barra de iniciar.
+
 v1.6.2 - Ajuste do build no GitHub
 - Testes de importacao de alunos elegiveis passaram a usar caminhos compativeis com Windows e Linux.
 - Corrige a falha do CI no GitHub Actions sem alterar o comportamento do aplicativo.
