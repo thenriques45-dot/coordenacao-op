@@ -1,5 +1,9 @@
 Changelog v1.6
 
+v1.6.2 - Ajuste do build no GitHub
+- Testes de importacao de alunos elegiveis passaram a usar caminhos compativeis com Windows e Linux.
+- Corrige a falha do CI no GitHub Actions sem alterar o comportamento do aplicativo.
+
 v1.6.1 - Ajustes em disciplinas sem nota no conselho
 - Disciplinas sem nota no mapao continuam aparecendo com `-` no conselho.
 - Agora e possivel lancar media ajustada para disciplinas sem nota original.

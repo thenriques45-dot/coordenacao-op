@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
@@ -34,7 +35,7 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
         )
 
         with TemporaryDirectory() as tmpdir:
-            caminho = f"{tmpdir}\\alunos.csv"
+            caminho = Path(tmpdir) / "alunos.csv"
             with open(caminho, "w", encoding="utf-8-sig") as arquivo:
                 arquivo.write(conteudo)
 
@@ -44,13 +45,14 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
     def test_importador_geral_atualiza_turma_persistida_por_ra_e_nome(self):
         with TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
             turma = Turma("2A", 2026)
             turma.adicionar_aluno(Aluno("1234", "ALUNO POR RA"))
             turma.adicionar_aluno(Aluno("9999", "Aluno Por Nome"))
-            caminho_turma = f"{tmpdir}\\2026\\turma_2A.json"
+            caminho_turma = base / "2026" / "turma_2A.json"
             PersistenciaJSON.salvar_turma(turma, caminho=caminho_turma)
 
-            caminho_csv = f"{tmpdir}\\elegiveis.csv"
+            caminho_csv = base / "elegiveis.csv"
             conteudo = "\n".join(
                 [
                     "RA;Dig. RA;Nome do Aluno;Necessidades Especiais",
@@ -64,7 +66,7 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
             resumo = ImportadorAlunosEspeciais.importar_para_turmas_persistidas(
                 caminho_csv,
-                pasta_persistidos=tmpdir,
+                pasta_persistidos=base,
             )
             restaurada = PersistenciaJSON.carregar_turma(caminho_turma)
 
@@ -77,12 +79,13 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
     def test_importador_geral_le_csv_com_cabecalho_na_terceira_linha_e_ra_sem_digito(self):
         with TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
             turma = Turma("2A", 2026)
             turma.adicionar_aluno(Aluno("0001127377449", "GABRIEL HENDREW DA SILVA ALVES"))
-            caminho_turma = f"{tmpdir}\\2026\\turma_2A.json"
+            caminho_turma = base / "2026" / "turma_2A.json"
             PersistenciaJSON.salvar_turma(turma, caminho=caminho_turma)
 
-            caminho_csv = f"{tmpdir}\\dados.csv"
+            caminho_csv = base / "dados.csv"
             conteudo = "\n".join(
                 [
                     "Dados;30/04/2026 22:04",
@@ -103,7 +106,7 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
             resumo = ImportadorAlunosEspeciais.importar_para_turmas_persistidas(
                 caminho_csv,
-                pasta_persistidos=tmpdir,
+                pasta_persistidos=base,
             )
             restaurada = PersistenciaJSON.carregar_turma(caminho_turma)
 
@@ -114,12 +117,13 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
     def test_importador_geral_ignora_nome_ambiguo(self):
         with TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
             turma = Turma("2A", 2026)
             turma.adicionar_aluno(Aluno("1", "ALUNO REPETIDO"))
-            caminho_turma = f"{tmpdir}\\2026\\turma_2A.json"
+            caminho_turma = base / "2026" / "turma_2A.json"
             PersistenciaJSON.salvar_turma(turma, caminho=caminho_turma)
 
-            caminho_csv = f"{tmpdir}\\elegiveis.csv"
+            caminho_csv = base / "elegiveis.csv"
             conteudo = "\n".join(
                 [
                     "Nome do Aluno;Necessidades Especiais",
@@ -132,7 +136,7 @@ class TestAlunosNecessidadesEspeciais(unittest.TestCase):
 
             resumo = ImportadorAlunosEspeciais.importar_para_turmas_persistidas(
                 caminho_csv,
-                pasta_persistidos=tmpdir,
+                pasta_persistidos=base,
             )
             restaurada = PersistenciaJSON.carregar_turma(caminho_turma)
 
