@@ -32,8 +32,7 @@ As versões prontas para uso ficam na página de Releases do GitHub:
 Arquivos publicados:
 
 - Windows moderno: `CoordenacaoOP_2.0.0_x64-setup.exe`
-- Windows legado: `CoordenacaoOP-windows.zip`
-- Linux: `CoordenacaoOP-x86_64.AppImage`
+- Linux moderno: `CoordenacaoOP_2.0.0_amd64.AppImage`
 
 ## Como usar no Windows
 
@@ -58,9 +57,9 @@ Este projeto é desenvolvido com forte uso de vibe coding: a evolução do softw
 
 Se você pretende rodar o projeto a partir do código-fonte:
 
-- Modern UI: Tauri 2, React, TypeScript, Rust e Node.js
+- Interface oficial: Tauri 2, React, TypeScript, Rust e Node.js
 - Interface legada: Python 3.11+ (recomendado 3.12), dependências em `requirements.txt`
-- Modern UI em desenvolvimento: `cd modern-ui && npm run tauri dev`
+- Interface oficial em desenvolvimento: `cd modern-ui && npm run tauri dev`
 - Interface legada: `python main_gui.py`
 
 ## Licença

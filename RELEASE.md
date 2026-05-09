@@ -56,9 +56,10 @@ git tag v2.0.1
 git push origin v2.0.1
 ```
 
-3. A workflow `.github/workflows/release.yml` gera:
-   - instalador Tauri moderno;
-   - assinatura `.sig`;
+3. A workflow `.github/workflows/release.yml` gera somente a versão oficial em Tauri:
+   - instalador Windows;
+   - AppImage Linux;
+   - assinaturas `.sig`;
    - `latest.json`;
    - release no GitHub.
 
@@ -70,6 +71,13 @@ Para o auto update funcionar no Windows, a release precisa conter:
 CoordenacaoOP_2.0.1_x64-setup.exe
 CoordenacaoOP_2.0.1_x64-setup.exe.sig
 latest.json
+```
+
+Para Linux, a release precisa conter também:
+
+```text
+CoordenacaoOP_2.0.1_amd64.AppImage
+CoordenacaoOP_2.0.1_amd64.AppImage.sig
 ```
 
 O `latest.json` deve apontar para o instalador da propria release e conter a assinatura gerada no build.

@@ -38,5 +38,5 @@ v2.0.0 - Modern UI, importação em lote e autoatualização
   - artefatos assinados;
   - `latest.json`;
   - instalação e reinício pelo aplicativo.
-- Workflow de release atualizada para publicar a versão Tauri moderna.
+- Workflow de release atualizada para publicar a versão Tauri oficial para Windows e Linux.
 - Nova identidade visual com logo e ícone Coord OP.
