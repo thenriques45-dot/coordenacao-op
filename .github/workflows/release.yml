@@ -117,9 +117,9 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content modern-ui/package.json | ConvertFrom-Json).version
-          $windowsInstaller = Get-ChildItem artifacts/*_x64-setup.exe | Select-Object -First 1
+          $windowsInstaller = Get-ChildItem artifacts -Recurse -File -Filter "*_x64-setup.exe" | Select-Object -First 1
           $windowsSignature = Get-Content -Raw "$($windowsInstaller.FullName).sig"
-          $linuxInstaller = Get-ChildItem artifacts/*.AppImage | Select-Object -First 1
+          $linuxInstaller = Get-ChildItem artifacts -Recurse -File -Filter "*.AppImage" | Select-Object -First 1
           $linuxSignature = Get-Content -Raw "$($linuxInstaller.FullName).sig"
 
           $latest = [ordered]@{
@@ -142,8 +142,7 @@ jobs:
 
       - name: Checksums
         run: |
-          cd artifacts
-          sha256sum * > SHA256SUMS.txt
+          find artifacts -type f | sort | xargs sha256sum > artifacts/SHA256SUMS.txt
 
       - name: Prepare release notes
         run: |
@@ -159,4 +158,5 @@ jobs:
           body_path: artifacts/RELEASE_NOTES.txt
           files: |
             artifacts/*
+            artifacts/**/*
           generate_release_notes: true
