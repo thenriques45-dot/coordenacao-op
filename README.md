@@ -4,17 +4,20 @@
 
 # CoordenacaoOP
 
-Software de apoio à coordenação pedagógica para organizar turmas, importar dados e gerar documentos de conselho de classe.
+Software de apoio à coordenação pedagógica para organizar turmas, importar dados, conduzir conselhos de classe e gerar documentos oficiais.
 
 ## O que o aplicativo faz
 
 - cadastra e gerencia turmas
 - importa alunos por CSV
-- importa mapões FGB e IF
+- importa mapões em lote, cruzando alunos por nome
 - registra encaminhamentos por aluno em cada conselho
+- permite ajustes de nota durante o conselho
 - gera ata de conselho em `.docx`
 - gera relatório para professores em `.docx`
-- verifica atualizações pelo menu `Ajuda > Verificar atualizacoes`
+- salva dados de forma portátil junto ao executável
+- faz backup e restauração dos dados
+- verifica e instala atualizações pela modern-ui
 
 ## Para quem ele foi pensado
 
@@ -28,17 +31,18 @@ As versões prontas para uso ficam na página de Releases do GitHub:
 
 Arquivos publicados:
 
-- Windows: `CoordenacaoOP-windows.zip`
+- Windows moderno: `CoordenacaoOP_2.0.0_x64-setup.exe`
+- Windows legado: `CoordenacaoOP-windows.zip`
 - Linux: `CoordenacaoOP-x86_64.AppImage`
 
 ## Como usar no Windows
 
-1. Baixe o arquivo `CoordenacaoOP-windows.zip` da versão desejada.
-2. Extraia o conteúdo do `.zip` para uma pasta.
-3. Execute o arquivo `CoordenacaoOP.exe`.
+1. Baixe o instalador `CoordenacaoOP_2.0.0_x64-setup.exe` da versão desejada.
+2. Execute o instalador.
+3. Abra o CoordenacaoOP pelo atalho criado.
 
 Observação:
-Sem assinatura digital, o Windows pode exibir alerta do SmartScreen ao abrir o programa.
+Dependendo das configurações do Windows/SmartScreen, pode aparecer alerta de aplicativo não reconhecido.
 
 ## Como usar no Linux
 
@@ -54,9 +58,10 @@ Este projeto é desenvolvido com forte uso de vibe coding: a evolução do softw
 
 Se você pretende rodar o projeto a partir do código-fonte:
 
-- Python 3.11+ (recomendado 3.12)
-- dependências em `requirements.txt`
-- execução principal por `python main_gui.py`
+- Modern UI: Tauri 2, React, TypeScript, Rust e Node.js
+- Interface legada: Python 3.11+ (recomendado 3.12), dependências em `requirements.txt`
+- Modern UI em desenvolvimento: `cd modern-ui && npm run tauri dev`
+- Interface legada: `python main_gui.py`
 
 ## Licença
 
@@ -67,3 +72,4 @@ Este projeto é distribuído sob a licença **GPL-3.0-or-later**. Veja [LICENSE]
 - Segurança: [SECURITY.md](SECURITY.md)
 - Contribuição: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Código de conduta: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Release e autoatualização: [RELEASE.md](RELEASE.md)

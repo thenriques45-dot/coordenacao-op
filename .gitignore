@@ -1,6 +1,7 @@
 __pycache__/
 .env
 .venv/
+node_modules/
 1x/
 *.ai
 *.csv
@@ -8,6 +9,8 @@ __pycache__/
 *.xls
 build/
 dist/
+modern-ui/dist/
+modern-ui/src-tauri/target/
 AppDir/
 backups/
 *.AppImage

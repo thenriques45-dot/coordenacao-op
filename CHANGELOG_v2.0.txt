@@ -1,0 +1,42 @@
+v2.0.0 - Modern UI, importação em lote e autoatualização
+
+- Nova interface desktop em Tauri 2, React e TypeScript.
+- Dashboard moderno com resumo das turmas, alunos e conselhos.
+- Tela de gestão de turmas redesenhada com cards, busca, criação, edição, exclusão e atualização de CSV.
+- Nova tela de gestão da turma com:
+  - cabeçalho com métricas;
+  - edição do coordenador de sala;
+  - lista de alunos;
+  - edição manual de elegibilidade;
+  - tela individual de aluno com gráfico por disciplina, tabela de notas, 5º conceito e frequência.
+- Nova tela de conselho com:
+  - seleção prévia da turma;
+  - lista lateral de alunos;
+  - indicação de aluno elegível sem expor dados sigilosos;
+  - edição inline da nota de conselho;
+  - ordenação visual por situação;
+  - encaminhamentos em botões;
+  - modo reunião em tela cheia;
+  - cronômetro persistente;
+  - finalização do conselho;
+  - geração de ata e relatório dos professores.
+- Relatórios `.docx` revisados:
+  - cabeçalho institucional por imagem;
+  - formatação compacta de tabelas;
+  - relatório por disciplina em páginas separadas;
+  - aviso destacado quando não há ajustes para a Sala do Futuro.
+- Importação de mapões em lote:
+  - leitura de múltiplos `.xlsx`;
+  - detecção de turma por interseção de nomes;
+  - tratamento de alunos ativos;
+  - importação de médias, faltas, compensações e carga horária;
+  - tratamento de nome social no CSV.
+- Persistência portátil dos dados junto ao executável.
+- Backup e restauração compatíveis com o formato antigo (`dados/`, `config/` e manifesto).
+- Tela de configurações com nome da direção, pronome e média mínima.
+- Autoatualização via plugin oficial do Tauri:
+  - artefatos assinados;
+  - `latest.json`;
+  - instalação e reinício pelo aplicativo.
+- Workflow de release atualizada para publicar a versão Tauri moderna.
+- Nova identidade visual com logo e ícone Coord OP.

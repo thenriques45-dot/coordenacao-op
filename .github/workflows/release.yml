@@ -144,8 +144,68 @@ jobs:
           name: linux-artifacts
           path: dist/CoordenacaoOP-x86_64.AppImage
 
+  build-modern-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      - name: Validate updater signing key
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "Configure o secret TAURI_SIGNING_PRIVATE_KEY para gerar releases com self-update."
+          }
+
+      - name: Build Tauri updater artifacts
+        working-directory: modern-ui
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build
+
+      - name: Generate latest.json
+        shell: pwsh
+        run: |
+          $version = (Get-Content modern-ui/package.json | ConvertFrom-Json).version
+          $installer = Get-ChildItem modern-ui/src-tauri/target/release/bundle/nsis/*_x64-setup.exe | Select-Object -First 1
+          $signature = Get-Item "$($installer.FullName).sig"
+          ./scripts/generate_tauri_latest_json.ps1 `
+            -Version $version `
+            -Tag "${{ github.ref_name }}" `
+            -Repository "${{ github.repository }}" `
+            -InstallerPath $installer.FullName `
+            -SignaturePath $signature.FullName `
+            -OutputPath modern-ui/src-tauri/target/release/bundle/nsis/latest.json
+
+      - name: Upload modern windows artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: modern-windows-artifacts
+          path: |
+            modern-ui/src-tauri/target/release/bundle/nsis/*_x64-setup.exe
+            modern-ui/src-tauri/target/release/bundle/nsis/*_x64-setup.exe.sig
+            modern-ui/src-tauri/target/release/bundle/nsis/latest.json
+
   publish:
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-modern-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Download windows artifact
@@ -158,6 +218,12 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: linux-artifacts
+          path: artifacts
+
+      - name: Download modern windows artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: modern-windows-artifacts
           path: artifacts
 
       - name: Checksums
