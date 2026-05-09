@@ -1004,6 +1004,10 @@ h3 {
   text-align: left;
 }
 
+.import-error-row p {
+  margin: 4px 0;
+}
+
 .truncated-file-name {
   display: inline-block;
   max-width: 520px;
@@ -1033,6 +1037,25 @@ h3 {
 
 .mini-file-action input {
   display: none;
+}
+
+.csv-repair-cell {
+  align-items: stretch;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-width: 190px;
+}
+
+.csv-repair-cell select {
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  color: #101828;
+  min-height: 34px;
+  max-width: 210px;
+  padding: 0 8px;
+  width: 100%;
 }
 
 .import-result {

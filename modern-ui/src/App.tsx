@@ -174,7 +174,9 @@ type PreviaArquivoMapao = {
   disciplinas_lidas: number;
   correspondencias: number;
   nao_encontrados: number;
+  nomes_nao_encontrados: string[];
   duplicados: number;
+  nomes_duplicados: string[];
   erro: string | null;
 };
 
@@ -1549,6 +1551,17 @@ function rotuloTurma(turma: TurmaResumo) {
   return rotuloSerie(codigo) || codigo;
 }
 
+function rotuloCiclo(ciclo: string) {
+  const rotulos: Record<string, string> = {
+    EI: "Educação Infantil",
+    EFAI: "Anos Iniciais",
+    EFAF: "Anos Finais",
+    EM: "Ensino Médio",
+    "Sem ciclo": "Sem ciclo",
+  };
+  return rotulos[ciclo] ?? ciclo;
+}
+
 function codigoTurma(serie: string, letra: string) {
   return `${serie} ${letra.trim().toLocaleUpperCase("pt-BR") || "A"}`.trim();
 }
@@ -2046,6 +2059,7 @@ function ImportarNotas({
   const [resultado, setResultado] = useState<ResultadoImportacaoMapoes | null>(null);
   const [erro, setErro] = useState("");
   const [mensagem, setMensagem] = useState("");
+  const [turmasCsv, setTurmasCsv] = useState<Record<string, string>>({});
   const [processando, setProcessando] = useState(false);
 
   function selecionarArquivos(lista: FileList | null) {
@@ -2096,10 +2110,15 @@ function ImportarNotas({
   }
 
   function substituirCsvDaTurma(arquivoPrevia: PreviaArquivoMapao, arquivoCsv: File | undefined) {
-    if (!arquivoCsv || !arquivoPrevia.turma_caminho) return;
-    const turma = turmas.find((item) => item.caminho === arquivoPrevia.turma_caminho);
+    if (!arquivoCsv) return;
+    const caminhoTurma = arquivoPrevia.turma_caminho ?? turmasCsv[arquivoPrevia.nome] ?? "";
+    if (!caminhoTurma) {
+      setErro("Selecione a turma que deve receber este CSV antes de enviar o arquivo.");
+      return;
+    }
+    const turma = turmas.find((item) => item.caminho === caminhoTurma);
     if (!turma) {
-      setErro("Não encontrei a turma provável para atualizar o CSV.");
+      setErro("Não encontrei a turma selecionada para atualizar o CSV.");
       return;
     }
     setProcessando(true);
@@ -2122,6 +2141,10 @@ function ImportarNotas({
       })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
       .finally(() => setProcessando(false));
+  }
+
+  function precisaAcaoCsv(arquivo: PreviaArquivoMapao) {
+    return Boolean(arquivo.erro) || arquivo.nao_encontrados > 0 || arquivo.duplicados > 0 || (arquivo.alunos_lidos > 0 && arquivo.correspondencias < arquivo.alunos_lidos);
   }
 
   return (
@@ -2177,7 +2200,7 @@ function ImportarNotas({
           {(previa.total_nao_encontrados > 0 || previa.total_duplicados > 0 || previa.arquivos.some((arquivo) => arquivo.erro)) && (
             <div className="import-diagnostics">
               <strong>Verifique antes de aplicar</strong>
-              <span>Alunos não encontrados não serão importados. Use “Limpar e subir CSV” quando a turma provável estiver correta, ou revise o CSV da turma.</span>
+              <span>Alunos não encontrados não serão importados. Se o problema estiver no CSV da turma, selecione a turma correta na linha e envie o CSV atualizado.</span>
               {previa.total_duplicados > 0 && <span>Duplicados ficam de fora para evitar gravação no aluno errado.</span>}
             </div>
           )}
@@ -2208,17 +2231,37 @@ function ImportarNotas({
                         )}
                       </td>
                       <td>
-                        {arquivo.turma_caminho && arquivo.alunos_lidos > 0 && arquivo.correspondencias < arquivo.alunos_lidos ? (
-                          <label className="mini-file-action">
-                            Limpar e subir CSV
-                            <input type="file" accept=".csv,text/csv" onChange={(event) => substituirCsvDaTurma(arquivo, event.target.files?.[0])} />
-                          </label>
+                        {precisaAcaoCsv(arquivo) ? (
+                          <div className="csv-repair-cell">
+                            <select
+                              value={arquivo.turma_caminho ?? turmasCsv[arquivo.nome] ?? ""}
+                              onChange={(event) => setTurmasCsv((atuais) => ({ ...atuais, [arquivo.nome]: event.target.value }))}
+                              aria-label={`Turma para atualizar CSV de ${arquivo.nome}`}
+                            >
+                              <option value="">Selecionar turma</option>
+                              {turmas.map((turma) => (
+                                <option key={turma.caminho} value={turma.caminho}>{rotuloTurma(turma)}</option>
+                              ))}
+                            </select>
+                            <label className="mini-file-action">
+                              Limpar e subir CSV
+                              <input type="file" accept=".csv,text/csv" onChange={(event) => substituirCsvDaTurma(arquivo, event.target.files?.[0])} />
+                            </label>
+                          </div>
                         ) : "-"}
                       </td>
                     </tr>
-                    {arquivo.erro && (
+                    {(arquivo.erro || arquivo.nomes_nao_encontrados.length > 0 || arquivo.nomes_duplicados.length > 0) && (
                       <tr className="import-error-row">
-                        <td colSpan={9}>{arquivo.erro}</td>
+                        <td colSpan={9}>
+                          {arquivo.erro && <p>{arquivo.erro}</p>}
+                          {arquivo.nomes_nao_encontrados.length > 0 && (
+                            <p><strong>Não encontrados:</strong> {arquivo.nomes_nao_encontrados.slice(0, 20).join(", ")}{arquivo.nomes_nao_encontrados.length > 20 ? ` e mais ${arquivo.nomes_nao_encontrados.length - 20}` : ""}</p>
+                          )}
+                          {arquivo.nomes_duplicados.length > 0 && (
+                            <p><strong>Duplicados:</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>
+                          )}
+                        </td>
                       </tr>
                     )}
                   </Fragment>
@@ -2262,7 +2305,7 @@ function Turmas({
   onExcluirTurma: (turma: TurmaResumo) => Promise<void>;
 }) {
   const [busca, setBusca] = useState("");
-  const [serieFiltro, setSerieFiltro] = useState("todas");
+  const [cicloFiltro, setCicloFiltro] = useState("todos");
   const [criando, setCriando] = useState(false);
   const [turmaEditando, setTurmaEditando] = useState<TurmaResumo | null>(null);
   const [turmaExcluindo, setTurmaExcluindo] = useState<TurmaResumo | null>(null);
@@ -2278,17 +2321,16 @@ function Turmas({
   const [erroCriacao, setErroCriacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  const seriesDisponiveis = useMemo(() => {
-    const seriesCadastradas = turmas.map((turma) => rotuloSerie(turma.serie) || turma.ciclo || "Sem série");
-    const seriesConfiguradas = Object.values(CICLOS_TURMA).flat().map(rotuloSerie);
-    const series = Array.from(new Set([...seriesConfiguradas, ...seriesCadastradas].filter(Boolean)));
-    return series.sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  const ciclosDisponiveis = useMemo(() => {
+    const ciclosCadastrados = turmas.map((turma) => turma.ciclo || "Sem ciclo");
+    const ciclos = Array.from(new Set([...Object.keys(CICLOS_TURMA), ...ciclosCadastrados].filter(Boolean)));
+    return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
   }, [turmas]);
   const turmasFiltradas = useMemo(() => {
     const filtradasPorBusca = filtrarTurmas(turmas, busca);
-    if (serieFiltro === "todas") return filtradasPorBusca;
-    return filtradasPorBusca.filter((turma) => (rotuloSerie(turma.serie) || turma.ciclo || "Sem série") === serieFiltro);
-  }, [busca, serieFiltro, turmas]);
+    if (cicloFiltro === "todos") return filtradasPorBusca;
+    return filtradasPorBusca.filter((turma) => (turma.ciclo || "Sem ciclo") === cicloFiltro);
+  }, [busca, cicloFiltro, turmas]);
   const codigoPreview = codigoTurma(serie, letra);
 
   function limparFormulario() {
@@ -2493,11 +2535,11 @@ function Turmas({
           />
         </label>
         <label className="series-filter">
-          Série
-          <select value={serieFiltro} onChange={(event) => setSerieFiltro(event.target.value)}>
-            <option value="todas">Todas as séries</option>
-            {seriesDisponiveis.map((serieItem) => (
-              <option key={serieItem} value={serieItem}>{serieItem}</option>
+          Ciclo
+          <select value={cicloFiltro} onChange={(event) => setCicloFiltro(event.target.value)}>
+            <option value="todos">Todos os ciclos</option>
+            {ciclosDisponiveis.map((cicloItem) => (
+              <option key={cicloItem} value={cicloItem}>{rotuloCiclo(cicloItem)}</option>
             ))}
           </select>
         </label>

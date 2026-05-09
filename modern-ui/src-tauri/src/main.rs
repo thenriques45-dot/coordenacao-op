@@ -210,7 +210,9 @@ struct PreviaArquivoMapao {
     disciplinas_lidas: usize,
     correspondencias: usize,
     nao_encontrados: usize,
+    nomes_nao_encontrados: Vec<String>,
     duplicados: usize,
+    nomes_duplicados: Vec<String>,
     erro: Option<String>,
 }
 
@@ -2669,6 +2671,14 @@ fn alvos_para_mapao(
     dados: &DadosMapao,
     turmas: &[(PathBuf, TurmaArquivo)],
 ) -> BTreeSet<usize> {
+    if mapao_educacao_fisica_misto(dados) {
+        return turmas
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, (_, turma))| turma_ensino_medio(turma).then_some(idx))
+            .collect();
+    }
+
     let por_arquivo = turmas_alvo_por_arquivo(nome_arquivo, turmas);
     if por_arquivo.len() == 1 {
         return por_arquivo;
@@ -2711,6 +2721,29 @@ fn alvos_para_mapao(
         return BTreeSet::new();
     }
     BTreeSet::from([melhor_idx])
+}
+
+fn mapao_educacao_fisica_misto(dados: &DadosMapao) -> bool {
+    dados.disciplinas.len() == 1
+        && dados
+            .disciplinas
+            .iter()
+            .next()
+            .map(|disciplina| normalizar_texto_basico(disciplina).contains("EDUCACAO FISICA"))
+            .unwrap_or(false)
+}
+
+fn turma_ensino_medio(turma: &TurmaArquivo) -> bool {
+    turma
+        .ciclo
+        .as_deref()
+        .map(|ciclo| normalizar_texto_basico(ciclo) == "EM")
+        .unwrap_or(false)
+        || turma
+            .serie
+            .as_deref()
+            .map(|serie| normalizar_texto_basico(serie).contains("SERIE"))
+            .unwrap_or(false)
 }
 
 fn rotulo_alvos(alvos: &BTreeSet<usize>, turmas: &[(PathBuf, TurmaArquivo)]) -> Option<String> {
@@ -2784,7 +2817,9 @@ fn analisar_arquivo_mapao(
         Ok(dados) => {
             let mut correspondencias = 0;
             let mut nao_encontrados = 0;
+            let mut nomes_nao_encontrados = Vec::new();
             let mut duplicados = 0;
+            let mut nomes_duplicados = Vec::new();
             let alvos = alvos_para_mapao(&arquivo.nome, &dados, turmas);
             for aluno in &dados.alunos {
                 let destinos = destinos_nome_arquivo(
@@ -2793,9 +2828,15 @@ fn analisar_arquivo_mapao(
                     &alvos,
                 );
                 match destinos.len() {
-                    0 => nao_encontrados += 1,
+                    0 => {
+                        nao_encontrados += 1;
+                        nomes_nao_encontrados.push(aluno.nome.clone());
+                    }
                     1 => correspondencias += 1,
-                    _ => duplicados += 1,
+                    _ => {
+                        duplicados += 1;
+                        nomes_duplicados.push(aluno.nome.clone());
+                    }
                 }
             }
             PreviaArquivoMapao {
@@ -2806,7 +2847,9 @@ fn analisar_arquivo_mapao(
                 disciplinas_lidas: dados.disciplinas.len(),
                 correspondencias,
                 nao_encontrados,
+                nomes_nao_encontrados,
                 duplicados,
+                nomes_duplicados,
                 erro: None,
             }
         }
@@ -2818,7 +2861,9 @@ fn analisar_arquivo_mapao(
             disciplinas_lidas: 0,
             correspondencias: 0,
             nao_encontrados: 0,
+            nomes_nao_encontrados: Vec::new(),
             duplicados: 0,
+            nomes_duplicados: Vec::new(),
             erro: Some(err),
         },
     }
