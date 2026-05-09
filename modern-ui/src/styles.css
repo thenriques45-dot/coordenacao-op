@@ -1044,6 +1044,10 @@ h3 {
 }
 
 .turmas-search-panel {
+  align-items: end;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 240px;
   margin-top: 30px;
   padding: 24px;
 }
@@ -1067,6 +1071,23 @@ h3 {
   min-width: 0;
   outline: 0;
   width: 100%;
+}
+
+.series-filter {
+  color: #52616a;
+  display: grid;
+  font-size: 0.84rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.series-filter select {
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  color: #101828;
+  height: 44px;
+  padding: 0 12px;
 }
 
 .turmas-card-grid {

@@ -311,10 +311,10 @@ fn abrir_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
-    let codigo = input.codigo.trim();
-    let serie = input.serie.trim();
-    let ciclo = input.ciclo.trim();
-    let periodo = input.periodo.trim();
+    let codigo = formatar_rotulo_turma_texto(input.codigo.trim());
+    let serie = formatar_rotulo_turma_texto(input.serie.trim());
+    let ciclo = input.ciclo.trim().to_string();
+    let periodo = input.periodo.trim().to_string();
 
     if codigo.is_empty() || serie.is_empty() {
         return Err("Serie e turma sao obrigatorias.".to_string());
@@ -331,7 +331,7 @@ fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
         .join("persistidos")
         .join(input.ano.to_string());
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
-    let caminho = pasta.join(format!("turma_{}.json", sanitizar_segmento(codigo)));
+    let caminho = pasta.join(format!("turma_{}.json", sanitizar_segmento(&codigo)));
     if caminho.exists() {
         return Err(format!("Ja existe uma turma {codigo} para {}.", input.ano));
     }
@@ -393,10 +393,10 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
     let texto = fs::read_to_string(&caminho_atual).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
-    let codigo = input.codigo.trim();
-    let serie = input.serie.trim();
-    let ciclo = input.ciclo.trim();
-    let periodo = input.periodo.trim();
+    let codigo = formatar_rotulo_turma_texto(input.codigo.trim());
+    let serie = formatar_rotulo_turma_texto(input.serie.trim());
+    let ciclo = input.ciclo.trim().to_string();
+    let periodo = input.periodo.trim().to_string();
     if codigo.is_empty() || serie.is_empty() {
         return Err("Serie e turma sao obrigatorias.".to_string());
     }
@@ -404,12 +404,12 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
         return Err("Ano letivo invalido.".to_string());
     }
 
-    dados["codigo"] = Value::String(codigo.to_string());
+    dados["codigo"] = Value::String(codigo.clone());
     dados["ano"] = Value::Number(input.ano.into());
-    dados["serie"] = Value::String(serie.to_string());
+    dados["serie"] = Value::String(serie.clone());
     dados["sala"] = Value::String(input.sala.trim().to_string());
-    dados["periodo"] = Value::String(periodo.to_string());
-    dados["ciclo"] = Value::String(ciclo.to_string());
+    dados["periodo"] = Value::String(periodo.clone());
+    dados["ciclo"] = Value::String(ciclo.clone());
 
     if !input.alunos.is_empty() {
         let alunos_existentes = dados
@@ -472,7 +472,7 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
         .join("persistidos")
         .join(input.ano.to_string());
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
-    let novo_caminho = pasta.join(format!("turma_{}.json", sanitizar_segmento(codigo)));
+    let novo_caminho = pasta.join(format!("turma_{}.json", sanitizar_segmento(&codigo)));
 
     if caminhos_diferentes(&caminho_atual, &novo_caminho) && novo_caminho.exists() {
         return Err(format!("Ja existe uma turma {codigo} para {}.", input.ano));
@@ -929,11 +929,12 @@ fn gerar_documento_finalizacao(
         .and_then(Value::as_str)
         .filter(|valor| !valor.trim().is_empty())
         .unwrap_or(codigo);
+    let serie = formatar_rotulo_turma_texto(serie);
     let pasta = data_dir()
         .map_err(|err| err.to_string())?
         .join(raiz)
         .join(sanitizar_segmento(&ano.to_string()))
-        .join(sanitizar_segmento(serie))
+        .join(sanitizar_segmento(&serie))
         .join(sanitizar_segmento(&format!("{bimestre} bimestre")));
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
 
@@ -963,11 +964,12 @@ fn localizar_documento_finalizacao(
         .and_then(Value::as_str)
         .filter(|valor| !valor.trim().is_empty())
         .unwrap_or(codigo);
+    let serie = formatar_rotulo_turma_texto(serie);
     let pasta = data_dir()
         .map_err(|err| err.to_string())?
         .join(raiz)
         .join(sanitizar_segmento(&ano.to_string()))
-        .join(sanitizar_segmento(serie))
+        .join(sanitizar_segmento(&serie))
         .join(sanitizar_segmento(&format!("{bimestre} bimestre")));
     let arquivo = pasta.join(nome_documento_finalizacao(prefixo, codigo, bimestre));
 
@@ -1029,7 +1031,7 @@ fn aspas_powershell(valor: &str) -> String {
 }
 
 fn sanitizar_segmento(valor: &str) -> String {
-    let texto = valor.trim().replace('º', "o");
+    let texto = valor.trim().replace('º', "o").replace('ª', "a");
     let filtrado = texto
         .chars()
         .map(|ch| {
@@ -1046,6 +1048,33 @@ fn sanitizar_segmento(valor: &str) -> String {
     } else {
         filtrado
     }
+}
+
+fn formatar_rotulo_turma_texto(valor: &str) -> String {
+    let mut texto = valor.trim().to_string();
+    let substituicoes = [
+        ("1a SERIE", "1ª Série"),
+        ("2a SERIE", "2ª Série"),
+        ("3a SERIE", "3ª Série"),
+        ("1A SERIE", "1ª Série"),
+        ("2A SERIE", "2ª Série"),
+        ("3A SERIE", "3ª Série"),
+        ("1o ANO", "1º Ano"),
+        ("2o ANO", "2º Ano"),
+        ("3o ANO", "3º Ano"),
+        ("4o ANO", "4º Ano"),
+        ("5o ANO", "5º Ano"),
+        ("6o ANO", "6º Ano"),
+        ("7o ANO", "7º Ano"),
+        ("8o ANO", "8º Ano"),
+        ("9o ANO", "9º Ano"),
+        ("PRE-ESCOLA", "Pré-escola"),
+        ("BERCARIO", "Berçário"),
+    ];
+    for (antigo, novo) in substituicoes {
+        texto = texto.replace(antigo, novo);
+    }
+    texto
 }
 
 fn escrever_ata_docx(
@@ -3135,9 +3164,9 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
     }
 
     TurmaResumo {
-        codigo: turma.codigo,
+        codigo: formatar_rotulo_turma_texto(&turma.codigo),
         ano: turma.ano,
-        serie: turma.serie,
+        serie: turma.serie.map(|serie| formatar_rotulo_turma_texto(&serie)),
         sala: turma.sala,
         periodo: turma.periodo,
         ciclo: turma.ciclo,
@@ -3432,8 +3461,14 @@ fn obter_direcao_configurada() -> (String, String) {
 }
 
 fn rotulo_turma(turma: &TurmaArquivo) -> String {
-    let serie = turma.serie.as_deref().unwrap_or("").trim();
-    let codigo = turma.codigo.trim();
+    let serie_formatada = turma
+        .serie
+        .as_deref()
+        .map(formatar_rotulo_turma_texto)
+        .unwrap_or_default();
+    let codigo_formatado = formatar_rotulo_turma_texto(turma.codigo.trim());
+    let serie = serie_formatada.trim();
+    let codigo = codigo_formatado.trim();
     let ciclo = turma.ciclo.as_deref().unwrap_or("").trim();
 
     if ciclo == "EM" && !serie.is_empty() {

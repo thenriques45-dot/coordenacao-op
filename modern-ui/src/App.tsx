@@ -28,10 +28,10 @@ import brandLogo from "./assets/logo.png";
 type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-notas" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
 
 const CICLOS_TURMA: Record<string, string[]> = {
-  EI: ["BERCARIO I", "BERCARIO II", "MATERNAL I", "MATERNAL II", "PRE-ESCOLA I", "PRE-ESCOLA II"],
-  EFAI: ["1o ANO", "2o ANO", "3o ANO", "4o ANO", "5o ANO"],
-  EFAF: ["6o ANO", "7o ANO", "8o ANO", "9o ANO"],
-  EM: ["1a SERIE", "2a SERIE", "3a SERIE"],
+  EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
+  EFAI: ["1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano"],
+  EFAF: ["6º Ano", "7º Ano", "8º Ano", "9º Ano"],
+  EM: ["1ª Série", "2ª Série", "3ª Série"],
 };
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
@@ -868,8 +868,8 @@ function Dashboard({
             "codigo" in atividade ? (
             <div className="activity-row" key={atividade.caminho}>
               <div>
-                <strong>{atividade.codigo}</strong>
-                <span>{atividade.serie ?? atividade.ciclo ?? "Turma sem serie definida"}</span>
+                <strong>{rotuloTurma(atividade)}</strong>
+                <span>{rotuloSerie(atividade.serie) || atividade.ciclo || "Turma sem série definida"}</span>
               </div>
               <time>{atividade.ano}</time>
             </div>
@@ -1457,8 +1457,8 @@ function SelecaoConselho({
             key={turma.caminho}
           >
             <div className="turma-card-main">
-              <h2>{turma.codigo}</h2>
-              <span>{turma.serie ?? turma.ciclo ?? `${turma.ano}`}</span>
+              <h2>{rotuloTurma(turma)}</h2>
+              <span>{rotuloSerie(turma.serie) || turma.ciclo || `${turma.ano}`}</span>
             </div>
 
             <div className="turma-card-meta">
@@ -1507,14 +1507,39 @@ function filtrarTurmas(turmas: TurmaResumo[], busca: string) {
   return turmas.filter((turma) => {
     const campos = [
       turma.codigo,
+      rotuloTurma(turma),
       String(turma.ano),
       turma.serie ?? "",
+      rotuloSerie(turma.serie),
       turma.sala ?? "",
       turma.periodo ?? "",
       turma.ciclo ?? "",
     ];
     return campos.some((campo) => campo.toLocaleLowerCase("pt-BR").includes(termo));
   });
+}
+
+function rotuloSerie(valor?: string | null) {
+  if (!valor) return "";
+  return valor
+    .replace(/\b([1-3])\s*a\s+serie\b/gi, "$1ª Série")
+    .replace(/\b([1-9])\s*o\s+ano\b/gi, "$1º Ano")
+    .replace(/\bpre-escola\b/gi, "Pré-escola")
+    .replace(/\bbercario\b/gi, "Berçário")
+    .replace(/\bserie\b/gi, "Série")
+    .replace(/\bano\b/gi, "Ano");
+}
+
+function rotuloTurma(turma: TurmaResumo) {
+  const serie = rotuloSerie(turma.serie);
+  const codigo = turma.codigo ?? "";
+  if (!serie) return codigo;
+  const normalizar = (valor: string) => normalizarTextoCsv(valor);
+  if (normalizar(codigo).startsWith(normalizar(turma.serie ?? ""))) {
+    const resto = codigo.slice(turma.serie?.length ?? 0).trim();
+    return `${serie} ${resto}`.trim();
+  }
+  return rotuloSerie(codigo) || codigo;
 }
 
 function codigoTurma(serie: string, letra: string) {
@@ -1532,10 +1557,16 @@ function letraTurma(turma: TurmaResumo) {
   return partes.length ? partes[partes.length - 1] : "A";
 }
 
+function mesmaSerie(a: string, b: string) {
+  return normalizarTextoCsv(a) === normalizarTextoCsv(b);
+}
+
 function normalizarTextoCsv(valor: string) {
   return valor
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
+    .replace(/[ªᵃ]/g, "a")
+    .replace(/[º°]/g, "o")
     .toLocaleUpperCase("pt-BR")
     .trim();
 }
@@ -1696,7 +1727,7 @@ function GestaoTurma({
 
         <section className="panel turma-detail-hero">
           <div className="turma-detail-title">
-            <h1>{turma?.codigo ?? "Turma"}</h1>
+            <h1>{turma ? rotuloTurma(turma) : "Turma"}</h1>
             <span>{turma?.periodo ?? "Período não informado"}</span>
           </div>
         </section>
@@ -1716,11 +1747,11 @@ function GestaoTurma({
 
       <section className="panel turma-detail-hero">
         <div className="turma-detail-title">
-          <h1>{turma?.codigo ?? "Turma"}</h1>
+          <h1>{turma ? rotuloTurma(turma) : "Turma"}</h1>
           <span>{turma?.periodo ?? "Período não informado"}</span>
         </div>
         <div className="turma-info-grid">
-          <div><span>Série</span><strong>{turma?.serie ?? turma?.ciclo ?? "-"}</strong></div>
+          <div><span>Série</span><strong>{rotuloSerie(turma?.serie) || turma?.ciclo || "-"}</strong></div>
           <div><span>Ano Letivo</span><strong>{turma?.ano ?? "-"}</strong></div>
           <div><span>Sala</span><strong>{turma?.sala ? `Sala ${turma.sala}` : "Não informada"}</strong></div>
           <div className="coordinator-field">
@@ -2080,7 +2111,7 @@ function ImportarNotas({
       }))
       .then((novaPrevia) => {
         setPrevia(novaPrevia);
-        setMensagem(`CSV de ${turma.codigo} substituído. A prévia foi recalculada.`);
+        setMensagem(`CSV de ${rotuloTurma(turma)} substituído. A prévia foi recalculada.`);
       })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
       .finally(() => setProcessando(false));
@@ -2224,6 +2255,7 @@ function Turmas({
   onExcluirTurma: (turma: TurmaResumo) => Promise<void>;
 }) {
   const [busca, setBusca] = useState("");
+  const [serieFiltro, setSerieFiltro] = useState("todas");
   const [criando, setCriando] = useState(false);
   const [turmaEditando, setTurmaEditando] = useState<TurmaResumo | null>(null);
   const [turmaExcluindo, setTurmaExcluindo] = useState<TurmaResumo | null>(null);
@@ -2239,7 +2271,17 @@ function Turmas({
   const [erroCriacao, setErroCriacao] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
-  const turmasFiltradas = useMemo(() => filtrarTurmas(turmas, busca), [busca, turmas]);
+  const seriesDisponiveis = useMemo(() => {
+    const seriesCadastradas = turmas.map((turma) => rotuloSerie(turma.serie) || turma.ciclo || "Sem série");
+    const seriesConfiguradas = Object.values(CICLOS_TURMA).flat().map(rotuloSerie);
+    const series = Array.from(new Set([...seriesConfiguradas, ...seriesCadastradas].filter(Boolean)));
+    return series.sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [turmas]);
+  const turmasFiltradas = useMemo(() => {
+    const filtradasPorBusca = filtrarTurmas(turmas, busca);
+    if (serieFiltro === "todas") return filtradasPorBusca;
+    return filtradasPorBusca.filter((turma) => (rotuloSerie(turma.serie) || turma.ciclo || "Sem série") === serieFiltro);
+  }, [busca, serieFiltro, turmas]);
   const codigoPreview = codigoTurma(serie, letra);
 
   function limparFormulario() {
@@ -2269,7 +2311,7 @@ function Turmas({
     const cicloAtual = turma.ciclo && CICLOS_TURMA[turma.ciclo] ? turma.ciclo : "EM";
     const series = CICLOS_TURMA[cicloAtual] ?? CICLOS_TURMA.EM;
     setCiclo(cicloAtual);
-    setSerie(turma.serie && series.includes(turma.serie) ? turma.serie : series[0]);
+    setSerie(turma.serie ? (series.find((item) => mesmaSerie(item, turma.serie ?? "")) ?? series[0]) : series[0]);
     setLetra(letraTurma(turma));
     setSala(turma.sala ?? "");
     setPeriodo(turma.periodo && PERIODOS_TURMA.includes(turma.periodo) ? turma.periodo : PERIODOS_TURMA[0]);
@@ -2443,6 +2485,15 @@ function Turmas({
             placeholder="Buscar turma ou coordenador de sala..."
           />
         </label>
+        <label className="series-filter">
+          Série
+          <select value={serieFiltro} onChange={(event) => setSerieFiltro(event.target.value)}>
+            <option value="todas">Todas as séries</option>
+            {seriesDisponiveis.map((serieItem) => (
+              <option key={serieItem} value={serieItem}>{serieItem}</option>
+            ))}
+          </select>
+        </label>
       </section>
 
       <section className="turmas-card-grid">
@@ -2458,8 +2509,8 @@ function Turmas({
             </div>
 
             <div className="turma-card-main">
-              <h2>{turma.codigo}</h2>
-              <span>{turma.serie ?? turma.ciclo ?? `${turma.ano}`}</span>
+              <h2>{rotuloTurma(turma)}</h2>
+              <span>{rotuloSerie(turma.serie) || turma.ciclo || `${turma.ano}`}</span>
             </div>
 
             <div className="turma-card-meta">
@@ -2499,7 +2550,7 @@ function Turmas({
             <div className="modal-heading">
               <div>
                 <span className="eyebrow">Confirmar exclusão</span>
-                <h2 id="delete-class-title">Excluir {turmaExcluindo.codigo}?</h2>
+                <h2 id="delete-class-title">Excluir {rotuloTurma(turmaExcluindo)}?</h2>
               </div>
               <button onClick={() => setTurmaExcluindo(null)} aria-label="Fechar confirmação">
                 <X size={18} />

@@ -22,6 +22,7 @@ jobs:
             artifact-path: |
               modern-ui/src-tauri/target/release/bundle/nsis/*_x64-setup.exe
               modern-ui/src-tauri/target/release/bundle/nsis/*_x64-setup.exe.sig
+              modern-ui/src-tauri/target/release/CoordenacaoOP_*_windows_portable.zip
           - platform: linux
             os: ubuntu-22.04
             artifact-name: modern-linux-artifacts
@@ -74,6 +75,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build
+
+      - name: Package Windows portable
+        if: matrix.platform == 'windows'
+        working-directory: modern-ui
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $exe = Get-ChildItem src-tauri/target/release/*.exe | Where-Object { $_.Name -notlike '*setup*' } | Select-Object -First 1
+          if (-not $exe) {
+            throw "Executavel portatil nao encontrado em src-tauri/target/release."
+          }
+          Compress-Archive -Path $exe.FullName -DestinationPath "src-tauri/target/release/CoordenacaoOP_${version}_windows_portable.zip" -Force
 
       - name: Upload modern artifact
         uses: actions/upload-artifact@v6
