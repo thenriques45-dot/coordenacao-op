@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
 use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
@@ -16,6 +18,7 @@ use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 struct AppInfo {
     name: &'static str,
     stage: &'static str,
+    version: &'static str,
     data_dir: String,
 }
 
@@ -256,6 +259,7 @@ fn app_info() -> AppInfo {
     AppInfo {
         name: "CoordenacaoOP",
         stage: "modern-ui-prototype",
+        version: env!("CARGO_PKG_VERSION"),
         data_dir,
     }
 }

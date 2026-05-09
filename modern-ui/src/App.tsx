@@ -191,6 +191,13 @@ type ResultadoImportacaoMapoes = {
   alunos_atualizados: number;
 };
 
+type AppInfo = {
+  name: string;
+  stage: string;
+  version: string;
+  data_dir: string;
+};
+
 const alunosDemo: Aluno[] = [
   {
     matricula: "demo-1",
@@ -687,7 +694,7 @@ export function App() {
           <NavButton icon={<Upload size={18} />} label="Importar Notas" active={tela === "importar-notas"} onClick={() => navegarPara("importar-notas")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<FileText size={18} />} label="Relatorios" active={tela === "relatorios"} onClick={() => navegarPara("relatorios")} />
-          <NavButton icon={<Settings size={18} />} label="Configuracoes" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
+          <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
         <div className="profile-box">
@@ -2684,6 +2691,7 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
     direcao_pronome: "F",
     nota_minima: 5,
   });
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const [processando, setProcessando] = useState(false);
@@ -2693,6 +2701,9 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
     invoke<ConfiguracoesApp>("carregar_configuracoes")
       .then(setConfig)
       .catch((err) => setErro(String(err)));
+    invoke<AppInfo>("app_info")
+      .then(setAppInfo)
+      .catch(() => setAppInfo(null));
   }, []);
 
   async function salvar() {
@@ -2831,6 +2842,7 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
           <h2>Atualização</h2>
           <p>A verificação consulta a última versão publicada no GitHub.</p>
           <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
+          <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
           {atualizacao && (
             <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
           )}
@@ -2853,7 +2865,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     conselhos: "Conselhos",
     conselho: "Conselho",
     relatorios: "Relatorios",
-    configuracoes: "Configuracoes",
+    configuracoes: "Configurações",
   };
 
   return (
