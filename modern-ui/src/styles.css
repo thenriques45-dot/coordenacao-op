@@ -233,6 +233,19 @@ h3 {
   color: #ffffff;
 }
 
+.secondary-action {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  color: #101828;
+  display: flex;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
 .primary-action.ghost-disabled {
   background: #080819;
   border-color: #080819;
@@ -777,6 +790,13 @@ h3 {
   align-items: flex-start;
 }
 
+.turmas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .create-class-panel {
   display: grid;
   gap: 18px;
@@ -807,7 +827,10 @@ h3 {
   border-radius: 999px;
   color: #52616a;
   font-weight: 700;
+  max-width: 48%;
+  overflow: hidden;
   padding: 8px 12px;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -851,6 +874,22 @@ h3 {
   font-weight: 800;
   gap: 10px;
   padding: 12px 14px;
+}
+
+.batch-csv-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.batch-csv-summary span {
+  background: var(--tag-empty-bg);
+  border-radius: 999px;
+  color: var(--tag-empty-text);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 7px 10px;
 }
 
 .file-picker-button {

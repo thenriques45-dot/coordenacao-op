@@ -1570,6 +1570,35 @@ function codigoTurma(serie: string, letra: string) {
   return `${serie} ${letra.trim().toLocaleUpperCase("pt-BR") || "A"}`.trim();
 }
 
+function letraUnica(valor: string) {
+  const normalizada = normalizarTextoCsv(valor).replace(/[^A-Z]/g, "");
+  return normalizada.slice(0, 1);
+}
+
+function gerarLetrasIntervalo(inicio: string, fim: string) {
+  const primeira = letraUnica(inicio);
+  const ultima = letraUnica(fim);
+  if (!primeira || !ultima) return [];
+  const codigoInicio = primeira.charCodeAt(0);
+  const codigoFim = ultima.charCodeAt(0);
+  if (codigoFim < codigoInicio) return [];
+  return Array.from({ length: codigoFim - codigoInicio + 1 }, (_, indice) => String.fromCharCode(codigoInicio + indice));
+}
+
+function nomeBaseCsv(nome: string) {
+  if (!/\.csv$/i.test(nome)) return "";
+  const semExtensao = nome.replace(/\.[^.]+$/, "");
+  const normalizado = normalizarTextoCsv(semExtensao).replace(/[^A-Z]/g, "");
+  return normalizado.length === 1 ? normalizado : "";
+}
+
+function salaLote(salaInicial: string, indice: number) {
+  const sala = salaInicial.trim();
+  if (!sala) return "";
+  if (!/^\d+$/.test(sala)) return sala;
+  return String(Number.parseInt(sala, 10) + indice).padStart(sala.length, "0");
+}
+
 function letraTurma(turma: TurmaResumo) {
   const serie = turma.serie ?? "";
   const codigo = turma.codigo ?? "";
@@ -2315,16 +2344,19 @@ function Turmas({
   const [busca, setBusca] = useState("");
   const [cicloFiltro, setCicloFiltro] = useState("todos");
   const [criando, setCriando] = useState(false);
+  const [modoCriacao, setModoCriacao] = useState<"individual" | "lote">("individual");
   const [turmaEditando, setTurmaEditando] = useState<TurmaResumo | null>(null);
   const [turmaExcluindo, setTurmaExcluindo] = useState<TurmaResumo | null>(null);
   const [ciclo, setCiclo] = useState("EM");
   const [serie, setSerie] = useState(CICLOS_TURMA.EM[0]);
   const [letra, setLetra] = useState("A");
+  const [letraFinal, setLetraFinal] = useState("G");
   const [sala, setSala] = useState("");
   const [periodo, setPeriodo] = useState(PERIODOS_TURMA[0]);
   const [ano, setAno] = useState(String(new Date().getFullYear()));
   const [arquivoNome, setArquivoNome] = useState("");
   const [alunosCsv, setAlunosCsv] = useState<NovoAlunoPayload[]>([]);
+  const [csvsLote, setCsvsLote] = useState<Record<string, { nome: string; alunos: NovoAlunoPayload[] }>>({});
   const [substituirLista, setSubstituirLista] = useState(false);
   const [erroCriacao, setErroCriacao] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -2340,41 +2372,59 @@ function Turmas({
     return filtradasPorBusca.filter((turma) => (turma.ciclo || "Sem ciclo") === cicloFiltro);
   }, [busca, cicloFiltro, turmas]);
   const codigoPreview = codigoTurma(serie, letra);
+  const letrasLote = useMemo(() => gerarLetrasIntervalo(letra, letraFinal), [letra, letraFinal]);
 
   function limparFormulario() {
+    setModoCriacao("individual");
     setCiclo("EM");
     setSerie(CICLOS_TURMA.EM[0]);
     setLetra("A");
+    setLetraFinal("G");
     setSala("");
     setPeriodo(PERIODOS_TURMA[0]);
     setAno(String(new Date().getFullYear()));
     setArquivoNome("");
     setAlunosCsv([]);
+    setCsvsLote({});
     setSubstituirLista(false);
     setErroCriacao("");
     setTurmaEditando(null);
   }
 
   function abrirCriacao() {
-    if (criando && !turmaEditando) {
+    if (criando && !turmaEditando && modoCriacao === "individual") {
       setCriando(false);
       return;
     }
     limparFormulario();
+    setModoCriacao("individual");
+    setCriando(true);
+  }
+
+  function abrirCriacaoLote() {
+    if (criando && !turmaEditando && modoCriacao === "lote") {
+      setCriando(false);
+      return;
+    }
+    limparFormulario();
+    setModoCriacao("lote");
     setCriando(true);
   }
 
   function abrirEdicao(turma: TurmaResumo) {
     const cicloAtual = turma.ciclo && CICLOS_TURMA[turma.ciclo] ? turma.ciclo : "EM";
     const series = CICLOS_TURMA[cicloAtual] ?? CICLOS_TURMA.EM;
+    setModoCriacao("individual");
     setCiclo(cicloAtual);
     setSerie(turma.serie ? (series.find((item) => mesmaSerie(item, turma.serie ?? "")) ?? series[0]) : series[0]);
     setLetra(letraTurma(turma));
+    setLetraFinal(letraTurma(turma));
     setSala(turma.sala ?? "");
     setPeriodo(turma.periodo && PERIODOS_TURMA.includes(turma.periodo) ? turma.periodo : PERIODOS_TURMA[0]);
     setAno(String(turma.ano));
     setArquivoNome("");
     setAlunosCsv([]);
+    setCsvsLote({});
     setErroCriacao("");
     setTurmaEditando(turma);
     setCriando(true);
@@ -2384,6 +2434,8 @@ function Turmas({
     setCiclo(valor);
     const series = CICLOS_TURMA[valor] ?? CICLOS_TURMA.EM;
     setSerie(series[0]);
+    setCsvsLote({});
+    setArquivoNome("");
   }
 
   function selecionarCsv(arquivo: File | undefined) {
@@ -2403,10 +2455,70 @@ function Turmas({
       .catch((erro) => setErroCriacao(erro instanceof Error ? erro.message : String(erro)));
   }
 
+  function selecionarCsvsLote(arquivos: FileList | null) {
+    setErroCriacao("");
+    setArquivoNome("");
+    setCsvsLote({});
+    if (!arquivos?.length) return;
+
+    const esperadas = gerarLetrasIntervalo(letra, letraFinal);
+    if (!esperadas.length) {
+      setErroCriacao("Informe um intervalo de turmas valido antes de selecionar os CSVs.");
+      return;
+    }
+
+    Promise.all(Array.from(arquivos).map((arquivo) => arquivo.text().then((texto) => {
+      const nomeNormalizado = nomeBaseCsv(arquivo.name);
+      const alunos = parseCsvAlunos(texto);
+      if (!alunos.length) {
+        throw new Error(`${arquivo.name}: nao encontrei alunos validos no CSV.`);
+      }
+      return { letra: nomeNormalizado, nome: arquivo.name, alunos };
+    })))
+      .then((lidos) => {
+        const letrasEsperadas = new Set(esperadas);
+        const mapa: Record<string, { nome: string; alunos: NovoAlunoPayload[] }> = {};
+        const repetidos: string[] = [];
+        const foraDoPadrao: string[] = [];
+
+        lidos.forEach((item) => {
+          if (!item.letra || !letrasEsperadas.has(item.letra)) {
+            foraDoPadrao.push(item.nome);
+            return;
+          }
+          if (mapa[item.letra]) {
+            repetidos.push(item.nome);
+            return;
+          }
+          mapa[item.letra] = { nome: item.nome, alunos: item.alunos };
+        });
+
+        const faltantes = esperadas.filter((item) => !mapa[item]);
+        const problemas = [
+          faltantes.length ? `Faltam CSVs para: ${faltantes.map((item) => `${item}.csv`).join(", ")}.` : "",
+          foraDoPadrao.length ? `Arquivos fora do intervalo ou fora do padrao letra.csv: ${foraDoPadrao.join(", ")}.` : "",
+          repetidos.length ? `Arquivos repetidos para a mesma turma: ${repetidos.join(", ")}.` : "",
+        ].filter(Boolean);
+
+        if (problemas.length) {
+          setErroCriacao(problemas.join(" "));
+          return;
+        }
+
+        setCsvsLote(mapa);
+        setArquivoNome(`${lidos.length} CSVs selecionados`);
+      })
+      .catch((erro) => setErroCriacao(erro instanceof Error ? erro.message : String(erro)));
+  }
+
   function criar() {
     const anoNumero = Number.parseInt(ano, 10);
     if (!Number.isFinite(anoNumero)) {
       setErroCriacao("Ano letivo invalido.");
+      return;
+    }
+    if (modoCriacao === "lote" && !turmaEditando) {
+      criarLote(anoNumero);
       return;
     }
     if (!turmaEditando && !alunosCsv.length) {
@@ -2435,6 +2547,47 @@ function Turmas({
       .finally(() => setSalvando(false));
   }
 
+  function criarLote(anoNumero: number) {
+    const letras = gerarLetrasIntervalo(letra, letraFinal);
+    if (!letras.length) {
+      setErroCriacao("Informe um intervalo de turmas valido.");
+      return;
+    }
+    const faltantes = letras.filter((item) => !csvsLote[item]);
+    if (faltantes.length) {
+      setErroCriacao(`Selecione os CSVs esperados antes de criar: ${faltantes.map((item) => `${item}.csv`).join(", ")}.`);
+      return;
+    }
+    const codigosLote = letras.map((item) => codigoTurma(serie, item));
+    const existentes = turmas.filter((turma) => turma.ano === anoNumero && codigosLote.some((codigo) => normalizarTextoCsv(codigo) === normalizarTextoCsv(turma.codigo)));
+    if (existentes.length) {
+      setErroCriacao(`Ja existe cadastro para: ${existentes.map(rotuloTurma).join(", ")}.`);
+      return;
+    }
+
+    setSalvando(true);
+    setErroCriacao("");
+    letras.reduce<Promise<void>>((promessa, letraAtual, indice) => promessa.then(() => {
+      const csv = csvsLote[letraAtual];
+      return onCriarTurma({
+        codigo: codigoTurma(serie, letraAtual),
+        ano: anoNumero,
+        serie,
+        sala: salaLote(sala, indice),
+        periodo,
+        ciclo,
+        alunos: csv.alunos,
+        substituir_alunos: false,
+      });
+    }), Promise.resolve())
+      .then(() => {
+        setCriando(false);
+        limparFormulario();
+      })
+      .catch((erro) => setErroCriacao(erro instanceof Error ? erro.message : String(erro)))
+      .finally(() => setSalvando(false));
+  }
+
   function confirmarExclusao() {
     if (!turmaExcluindo) return;
     setExcluindo(true);
@@ -2452,10 +2605,16 @@ function Turmas({
           <h1>Gestao de turmas</h1>
           <p>Gerencie todas as turmas salvas no CoordenacaoOP.</p>
         </div>
-        <button className="primary-action" onClick={abrirCriacao}>
-          <Plus size={18} />
-          Nova turma
-        </button>
+        <div className="turmas-actions">
+          <button className="secondary-action" onClick={abrirCriacaoLote}>
+            <Upload size={18} />
+            Criar salas em lote
+          </button>
+          <button className="primary-action" onClick={abrirCriacao}>
+            <Plus size={18} />
+            Nova turma
+          </button>
+        </div>
       </header>
 
       {erroTurmas && <div className="data-warning">{erroTurmas}</div>}
@@ -2464,10 +2623,20 @@ function Turmas({
         <section className="panel create-class-panel">
           <div className="create-class-heading">
             <div>
-              <h2>{turmaEditando ? "Editar turma" : "Criar nova turma"}</h2>
-              <p>{turmaEditando ? "Atualize os dados cadastrais da turma ou envie um CSV novo para atualizar alunos." : "Informe os dados da turma e selecione o CSV de alunos."}</p>
+              <h2>{turmaEditando ? "Editar turma" : modoCriacao === "lote" ? "Criar salas em lote" : "Criar nova turma"}</h2>
+              <p>
+                {turmaEditando
+                  ? "Atualize os dados cadastrais da turma ou envie um CSV novo para atualizar alunos."
+                  : modoCriacao === "lote"
+                    ? "Informe ciclo, série, intervalo de letras e selecione um CSV para cada sala, nomeado como A.csv, B.csv, C.csv..."
+                    : "Informe os dados da turma e selecione o CSV de alunos."}
+              </p>
             </div>
-            <span>Codigo: <strong>{codigoPreview}</strong></span>
+            <span>
+              {modoCriacao === "lote" && !turmaEditando
+                ? <>Salas: <strong>{letrasLote.length ? letrasLote.map((item) => codigoTurma(serie, item)).join(", ") : "intervalo invalido"}</strong></>
+                : <>Codigo: <strong>{codigoPreview}</strong></>}
+            </span>
           </div>
 
           <div className="create-class-grid">
@@ -2477,14 +2646,31 @@ function Turmas({
               </select>
             </label>
             <label>Série
-              <select value={serie} onChange={(event) => setSerie(event.target.value)}>
+              <select value={serie} onChange={(event) => {
+                setSerie(event.target.value);
+                setCsvsLote({});
+                setArquivoNome("");
+              }}>
                 {(CICLOS_TURMA[ciclo] ?? CICLOS_TURMA.EM).map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
-            <label>Turma
-              <input value={letra} onChange={(event) => setLetra(event.target.value.toLocaleUpperCase("pt-BR").slice(0, 3))} />
+            <label>{modoCriacao === "lote" && !turmaEditando ? "Turma inicial" : "Turma"}
+              <input value={letra} onChange={(event) => {
+                setLetra(event.target.value.toLocaleUpperCase("pt-BR").slice(0, 3));
+                setCsvsLote({});
+                setArquivoNome("");
+              }} />
             </label>
-            <label>Número da sala
+            {modoCriacao === "lote" && !turmaEditando && (
+              <label>Turma final
+                <input value={letraFinal} onChange={(event) => {
+                  setLetraFinal(event.target.value.toLocaleUpperCase("pt-BR").slice(0, 3));
+                  setCsvsLote({});
+                  setArquivoNome("");
+                }} />
+              </label>
+            )}
+            <label>{modoCriacao === "lote" && !turmaEditando ? "Número da sala inicial (opcional)" : "Número da sala"}
               <input value={sala} onChange={(event) => setSala(event.target.value)} />
             </label>
             <label>Período
@@ -2499,17 +2685,34 @@ function Turmas({
 
           <div className="create-class-file-row">
             <label className="file-picker-button">
-              {turmaEditando ? "Atualizar CSV" : "Selecionar CSV"}
-              <input type="file" accept=".csv,text/csv" onChange={(event) => selecionarCsv(event.target.files?.[0])} />
+              {turmaEditando ? "Atualizar CSV" : modoCriacao === "lote" ? "Selecionar CSVs" : "Selecionar CSV"}
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                multiple={modoCriacao === "lote" && !turmaEditando}
+                onChange={(event) => modoCriacao === "lote" && !turmaEditando ? selecionarCsvsLote(event.target.files) : selecionarCsv(event.target.files?.[0])}
+              />
             </label>
             <span>
-              {arquivoNome
+              {modoCriacao === "lote" && !turmaEditando
+                ? arquivoNome
+                  ? `${arquivoNome} - ${Object.values(csvsLote).reduce((total, item) => total + item.alunos.length, 0)} alunos encontrados`
+                  : `Esperado: ${letrasLote.length ? letrasLote.map((item) => `${item}.csv`).join(", ") : "informe o intervalo"}`
+                : arquivoNome
                 ? `${arquivoNome} - ${alunosCsv.length} alunos encontrados`
                 : turmaEditando
                   ? "Opcional: preserva dados existentes, adiciona novos e inativa ausentes"
                   : "Nenhum CSV selecionado"}
             </span>
           </div>
+
+          {modoCriacao === "lote" && !turmaEditando && Object.keys(csvsLote).length > 0 && (
+            <div className="batch-csv-summary">
+              {letrasLote.map((item) => (
+                <span key={item}>{item}.csv: <strong>{csvsLote[item]?.alunos.length ?? 0} alunos</strong></span>
+              ))}
+            </div>
+          )}
 
           {turmaEditando && alunosCsv.length > 0 && (
             <label className="replace-students-option">
@@ -2527,7 +2730,7 @@ function Turmas({
           <div className="create-class-actions">
             <button onClick={() => { setCriando(false); limparFormulario(); }}>Cancelar</button>
             <button className="primary-action" onClick={criar} disabled={salvando}>
-              {salvando ? "Salvando..." : turmaEditando ? "Salvar alterações" : "Criar turma"}
+              {salvando ? "Salvando..." : turmaEditando ? "Salvar alterações" : modoCriacao === "lote" ? "Criar salas" : "Criar turma"}
             </button>
           </div>
         </section>
