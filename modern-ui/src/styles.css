@@ -1857,6 +1857,26 @@ h3 {
   text-transform: none;
 }
 
+.student-subjects-table .grade-value {
+  font-weight: 800;
+}
+
+.student-subjects-table .grade-value.adequada {
+  color: var(--tag-good-text);
+}
+
+.student-subjects-table .grade-value.cuidado {
+  color: var(--tag-warning-text);
+}
+
+.student-subjects-table .grade-value.abaixo {
+  color: var(--tag-bad-text);
+}
+
+.student-subjects-table .grade-value.sem-nota {
+  color: var(--tag-empty-text);
+}
+
 .student-council-note {
   margin-top: 28px;
 }

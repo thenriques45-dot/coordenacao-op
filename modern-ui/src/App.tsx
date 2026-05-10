@@ -373,6 +373,10 @@ function classeNota(nota: number | null | undefined) {
   return "adequada";
 }
 
+function classeTextoNota(nota: number | null | undefined) {
+  return `grade-value ${classeNota(nota)}`;
+}
+
 function rotuloClassificacao(aluno: Aluno) {
   const status = classificarAluno(aluno);
   if (status === "critico") return "Critico";
@@ -2026,9 +2030,13 @@ function AlunoDetalheGestao({
                 return (
                   <tr key={disciplina.nome}>
                     <td><strong>{disciplina.nome}</strong></td>
-                    {[1, 2, 3, 4].map((indice) => <td key={indice}>{indice === bimestreAtual ? formatarNota(nota) : "-"}</td>)}
-                    <td>{formatarNota(disciplina.quintoConceito)}</td>
-                    <td className={nota !== null && nota >= 5 ? "success-text" : "danger-text"}>{formatarNota(nota)}</td>
+                    {[1, 2, 3, 4].map((indice) => (
+                      <td key={indice} className={classeTextoNota(indice === bimestreAtual ? nota : null)}>
+                        {indice === bimestreAtual ? formatarNota(nota) : "-"}
+                      </td>
+                    ))}
+                    <td className={classeTextoNota(disciplina.quintoConceito)}>{formatarNota(disciplina.quintoConceito)}</td>
+                    <td className={classeTextoNota(nota)}>{formatarNota(nota)}</td>
                     <td className={frequencia !== null && frequencia >= 75 ? "success-text" : "danger-text"}>{formatarPercentual(frequencia)}</td>
                   </tr>
                 );
