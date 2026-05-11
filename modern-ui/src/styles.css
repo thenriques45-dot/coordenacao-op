@@ -892,6 +892,28 @@ h3 {
   padding: 7px 10px;
 }
 
+.backup-cycle-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.backup-cycle-options button {
+  background: var(--tag-empty-bg);
+  border: 0;
+  border-radius: 999px;
+  color: var(--tag-empty-text);
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.backup-cycle-options button.selected {
+  background: var(--tag-good-bg);
+  color: var(--tag-good-text);
+}
+
 .file-picker-button {
   align-items: center;
   background: #050512;

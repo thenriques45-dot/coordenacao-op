@@ -783,7 +783,7 @@ export function App() {
             })}
           />
         )}
-        {tela === "configuracoes" && <Configuracoes onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-notas" && tela !== "configuracoes" && <Placeholder tela={tela} />}
@@ -1599,6 +1599,40 @@ function salaLote(salaInicial: string, indice: number) {
   return String(Number.parseInt(sala, 10) + indice).padStart(sala.length, "0");
 }
 
+function assinaturaCsvAlunos(alunos: NovoAlunoPayload[]) {
+  return alunos
+    .map((aluno) => [
+      normalizarTextoCsv(aluno.matricula),
+      normalizarTextoCsv(aluno.nome),
+      aluno.numero_chamada ?? "",
+      aluno.ativo ? "1" : "0",
+    ].join("|"))
+    .sort()
+    .join("\n");
+}
+
+function chaveConflitoSala(valor: string | null | undefined) {
+  return normalizarTextoCsv(valor ?? "").replace(/[\s_-]/g, "");
+}
+
+function encontrarConflitoSala(
+  turmas: TurmaResumo[],
+  ano: number,
+  periodo: string,
+  sala: string,
+  ignorarCaminho?: string,
+) {
+  const salaNorm = chaveConflitoSala(sala);
+  const periodoNorm = chaveConflitoSala(periodo);
+  if (!salaNorm || !periodoNorm) return null;
+  return turmas.find((turma) => (
+    turma.ano === ano
+    && turma.caminho !== ignorarCaminho
+    && chaveConflitoSala(turma.sala) === salaNorm
+    && chaveConflitoSala(turma.periodo) === periodoNorm
+  )) ?? null;
+}
+
 function letraTurma(turma: TurmaResumo) {
   const serie = turma.serie ?? "";
   const codigo = turma.codigo ?? "";
@@ -2363,7 +2397,7 @@ function Turmas({
   const [excluindo, setExcluindo] = useState(false);
   const ciclosDisponiveis = useMemo(() => {
     const ciclosCadastrados = turmas.map((turma) => turma.ciclo || "Sem ciclo");
-    const ciclos = Array.from(new Set([...Object.keys(CICLOS_TURMA), ...ciclosCadastrados].filter(Boolean)));
+    const ciclos = Array.from(new Set(ciclosCadastrados.filter(Boolean)));
     return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
   }, [turmas]);
   const turmasFiltradas = useMemo(() => {
@@ -2373,6 +2407,12 @@ function Turmas({
   }, [busca, cicloFiltro, turmas]);
   const codigoPreview = codigoTurma(serie, letra);
   const letrasLote = useMemo(() => gerarLetrasIntervalo(letra, letraFinal), [letra, letraFinal]);
+
+  useEffect(() => {
+    if (cicloFiltro !== "todos" && !ciclosDisponiveis.includes(cicloFiltro)) {
+      setCicloFiltro("todos");
+    }
+  }, [cicloFiltro, ciclosDisponiveis]);
 
   function limparFormulario() {
     setModoCriacao("individual");
@@ -2473,13 +2513,15 @@ function Turmas({
       if (!alunos.length) {
         throw new Error(`${arquivo.name}: nao encontrei alunos validos no CSV.`);
       }
-      return { letra: nomeNormalizado, nome: arquivo.name, alunos };
+      return { letra: nomeNormalizado, nome: arquivo.name, alunos, assinatura: assinaturaCsvAlunos(alunos) };
     })))
       .then((lidos) => {
         const letrasEsperadas = new Set(esperadas);
         const mapa: Record<string, { nome: string; alunos: NovoAlunoPayload[] }> = {};
+        const assinaturas = new Map<string, string>();
         const repetidos: string[] = [];
         const foraDoPadrao: string[] = [];
+        const conteudosRepetidos: string[] = [];
 
         lidos.forEach((item) => {
           if (!item.letra || !letrasEsperadas.has(item.letra)) {
@@ -2490,6 +2532,12 @@ function Turmas({
             repetidos.push(item.nome);
             return;
           }
+          const anterior = assinaturas.get(item.assinatura);
+          if (anterior) {
+            conteudosRepetidos.push(`${anterior} e ${item.nome}`);
+            return;
+          }
+          assinaturas.set(item.assinatura, item.nome);
           mapa[item.letra] = { nome: item.nome, alunos: item.alunos };
         });
 
@@ -2498,6 +2546,7 @@ function Turmas({
           faltantes.length ? `Faltam CSVs para: ${faltantes.map((item) => `${item}.csv`).join(", ")}.` : "",
           foraDoPadrao.length ? `Arquivos fora do intervalo ou fora do padrao letra.csv: ${foraDoPadrao.join(", ")}.` : "",
           repetidos.length ? `Arquivos repetidos para a mesma turma: ${repetidos.join(", ")}.` : "",
+          conteudosRepetidos.length ? `CSVs com o mesmo conteúdo: ${conteudosRepetidos.join("; ")}.` : "",
         ].filter(Boolean);
 
         if (problemas.length) {
@@ -2519,6 +2568,11 @@ function Turmas({
     }
     if (modoCriacao === "lote" && !turmaEditando) {
       criarLote(anoNumero);
+      return;
+    }
+    const conflitoSala = encontrarConflitoSala(turmas, anoNumero, periodo, sala, turmaEditando?.caminho);
+    if (conflitoSala) {
+      setErroCriacao(`A sala ${sala} ja esta ocupada no periodo ${periodo} por ${rotuloTurma(conflitoSala)}.`);
       return;
     }
     if (!turmaEditando && !alunosCsv.length) {
@@ -2562,6 +2616,20 @@ function Turmas({
     const existentes = turmas.filter((turma) => turma.ano === anoNumero && codigosLote.some((codigo) => normalizarTextoCsv(codigo) === normalizarTextoCsv(turma.codigo)));
     if (existentes.length) {
       setErroCriacao(`Ja existe cadastro para: ${existentes.map(rotuloTurma).join(", ")}.`);
+      return;
+    }
+    const salasGeradas = letras.map((_, indice) => salaLote(sala, indice)).filter(Boolean).map(chaveConflitoSala);
+    if (new Set(salasGeradas).size !== salasGeradas.length) {
+      setErroCriacao("O lote geraria duas ou mais turmas na mesma sala e período. Ajuste a sala inicial ou deixe o campo vazio.");
+      return;
+    }
+    const conflitosSala = letras.flatMap((letraAtual, indice) => {
+      const numeroSala = salaLote(sala, indice);
+      const turmaConflitante = encontrarConflitoSala(turmas, anoNumero, periodo, numeroSala);
+      return turmaConflitante ? [`${codigoTurma(serie, letraAtual)} usaria a sala ${numeroSala}, ja ocupada por ${rotuloTurma(turmaConflitante)}`] : [];
+    });
+    if (conflitosSala.length) {
+      setErroCriacao(conflitosSala.join(". ") + ".");
       return;
     }
 
@@ -2938,7 +3006,7 @@ function FinalizacaoConselho({
   );
 }
 
-function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
+function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; onDadosAlterados: () => void }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
     direcao_pronome: "F",
@@ -2949,6 +3017,12 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
   const [erro, setErro] = useState("");
   const [processando, setProcessando] = useState(false);
   const [atualizacao, setAtualizacao] = useState<Update | null>(null);
+  const [ciclosBackup, setCiclosBackup] = useState<string[]>(["todos"]);
+  const [ultimoBackup, setUltimoBackup] = useState<string | null>(null);
+  const ciclosExistentes = useMemo(() => {
+    const ciclos = Array.from(new Set(turmas.map((turma) => turma.ciclo || "Sem ciclo").filter(Boolean)));
+    return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
+  }, [turmas]);
 
   useEffect(() => {
     invoke<ConfiguracoesApp>("carregar_configuracoes")
@@ -2958,6 +3032,14 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
       .then(setAppInfo)
       .catch(() => setAppInfo(null));
   }, []);
+
+  useEffect(() => {
+    setCiclosBackup((atuais) => {
+      if (atuais.includes("todos")) return atuais;
+      const validos = atuais.filter((ciclo) => ciclosExistentes.includes(ciclo));
+      return validos.length ? validos : ["todos"];
+    });
+  }, [ciclosExistentes]);
 
   async function salvar() {
     setProcessando(true);
@@ -2980,13 +3062,29 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
     setMensagem("");
     setErro("");
     try {
-      const resultado = await invoke<BackupResultado>("exportar_backup");
+      const ciclos = ciclosBackup.includes("todos") ? [] : ciclosBackup;
+      const resultado = await invoke<BackupResultado>("exportar_backup_seletivo", { input: { ciclos } });
+      setUltimoBackup(resultado.caminho);
       setMensagem(`Backup gerado com ${resultado.arquivos} arquivos em: ${resultado.caminho}`);
     } catch (err) {
       setErro(String(err));
     } finally {
       setProcessando(false);
     }
+  }
+
+  function alternarCicloBackup(ciclo: string) {
+    setCiclosBackup((atuais) => {
+      if (ciclo === "todos") return ["todos"];
+      const base = atuais.filter((item) => item !== "todos");
+      const proximo = base.includes(ciclo) ? base.filter((item) => item !== ciclo) : [...base, ciclo];
+      return proximo.length ? proximo : ["todos"];
+    });
+  }
+
+  function abrirUltimoBackup() {
+    if (!ultimoBackup) return;
+    invoke("abrir_pasta", { caminho: ultimoBackup }).catch((err) => setErro(String(err)));
   }
 
   async function importarBackup(arquivo: File | null, modo: "mesclar" | "substituir") {
@@ -3076,7 +3174,26 @@ function Configuracoes({ onDadosAlterados }: { onDadosAlterados: () => void }) {
         <article className="settings-card">
           <h2>Backup</h2>
           <p>O formato antigo de backup é compatível com a modern-ui.</p>
+          <div className="backup-cycle-options" aria-label="Selecionar ciclos para backup">
+            <button className={ciclosBackup.includes("todos") ? "selected" : ""} onClick={() => alternarCicloBackup("todos")}>
+              Tudo
+            </button>
+            {ciclosExistentes.map((ciclo) => (
+              <button
+                key={ciclo}
+                className={ciclosBackup.includes(ciclo) ? "selected" : ""}
+                onClick={() => alternarCicloBackup(ciclo)}
+              >
+                {rotuloCiclo(ciclo)}
+              </button>
+            ))}
+          </div>
           <button onClick={exportarBackup} disabled={processando}>Gerar backup</button>
+          {ultimoBackup && (
+            <button className="secondary-action" onClick={abrirUltimoBackup} disabled={processando}>
+              Abrir pasta do último backup
+            </button>
+          )}
           <label className="file-action">
             Adicionar dados de backup
             <input type="file" accept=".zip" onChange={(event) => importarBackup(event.target.files?.[0] ?? null, "mesclar")} />

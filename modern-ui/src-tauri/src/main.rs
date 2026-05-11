@@ -43,6 +43,11 @@ struct BackupImportInput {
     modo: String,
 }
 
+#[derive(Deserialize)]
+struct BackupExportInput {
+    ciclos: Option<Vec<String>>,
+}
+
 #[derive(Serialize)]
 struct BackupResultado {
     caminho: Option<String>,
@@ -296,6 +301,22 @@ fn exportar_backup() -> Result<BackupResultado, String> {
 }
 
 #[tauri::command]
+fn exportar_backup_seletivo(input: BackupExportInput) -> Result<BackupResultado, String> {
+    let ciclos = input
+        .ciclos
+        .unwrap_or_default()
+        .into_iter()
+        .map(|ciclo| ciclo.trim().to_string())
+        .filter(|ciclo| !ciclo.is_empty() && ciclo != "todos")
+        .collect::<Vec<_>>();
+    if ciclos.is_empty() {
+        exportar_backup_interno().map_err(|err| err.to_string())
+    } else {
+        exportar_backup_ciclos_interno(&ciclos).map_err(|err| err.to_string())
+    }
+}
+
+#[tauri::command]
 fn importar_backup(input: BackupImportInput) -> Result<BackupResultado, String> {
     importar_backup_interno(input).map_err(|err| err.to_string())
 }
@@ -312,6 +333,42 @@ fn abrir_url(url: String) -> Result<(), String> {
         .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
         .spawn()
         .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn abrir_pasta(caminho: String) -> Result<(), String> {
+    let pasta = PathBuf::from(caminho);
+    let alvo = if pasta.is_file() {
+        pasta.parent().map(Path::to_path_buf).unwrap_or(pasta)
+    } else {
+        pasta
+    };
+    if !alvo.exists() {
+        return Err("Pasta nao encontrada.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(&alvo)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&alvo)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(&alvo)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
+    }
     Ok(())
 }
 
@@ -341,6 +398,7 @@ fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     if caminho.exists() {
         return Err(format!("Ja existe uma turma {codigo} para {}.", input.ano));
     }
+    validar_conflito_sala(input.ano, &periodo, input.sala.trim(), None)?;
 
     let mut alunos = serde_json::Map::new();
     for aluno in input.alunos {
@@ -483,6 +541,7 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
     if caminhos_diferentes(&caminho_atual, &novo_caminho) && novo_caminho.exists() {
         return Err(format!("Ja existe uma turma {codigo} para {}.", input.ano));
     }
+    validar_conflito_sala(input.ano, &periodo, input.sala.trim(), Some(&caminho_atual))?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     fs::write(&novo_caminho, texto_atualizado).map_err(|err| err.to_string())?;
@@ -2336,6 +2395,60 @@ fn exportar_backup_interno() -> io::Result<BackupResultado> {
     })
 }
 
+fn exportar_backup_ciclos_interno(ciclos: &[String]) -> io::Result<BackupResultado> {
+    let ciclos_set = ciclos.iter().map(|ciclo| normalizar_chave(ciclo)).collect::<BTreeSet<_>>();
+    let destino = backups_dir()?.join(format!(
+        "coordenacaoop_backup_{}_{}.zip",
+        ciclos.join("-").replace(['/', '\\', ' '], "_"),
+        Local::now().format("%Y-%m-%d_%H-%M-%S")
+    ));
+    let arquivo = fs::File::create(&destino)?;
+    let mut zip = ZipWriter::new(arquivo);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let mut total = 0;
+
+    let config = config_dir()?;
+    if config.exists() {
+        adicionar_pasta_zip(&mut zip, &config, "config", options, &mut total)?;
+    }
+
+    let dados = data_dir()?;
+    let imagens = dados.join("imagens");
+    if imagens.exists() {
+        adicionar_pasta_zip(&mut zip, &imagens, "dados", options, &mut total)?;
+    }
+
+    let turmas = carregar_turmas_com_caminho()
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+    for (caminho, turma) in turmas {
+        let ciclo = turma.ciclo.as_deref().map(normalizar_chave).unwrap_or_default();
+        if ciclos_set.contains(&ciclo) {
+            adicionar_arquivo_zip(&mut zip, &caminho, "dados", options, &mut total)?;
+        }
+    }
+
+    let manifesto = serde_json::json!({
+        "app": "CoordenacaoOP",
+        "versao_app": env!("CARGO_PKG_VERSION"),
+        "criado_em": Local::now().to_rfc3339(),
+        "formato": 1,
+        "tipo": "seletivo_por_ciclo",
+        "ciclos": ciclos,
+        "total_arquivos": total,
+    });
+    zip.start_file("backup_manifest.json", options)?;
+    zip.write_all(serde_json::to_string_pretty(&manifesto)?.as_bytes())?;
+    zip.finish()?;
+
+    Ok(BackupResultado {
+        caminho: Some(destino.to_string_lossy().to_string()),
+        arquivos: total,
+        arquivos_importados: 0,
+        conflitos: Vec::new(),
+        backup_seguranca: None,
+    })
+}
+
 fn adicionar_pasta_zip(
     zip: &mut ZipWriter<fs::File>,
     pasta: &Path,
@@ -2349,14 +2462,25 @@ fn adicionar_pasta_zip(
         if caminho.is_dir() {
             adicionar_pasta_zip(zip, &caminho, nome_raiz, options, total)?;
         } else if caminho.is_file() {
-            let relativo = caminho.strip_prefix(app_base_dir()?.join(nome_raiz)).unwrap_or(&caminho);
-            let nome_zip = format!("{}/{}", nome_raiz, relativo.to_string_lossy().replace('\\', "/"));
-            zip.start_file(nome_zip, options)?;
-            let bytes = fs::read(caminho)?;
-            zip.write_all(&bytes)?;
-            *total += 1;
+            adicionar_arquivo_zip(zip, &caminho, nome_raiz, options, total)?;
         }
     }
+    Ok(())
+}
+
+fn adicionar_arquivo_zip(
+    zip: &mut ZipWriter<fs::File>,
+    caminho: &Path,
+    nome_raiz: &str,
+    options: SimpleFileOptions,
+    total: &mut usize,
+) -> io::Result<()> {
+    let relativo = caminho.strip_prefix(app_base_dir()?.join(nome_raiz)).unwrap_or(caminho);
+    let nome_zip = format!("{}/{}", nome_raiz, relativo.to_string_lossy().replace('\\', "/"));
+    zip.start_file(nome_zip, options)?;
+    let bytes = fs::read(caminho)?;
+    zip.write_all(&bytes)?;
+    *total += 1;
     Ok(())
 }
 
@@ -2571,6 +2695,51 @@ fn mesmos_caminhos(a: &Path, b: &Path) -> bool {
 
 fn caminhos_diferentes(a: &Path, b: &Path) -> bool {
     !mesmos_caminhos(a, b)
+}
+
+fn validar_conflito_sala(ano: i64, periodo: &str, sala: &str, ignorar_caminho: Option<&Path>) -> Result<(), String> {
+    let sala_norm = normalizar_chave(sala);
+    let periodo_norm = normalizar_chave(periodo);
+    if sala_norm.is_empty() || periodo_norm.is_empty() {
+        return Ok(());
+    }
+
+    let turmas = carregar_turmas_com_caminho()?;
+    for (caminho, turma) in turmas {
+        if turma.ano != ano {
+            continue;
+        }
+        if let Some(ignorar) = ignorar_caminho {
+            if !caminhos_diferentes(&caminho, ignorar) {
+                continue;
+            }
+        }
+        let mesma_sala = turma
+            .sala
+            .as_deref()
+            .map(normalizar_chave)
+            .unwrap_or_default() == sala_norm;
+        let mesmo_periodo = turma
+            .periodo
+            .as_deref()
+            .map(normalizar_chave)
+            .unwrap_or_default() == periodo_norm;
+        if mesma_sala && mesmo_periodo {
+            return Err(format!(
+                "A sala {sala} ja esta ocupada no periodo {periodo} por {}.",
+                turma.codigo
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn normalizar_chave(valor: &str) -> String {
+    valor
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '-' && *c != '_')
+        .flat_map(char::to_lowercase)
+        .collect::<String>()
 }
 
 fn garantir_caminho_em_pasta(caminho: &Path, pasta: &Path) -> Result<(), String> {
@@ -3681,9 +3850,11 @@ fn main() {
             carregar_configuracoes,
             salvar_configuracoes,
             exportar_backup,
+            exportar_backup_seletivo,
             importar_backup,
             verificar_atualizacao,
             abrir_url,
+            abrir_pasta,
             listar_turmas,
             criar_turma,
             editar_turma,
