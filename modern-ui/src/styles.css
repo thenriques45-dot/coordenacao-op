@@ -1037,6 +1037,31 @@ h3 {
   padding: 12px 14px;
 }
 
+.import-result-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.import-result-grid article {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+}
+
+.import-result-grid strong {
+  color: #050316;
+  font-size: 24px;
+}
+
+.import-result-grid span {
+  color: #52616a;
+  font-weight: 700;
+}
+
 .import-preview-table-wrap {
   overflow: auto;
 }
@@ -1264,6 +1289,16 @@ h3 {
   color: #101828;
 }
 
+.turma-card-meta .class-leaders-line {
+  align-items: flex-start;
+  display: grid;
+  gap: 3px;
+}
+
+.turma-card-meta .class-leaders-line strong {
+  display: block;
+}
+
 .council-state {
   align-items: center;
   border-radius: 999px;
@@ -1466,7 +1501,9 @@ h3 {
 .students-table th:nth-child(5),
 .students-table td:nth-child(5),
 .students-table th:nth-child(6),
-.students-table td:nth-child(6) {
+.students-table td:nth-child(6),
+.students-table th:nth-child(7),
+.students-table td:nth-child(7) {
   text-align: center;
 }
 
@@ -1543,6 +1580,15 @@ h3 {
   padding: 6px 12px;
 }
 
+.leader-toggle {
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 72px;
+  padding: 6px 12px;
+}
+
 .eligible-toggle.no {
   background: #dcfce7;
   color: #166534;
@@ -1551,6 +1597,21 @@ h3 {
 .eligible-toggle.yes {
   background: #fef3c7;
   color: #92400e;
+}
+
+.leader-toggle.no {
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+}
+
+.leader-toggle.lider {
+  background: var(--tag-good-bg);
+  color: var(--tag-good-text);
+}
+
+.leader-toggle.vice {
+  background: var(--tag-warning-bg);
+  color: var(--tag-warning-text);
 }
 
 .stats-layout {

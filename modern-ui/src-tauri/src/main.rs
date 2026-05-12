@@ -44,6 +44,12 @@ struct BackupImportInput {
 }
 
 #[derive(Deserialize)]
+struct CsvImportInput {
+    nome: String,
+    bytes: Vec<u8>,
+}
+
+#[derive(Deserialize)]
 struct BackupExportInput {
     ciclos: Option<Vec<String>>,
 }
@@ -72,6 +78,26 @@ struct AtualizacaoInfo {
     mensagem: String,
 }
 
+#[derive(Clone)]
+struct RegistroElegivelCsv {
+    matricula: String,
+    nome: String,
+    nome_normalizado: String,
+    deficiencias: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct ResultadoImportacaoElegiveis {
+    registros_csv: usize,
+    turmas_lidas: usize,
+    turmas_atualizadas: usize,
+    alunos_atualizados: usize,
+    por_matricula: usize,
+    por_nome: usize,
+    nao_encontrados: Vec<String>,
+    nomes_ambiguos: Vec<String>,
+}
+
 #[derive(Serialize)]
 struct TurmaResumo {
     codigo: String,
@@ -81,6 +107,8 @@ struct TurmaResumo {
     periodo: Option<String>,
     ciclo: Option<String>,
     coordenador_turma: Option<String>,
+    lider_sala: Option<String>,
+    vice_lider_sala: Option<String>,
     total_alunos: usize,
     alunos_ativos: usize,
     alunos_elegiveis: usize,
@@ -113,6 +141,7 @@ struct AlunoDetalhe {
     nome: String,
     numero_chamada: Option<i64>,
     elegivel: bool,
+    lideranca_sala: Option<String>,
     frequencia_percentual: Option<f64>,
     encaminhamentos: Vec<i64>,
     disciplinas: Vec<DisciplinaDetalhe>,
@@ -171,6 +200,11 @@ struct CoordenadorTurmaInput {
 #[derive(Deserialize)]
 struct ElegibilidadeAlunoInput {
     elegivel: bool,
+}
+
+#[derive(Deserialize)]
+struct LiderancaAlunoInput {
+    lideranca: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -319,6 +353,11 @@ fn exportar_backup_seletivo(input: BackupExportInput) -> Result<BackupResultado,
 #[tauri::command]
 fn importar_backup(input: BackupImportInput) -> Result<BackupResultado, String> {
     importar_backup_interno(input).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn importar_alunos_elegiveis(input: CsvImportInput) -> Result<ResultadoImportacaoElegiveis, String> {
+    importar_alunos_elegiveis_interno(input).map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -807,6 +846,60 @@ fn salvar_elegibilidade_aluno(
         return Err("Registro do aluno esta invalido.".to_string());
     };
     aluno_obj.insert("elegivel_manual".to_string(), Value::from(input.elegivel));
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+#[tauri::command]
+fn salvar_lideranca_aluno(
+    caminho: String,
+    matricula: String,
+    input: LiderancaAlunoInput,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let caminho = PathBuf::from(caminho);
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let lideranca = normalizar_lideranca_sala(input.lideranca.as_deref());
+    let alunos = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Arquivo da turma sem lista de alunos valida.".to_string())?;
+
+    if !alunos.contains_key(&matricula) {
+        return Err("Aluno nao encontrado na turma selecionada.".to_string());
+    }
+
+    if let Some(ref cargo) = lideranca {
+        for aluno in alunos.values_mut() {
+            if aluno
+                .get("lideranca_sala")
+                .and_then(Value::as_str)
+                .and_then(|valor| normalizar_lideranca_sala(Some(valor)))
+                .as_deref() == Some(cargo.as_str())
+            {
+                if let Some(objeto) = aluno.as_object_mut() {
+                    objeto.remove("lideranca_sala");
+                }
+            }
+        }
+    }
+
+    let aluno = alunos
+        .get_mut(&matricula)
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Registro do aluno esta invalido.".to_string())?;
+    match lideranca {
+        Some(cargo) => {
+            aluno.insert("lideranca_sala".to_string(), Value::String(cargo));
+        }
+        None => {
+            aluno.remove("lideranca_sala");
+        }
+    }
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
@@ -2563,6 +2656,343 @@ fn importar_backup_interno(input: BackupImportInput) -> io::Result<BackupResulta
     resultado
 }
 
+fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoImportacaoElegiveis, String> {
+    if !input.nome.to_lowercase().ends_with(".csv") {
+        return Err("Selecione um arquivo .csv com a lista de alunos elegiveis.".to_string());
+    }
+    let texto = String::from_utf8(input.bytes)
+        .map_err(|_| "Nao consegui ler o CSV como UTF-8. Salve a planilha como CSV UTF-8.".to_string())?;
+    let registros = ler_csv_alunos_elegiveis(&texto)?;
+    let mut resumo = ResultadoImportacaoElegiveis {
+        registros_csv: registros.len(),
+        turmas_lidas: 0,
+        turmas_atualizadas: 0,
+        alunos_atualizados: 0,
+        por_matricula: 0,
+        por_nome: 0,
+        nao_encontrados: Vec::new(),
+        nomes_ambiguos: Vec::new(),
+    };
+
+    if registros.is_empty() {
+        return Ok(resumo);
+    }
+
+    let mut por_matricula: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    let mut por_nome: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (indice, registro) in registros.iter().enumerate() {
+        for variante in variantes_matricula(&registro.matricula) {
+            por_matricula.entry(variante).or_default().push(indice);
+        }
+        if !registro.nome_normalizado.is_empty() {
+            por_nome.entry(registro.nome_normalizado.clone()).or_default().push(indice);
+        }
+    }
+
+    let mut encontrados = BTreeSet::new();
+    let mut ambiguos = BTreeSet::new();
+    let turmas = carregar_turmas_com_caminho()?;
+    for (caminho, turma) in turmas {
+        resumo.turmas_lidas += 1;
+        let mut dados = serde_json::to_value(&turma).map_err(|err| err.to_string())?;
+        let Some(alunos) = dados.get_mut("alunos").and_then(Value::as_object_mut) else {
+            continue;
+        };
+        let mut alterou_turma = false;
+
+        for (matricula_aluno, info) in alunos.iter_mut() {
+            let mut candidatos = buscar_por_matricula(matricula_aluno, &por_matricula);
+            let mut modo = "matricula";
+            if candidatos.len() != 1 {
+                let nome = info.get("nome").and_then(Value::as_str).unwrap_or("");
+                candidatos = por_nome.get(&normalizar_nome_busca(nome)).cloned().unwrap_or_default();
+                modo = "nome";
+                if candidatos.len() > 1 {
+                    ambiguos.insert(nome.to_string());
+                }
+            }
+            if candidatos.len() != 1 {
+                continue;
+            }
+
+            let indice_registro = candidatos[0];
+            let registro = &registros[indice_registro];
+            if registro.deficiencias.is_empty() {
+                continue;
+            }
+            let atuais = info
+                .get("deficiencias")
+                .and_then(Value::as_array)
+                .map(|lista| lista.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>())
+                .unwrap_or_default();
+            if normalizar_lista_deficiencias(&atuais) == normalizar_lista_deficiencias(&registro.deficiencias) {
+                encontrados.insert(indice_registro);
+                continue;
+            }
+
+            if let Some(objeto) = info.as_object_mut() {
+                objeto.insert("deficiencias".to_string(), serde_json::json!(registro.deficiencias));
+                objeto.insert("elegivel_manual".to_string(), Value::Bool(true));
+            }
+            encontrados.insert(indice_registro);
+            alterou_turma = true;
+            resumo.alunos_atualizados += 1;
+            if modo == "matricula" {
+                resumo.por_matricula += 1;
+            } else {
+                resumo.por_nome += 1;
+            }
+        }
+
+        if alterou_turma {
+            let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+            fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+            resumo.turmas_atualizadas += 1;
+        }
+    }
+
+    resumo.nao_encontrados = registros
+        .iter()
+        .enumerate()
+        .filter(|(indice, registro)| !encontrados.contains(indice) && (!registro.nome.is_empty() || !registro.matricula.is_empty()))
+        .map(|(_, registro)| if !registro.nome.is_empty() { registro.nome.clone() } else { registro.matricula.clone() })
+        .collect();
+    resumo.nomes_ambiguos = ambiguos.into_iter().filter(|nome| !nome.trim().is_empty()).collect();
+    Ok(resumo)
+}
+
+fn ler_csv_alunos_elegiveis(texto: &str) -> Result<Vec<RegistroElegivelCsv>, String> {
+    let linhas = texto
+        .lines()
+        .map(|linha| linha.trim_end_matches('\r'))
+        .filter(|linha| !linha.trim().is_empty())
+        .collect::<Vec<_>>();
+    if linhas.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let delimitador = if texto.matches(';').count() >= texto.matches(',').count() { ';' } else { ',' };
+    let indice_cabecalho = linhas
+        .iter()
+        .position(|linha| linha_parece_cabecalho_elegiveis(&dividir_linha_csv_generico(linha, delimitador)))
+        .ok_or_else(|| "CSV sem cabecalho reconhecivel. Use colunas como Nome do Aluno, RA e Deficiencia.".to_string())?;
+    let cabecalho = dividir_linha_csv_generico(linhas[indice_cabecalho], delimitador)
+        .into_iter()
+        .map(|coluna| normalizar_texto_basico(&coluna))
+        .collect::<Vec<_>>();
+
+    let mut registros = Vec::new();
+    for linha in linhas.iter().skip(indice_cabecalho + 1) {
+        let valores = dividir_linha_csv_generico(linha, delimitador);
+        let registro = registro_elegivel_de_linha(&cabecalho, &valores);
+        if !registro.deficiencias.is_empty() && (!registro.matricula.is_empty() || !registro.nome.is_empty()) {
+            registros.push(registro);
+        }
+    }
+    Ok(consolidar_registros_elegiveis(registros))
+}
+
+fn dividir_linha_csv_generico(linha: &str, delimitador: char) -> Vec<String> {
+    let mut colunas = Vec::new();
+    let mut atual = String::new();
+    let mut entre_aspas = false;
+    let chars = linha.chars().collect::<Vec<_>>();
+    let mut indice = 0;
+    while indice < chars.len() {
+        let ch = chars[indice];
+        let proximo = chars.get(indice + 1).copied();
+        if ch == '"' && entre_aspas && proximo == Some('"') {
+            atual.push('"');
+            indice += 2;
+            continue;
+        }
+        if ch == '"' {
+            entre_aspas = !entre_aspas;
+            indice += 1;
+            continue;
+        }
+        if ch == delimitador && !entre_aspas {
+            colunas.push(atual.trim().to_string());
+            atual.clear();
+            indice += 1;
+            continue;
+        }
+        atual.push(ch);
+        indice += 1;
+    }
+    colunas.push(atual.trim().to_string());
+    colunas
+}
+
+fn linha_parece_cabecalho_elegiveis(linha: &[String]) -> bool {
+    let colunas = linha.iter().map(|coluna| normalizar_texto_basico(coluna)).collect::<BTreeSet<_>>();
+    let tem_nome = colunas.iter().any(|coluna| coluna_nome_elegiveis(coluna));
+    let tem_ra = colunas.iter().any(|coluna| coluna_ra_elegiveis(coluna));
+    let tem_deficiencia = colunas.iter().any(|coluna| coluna_deficiencia_elegiveis(coluna));
+    tem_nome && (tem_ra || tem_deficiencia)
+}
+
+fn registro_elegivel_de_linha(cabecalho: &[String], valores: &[String]) -> RegistroElegivelCsv {
+    let obter = |predicado: fn(&str) -> bool| {
+        cabecalho
+            .iter()
+            .position(|coluna| predicado(coluna))
+            .and_then(|indice| valores.get(indice))
+            .map(|valor| valor.trim().to_string())
+            .unwrap_or_default()
+    };
+    let ra = obter(coluna_ra_elegiveis);
+    let digito = obter(coluna_digito_ra_elegiveis);
+    let matricula = normalizar_matricula_elegiveis(if !ra.is_empty() && !digito.is_empty() {
+        format!("{ra}{digito}")
+    } else {
+        ra
+    });
+    let nome = extrair_nome_social_backend(&obter(coluna_nome_elegiveis));
+    let deficiencias = extrair_deficiencias_elegiveis(cabecalho, valores);
+    RegistroElegivelCsv {
+        matricula,
+        nome: nome.clone(),
+        nome_normalizado: normalizar_nome_busca(&nome),
+        deficiencias,
+    }
+}
+
+fn coluna_ra_elegiveis(coluna: &str) -> bool {
+    matches!(coluna, "RA" | "R A" | "REGISTRO DO ALUNO" | "MATRICULA" | "MATRICULA RA")
+}
+
+fn coluna_digito_ra_elegiveis(coluna: &str) -> bool {
+    matches!(coluna, "DIG RA" | "DIGITO RA" | "DIGITO DO RA")
+}
+
+fn coluna_nome_elegiveis(coluna: &str) -> bool {
+    matches!(coluna, "NOME" | "NOME DO ALUNO" | "ALUNO" | "ESTUDANTE" | "NOME COMPLETO")
+}
+
+fn coluna_deficiencia_elegiveis(coluna: &str) -> bool {
+    matches!(
+        coluna,
+        "DEFICIENCIA" | "DEFICIENCIAS" | "TIPO DE DEFICIENCIA" | "NECESSIDADE ESPECIAL" |
+        "NECESSIDADES ESPECIAIS" | "NEE" | "PUBLICO ALVO" | "PUBLICO ALVO AEE" |
+        "ELEGIVEL" | "ALUNO ELEGIVEL"
+    )
+}
+
+fn extrair_deficiencias_elegiveis(cabecalho: &[String], valores: &[String]) -> Vec<String> {
+    let mut deficiencias = Vec::new();
+    for (indice, coluna) in cabecalho.iter().enumerate() {
+        if !coluna_deficiencia_elegiveis(coluna) {
+            continue;
+        }
+        let valor = valores.get(indice).map(String::as_str).unwrap_or("").trim();
+        let normalizado = normalizar_texto_basico(valor);
+        if matches!(normalizado.as_str(), "" | "NAO" | "N" | "NAO SE APLICA" | "NAO POSSUI" | "SEM DEFICIENCIA") {
+            continue;
+        }
+        if matches!(normalizado.as_str(), "SIM" | "S" | "ELEGIVEL" | "ALUNO ELEGIVEL") {
+            deficiencias.push("Aluno elegivel".to_string());
+            continue;
+        }
+        deficiencias.extend(valor.split([',', ';']).map(str::trim).filter(|item| !item.is_empty()).map(str::to_string));
+    }
+    normalizar_lista_deficiencias(&deficiencias)
+}
+
+fn normalizar_lista_deficiencias(lista: &[String]) -> Vec<String> {
+    let mut vistos = BTreeSet::new();
+    let mut resultado = Vec::new();
+    for item in lista {
+        let texto = item.split_whitespace().collect::<Vec<_>>().join(" ");
+        if texto.is_empty() {
+            continue;
+        }
+        let chave = normalizar_texto_basico(&texto);
+        if vistos.insert(chave) {
+            resultado.push(texto);
+        }
+    }
+    resultado
+}
+
+fn normalizar_matricula_elegiveis(valor: String) -> String {
+    valor.chars().filter(|ch| ch.is_ascii_alphanumeric()).collect::<String>().to_ascii_uppercase()
+}
+
+fn variantes_matricula(valor: &str) -> Vec<String> {
+    let matricula = normalizar_matricula_elegiveis(valor.to_string());
+    if matricula.is_empty() {
+        return Vec::new();
+    }
+    let mut variantes = BTreeSet::new();
+    variantes.insert(matricula.clone());
+    let sem_zeros = matricula.trim_start_matches('0').to_string();
+    if !sem_zeros.is_empty() {
+        variantes.insert(sem_zeros);
+    }
+    if matricula.len() > 1 {
+        let sem_digito = matricula[..matricula.len() - 1].to_string();
+        variantes.insert(sem_digito.clone());
+        let sem_digito_sem_zeros = sem_digito.trim_start_matches('0').to_string();
+        if !sem_digito_sem_zeros.is_empty() {
+            variantes.insert(sem_digito_sem_zeros);
+        }
+    }
+    variantes.into_iter().collect()
+}
+
+fn buscar_por_matricula(matricula: &str, indice: &BTreeMap<String, Vec<usize>>) -> Vec<usize> {
+    let mut vistos = BTreeSet::new();
+    let mut candidatos = Vec::new();
+    for variante in variantes_matricula(matricula) {
+        for registro in indice.get(&variante).into_iter().flatten() {
+            if vistos.insert(*registro) {
+                candidatos.push(*registro);
+            }
+        }
+    }
+    candidatos
+}
+
+fn consolidar_registros_elegiveis(registros: Vec<RegistroElegivelCsv>) -> Vec<RegistroElegivelCsv> {
+    let mut consolidados = Vec::new();
+    let mut por_matricula: BTreeMap<String, usize> = BTreeMap::new();
+    for registro in registros {
+        if registro.matricula.is_empty() {
+            consolidados.push(registro);
+            continue;
+        }
+        if let Some(indice) = por_matricula.get(&registro.matricula).copied() {
+            let existente: &mut RegistroElegivelCsv = &mut consolidados[indice];
+            let mut lista = existente.deficiencias.clone();
+            lista.extend(registro.deficiencias);
+            existente.deficiencias = normalizar_lista_deficiencias(&lista);
+            if existente.nome.is_empty() && !registro.nome.is_empty() {
+                existente.nome = registro.nome;
+                existente.nome_normalizado = registro.nome_normalizado;
+            }
+        } else {
+            por_matricula.insert(registro.matricula.clone(), consolidados.len());
+            consolidados.push(registro);
+        }
+    }
+    consolidados
+}
+
+fn extrair_nome_social_backend(nome: &str) -> String {
+    let mut resultado = String::new();
+    let mut profundidade = 0;
+    for ch in nome.chars() {
+        match ch {
+            '(' => profundidade += 1,
+            ')' if profundidade > 0 => profundidade -= 1,
+            _ if profundidade == 0 => resultado.push(ch),
+            _ => {}
+        }
+    }
+    resultado.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 fn validar_entrada_backup(nome: &str) -> io::Result<()> {
     let caminho = Path::new(nome);
     if caminho.is_absolute() || caminho.components().any(|parte| matches!(parte, std::path::Component::ParentDir)) {
@@ -3349,6 +3779,8 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
     let mut alunos_ativos = 0;
     let mut alunos_elegiveis = 0;
     let mut conselhos_com_ajustes = 0;
+    let mut lider_sala = None;
+    let mut vice_lider_sala = None;
 
     for info in alunos.values() {
         let ativo = info.get("ativo").and_then(Value::as_bool).unwrap_or(true);
@@ -3362,6 +3794,15 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
             .unwrap_or_else(|| aluno_tem_deficiencias(info));
         if elegivel {
             alunos_elegiveis += 1;
+        }
+
+        if ativo {
+            let nome = info.get("nome").and_then(Value::as_str).unwrap_or("").to_string();
+            match normalizar_lideranca_sala(info.get("lideranca_sala").and_then(Value::as_str)) {
+                Some(cargo) if cargo == "lider" && lider_sala.is_none() => lider_sala = Some(nome),
+                Some(cargo) if cargo == "vice" && vice_lider_sala.is_none() => vice_lider_sala = Some(nome),
+                _ => {}
+            }
         }
 
         let tem_ajustes = info
@@ -3389,6 +3830,8 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
         periodo: turma.periodo,
         ciclo: turma.ciclo,
         coordenador_turma: turma.coordenador_turma,
+        lider_sala,
+        vice_lider_sala,
         total_alunos,
         alunos_ativos,
         alunos_elegiveis,
@@ -3415,6 +3858,14 @@ fn aluno_tem_deficiencias(info: &Value) -> bool {
         .and_then(Value::as_array)
         .map(|valores| !valores.is_empty())
         .unwrap_or(false)
+}
+
+fn normalizar_lideranca_sala(valor: Option<&str>) -> Option<String> {
+    match valor.unwrap_or("").trim().to_ascii_lowercase().as_str() {
+        "lider" | "líder" => Some("lider".to_string()),
+        "vice" | "vice_lider" | "vice-lider" | "vice líder" | "vice lider" => Some("vice".to_string()),
+        _ => None,
+    }
 }
 
 fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
@@ -3447,6 +3898,7 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
             .get("elegivel_manual")
             .and_then(Value::as_bool)
             .unwrap_or_else(|| aluno_tem_deficiencias(&info));
+        let lideranca_sala = normalizar_lideranca_sala(info.get("lideranca_sala").and_then(Value::as_str));
         let frequencia_percentual = info.get("frequencia_percentual").and_then(valor_para_f64);
 
         alunos_detalhe.push(AlunoDetalhe {
@@ -3454,6 +3906,7 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
             nome,
             numero_chamada,
             elegivel,
+            lideranca_sala,
             frequencia_percentual,
             encaminhamentos: extrair_encaminhamentos(&info, &bimestre),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
@@ -3852,6 +4305,7 @@ fn main() {
             exportar_backup,
             exportar_backup_seletivo,
             importar_backup,
+            importar_alunos_elegiveis,
             verificar_atualizacao,
             abrir_url,
             abrir_pasta,
@@ -3867,6 +4321,7 @@ fn main() {
             salvar_tempo_conselho,
             salvar_coordenador_turma,
             salvar_elegibilidade_aluno,
+            salvar_lideranca_aluno,
             definir_fullscreen,
             abrir_ata,
             abrir_relatorio_professores,

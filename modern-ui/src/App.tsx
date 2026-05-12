@@ -25,7 +25,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-notas" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
 
 const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
@@ -54,6 +54,7 @@ type Aluno = {
   chamada: number;
   nome: string;
   elegivel: boolean;
+  liderancaSala?: "lider" | "vice" | null;
   frequencia: number | null;
   encaminhamentos: number[];
   disciplinas: Disciplina[];
@@ -67,6 +68,8 @@ type TurmaResumo = {
   periodo: string | null;
   ciclo: string | null;
   coordenador_turma: string | null;
+  lider_sala: string | null;
+  vice_lider_sala: string | null;
   total_alunos: number;
   alunos_ativos: number;
   alunos_elegiveis: number;
@@ -112,6 +115,7 @@ type AlunoApi = {
   nome: string;
   numero_chamada: number | null;
   elegivel: boolean;
+  lideranca_sala: "lider" | "vice" | null;
   frequencia_percentual: number | null;
   encaminhamentos: number[];
   disciplinas: DisciplinaApi[];
@@ -191,6 +195,17 @@ type ResultadoImportacaoMapoes = {
   arquivos: PreviaArquivoMapao[];
   turmas_atualizadas: number;
   alunos_atualizados: number;
+};
+
+type ResultadoImportacaoElegiveis = {
+  registros_csv: number;
+  turmas_lidas: number;
+  turmas_atualizadas: number;
+  alunos_atualizados: number;
+  por_matricula: number;
+  por_nome: number;
+  nao_encontrados: string[];
+  nomes_ambiguos: string[];
 };
 
 type AppInfo = {
@@ -452,6 +467,7 @@ export function App() {
       chamada: aluno.numero_chamada ?? 0,
       nome: aluno.nome,
       elegivel: aluno.elegivel,
+      liderancaSala: aluno.lideranca_sala,
       frequencia: aluno.frequencia_percentual,
       encaminhamentos: aluno.encaminhamentos,
       disciplinas: aluno.disciplinas.map((disciplina) => ({
@@ -598,6 +614,26 @@ export function App() {
     }).then((detalheAtualizado) => setTurmaDetalhe(detalheAtualizado));
   }
 
+  function salvarLiderancaAluno(matricula: string, lideranca: "lider" | "vice" | null) {
+    if (!turmaSelecionada || !turmaDetalhe) {
+      return Promise.reject(new Error("Selecione uma turma antes de salvar liderança."));
+    }
+    return invoke<TurmaDetalhe>("salvar_lideranca_aluno", {
+      caminho: turmaSelecionada.caminho,
+      matricula,
+      input: { lideranca },
+      bimestre: turmaDetalhe.bimestre,
+    }).then((detalheAtualizado) => {
+      setTurmaDetalhe(detalheAtualizado);
+      return invoke<TurmaResumo[]>("listar_turmas")
+        .then((resumoAtualizado) => {
+          setTurmas(resumoAtualizado);
+          setTurmaSelecionada((atual) => resumoAtualizado.find((item) => item.caminho === atual?.caminho) ?? atual);
+        })
+        .catch(() => {});
+    });
+  }
+
   function criarTurma(payload: NovaTurmaPayload) {
     return invoke<TurmaResumo>("criar_turma", { input: payload }).then((novaTurma) => {
       setTurmas((atuais) => [...atuais, novaTurma].sort((a, b) => (a.ano - b.ano) || a.codigo.localeCompare(b.codigo, "pt-BR")));
@@ -698,6 +734,7 @@ export function App() {
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
           <NavButton icon={<Upload size={18} />} label="Importar Notas" active={tela === "importar-notas"} onClick={() => navegarPara("importar-notas")} />
+          <NavButton icon={<Check size={18} />} label="Importar Elegíveis" active={tela === "importar-elegiveis"} onClick={() => navegarPara("importar-elegiveis")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<FileText size={18} />} label="Relatorios" active={tela === "relatorios"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
@@ -766,6 +803,7 @@ export function App() {
             onVoltar={() => navegarPara("turmas")}
             onSalvarCoordenador={salvarCoordenadorTurma}
             onSalvarElegibilidade={salvarElegibilidadeAluno}
+            onSalvarLideranca={salvarLiderancaAluno}
           />
         )}
         {tela === "importar-notas" && (
@@ -783,10 +821,21 @@ export function App() {
             })}
           />
         )}
+        {tela === "importar-elegiveis" && (
+          <ImportarElegiveis onImportado={() => {
+            invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+            if (turmaSelecionada) {
+              invoke<TurmaDetalhe>("carregar_turma", {
+                caminho: turmaSelecionada.caminho,
+                bimestre: bimestreSelecionado,
+              }).then(setTurmaDetalhe).catch(() => {});
+            }
+          }} />
+        )}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-notas" && tela !== "configuracoes" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1483,7 +1532,12 @@ function SelecaoConselho({
                 Período: <strong>{turma.periodo ?? "Não informado"}</strong>
               </span>
               <span>
-                Coordenador de sala: <strong>A definir</strong>
+                Coordenador de sala: <strong>{turma.coordenador_turma || "A definir"}</strong>
+              </span>
+              <span className="class-leaders-line">
+                Líderes de sala:
+                <strong>{turma.lider_sala || "Líder a definir"}</strong>
+                <strong>{turma.vice_lider_sala || "Vice líder a definir"}</strong>
               </span>
               <span>
                 Elegíveis: <strong>{turma.alunos_elegiveis}</strong>
@@ -1564,6 +1618,12 @@ function rotuloCiclo(ciclo: string) {
     "Sem ciclo": "Sem ciclo",
   };
   return rotulos[ciclo] ?? ciclo;
+}
+
+function rotuloLideranca(lideranca: "lider" | "vice" | null | undefined) {
+  if (lideranca === "lider") return "Líder";
+  if (lideranca === "vice") return "Vice líder";
+  return "Não";
 }
 
 function codigoTurma(serie: string, letra: string) {
@@ -1751,6 +1811,7 @@ function GestaoTurma({
   onVoltar,
   onSalvarCoordenador,
   onSalvarElegibilidade,
+  onSalvarLideranca,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
@@ -1758,12 +1819,14 @@ function GestaoTurma({
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
+  onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas">("alunos");
   const [busca, setBusca] = useState("");
   const [editandoCoordenador, setEditandoCoordenador] = useState(false);
   const [coordenador, setCoordenador] = useState(turma?.coordenador_turma ?? "");
   const [salvandoElegivel, setSalvandoElegivel] = useState<string | null>(null);
+  const [salvandoLideranca, setSalvandoLideranca] = useState<string | null>(null);
   const [alunoAberto, setAlunoAberto] = useState<Aluno | null>(null);
 
   useEffect(() => {
@@ -1805,6 +1868,21 @@ function GestaoTurma({
     if (!matricula) return;
     setSalvandoElegivel(matricula);
     onSalvarElegibilidade(matricula, !aluno.elegivel).finally(() => setSalvandoElegivel(null));
+  }
+
+  function alternarLideranca(aluno: Aluno) {
+    const matricula = aluno.matricula;
+    if (!matricula) return;
+    const atual = aluno.liderancaSala ?? null;
+    const proxima = atual === null ? "lider" : atual === "lider" ? "vice" : null;
+    if (proxima) {
+      const ocupante = alunos.find((item) => item.matricula !== matricula && item.liderancaSala === proxima);
+      if (ocupante && !window.confirm(`${ocupante.nome} já está como ${rotuloLideranca(proxima)}. Deseja trocar?`)) {
+        return;
+      }
+    }
+    setSalvandoLideranca(matricula);
+    onSalvarLideranca(matricula, proxima).finally(() => setSalvandoLideranca(null));
   }
 
   if (alunoAberto) {
@@ -1883,7 +1961,7 @@ function GestaoTurma({
           </label>
           <div className="panel students-table-wrap">
             <table className="students-table">
-              <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th><th>Elegível</th></tr></thead>
+              <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th><th>Elegível</th><th>Líder</th></tr></thead>
               <tbody>
                 {alunosFiltrados.map((aluno) => {
                   const status = classificarAluno(aluno);
@@ -1912,6 +1990,18 @@ function GestaoTurma({
                           }}
                         >
                           {aluno.elegivel ? "Sim" : "Não"}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          className={`leader-toggle ${aluno.liderancaSala ?? "no"}`}
+                          disabled={salvandoLideranca === aluno.matricula}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            alternarLideranca(aluno);
+                          }}
+                        >
+                          {rotuloLideranca(aluno.liderancaSala ?? null)}
                         </button>
                       </td>
                     </tr>
@@ -2354,6 +2444,132 @@ function ImportarNotas({
           <strong>Importação concluída.</strong>
           <span>Turmas atualizadas: {resultado.turmas_atualizadas}</span>
           <span>Alunos atualizados: {resultado.alunos_atualizados}</span>
+        </section>
+      )}
+    </>
+  );
+}
+
+function ImportarElegiveis({ onImportado }: { onImportado: () => void }) {
+  const [arquivoNome, setArquivoNome] = useState("");
+  const [arquivoBytes, setArquivoBytes] = useState<number[] | null>(null);
+  const [resultado, setResultado] = useState<ResultadoImportacaoElegiveis | null>(null);
+  const [erro, setErro] = useState("");
+  const [processando, setProcessando] = useState(false);
+
+  function selecionarArquivo(arquivo: File | undefined) {
+    setErro("");
+    setResultado(null);
+    setArquivoNome("");
+    setArquivoBytes(null);
+    if (!arquivo) return;
+    if (!arquivo.name.toLowerCase().endsWith(".csv")) {
+      setErro("Selecione um arquivo CSV.");
+      return;
+    }
+    arquivo.arrayBuffer()
+      .then((buffer) => {
+        setArquivoNome(arquivo.name);
+        setArquivoBytes(Array.from(new Uint8Array(buffer)));
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function importar() {
+    if (!arquivoNome || !arquivoBytes) {
+      setErro("Selecione o CSV com a lista de alunos elegíveis.");
+      return;
+    }
+    setProcessando(true);
+    setErro("");
+    setResultado(null);
+    invoke<ResultadoImportacaoElegiveis>("importar_alunos_elegiveis", {
+      input: { nome: arquivoNome, bytes: arquivoBytes },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        onImportado();
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Lista de elegibilidade</span>
+          <h1>Importar alunos elegíveis</h1>
+          <p>Atualize a indicação de aluno elegível e a lista de deficiências a partir do CSV geral da escola.</p>
+        </div>
+      </header>
+
+      <section className="panel import-notes-panel">
+        <div className="import-notes-controls">
+          <label className="file-picker-button">
+            Selecionar CSV
+            <input type="file" accept=".csv,text/csv" onChange={(event) => selecionarArquivo(event.target.files?.[0])} />
+          </label>
+
+          <button className="primary-action" onClick={importar} disabled={processando || !arquivoBytes}>
+            {processando ? "Importando..." : "Importar elegíveis"}
+          </button>
+        </div>
+
+        <div className="import-file-summary">
+          {arquivoNome || "Nenhum CSV selecionado"}
+        </div>
+
+        {erro && <div className="inline-edit-error">{erro}</div>}
+      </section>
+
+      {resultado && (
+        <section className="panel import-preview-panel">
+          <div className="import-preview-heading">
+            <h2>Resultado da importação</h2>
+            <div>
+              <span>Registros no CSV: <strong>{resultado.registros_csv}</strong></span>
+              <span>Alunos atualizados: <strong>{resultado.alunos_atualizados}</strong></span>
+              <span>Turmas atualizadas: <strong>{resultado.turmas_atualizadas}</strong></span>
+            </div>
+          </div>
+
+          <div className="import-result-grid">
+            <article>
+              <strong>{resultado.turmas_lidas}</strong>
+              <span>Turmas lidas</span>
+            </article>
+            <article>
+              <strong>{resultado.por_matricula}</strong>
+              <span>Casados por RA</span>
+            </article>
+            <article>
+              <strong>{resultado.por_nome}</strong>
+              <span>Casados por nome</span>
+            </article>
+            <article>
+              <strong>{resultado.nao_encontrados.length}</strong>
+              <span>Não encontrados</span>
+            </article>
+          </div>
+
+          {(resultado.nao_encontrados.length > 0 || resultado.nomes_ambiguos.length > 0) && (
+            <div className="import-diagnostics">
+              <strong>Verifique os itens pendentes</strong>
+              {resultado.nao_encontrados.length > 0 && (
+                <span>
+                  Não encontrados: {resultado.nao_encontrados.slice(0, 25).join(", ")}
+                  {resultado.nao_encontrados.length > 25 ? ` e mais ${resultado.nao_encontrados.length - 25}` : ""}
+                </span>
+              )}
+              {resultado.nomes_ambiguos.length > 0 && (
+                <span>
+                  Nomes ambíguos: {resultado.nomes_ambiguos.slice(0, 25).join(", ")}
+                  {resultado.nomes_ambiguos.length > 25 ? ` e mais ${resultado.nomes_ambiguos.length - 25}` : ""}
+                </span>
+              )}
+            </div>
+          )}
         </section>
       )}
     </>
@@ -2850,7 +3066,12 @@ function Turmas({
                 Periodo: <strong>{turma.periodo ?? "Nao informado"}</strong>
               </span>
               <span>
-                Coordenador de sala: <strong>A definir</strong>
+                Coordenador de sala: <strong>{turma.coordenador_turma || "A definir"}</strong>
+              </span>
+              <span className="class-leaders-line">
+                Líderes de sala:
+                <strong>{turma.lider_sala || "Líder a definir"}</strong>
+                <strong>{turma.vice_lider_sala || "Vice líder a definir"}</strong>
               </span>
               <span>
                 Elegiveis: <strong>{turma.alunos_elegiveis}</strong>
@@ -3232,6 +3453,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     turmas: "Turmas",
     "gestao-turma": "Gestão de Turma",
     "importar-notas": "Importar Notas",
+    "importar-elegiveis": "Importar Elegíveis",
     conselhos: "Conselhos",
     conselho: "Conselho",
     relatorios: "Relatorios",
