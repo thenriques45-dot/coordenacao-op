@@ -27,6 +27,7 @@ struct ConfiguracoesApp {
     direcao_nome: String,
     direcao_pronome: String,
     nota_minima: f64,
+    cabecalho_ata: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -34,6 +35,12 @@ struct ConfiguracoesInput {
     direcao_nome: String,
     direcao_pronome: String,
     nota_minima: f64,
+}
+
+#[derive(Deserialize)]
+struct ImagemCabecalhoInput {
+    nome: String,
+    bytes: Vec<u8>,
 }
 
 #[derive(Deserialize)]
@@ -324,7 +331,29 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
         nota_minima: input.nota_minima,
+        cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
     };
+    salvar_configuracoes_arquivo(&config)?;
+    Ok(config)
+}
+
+#[tauri::command]
+fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<ConfiguracoesApp, String> {
+    let extensao = extensao_imagem_cabecalho(&input.nome)
+        .ok_or_else(|| "Selecione uma imagem JPG, JPEG ou PNG para o cabeçalho da ata.".to_string())?;
+    if input.bytes.is_empty() {
+        return Err("A imagem selecionada está vazia.".to_string());
+    }
+    let pasta = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("imagens");
+    fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+    for ext in ["jpg", "jpeg", "png"] {
+        let _ = fs::remove_file(pasta.join(format!("cabecalho_ata.{ext}")));
+    }
+    let destino = pasta.join(format!("cabecalho_ata.{extensao}"));
+    fs::write(&destino, input.bytes).map_err(|err| err.to_string())?;
+    let config = ler_configuracoes();
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
 }
@@ -2075,13 +2104,25 @@ fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
     let arquivo = fs::File::create(caminho).map_err(|err| err.to_string())?;
     let mut zip = ZipWriter::new(arquivo);
     let options = SimpleFileOptions::default();
-    let cabecalho = localizar_imagem_cabecalho().and_then(|path| fs::read(path).ok());
+    let cabecalho_path = localizar_imagem_cabecalho();
+    let cabecalho_ext = cabecalho_path
+        .as_ref()
+        .and_then(|path| path.extension())
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .unwrap_or_else(|| "jpg".to_string());
+    let cabecalho_media = if cabecalho_ext == "png" { "cabecalho.png" } else { "cabecalho.jpg" };
+    let cabecalho = cabecalho_path.and_then(|path| fs::read(path).ok());
     let tem_cabecalho = cabecalho.is_some();
 
     zip.start_file("[Content_Types].xml", options)
         .map_err(|err| err.to_string())?;
     let content_types = if tem_cabecalho {
-        br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>"#.as_slice()
+        if cabecalho_ext == "png" {
+            br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>"#.as_slice()
+        } else {
+            br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>"#.as_slice()
+        }
     } else {
         br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>"#.as_slice()
     };
@@ -2116,12 +2157,12 @@ fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
             .map_err(|err| err.to_string())?;
         zip.add_directory("word/media/", options)
             .map_err(|err| err.to_string())?;
-        zip.start_file("word/media/cabecalho.jpg", options)
+        zip.start_file(format!("word/media/{cabecalho_media}"), options)
             .map_err(|err| err.to_string())?;
         zip.write_all(&imagem).map_err(|err| err.to_string())?;
         zip.start_file("word/_rels/header1.xml.rels", options)
             .map_err(|err| err.to_string())?;
-        zip.write_all(br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdCabecalho" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/cabecalho.jpg"/></Relationships>"#)
+        zip.write_all(format!(r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdCabecalho" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/{cabecalho_media}"/></Relationships>"#).as_bytes())
             .map_err(|err| err.to_string())?;
     }
 
@@ -2144,6 +2185,7 @@ fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
 fn localizar_imagem_cabecalho() -> Option<PathBuf> {
     let mut candidatos = Vec::new();
     if let Ok(base) = data_dir() {
+        candidatos.extend(["png", "jpg", "jpeg"].map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}"))));
         candidatos.push(base.join("imagens").join("cabecalho.jpg"));
     }
     if let Ok(base) = app_base_dir() {
@@ -2161,6 +2203,28 @@ fn localizar_imagem_cabecalho() -> Option<PathBuf> {
         );
     }
     candidatos.into_iter().find(|path| path.exists())
+}
+
+fn caminho_cabecalho_ata() -> Option<PathBuf> {
+    data_dir().ok().and_then(|base| {
+        ["png", "jpg", "jpeg"]
+            .into_iter()
+            .map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}")))
+            .find(|path| path.exists())
+    })
+}
+
+fn extensao_imagem_cabecalho(nome: &str) -> Option<&'static str> {
+    match Path::new(nome)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("jpg") | Some("jpeg") => Some("jpg"),
+        Some("png") => Some("png"),
+        _ => None,
+    }
 }
 
 fn cabecalho_docx_xml() -> String {
@@ -2434,6 +2498,7 @@ fn ler_configuracoes() -> ConfiguracoesApp {
             .get("nota_minima")
             .and_then(valor_para_f64)
             .unwrap_or(5.0),
+        cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
     }
 }
 
@@ -2446,6 +2511,7 @@ fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String>
         "direcao_nome": config.direcao_nome,
         "direcao_pronome": config.direcao_pronome,
         "nota_minima": config.nota_minima,
+        "cabecalho_ata": config.cabecalho_ata,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     fs::write(caminho, texto).map_err(|err| err.to_string())
@@ -4302,6 +4368,7 @@ fn main() {
             app_info,
             carregar_configuracoes,
             salvar_configuracoes,
+            salvar_cabecalho_ata,
             exportar_backup,
             exportar_backup_seletivo,
             importar_backup,

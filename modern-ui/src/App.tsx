@@ -92,6 +92,7 @@ type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
   nota_minima: number;
+  cabecalho_ata: string | null;
 };
 
 type BackupResultado = {
@@ -3232,6 +3233,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     direcao_nome: "",
     direcao_pronome: "F",
     nota_minima: 5,
+    cabecalho_ata: null,
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -3271,6 +3273,30 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
       setConfig(salvo);
       setMensagem("Configurações salvas.");
       onDadosAlterados();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function enviarCabecalhoAta(arquivo: File | null) {
+    if (!arquivo) return;
+    const nome = arquivo.name.toLowerCase();
+    if (!nome.endsWith(".jpg") && !nome.endsWith(".jpeg") && !nome.endsWith(".png")) {
+      setErro("Selecione uma imagem JPG, JPEG ou PNG.");
+      return;
+    }
+    setProcessando(true);
+    setMensagem("");
+    setErro("");
+    try {
+      const bytes = Array.from(new Uint8Array(await arquivo.arrayBuffer()));
+      const salvo = await invoke<ConfiguracoesApp>("salvar_cabecalho_ata", {
+        input: { nome: arquivo.name, bytes },
+      });
+      setConfig(salvo);
+      setMensagem("Imagem de cabeçalho da ata atualizada.");
     } catch (err) {
       setErro(String(err));
     } finally {
@@ -3389,6 +3415,17 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
             Média mínima
             <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
           </label>
+          <div className="settings-file-group">
+            <span>Cabeçalho da ata</span>
+            <p>Use uma imagem JPG ou PNG com o cabeçalho oficial da escola. Ela aparecerá na ata e no relatório dos professores.</p>
+            <label className="file-action">
+              Enviar imagem de cabeçalho
+              <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={(event) => enviarCabecalhoAta(event.target.files?.[0] ?? null)} />
+            </label>
+            <span className="settings-version">
+              {config.cabecalho_ata ? "Cabeçalho personalizado configurado." : "Usando cabeçalho padrão, se existir na pasta de dados."}
+            </span>
+          </div>
           <button className="primary-action" onClick={salvar} disabled={processando}>Salvar configurações</button>
         </article>
 

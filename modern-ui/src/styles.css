@@ -2463,6 +2463,26 @@ th:nth-child(3) {
   color: #a81c1c;
 }
 
+.settings-file-group {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+.settings-file-group > span:first-child {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settings-file-group p {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .settings-version {
   color: #667085;
   font-size: 13px;
