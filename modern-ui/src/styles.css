@@ -2385,6 +2385,39 @@ th:nth-child(3) {
   margin: 0;
 }
 
+.whats-new-modal {
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  width: min(560px, 100%);
+}
+
+.whats-new-modal h2,
+.whats-new-modal p {
+  margin: 0;
+}
+
+.whats-new-modal ul {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.whats-new-modal li {
+  color: #344054;
+  line-height: 1.45;
+}
+
+.whats-new-modal .modal-actions {
+  border-top: 0;
+  padding: 8px 0 0;
+}
+
 .settings-page {
   display: grid;
   gap: 22px;

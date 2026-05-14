@@ -1,0 +1,5 @@
+v2.1.4 - Tela de novidades
+
+- Adicionada tela "O que há de novidade" exibida uma vez por versão após atualização do programa.
+- A tela mostra uma lista objetiva das mudanças da versão atual.
+- O aviso fica registrado localmente depois que o usuário confirma a leitura.

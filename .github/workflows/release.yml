@@ -147,7 +147,7 @@ jobs:
       - name: Prepare release notes
         run: |
           cat > artifacts/RELEASE_NOTES.txt <<'EOF'
-          CoordenacaoOP 2.1.3 adiciona configuracao de cabecalho personalizado para ata e relatorio dos professores.
+          CoordenacaoOP 2.1.4 adiciona a tela O que ha de novidade apos atualizacoes.
 
           Esta release publica os instaladores Tauri para Windows e Linux, o pacote portable Windows, assinaturas do updater e latest.json para autoatualizacao.
           EOF

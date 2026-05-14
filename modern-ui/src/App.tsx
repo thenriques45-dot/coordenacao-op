@@ -216,6 +216,14 @@ type AppInfo = {
   data_dir: string;
 };
 
+const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.1.4": [
+    "Nova tela “O que há de novidade” exibida uma vez após a atualização do programa.",
+    "Lista de mudanças da versão apresentada diretamente ao abrir o CoordenacaoOP.",
+    "Preparação do aplicativo para comunicar melhorias futuras sem depender apenas do GitHub.",
+  ],
+};
+
 const alunosDemo: Aluno[] = [
   {
     matricula: "demo-1",
@@ -458,6 +466,8 @@ export function App() {
   const [erroConselho, setErroConselho] = useState("");
   const [atualizacao, setAtualizacao] = useState<Update | null>(null);
   const [statusAtualizacao, setStatusAtualizacao] = useState("");
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const alunosConselho = useMemo(() => {
     if (!turmaDetalhe?.alunos.length) {
       return alunosDemo;
@@ -486,6 +496,7 @@ export function App() {
     }));
   }, [turmaDetalhe]);
   const aluno = alunosConselho[Math.min(indiceAluno, alunosConselho.length - 1)] ?? alunosDemo[0];
+  const novidadesVersao = appInfo?.version ? NOVIDADES_POR_VERSAO[appInfo.version] ?? [] : [];
 
   useEffect(() => {
     check()
@@ -496,6 +507,25 @@ export function App() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    invoke<AppInfo>("app_info")
+      .then((info) => {
+        setAppInfo(info);
+        const chave = `coordenacaoop:novidades-lidas:${info.version}`;
+        if (NOVIDADES_POR_VERSAO[info.version]?.length && localStorage.getItem(chave) !== "sim") {
+          setMostrarNovidades(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  function fecharNovidades() {
+    if (appInfo?.version) {
+      localStorage.setItem(`coordenacaoop:novidades-lidas:${appInfo.version}`, "sim");
+    }
+    setMostrarNovidades(false);
+  }
 
   async function instalarAtualizacaoDisponivel() {
     if (!atualizacao) return;
@@ -855,6 +885,23 @@ export function App() {
               >
                 Atualizar e reiniciar
               </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {mostrarNovidades && novidadesVersao.length > 0 && (
+        <div className="modal-backdrop">
+          <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
+            <span className="eyebrow">Atualização concluída</span>
+            <h2 id="whats-new-title">O que há de novidade</h2>
+            <p>Versão {appInfo?.version ? `v${appInfo.version}` : "atual"} do CoordenacaoOP.</p>
+            <ul>
+              {novidadesVersao.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <div className="modal-actions">
+              <button className="primary-action" onClick={fecharNovidades}>Entendi</button>
             </div>
           </section>
         </div>
