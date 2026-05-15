@@ -28,7 +28,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
 
 const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
@@ -229,6 +229,21 @@ type ResultadoImportacaoElegiveis = {
   nomes_ambiguos: string[];
 };
 
+type RelatorioAlunosCriticosResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  alunos: number;
+};
+
+type RelatorioAlteracoesNotasResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  pendentes: number;
+  alteradas: number;
+};
+
 type AppInfo = {
   name: string;
   stage: string;
@@ -237,6 +252,13 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.1.6": [
+    "Relatório de Alunos Críticos disponível na central de relatórios.",
+    "Novo relatório Alterações de Notas Pós-Conselho para comparar decisões do conselho com o último mapão importado.",
+    "Correções de persistência do coordenador de turma e do ciclo de líder e vice líder.",
+    "Melhoria no caminho de salvamento em Linux e versões portáteis.",
+    "Manual do usuário atualizado com imagens revisadas.",
+  ],
   "2.1.5": [
     "Aba Educação Especial na tela individual do aluno elegível, com condições selecionáveis e comentário complementar.",
     "Documentação de conselho reunida em um único botão, listando atas e relatórios por bimestre.",
@@ -688,6 +710,12 @@ export function App() {
     }).then((detalheAtualizado) => {
       setTurmaDetalhe(detalheAtualizado);
       setTurmaSelecionada((atual) => atual ? { ...atual, coordenador_turma: detalheAtualizado.coordenador_turma } : atual);
+      return invoke<TurmaResumo[]>("listar_turmas")
+        .then((resumoAtualizado) => {
+          setTurmas(resumoAtualizado);
+          setTurmaSelecionada((atual) => resumoAtualizado.find((item) => item.caminho === atual?.caminho) ?? atual);
+        })
+        .catch(() => {});
     });
   }
 
@@ -841,7 +869,7 @@ export function App() {
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
-          <NavButton icon={<FileText size={18} />} label="Relatorios" active={tela === "relatorios"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -947,7 +975,15 @@ export function App() {
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && <Placeholder tela={tela} />}
+        {tela === "relatorios" && (
+          <RelatoriosMenu
+            onAbrirCriticos={() => navegarPara("relatorio-criticos")}
+            onAbrirAlteracoesNotas={() => navegarPara("relatorio-alteracoes-notas")}
+          />
+        )}
+        {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -2086,7 +2122,31 @@ function GestaoTurma({
     const matricula = aluno.matricula;
     if (!matricula) return;
     const atual = aluno.liderancaSala ?? null;
-    const proxima = atual === null ? "lider" : atual === "lider" ? "vice" : null;
+    const liderAtual = alunos.find((item) => item.liderancaSala === "lider");
+    const viceAtual = alunos.find((item) => item.liderancaSala === "vice");
+    let proxima: "lider" | "vice" | null = null;
+
+    if (atual === "vice") {
+      proxima = null;
+    } else if (atual === "lider") {
+      proxima = viceAtual && viceAtual.matricula !== matricula ? null : "vice";
+    } else if (!liderAtual) {
+      proxima = "lider";
+    } else if (!viceAtual) {
+      proxima = "vice";
+    } else {
+      const confirmar = window.confirm(
+        `A turma já tem líder (${liderAtual.nome}) e vice líder (${viceAtual.nome}). Deseja limpar essas indicações?`,
+      );
+      if (!confirmar) return;
+      setSalvandoLideranca(matricula);
+      Promise.all([
+        liderAtual.matricula ? onSalvarLideranca(liderAtual.matricula, null) : Promise.resolve(),
+        viceAtual.matricula ? onSalvarLideranca(viceAtual.matricula, null) : Promise.resolve(),
+      ]).finally(() => setSalvandoLideranca(null));
+      return;
+    }
+
     if (proxima) {
       const ocupante = alunos.find((item) => item.matricula !== matricula && item.liderancaSala === proxima);
       if (ocupante && !window.confirm(`${ocupante.nome} já está como ${rotuloLideranca(proxima)}. Deseja trocar?`)) {
@@ -3580,6 +3640,279 @@ function FinalizacaoConselho({
   );
 }
 
+function RelatoriosMenu({
+  onAbrirCriticos,
+  onAbrirAlteracoesNotas,
+}: {
+  onAbrirCriticos: () => void;
+  onAbrirAlteracoesNotas: () => void;
+}) {
+  return (
+    <section className="reports-page">
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Central de relatórios</h1>
+          <p>Escolha o relatório que deseja gerar.</p>
+        </div>
+      </header>
+
+      <section className="report-menu-grid">
+        <button type="button" className="report-menu-card" onClick={onAbrirCriticos}>
+          <FileText size={26} />
+          <div>
+            <strong>Relatório de Alunos Críticos</strong>
+            <span>Lista estudantes por turma com excesso de faltas ou situação crítica por notas.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirAlteracoesNotas}>
+          <ClipboardList size={26} />
+          <div>
+            <strong>Alterações de Notas Pós-Conselho</strong>
+            <span>Compara as notas decididas no conselho com o último mapão importado.</span>
+          </div>
+        </button>
+      </section>
+    </section>
+  );
+}
+
+function RelatorioAlunosCriticos({ turmas, onVoltar }: { turmas: TurmaResumo[]; onVoltar: () => void }) {
+  const [serie, setSerie] = useState("todas");
+  const [bimestre, setBimestre] = useState("1");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioAlunosCriticosResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+  const series = useMemo(() => {
+    const unicas = new Set<string>();
+    turmas.forEach((turma) => {
+      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
+      if (rotulo.trim()) unicas.add(rotulo.trim());
+    });
+    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [turmas]);
+
+  useEffect(() => {
+    if (serie !== "todas" && !series.includes(serie)) {
+      setSerie("todas");
+    }
+  }, [serie, series]);
+
+  function gerarRelatorioCriticos() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invoke<RelatorioAlunosCriticosResultado>("gerar_relatorio_alunos_criticos", {
+      input: {
+        serie: serie === "todas" ? null : serie,
+        bimestre,
+      },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invoke<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPastaRelatorios() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invoke<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Relatório de Alunos Críticos</h1>
+          <p>Gere uma lista por turma com estudantes em excesso de faltas ou situação crítica por notas.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Alunos críticos</h2>
+            <p>O relatório é dividido por turma e informa o motivo da inclusão do estudante.</p>
+          </div>
+          <FileText size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
+              {opcoesBimestre.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Turmas
+            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
+              <option value="todas">Todas as salas</option>
+              {series.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorioCriticos} disabled={processando || !turmas.length}>
+            {processando ? "Gerando..." : "Gerar relatório"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir relatório
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
+function RelatorioAlteracoesNotas({ turmas, onVoltar }: { turmas: TurmaResumo[]; onVoltar: () => void }) {
+  const [serie, setSerie] = useState("todas");
+  const [bimestre, setBimestre] = useState("1");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioAlteracoesNotasResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+  const series = useMemo(() => {
+    const unicas = new Set<string>();
+    turmas.forEach((turma) => {
+      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
+      if (rotulo.trim()) unicas.add(rotulo.trim());
+    });
+    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [turmas]);
+
+  useEffect(() => {
+    if (serie !== "todas" && !series.includes(serie)) {
+      setSerie("todas");
+    }
+  }, [serie, series]);
+
+  function gerarRelatorioAlteracoes() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invoke<RelatorioAlteracoesNotasResultado>("gerar_relatorio_alteracoes_notas", {
+      input: {
+        serie: serie === "todas" ? null : serie,
+        bimestre,
+      },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        setMensagem(
+          `Relatório gerado com ${resposta.pendentes} pendência(s) e ${resposta.alteradas} alteração(ões) confirmada(s) em ${resposta.turmas} turma(s).`,
+        );
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invoke<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPastaRelatorios() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invoke<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Alterações de Notas Pós-Conselho</h1>
+          <p>Confira se as notas ajustadas no conselho já aparecem corretamente no último mapão importado.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Conferência pós-conselho</h2>
+            <p>O relatório mostra primeiro as pendências e depois as alterações confirmadas por turma.</p>
+          </div>
+          <ClipboardList size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
+              {opcoesBimestre.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Turmas
+            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
+              <option value="todas">Todas as salas</option>
+              {series.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorioAlteracoes} disabled={processando || !turmas.length}>
+            {processando ? "Gerando..." : "Gerar relatório"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir relatório
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
 function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; onDadosAlterados: () => void }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
@@ -3846,7 +4179,9 @@ function Placeholder({ tela }: { tela: Tela }) {
     "importar-elegiveis": "Importar Elegíveis",
     conselhos: "Conselhos",
     conselho: "Conselho",
-    relatorios: "Relatorios",
+    relatorios: "Relatórios",
+    "relatorio-criticos": "Relatório de Alunos Críticos",
+    "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
     configuracoes: "Configurações",
   };
 

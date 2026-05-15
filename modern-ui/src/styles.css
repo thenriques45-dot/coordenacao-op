@@ -2740,6 +2740,117 @@ th:nth-child(3) {
   font-weight: 700;
 }
 
+.reports-page {
+  display: grid;
+  gap: 22px;
+}
+
+.report-generator-card {
+  display: grid;
+  gap: 18px;
+}
+
+.report-menu-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+}
+
+.report-menu-card {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  color: #101828;
+  display: flex;
+  gap: 16px;
+  min-height: 126px;
+  padding: 24px;
+  text-align: left;
+}
+
+.report-menu-card:hover {
+  border-color: #b9c4d4;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+}
+
+.report-menu-card svg {
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.report-menu-card strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.report-menu-card span {
+  color: #52616a;
+  line-height: 1.45;
+}
+
+.report-generator-heading {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.report-generator-heading h2,
+.report-generator-heading p {
+  margin: 0;
+}
+
+.report-generator-heading h2 {
+  font-size: 20px;
+}
+
+.report-generator-heading p {
+  color: #667085;
+  margin-top: 6px;
+}
+
+.report-generator-heading svg {
+  color: #2563eb;
+}
+
+.report-controls {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
+.report-controls label {
+  color: #344054;
+  display: grid;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.report-controls select {
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  color: #101828;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.report-path {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
 .notice {
   border-radius: 8px;
   font-weight: 800;
@@ -2758,6 +2869,10 @@ th:nth-child(3) {
 
 @media (max-width: 1100px) {
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-controls {
     grid-template-columns: 1fr;
   }
 }

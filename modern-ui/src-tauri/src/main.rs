@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::Cursor,
     env, fs, io,
+    io::Cursor,
     io::Write,
     path::{Path, PathBuf},
     process::Command,
@@ -242,6 +242,35 @@ struct EducacaoEspecialAlunoInput {
 }
 
 #[derive(Deserialize)]
+struct RelatorioAlunosCriticosInput {
+    serie: Option<String>,
+    bimestre: String,
+}
+
+#[derive(Serialize)]
+struct RelatorioAlunosCriticosResultado {
+    caminho: String,
+    pasta: String,
+    turmas: usize,
+    alunos: usize,
+}
+
+#[derive(Deserialize)]
+struct RelatorioAlteracoesNotasInput {
+    serie: Option<String>,
+    bimestre: String,
+}
+
+#[derive(Serialize)]
+struct RelatorioAlteracoesNotasResultado {
+    caminho: String,
+    pasta: String,
+    turmas: usize,
+    pendentes: usize,
+    alteradas: usize,
+}
+
+#[derive(Deserialize)]
 struct NovoAlunoInput {
     matricula: String,
     nome: String,
@@ -367,14 +396,13 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
 
 #[tauri::command]
 fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<ConfiguracoesApp, String> {
-    let extensao = extensao_imagem_cabecalho(&input.nome)
-        .ok_or_else(|| "Selecione uma imagem JPG, JPEG ou PNG para o cabeçalho da ata.".to_string())?;
+    let extensao = extensao_imagem_cabecalho(&input.nome).ok_or_else(|| {
+        "Selecione uma imagem JPG, JPEG ou PNG para o cabeçalho da ata.".to_string()
+    })?;
     if input.bytes.is_empty() {
         return Err("A imagem selecionada está vazia.".to_string());
     }
-    let pasta = data_dir()
-        .map_err(|err| err.to_string())?
-        .join("imagens");
+    let pasta = data_dir().map_err(|err| err.to_string())?.join("imagens");
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
     for ext in ["jpg", "jpeg", "png"] {
         let _ = fs::remove_file(pasta.join(format!("cabecalho_ata.{ext}")));
@@ -413,7 +441,9 @@ fn importar_backup(input: BackupImportInput) -> Result<BackupResultado, String> 
 }
 
 #[tauri::command]
-fn importar_alunos_elegiveis(input: CsvImportInput) -> Result<ResultadoImportacaoElegiveis, String> {
+fn importar_alunos_elegiveis(
+    input: CsvImportInput,
+) -> Result<ResultadoImportacaoElegiveis, String> {
     importar_alunos_elegiveis_interno(input).map_err(|err| err.to_string())
 }
 
@@ -426,7 +456,13 @@ fn verificar_atualizacao() -> Result<AtualizacaoInfo, String> {
 fn abrir_url(url: String) -> Result<(), String> {
     let script = format!("Start-Process {}", aspas_powershell(&url));
     Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &script])
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &script,
+        ])
         .spawn()
         .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
     Ok(())
@@ -589,12 +625,21 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
             }
             matriculas_csv.insert(matricula.to_string());
 
-            if let Some(existente) = alunos_existentes.get_mut(matricula).and_then(Value::as_object_mut) {
+            if let Some(existente) = alunos_existentes
+                .get_mut(matricula)
+                .and_then(Value::as_object_mut)
+            {
                 existente.insert("nome".to_string(), Value::String(nome.to_string()));
-                existente.insert("numero_chamada".to_string(), aluno.numero_chamada.map(Value::from).unwrap_or(Value::Null));
+                existente.insert(
+                    "numero_chamada".to_string(),
+                    aluno.numero_chamada.map(Value::from).unwrap_or(Value::Null),
+                );
                 existente.insert("ativo".to_string(), Value::Bool(true));
                 if !aluno.deficiencias.is_empty() {
-                    existente.insert("deficiencias".to_string(), serde_json::json!(aluno.deficiencias));
+                    existente.insert(
+                        "deficiencias".to_string(),
+                        serde_json::json!(aluno.deficiencias),
+                    );
                 }
             } else {
                 alunos_existentes.insert(
@@ -669,7 +714,12 @@ fn analisar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<PreviaImportacao
     let mut arquivos = Vec::new();
 
     for arquivo in input.arquivos {
-        arquivos.push(analisar_arquivo_mapao(&arquivo, &indice, &turmas, &input.bimestre));
+        arquivos.push(analisar_arquivo_mapao(
+            &arquivo,
+            &indice,
+            &turmas,
+            &input.bimestre,
+        ));
     }
 
     let total_correspondencias = arquivos.iter().map(|item| item.correspondencias).sum();
@@ -724,7 +774,9 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
                 continue;
             }
             let (turma_idx, matricula) = &destinos[0];
-            let Some((caminho, turma)) = turmas.get_mut(*turma_idx) else { continue };
+            let Some((caminho, turma)) = turmas.get_mut(*turma_idx) else {
+                continue;
+            };
             let Some(info) = turma
                 .alunos
                 .as_mut()
@@ -735,7 +787,9 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
             };
 
             if let Some(freq) = aluno_mapao.frequencia_percentual {
-                let valor = serde_json::Number::from_f64(freq.round()).map(Value::Number).unwrap_or(Value::Null);
+                let valor = serde_json::Number::from_f64(freq.round())
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null);
                 info.insert("frequencia_percentual".to_string(), valor);
             }
 
@@ -747,7 +801,13 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
                     inserir_valor_bimestre(info, "frequencia", &bimestre, &disciplina.nome, valor);
                 }
                 if let Some(valor) = compensacao {
-                    inserir_valor_bimestre(info, "compensacao_ausencias", &bimestre, &disciplina.nome, valor);
+                    inserir_valor_bimestre(
+                        info,
+                        "compensacao_ausencias",
+                        &bimestre,
+                        &disciplina.nome,
+                        valor,
+                    );
                 }
                 if let Some(aulas) = disciplina.aulas {
                     let carga = turma.carga_horaria.get_or_insert_with(serde_json::Map::new);
@@ -756,7 +816,9 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
                         .or_insert_with(|| Value::Object(serde_json::Map::new()));
                     if let Some(objeto) = por_bimestre.as_object_mut() {
                         objeto.entry(disciplina.nome.clone()).or_insert_with(|| {
-                            serde_json::Number::from_f64(aulas).map(Value::Number).unwrap_or(Value::Null)
+                            serde_json::Number::from_f64(aulas)
+                                .map(Value::Number)
+                                .unwrap_or(Value::Null)
                         });
                     }
                 }
@@ -938,7 +1000,8 @@ fn salvar_lideranca_aluno(
                 .get("lideranca_sala")
                 .and_then(Value::as_str)
                 .and_then(|valor| normalizar_lideranca_sala(Some(valor)))
-                .as_deref() == Some(cargo.as_str())
+                .as_deref()
+                == Some(cargo.as_str())
             {
                 if let Some(objeto) = aluno.as_object_mut() {
                     objeto.remove("lideranca_sala");
@@ -995,7 +1058,10 @@ fn salvar_educacao_especial_aluno(
     if comentario.is_empty() {
         aluno.remove("comentario_educacao_especial");
     } else {
-        aluno.insert("comentario_educacao_especial".to_string(), Value::String(comentario.to_string()));
+        aluno.insert(
+            "comentario_educacao_especial".to_string(),
+            Value::String(comentario.to_string()),
+        );
     }
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
@@ -1056,7 +1122,13 @@ fn listar_documentos_conselho(caminho: String) -> Result<Vec<DocumentoConselho>,
                 caminho: path.to_string_lossy().to_string(),
             });
         }
-        if let Ok(path) = localizar_documento_finalizacao(&dados, bimestre, "relatorios", "relatorio_professores", "") {
+        if let Ok(path) = localizar_documento_finalizacao(
+            &dados,
+            bimestre,
+            "relatorios",
+            "relatorio_professores",
+            "",
+        ) {
             documentos.push(DocumentoConselho {
                 tipo: "relatorio".to_string(),
                 bimestre: bimestre.to_string(),
@@ -1075,6 +1147,132 @@ fn abrir_documento_conselho(input: AbrirDocumentoConselhoInput) -> Result<String
     }
     abrir_arquivo(&caminho)?;
     Ok(caminho.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn gerar_relatorio_alunos_criticos(
+    input: RelatorioAlunosCriticosInput,
+) -> Result<RelatorioAlunosCriticosResultado, String> {
+    let bimestre = normalizar_bimestre(&input.bimestre);
+    let serie_filtro = input
+        .serie
+        .as_deref()
+        .map(formatar_rotulo_turma_texto)
+        .filter(|serie| !serie.trim().is_empty());
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut blocos = Vec::new();
+    for (_, turma) in turmas {
+        if let Some(serie) = &serie_filtro {
+            let serie_turma = turma
+                .serie
+                .as_deref()
+                .map(formatar_rotulo_turma_texto)
+                .unwrap_or_default();
+            if serie_turma != *serie {
+                continue;
+            }
+        }
+
+        let registros = levantar_alunos_criticos_turma(&turma, &bimestre);
+        if !registros.is_empty() {
+            blocos.push((rotulo_turma(&turma), registros));
+        }
+    }
+
+    let total_alunos = blocos.iter().map(|(_, alunos)| alunos.len()).sum::<usize>();
+    let pasta = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("alunos_criticos");
+    fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+    let escopo = serie_filtro
+        .as_deref()
+        .map(sanitizar_segmento)
+        .unwrap_or_else(|| "todas_as_turmas".to_string());
+    let arquivo = pasta.join(format!(
+        "relatorio_alunos_criticos_{}_bim_{}_{}.docx",
+        escopo,
+        bimestre,
+        Local::now().format("%Y%m%d_%H%M%S")
+    ));
+    escrever_relatorio_alunos_criticos_docx(&arquivo, &bimestre, serie_filtro.as_deref(), &blocos)?;
+
+    Ok(RelatorioAlunosCriticosResultado {
+        caminho: arquivo.to_string_lossy().to_string(),
+        pasta: pasta.to_string_lossy().to_string(),
+        turmas: blocos.len(),
+        alunos: total_alunos,
+    })
+}
+
+#[tauri::command]
+fn gerar_relatorio_alteracoes_notas(
+    input: RelatorioAlteracoesNotasInput,
+) -> Result<RelatorioAlteracoesNotasResultado, String> {
+    let bimestre = normalizar_bimestre(&input.bimestre);
+    let serie_filtro = input
+        .serie
+        .as_deref()
+        .map(formatar_rotulo_turma_texto)
+        .filter(|serie| !serie.trim().is_empty());
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut blocos = Vec::new();
+
+    for (_, turma) in turmas {
+        if let Some(serie) = &serie_filtro {
+            let serie_turma = turma
+                .serie
+                .as_deref()
+                .map(formatar_rotulo_turma_texto)
+                .unwrap_or_default();
+            if serie_turma != *serie {
+                continue;
+            }
+        }
+
+        let bloco = levantar_alteracoes_notas_turma(&turma, &bimestre);
+        if !bloco.pendentes.is_empty() || !bloco.alteradas.is_empty() {
+            blocos.push(bloco);
+        }
+    }
+
+    let total_pendentes = blocos
+        .iter()
+        .map(|bloco| bloco.pendentes.len())
+        .sum::<usize>();
+    let total_alteradas = blocos
+        .iter()
+        .map(|bloco| bloco.alteradas.len())
+        .sum::<usize>();
+    let pasta = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("alteracoes_notas");
+    fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+    let escopo = serie_filtro
+        .as_deref()
+        .map(sanitizar_segmento)
+        .unwrap_or_else(|| "todas_as_turmas".to_string());
+    let arquivo = pasta.join(format!(
+        "alteracoes_notas_pos_conselho_{}_bim_{}_{}.docx",
+        escopo,
+        bimestre,
+        Local::now().format("%Y%m%d_%H%M%S")
+    ));
+    escrever_relatorio_alteracoes_notas_docx(
+        &arquivo,
+        &bimestre,
+        serie_filtro.as_deref(),
+        &blocos,
+    )?;
+
+    Ok(RelatorioAlteracoesNotasResultado {
+        caminho: arquivo.to_string_lossy().to_string(),
+        pasta: pasta.to_string_lossy().to_string(),
+        turmas: blocos.len(),
+        pendentes: total_pendentes,
+        alteradas: total_alteradas,
+    })
 }
 
 #[tauri::command]
@@ -1529,6 +1727,401 @@ fn fundo_numero_encaminhamento(numero: usize) -> Option<&'static str> {
         Some("E6E6E6")
     } else {
         None
+    }
+}
+
+struct AlunoCriticoRelatorio {
+    numero: String,
+    nome: String,
+    ra: String,
+    frequencia: String,
+    disciplinas_baixas: Vec<String>,
+    motivos: Vec<String>,
+}
+
+struct AlteracaoNotaRelatorio {
+    numero: String,
+    nome: String,
+    ra: String,
+    disciplina: String,
+    media_original: Option<f64>,
+    media_conselho: f64,
+    media_mapao: Option<f64>,
+    situacao: String,
+}
+
+struct BlocoAlteracoesNotasRelatorio {
+    turma: String,
+    pendentes: Vec<AlteracaoNotaRelatorio>,
+    alteradas: Vec<AlteracaoNotaRelatorio>,
+}
+
+fn levantar_alunos_criticos_turma(
+    turma: &TurmaArquivo,
+    bimestre: &str,
+) -> Vec<AlunoCriticoRelatorio> {
+    let nota_minima = obter_nota_minima_configurada();
+    let mut registros = Vec::new();
+    let Some(alunos) = &turma.alunos else {
+        return registros;
+    };
+
+    for (matricula, info) in alunos {
+        if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+            continue;
+        }
+
+        let frequencia = info.get("frequencia_percentual").and_then(valor_para_f64);
+        let excesso_faltas = frequencia.map(|valor| valor < 75.0).unwrap_or(false);
+        let disciplinas_baixas = disciplinas_baixas_aluno(info, bimestre, nota_minima);
+        let critico_por_notas = media_aluno_bimestre(info, bimestre)
+            .map(|valor| arredondar_media_normal(valor) < nota_minima)
+            .unwrap_or(false);
+
+        if !excesso_faltas && !critico_por_notas {
+            continue;
+        }
+
+        let mut motivos = Vec::new();
+        if excesso_faltas {
+            motivos.push("Excesso de faltas".to_string());
+        }
+        if critico_por_notas {
+            motivos.push("Excesso de disciplinas com notas baixas".to_string());
+        }
+
+        registros.push(AlunoCriticoRelatorio {
+            numero: info
+                .get("numero_chamada")
+                .and_then(Value::as_i64)
+                .map(|numero| numero.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            nome: info
+                .get("nome")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            ra: matricula.clone(),
+            frequencia: frequencia
+                .map(formatar_percentual_docx)
+                .unwrap_or_else(|| "-".to_string()),
+            disciplinas_baixas,
+            motivos,
+        });
+    }
+
+    registros.sort_by(|a, b| {
+        let numero_a = a.numero.parse::<i64>().unwrap_or(i64::MAX);
+        let numero_b = b.numero.parse::<i64>().unwrap_or(i64::MAX);
+        (numero_a, a.nome.clone()).cmp(&(numero_b, b.nome.clone()))
+    });
+    registros
+}
+
+fn levantar_alteracoes_notas_turma(
+    turma: &TurmaArquivo,
+    bimestre: &str,
+) -> BlocoAlteracoesNotasRelatorio {
+    let mut pendentes = Vec::new();
+    let mut alteradas = Vec::new();
+
+    if let Some(alunos) = &turma.alunos {
+        for (matricula, info) in alunos {
+            if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                continue;
+            }
+
+            let Some(ajustes) = objeto_bimestre(info, "ajustes_medias_conselho", bimestre) else {
+                continue;
+            };
+            let medias = objeto_bimestre(info, "medias", bimestre);
+            let numero = info
+                .get("numero_chamada")
+                .and_then(Value::as_i64)
+                .map(|valor| valor.to_string())
+                .unwrap_or_else(|| "-".to_string());
+            let nome = info
+                .get("nome")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+
+            for (disciplina, ajuste) in ajustes {
+                let Some(media_conselho) = ajuste.get("media_ajustada").and_then(valor_para_f64)
+                else {
+                    continue;
+                };
+                let media_mapao = medias
+                    .and_then(|mapa| mapa.get(disciplina))
+                    .and_then(valor_para_f64);
+                let media_original = ajuste
+                    .get("media_original")
+                    .and_then(valor_para_f64)
+                    .or(media_mapao);
+                let registro = AlteracaoNotaRelatorio {
+                    numero: numero.clone(),
+                    nome: nome.clone(),
+                    ra: matricula.clone(),
+                    disciplina: formatar_rotulo_turma_texto(disciplina),
+                    media_original,
+                    media_conselho,
+                    media_mapao,
+                    situacao: if media_mapao.is_some() {
+                        "Confirmada no mapão".to_string()
+                    } else {
+                        "Sem nota no mapão".to_string()
+                    },
+                };
+
+                match media_mapao {
+                    Some(media) if notas_equivalentes(media, media_conselho) => {
+                        alteradas.push(registro);
+                    }
+                    Some(media) if notas_mesma_faixa(media, media_conselho) => {}
+                    Some(_) => {
+                        pendentes.push(AlteracaoNotaRelatorio {
+                            situacao: "Conselho e mapão em faixas diferentes".to_string(),
+                            ..registro
+                        });
+                    }
+                    None => pendentes.push(registro),
+                }
+            }
+        }
+    }
+
+    ordenar_alteracoes_notas(&mut pendentes);
+    ordenar_alteracoes_notas(&mut alteradas);
+    BlocoAlteracoesNotasRelatorio {
+        turma: rotulo_turma(turma),
+        pendentes,
+        alteradas,
+    }
+}
+
+fn ordenar_alteracoes_notas(registros: &mut [AlteracaoNotaRelatorio]) {
+    registros.sort_by(|a, b| {
+        let numero_a = a.numero.parse::<i64>().unwrap_or(i64::MAX);
+        let numero_b = b.numero.parse::<i64>().unwrap_or(i64::MAX);
+        (numero_a, a.nome.clone(), a.disciplina.clone()).cmp(&(
+            numero_b,
+            b.nome.clone(),
+            b.disciplina.clone(),
+        ))
+    });
+}
+
+fn notas_equivalentes(a: f64, b: f64) -> bool {
+    (a - b).abs() < 0.05
+}
+
+fn notas_mesma_faixa(a: f64, b: f64) -> bool {
+    (a >= 5.0 && b >= 5.0) || (a < 5.0 && b < 5.0)
+}
+
+fn disciplinas_baixas_aluno(info: &Value, bimestre: &str, nota_minima: f64) -> Vec<String> {
+    let medias = objeto_bimestre(info, "medias", bimestre);
+    let ajustes = objeto_bimestre(info, "ajustes_medias_conselho", bimestre);
+    let mut disciplinas = BTreeSet::new();
+    if let Some(medias) = medias {
+        disciplinas.extend(medias.keys().cloned());
+    }
+    if let Some(ajustes) = ajustes {
+        disciplinas.extend(ajustes.keys().cloned());
+    }
+
+    disciplinas
+        .into_iter()
+        .filter_map(|disciplina| {
+            let nota = nota_vigente_disciplina(info, bimestre, &disciplina)?;
+            (nota < nota_minima).then_some(formatar_rotulo_turma_texto(&disciplina))
+        })
+        .collect()
+}
+
+fn media_aluno_bimestre(info: &Value, bimestre: &str) -> Option<f64> {
+    let medias = objeto_bimestre(info, "medias", bimestre);
+    let ajustes = objeto_bimestre(info, "ajustes_medias_conselho", bimestre);
+    let mut disciplinas = BTreeSet::new();
+    if let Some(medias) = medias {
+        disciplinas.extend(medias.keys().cloned());
+    }
+    if let Some(ajustes) = ajustes {
+        disciplinas.extend(ajustes.keys().cloned());
+    }
+
+    let notas = disciplinas
+        .into_iter()
+        .filter_map(|disciplina| nota_vigente_disciplina(info, bimestre, &disciplina))
+        .collect::<Vec<_>>();
+    if notas.is_empty() {
+        None
+    } else {
+        Some(notas.iter().sum::<f64>() / notas.len() as f64)
+    }
+}
+
+fn nota_vigente_disciplina(info: &Value, bimestre: &str, disciplina: &str) -> Option<f64> {
+    objeto_bimestre(info, "ajustes_medias_conselho", bimestre)
+        .and_then(|ajustes| ajustes.get(disciplina))
+        .and_then(|ajuste| ajuste.get("media_ajustada"))
+        .and_then(valor_para_f64)
+        .or_else(|| {
+            objeto_bimestre(info, "medias", bimestre)
+                .and_then(|medias| medias.get(disciplina))
+                .and_then(valor_para_f64)
+        })
+}
+
+fn arredondar_media_normal(valor: f64) -> f64 {
+    (valor + 0.5).floor()
+}
+
+fn escrever_relatorio_alunos_criticos_docx(
+    caminho: &Path,
+    bimestre: &str,
+    serie: Option<&str>,
+    blocos: &[(String, Vec<AlunoCriticoRelatorio>)],
+) -> Result<(), String> {
+    let mut documento = DocumentoDocx::new();
+    documento.titulo_ata("RELATÓRIO DE ALUNOS CRÍTICOS");
+    let escopo = serie.unwrap_or("Todas as turmas");
+    documento.paragrafo_negrito(&format!(
+        "Escopo: {escopo} | {} | Gerado em {}",
+        rotulo_bimestre_relatorio(bimestre),
+        Local::now().format("%d/%m/%Y %H:%M")
+    ));
+    documento.paragrafo("Critérios: frequência abaixo de 75% ou status crítico por média global do bimestre. A coluna de disciplinas lista notas abaixo da média mínima configurada.");
+
+    if blocos.is_empty() {
+        documento.caixa_aviso("Nenhum aluno crítico encontrado para o escopo selecionado.");
+        return documento.salvar(caminho);
+    }
+
+    for (indice, (turma, alunos)) in blocos.iter().enumerate() {
+        if indice > 0 {
+            documento.paragrafo("");
+        }
+        documento.paragrafo_negrito(&format!("{turma} - {} aluno(s)", alunos.len()));
+        let mut linhas = vec![vec![
+            CelulaDocx::cabecalho("Nº"),
+            CelulaDocx::cabecalho("Aluno"),
+            CelulaDocx::cabecalho("RA"),
+            CelulaDocx::cabecalho("Freq."),
+            CelulaDocx::cabecalho("Motivo"),
+            CelulaDocx::cabecalho("Disciplinas abaixo"),
+        ]];
+        for aluno in alunos {
+            linhas.push(vec![
+                CelulaDocx::texto(&aluno.numero),
+                CelulaDocx::texto(&aluno.nome).alinhada("left"),
+                CelulaDocx::texto(&aluno.ra),
+                CelulaDocx::texto(&aluno.frequencia),
+                CelulaDocx::texto(&aluno.motivos.join(" / ")).alinhada("left"),
+                CelulaDocx::texto(&if aluno.disciplinas_baixas.is_empty() {
+                    "-".to_string()
+                } else {
+                    aluno.disciplinas_baixas.join(", ")
+                })
+                .alinhada("left"),
+            ]);
+        }
+        documento.tabela_celulas_com_larguras(linhas, &[420, 2500, 1250, 780, 2100, 4050], true);
+    }
+
+    documento.salvar(caminho)
+}
+
+fn escrever_relatorio_alteracoes_notas_docx(
+    caminho: &Path,
+    bimestre: &str,
+    serie: Option<&str>,
+    blocos: &[BlocoAlteracoesNotasRelatorio],
+) -> Result<(), String> {
+    let mut documento = DocumentoDocx::new();
+    documento.titulo_ata("ALTERAÇÕES DE NOTAS PÓS-CONSELHO");
+    let escopo = serie.unwrap_or("Todas as turmas");
+    documento.paragrafo_negrito(&format!(
+        "Escopo: {escopo} | {} | Gerado em {}",
+        rotulo_bimestre_relatorio(bimestre),
+        Local::now().format("%d/%m/%Y %H:%M")
+    ));
+    documento.paragrafo("Critério: o relatório lista alterações confirmadas exatamente no mapão e pendências em que a nota definida no conselho e a nota atual do mapão estão em faixas diferentes, abaixo de 5 ou igual/acima de 5. Divergências dentro da mesma faixa não são listadas.");
+
+    if blocos.is_empty() {
+        documento.caixa_aviso(
+            "Nenhuma alteração de nota pós-conselho encontrada para o escopo selecionado.",
+        );
+        return documento.salvar(caminho);
+    }
+
+    for (indice, bloco) in blocos.iter().enumerate() {
+        if indice > 0 {
+            documento.paragrafo("");
+        }
+        documento.paragrafo_negrito(&bloco.turma);
+        escrever_secao_alteracoes_notas(
+            &mut documento,
+            "Notas não alteradas ou incoerentes",
+            &bloco.pendentes,
+        );
+        escrever_secao_alteracoes_notas(
+            &mut documento,
+            "Notas alteradas no mapão",
+            &bloco.alteradas,
+        );
+    }
+
+    documento.salvar(caminho)
+}
+
+fn escrever_secao_alteracoes_notas(
+    documento: &mut DocumentoDocx,
+    titulo: &str,
+    registros: &[AlteracaoNotaRelatorio],
+) {
+    documento.paragrafo_negrito(&format!("{titulo} - {} registro(s)", registros.len()));
+    if registros.is_empty() {
+        documento.paragrafo("Nenhum registro nesta seção.");
+        return;
+    }
+
+    let mut linhas = vec![vec![
+        CelulaDocx::cabecalho("Nº"),
+        CelulaDocx::cabecalho("Aluno"),
+        CelulaDocx::cabecalho("RA"),
+        CelulaDocx::cabecalho("Disciplina"),
+        CelulaDocx::cabecalho("Original"),
+        CelulaDocx::cabecalho("Conselho"),
+        CelulaDocx::cabecalho("Mapão"),
+        CelulaDocx::cabecalho("Situação"),
+    ]];
+    for registro in registros {
+        linhas.push(vec![
+            CelulaDocx::texto(&registro.numero),
+            CelulaDocx::texto(&registro.nome).alinhada("left"),
+            CelulaDocx::texto(&registro.ra),
+            CelulaDocx::texto(&registro.disciplina).alinhada("left"),
+            CelulaDocx::texto(&formatar_media_docx(registro.media_original)),
+            CelulaDocx::texto(&formatar_media_docx(Some(registro.media_conselho))),
+            CelulaDocx::texto(&formatar_media_docx(registro.media_mapao)),
+            CelulaDocx::texto(&registro.situacao).alinhada("left"),
+        ]);
+    }
+    documento.tabela_celulas_com_larguras(
+        linhas,
+        &[380, 2200, 1050, 1850, 780, 780, 780, 3280],
+        true,
+    );
+}
+
+fn rotulo_bimestre_relatorio(bimestre: &str) -> String {
+    match bimestre {
+        "1" => "1º bimestre".to_string(),
+        "2" => "2º bimestre".to_string(),
+        "3" => "3º bimestre".to_string(),
+        "4" => "4º bimestre/conselho final".to_string(),
+        outro => format!("{outro}º bimestre"),
     }
 }
 
@@ -2000,6 +2593,10 @@ fn formatar_media_docx(valor: Option<f64>) -> String {
         .unwrap_or_else(|| "-".to_string())
 }
 
+fn formatar_percentual_docx(valor: f64) -> String {
+    format!("{}%", valor.round() as i64)
+}
+
 fn formatar_numero_sem_decimal(valor: f64) -> String {
     if (valor.fract()).abs() < f64::EPSILON {
         format!("{}", valor as i64)
@@ -2213,7 +2810,11 @@ fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_ascii_lowercase())
         .unwrap_or_else(|| "jpg".to_string());
-    let cabecalho_media = if cabecalho_ext == "png" { "cabecalho.png" } else { "cabecalho.jpg" };
+    let cabecalho_media = if cabecalho_ext == "png" {
+        "cabecalho.png"
+    } else {
+        "cabecalho.jpg"
+    };
     let cabecalho = cabecalho_path.and_then(|path| fs::read(path).ok());
     let tem_cabecalho = cabecalho.is_some();
 
@@ -2287,7 +2888,10 @@ fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
 fn localizar_imagem_cabecalho() -> Option<PathBuf> {
     let mut candidatos = Vec::new();
     if let Ok(base) = data_dir() {
-        candidatos.extend(["png", "jpg", "jpeg"].map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}"))));
+        candidatos.extend(
+            ["png", "jpg", "jpeg"]
+                .map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}"))),
+        );
         candidatos.push(base.join("imagens").join("cabecalho.jpg"));
     }
     if let Ok(base) = app_base_dir() {
@@ -2547,17 +3151,90 @@ fn app_base_dir() -> io::Result<PathBuf> {
         return Ok(base);
     }
 
+    if let Ok(appimage) = env::var("APPIMAGE") {
+        if let Some(base) = PathBuf::from(appimage).parent().map(Path::to_path_buf) {
+            if pasta_gravavel(&base) {
+                preparar_base_portatil(&base)?;
+                return Ok(base);
+            }
+        }
+    }
+
     if let Ok(exe) = env::current_exe() {
         if let Some(parent) = exe.parent() {
             let base = parent.to_path_buf();
+            if !parece_montagem_appimage(&base) && pasta_gravavel(&base) {
+                preparar_base_portatil(&base)?;
+                return Ok(base);
+            }
+        }
+    }
+
+    if let Ok(base) = env::current_dir() {
+        if pasta_gravavel(&base) {
             preparar_base_portatil(&base)?;
             return Ok(base);
         }
     }
 
-    let base = env::current_dir()?;
+    let base = pasta_dados_usuario()?;
     preparar_base_portatil(&base)?;
     Ok(base)
+}
+
+fn parece_montagem_appimage(path: &Path) -> bool {
+    path.components().any(|component| {
+        component
+            .as_os_str()
+            .to_string_lossy()
+            .starts_with(".mount_")
+    })
+}
+
+fn pasta_gravavel(path: &Path) -> bool {
+    if fs::create_dir_all(path).is_err() {
+        return false;
+    }
+    let teste = path.join(".coordenacaoop_write_test");
+    match fs::write(&teste, b"ok") {
+        Ok(_) => {
+            let _ = fs::remove_file(teste);
+            true
+        }
+        Err(_) => false,
+    }
+}
+
+fn pasta_dados_usuario() -> io::Result<PathBuf> {
+    if cfg!(target_os = "windows") {
+        if let Ok(appdata) = env::var("APPDATA") {
+            return Ok(PathBuf::from(appdata).join("CoordenacaoOP"));
+        }
+        if let Ok(localappdata) = env::var("LOCALAPPDATA") {
+            return Ok(PathBuf::from(localappdata).join("CoordenacaoOP"));
+        }
+    }
+
+    if cfg!(target_os = "macos") {
+        if let Ok(home) = env::var("HOME") {
+            return Ok(PathBuf::from(home)
+                .join("Library")
+                .join("Application Support")
+                .join("CoordenacaoOP"));
+        }
+    }
+
+    if let Ok(xdg_data_home) = env::var("XDG_DATA_HOME") {
+        return Ok(PathBuf::from(xdg_data_home).join("coordenacaoop"));
+    }
+    if let Ok(home) = env::var("HOME") {
+        return Ok(PathBuf::from(home)
+            .join(".local")
+            .join("share")
+            .join("coordenacaoop"));
+    }
+
+    Ok(env::current_dir()?.join("coordenacaoop-dados"))
 }
 
 fn data_dir() -> io::Result<PathBuf> {
@@ -2657,7 +3334,10 @@ fn exportar_backup_interno() -> io::Result<BackupResultado> {
 }
 
 fn exportar_backup_ciclos_interno(ciclos: &[String]) -> io::Result<BackupResultado> {
-    let ciclos_set = ciclos.iter().map(|ciclo| normalizar_chave(ciclo)).collect::<BTreeSet<_>>();
+    let ciclos_set = ciclos
+        .iter()
+        .map(|ciclo| normalizar_chave(ciclo))
+        .collect::<BTreeSet<_>>();
     let destino = backups_dir()?.join(format!(
         "coordenacaoop_backup_{}_{}.zip",
         ciclos.join("-").replace(['/', '\\', ' '], "_"),
@@ -2679,10 +3359,14 @@ fn exportar_backup_ciclos_interno(ciclos: &[String]) -> io::Result<BackupResulta
         adicionar_pasta_zip(&mut zip, &imagens, "dados", options, &mut total)?;
     }
 
-    let turmas = carregar_turmas_com_caminho()
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+    let turmas =
+        carregar_turmas_com_caminho().map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     for (caminho, turma) in turmas {
-        let ciclo = turma.ciclo.as_deref().map(normalizar_chave).unwrap_or_default();
+        let ciclo = turma
+            .ciclo
+            .as_deref()
+            .map(normalizar_chave)
+            .unwrap_or_default();
         if ciclos_set.contains(&ciclo) {
             adicionar_arquivo_zip(&mut zip, &caminho, "dados", options, &mut total)?;
         }
@@ -2736,8 +3420,14 @@ fn adicionar_arquivo_zip(
     options: SimpleFileOptions,
     total: &mut usize,
 ) -> io::Result<()> {
-    let relativo = caminho.strip_prefix(app_base_dir()?.join(nome_raiz)).unwrap_or(caminho);
-    let nome_zip = format!("{}/{}", nome_raiz, relativo.to_string_lossy().replace('\\', "/"));
+    let relativo = caminho
+        .strip_prefix(app_base_dir()?.join(nome_raiz))
+        .unwrap_or(caminho);
+    let nome_zip = format!(
+        "{}/{}",
+        nome_raiz,
+        relativo.to_string_lossy().replace('\\', "/")
+    );
     zip.start_file(nome_zip, options)?;
     let bytes = fs::read(caminho)?;
     zip.write_all(&bytes)?;
@@ -2747,7 +3437,10 @@ fn adicionar_arquivo_zip(
 
 fn importar_backup_interno(input: BackupImportInput) -> io::Result<BackupResultado> {
     if !input.nome.to_lowercase().ends_with(".zip") {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Selecione um arquivo .zip de backup."));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Selecione um arquivo .zip de backup.",
+        ));
     }
 
     let tmp = backups_dir()?.join(format!("_importacao_{}", Local::now().timestamp_millis()));
@@ -2756,14 +3449,20 @@ fn importar_backup_interno(input: BackupImportInput) -> io::Result<BackupResulta
         let mut zip = ZipArchive::new(Cursor::new(input.bytes))?;
         let nomes = zip.file_names().map(str::to_string).collect::<Vec<_>>();
         if !nomes.iter().any(|nome| nome == "backup_manifest.json") {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Backup invalido: manifesto nao encontrado."));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Backup invalido: manifesto nao encontrado.",
+            ));
         }
         let nomes_validos = nomes
             .into_iter()
             .filter(|nome| nome.starts_with("dados/") || nome.starts_with("config/"))
             .collect::<Vec<_>>();
         if nomes_validos.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Backup invalido: nenhum dado encontrado."));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Backup invalido: nenhum dado encontrado.",
+            ));
         }
 
         for nome in nomes_validos {
@@ -2824,12 +3523,15 @@ fn importar_backup_interno(input: BackupImportInput) -> io::Result<BackupResulta
     resultado
 }
 
-fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoImportacaoElegiveis, String> {
+fn importar_alunos_elegiveis_interno(
+    input: CsvImportInput,
+) -> Result<ResultadoImportacaoElegiveis, String> {
     if !input.nome.to_lowercase().ends_with(".csv") {
         return Err("Selecione um arquivo .csv com a lista de alunos elegiveis.".to_string());
     }
-    let texto = String::from_utf8(input.bytes)
-        .map_err(|_| "Nao consegui ler o CSV como UTF-8. Salve a planilha como CSV UTF-8.".to_string())?;
+    let texto = String::from_utf8(input.bytes).map_err(|_| {
+        "Nao consegui ler o CSV como UTF-8. Salve a planilha como CSV UTF-8.".to_string()
+    })?;
     let registros = ler_csv_alunos_elegiveis(&texto)?;
     let mut resumo = ResultadoImportacaoElegiveis {
         registros_csv: registros.len(),
@@ -2853,7 +3555,10 @@ fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoI
             por_matricula.entry(variante).or_default().push(indice);
         }
         if !registro.nome_normalizado.is_empty() {
-            por_nome.entry(registro.nome_normalizado.clone()).or_default().push(indice);
+            por_nome
+                .entry(registro.nome_normalizado.clone())
+                .or_default()
+                .push(indice);
         }
     }
 
@@ -2873,7 +3578,10 @@ fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoI
             let mut modo = "matricula";
             if candidatos.len() != 1 {
                 let nome = info.get("nome").and_then(Value::as_str).unwrap_or("");
-                candidatos = por_nome.get(&normalizar_nome_busca(nome)).cloned().unwrap_or_default();
+                candidatos = por_nome
+                    .get(&normalizar_nome_busca(nome))
+                    .cloned()
+                    .unwrap_or_default();
                 modo = "nome";
                 if candidatos.len() > 1 {
                     ambiguos.insert(nome.to_string());
@@ -2891,15 +3599,26 @@ fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoI
             let atuais = info
                 .get("deficiencias")
                 .and_then(Value::as_array)
-                .map(|lista| lista.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>())
+                .map(|lista| {
+                    lista
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect::<Vec<_>>()
+                })
                 .unwrap_or_default();
-            if normalizar_lista_deficiencias(&atuais) == normalizar_lista_deficiencias(&registro.deficiencias) {
+            if normalizar_lista_deficiencias(&atuais)
+                == normalizar_lista_deficiencias(&registro.deficiencias)
+            {
                 encontrados.insert(indice_registro);
                 continue;
             }
 
             if let Some(objeto) = info.as_object_mut() {
-                objeto.insert("deficiencias".to_string(), serde_json::json!(registro.deficiencias));
+                objeto.insert(
+                    "deficiencias".to_string(),
+                    serde_json::json!(registro.deficiencias),
+                );
                 objeto.insert("elegivel_manual".to_string(), Value::Bool(true));
             }
             encontrados.insert(indice_registro);
@@ -2913,7 +3632,8 @@ fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoI
         }
 
         if alterou_turma {
-            let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+            let texto_atualizado =
+                serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
             fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
             resumo.turmas_atualizadas += 1;
         }
@@ -2922,10 +3642,22 @@ fn importar_alunos_elegiveis_interno(input: CsvImportInput) -> Result<ResultadoI
     resumo.nao_encontrados = registros
         .iter()
         .enumerate()
-        .filter(|(indice, registro)| !encontrados.contains(indice) && (!registro.nome.is_empty() || !registro.matricula.is_empty()))
-        .map(|(_, registro)| if !registro.nome.is_empty() { registro.nome.clone() } else { registro.matricula.clone() })
+        .filter(|(indice, registro)| {
+            !encontrados.contains(indice)
+                && (!registro.nome.is_empty() || !registro.matricula.is_empty())
+        })
+        .map(|(_, registro)| {
+            if !registro.nome.is_empty() {
+                registro.nome.clone()
+            } else {
+                registro.matricula.clone()
+            }
+        })
         .collect();
-    resumo.nomes_ambiguos = ambiguos.into_iter().filter(|nome| !nome.trim().is_empty()).collect();
+    resumo.nomes_ambiguos = ambiguos
+        .into_iter()
+        .filter(|nome| !nome.trim().is_empty())
+        .collect();
     Ok(resumo)
 }
 
@@ -2939,11 +3671,20 @@ fn ler_csv_alunos_elegiveis(texto: &str) -> Result<Vec<RegistroElegivelCsv>, Str
         return Ok(Vec::new());
     }
 
-    let delimitador = if texto.matches(';').count() >= texto.matches(',').count() { ';' } else { ',' };
+    let delimitador = if texto.matches(';').count() >= texto.matches(',').count() {
+        ';'
+    } else {
+        ','
+    };
     let indice_cabecalho = linhas
         .iter()
-        .position(|linha| linha_parece_cabecalho_elegiveis(&dividir_linha_csv_generico(linha, delimitador)))
-        .ok_or_else(|| "CSV sem cabecalho reconhecivel. Use colunas como Nome do Aluno, RA e Deficiencia.".to_string())?;
+        .position(|linha| {
+            linha_parece_cabecalho_elegiveis(&dividir_linha_csv_generico(linha, delimitador))
+        })
+        .ok_or_else(|| {
+            "CSV sem cabecalho reconhecivel. Use colunas como Nome do Aluno, RA e Deficiencia."
+                .to_string()
+        })?;
     let cabecalho = dividir_linha_csv_generico(linhas[indice_cabecalho], delimitador)
         .into_iter()
         .map(|coluna| normalizar_texto_basico(&coluna))
@@ -2953,7 +3694,9 @@ fn ler_csv_alunos_elegiveis(texto: &str) -> Result<Vec<RegistroElegivelCsv>, Str
     for linha in linhas.iter().skip(indice_cabecalho + 1) {
         let valores = dividir_linha_csv_generico(linha, delimitador);
         let registro = registro_elegivel_de_linha(&cabecalho, &valores);
-        if !registro.deficiencias.is_empty() && (!registro.matricula.is_empty() || !registro.nome.is_empty()) {
+        if !registro.deficiencias.is_empty()
+            && (!registro.matricula.is_empty() || !registro.nome.is_empty())
+        {
             registros.push(registro);
         }
     }
@@ -2993,10 +3736,15 @@ fn dividir_linha_csv_generico(linha: &str, delimitador: char) -> Vec<String> {
 }
 
 fn linha_parece_cabecalho_elegiveis(linha: &[String]) -> bool {
-    let colunas = linha.iter().map(|coluna| normalizar_texto_basico(coluna)).collect::<BTreeSet<_>>();
+    let colunas = linha
+        .iter()
+        .map(|coluna| normalizar_texto_basico(coluna))
+        .collect::<BTreeSet<_>>();
     let tem_nome = colunas.iter().any(|coluna| coluna_nome_elegiveis(coluna));
     let tem_ra = colunas.iter().any(|coluna| coluna_ra_elegiveis(coluna));
-    let tem_deficiencia = colunas.iter().any(|coluna| coluna_deficiencia_elegiveis(coluna));
+    let tem_deficiencia = colunas
+        .iter()
+        .any(|coluna| coluna_deficiencia_elegiveis(coluna));
     tem_nome && (tem_ra || tem_deficiencia)
 }
 
@@ -3027,7 +3775,10 @@ fn registro_elegivel_de_linha(cabecalho: &[String], valores: &[String]) -> Regis
 }
 
 fn coluna_ra_elegiveis(coluna: &str) -> bool {
-    matches!(coluna, "RA" | "R A" | "REGISTRO DO ALUNO" | "MATRICULA" | "MATRICULA RA")
+    matches!(
+        coluna,
+        "RA" | "R A" | "REGISTRO DO ALUNO" | "MATRICULA" | "MATRICULA RA"
+    )
 }
 
 fn coluna_digito_ra_elegiveis(coluna: &str) -> bool {
@@ -3035,15 +3786,25 @@ fn coluna_digito_ra_elegiveis(coluna: &str) -> bool {
 }
 
 fn coluna_nome_elegiveis(coluna: &str) -> bool {
-    matches!(coluna, "NOME" | "NOME DO ALUNO" | "ALUNO" | "ESTUDANTE" | "NOME COMPLETO")
+    matches!(
+        coluna,
+        "NOME" | "NOME DO ALUNO" | "ALUNO" | "ESTUDANTE" | "NOME COMPLETO"
+    )
 }
 
 fn coluna_deficiencia_elegiveis(coluna: &str) -> bool {
     matches!(
         coluna,
-        "DEFICIENCIA" | "DEFICIENCIAS" | "TIPO DE DEFICIENCIA" | "NECESSIDADE ESPECIAL" |
-        "NECESSIDADES ESPECIAIS" | "NEE" | "PUBLICO ALVO" | "PUBLICO ALVO AEE" |
-        "ELEGIVEL" | "ALUNO ELEGIVEL"
+        "DEFICIENCIA"
+            | "DEFICIENCIAS"
+            | "TIPO DE DEFICIENCIA"
+            | "NECESSIDADE ESPECIAL"
+            | "NECESSIDADES ESPECIAIS"
+            | "NEE"
+            | "PUBLICO ALVO"
+            | "PUBLICO ALVO AEE"
+            | "ELEGIVEL"
+            | "ALUNO ELEGIVEL"
     )
 }
 
@@ -3055,14 +3816,26 @@ fn extrair_deficiencias_elegiveis(cabecalho: &[String], valores: &[String]) -> V
         }
         let valor = valores.get(indice).map(String::as_str).unwrap_or("").trim();
         let normalizado = normalizar_texto_basico(valor);
-        if matches!(normalizado.as_str(), "" | "NAO" | "N" | "NAO SE APLICA" | "NAO POSSUI" | "SEM DEFICIENCIA") {
+        if matches!(
+            normalizado.as_str(),
+            "" | "NAO" | "N" | "NAO SE APLICA" | "NAO POSSUI" | "SEM DEFICIENCIA"
+        ) {
             continue;
         }
-        if matches!(normalizado.as_str(), "SIM" | "S" | "ELEGIVEL" | "ALUNO ELEGIVEL") {
+        if matches!(
+            normalizado.as_str(),
+            "SIM" | "S" | "ELEGIVEL" | "ALUNO ELEGIVEL"
+        ) {
             deficiencias.push("Aluno elegivel".to_string());
             continue;
         }
-        deficiencias.extend(valor.split([',', ';']).map(str::trim).filter(|item| !item.is_empty()).map(str::to_string));
+        deficiencias.extend(
+            valor
+                .split([',', ';'])
+                .map(str::trim)
+                .filter(|item| !item.is_empty())
+                .map(str::to_string),
+        );
     }
     normalizar_lista_deficiencias(&deficiencias)
 }
@@ -3084,7 +3857,11 @@ fn normalizar_lista_deficiencias(lista: &[String]) -> Vec<String> {
 }
 
 fn normalizar_matricula_elegiveis(valor: String) -> String {
-    valor.chars().filter(|ch| ch.is_ascii_alphanumeric()).collect::<String>().to_ascii_uppercase()
+    valor
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .collect::<String>()
+        .to_ascii_uppercase()
 }
 
 fn variantes_matricula(valor: &str) -> Vec<String> {
@@ -3163,11 +3940,21 @@ fn extrair_nome_social_backend(nome: &str) -> String {
 
 fn validar_entrada_backup(nome: &str) -> io::Result<()> {
     let caminho = Path::new(nome);
-    if caminho.is_absolute() || caminho.components().any(|parte| matches!(parte, std::path::Component::ParentDir)) {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Backup contem caminho invalido."));
+    if caminho.is_absolute()
+        || caminho
+            .components()
+            .any(|parte| matches!(parte, std::path::Component::ParentDir))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Backup contem caminho invalido.",
+        ));
     }
     if !nome.starts_with("dados/") && !nome.starts_with("config/") {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Backup contem arquivo fora das pastas esperadas."));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Backup contem arquivo fora das pastas esperadas.",
+        ));
     }
     Ok(())
 }
@@ -3188,9 +3975,17 @@ fn mesclar_recursivamente(
         let caminho_origem = entrada.path();
         let caminho_destino = destino.join(entrada.file_name());
         if caminho_origem.is_dir() {
-            mesclar_recursivamente(&caminho_origem, &caminho_destino, raiz, importados, conflitos)?;
+            mesclar_recursivamente(
+                &caminho_origem,
+                &caminho_destino,
+                raiz,
+                importados,
+                conflitos,
+            )?;
         } else if caminho_destino.exists() {
-            let relativo = caminho_destino.strip_prefix(app_base_dir()?).unwrap_or(&caminho_destino);
+            let relativo = caminho_destino
+                .strip_prefix(app_base_dir()?)
+                .unwrap_or(&caminho_destino);
             conflitos.push(format!("{}/{}", raiz, relativo.to_string_lossy()));
         } else {
             if let Some(parent) = caminho_destino.parent() {
@@ -3235,8 +4030,12 @@ fn versao_maior(candidata: &str, atual: &str) -> bool {
     };
     let mut a = parse(candidata);
     let mut b = parse(atual);
-    while a.len() < 3 { a.push(0); }
-    while b.len() < 3 { b.push(0); }
+    while a.len() < 3 {
+        a.push(0);
+    }
+    while b.len() < 3 {
+        b.push(0);
+    }
     a > b
 }
 
@@ -3295,7 +4094,12 @@ fn caminhos_diferentes(a: &Path, b: &Path) -> bool {
     !mesmos_caminhos(a, b)
 }
 
-fn validar_conflito_sala(ano: i64, periodo: &str, sala: &str, ignorar_caminho: Option<&Path>) -> Result<(), String> {
+fn validar_conflito_sala(
+    ano: i64,
+    periodo: &str,
+    sala: &str,
+    ignorar_caminho: Option<&Path>,
+) -> Result<(), String> {
     let sala_norm = normalizar_chave(sala);
     let periodo_norm = normalizar_chave(periodo);
     if sala_norm.is_empty() || periodo_norm.is_empty() {
@@ -3316,12 +4120,14 @@ fn validar_conflito_sala(ano: i64, periodo: &str, sala: &str, ignorar_caminho: O
             .sala
             .as_deref()
             .map(normalizar_chave)
-            .unwrap_or_default() == sala_norm;
+            .unwrap_or_default()
+            == sala_norm;
         let mesmo_periodo = turma
             .periodo
             .as_deref()
             .map(normalizar_chave)
-            .unwrap_or_default() == periodo_norm;
+            .unwrap_or_default()
+            == periodo_norm;
         if mesma_sala && mesmo_periodo {
             return Err(format!(
                 "A sala {sala} ja esta ocupada no periodo {periodo} por {}.",
@@ -3393,7 +4199,9 @@ fn visitar_jsons_turma_com_dados(
     Ok(())
 }
 
-fn indice_alunos_por_nome(turmas: &[(PathBuf, TurmaArquivo)]) -> BTreeMap<String, Vec<(usize, String)>> {
+fn indice_alunos_por_nome(
+    turmas: &[(PathBuf, TurmaArquivo)],
+) -> BTreeMap<String, Vec<(usize, String)>> {
     let mut indice: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
     for (turma_idx, (_, turma)) in turmas.iter().enumerate() {
         if let Some(alunos) = &turma.alunos {
@@ -3454,7 +4262,9 @@ fn destinos_aluno_mapao(
         if !alvos.is_empty() && !alvos.contains(&turma_idx) {
             continue;
         }
-        let Some(alunos) = &turma.alunos else { continue };
+        let Some(alunos) = &turma.alunos else {
+            continue;
+        };
         for (matricula, info) in alunos {
             if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
                 continue;
@@ -3686,7 +4496,10 @@ fn analisar_arquivo_mapao(
                     continue;
                 }
                 let destinos = destinos_aluno_mapao(aluno, indice, &alvos, turmas);
-                if destinos.is_empty() && !aluno.nome.chars().any(char::is_alphabetic) && aluno_mapao_sem_medias(aluno) {
+                if destinos.is_empty()
+                    && !aluno.nome.chars().any(char::is_alphabetic)
+                    && aluno_mapao_sem_medias(aluno)
+                {
                     continue;
                 }
                 alunos_lidos += 1;
@@ -3734,7 +4547,8 @@ fn analisar_arquivo_mapao(
 
 fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
     let cursor = Cursor::new(bytes.to_vec());
-    let mut workbook: Xlsx<_> = open_workbook_from_rs(cursor).map_err(|err: XlsxError| err.to_string())?;
+    let mut workbook: Xlsx<_> =
+        open_workbook_from_rs(cursor).map_err(|err: XlsxError| err.to_string())?;
     let sheet_name = workbook
         .sheet_names()
         .first()
@@ -3750,8 +4564,12 @@ fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         .enumerate()
         .position(|(idx, linha)| linha_parece_cabecalho_mapao(linha, linhas.get(idx + 1)))
         .ok_or_else(|| "Cabeçalho de alunos não encontrado no mapão. Use a versão com nome, número ou nome e número.".to_string())?;
-    let cabecalho_alunos = localizar_colunas_aluno_mapao(&linhas[linha_inicio], linhas.get(linha_inicio + 1))
-        .ok_or_else(|| "Não foi possível identificar a coluna de aluno ou número de chamada no mapão.".to_string())?;
+    let cabecalho_alunos =
+        localizar_colunas_aluno_mapao(&linhas[linha_inicio], linhas.get(linha_inicio + 1))
+            .ok_or_else(|| {
+                "Não foi possível identificar a coluna de aluno ou número de chamada no mapão."
+                    .to_string()
+            })?;
 
     let mut linha_freq = None;
     let mut col_frequencia = None;
@@ -3772,7 +4590,8 @@ fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
             break;
         }
     }
-    let linha_freq = linha_freq.ok_or_else(|| "Coluna 'Fre An(%)' não encontrada no mapão.".to_string())?;
+    let linha_freq =
+        linha_freq.ok_or_else(|| "Coluna 'Fre An(%)' não encontrada no mapão.".to_string())?;
 
     let cabecalho = &linhas[linha_inicio];
     let mut disciplinas = Vec::new();
@@ -3840,8 +4659,14 @@ fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         for disciplina in &disciplinas {
             disciplinas_lidas.insert(disciplina.nome.clone());
             let media = linha.get(disciplina.media_col).and_then(numero_celula);
-            let faltas = disciplina.faltas_col.and_then(|col| linha.get(col)).and_then(numero_celula);
-            let compensacao = disciplina.compensacao_col.and_then(|col| linha.get(col)).and_then(numero_celula);
+            let faltas = disciplina
+                .faltas_col
+                .and_then(|col| linha.get(col))
+                .and_then(numero_celula);
+            let compensacao = disciplina
+                .compensacao_col
+                .and_then(|col| linha.get(col))
+                .and_then(numero_celula);
             disciplinas_aluno.push((disciplina.clone(), media, faltas, compensacao));
         }
         alunos.push(AlunoMapao {
@@ -3877,7 +4702,9 @@ fn localizar_colunas_bloco(
             }
         }
         let texto = rotulos.join(" | ");
-        if rotulos.iter().any(|item| item == "AC") || (texto.contains("COMP") && (texto.contains("AUS") || texto.contains("FALT"))) {
+        if rotulos.iter().any(|item| item == "AC")
+            || (texto.contains("COMP") && (texto.contains("AUS") || texto.contains("FALT")))
+        {
             compensacao_col = Some(coluna);
         } else if texto.contains("FALT") && faltas_col.is_none() {
             faltas_col = Some(coluna);
@@ -3902,16 +4729,28 @@ struct ColunasAlunoMapao {
 
 fn linha_parece_cabecalho_mapao(linha: &Vec<Data>, proxima_linha: Option<&Vec<Data>>) -> bool {
     let rotulos = linha.iter().map(rotulo_celula).collect::<Vec<_>>();
-    let tem_aluno = rotulos.iter().any(|rotulo| rotulo == "ALUNO" || rotulo.contains("NOME"));
+    let tem_aluno = rotulos
+        .iter()
+        .any(|rotulo| rotulo == "ALUNO" || rotulo.contains("NOME"));
     let tem_numero = rotulos.iter().any(|rotulo| rotulo_numero_chamada(rotulo))
         || proxima_linha
-            .map(|linha| linha.iter().map(rotulo_celula).any(|rotulo| rotulo_numero_chamada(&rotulo)))
+            .map(|linha| {
+                linha
+                    .iter()
+                    .map(rotulo_celula)
+                    .any(|rotulo| rotulo_numero_chamada(&rotulo))
+            })
             .unwrap_or(false);
-    let tem_disciplina = linha.iter().any(|celula| texto_celula(Some(celula)).contains('\n'));
+    let tem_disciplina = linha
+        .iter()
+        .any(|celula| texto_celula(Some(celula)).contains('\n'));
     (tem_aluno || tem_numero) && tem_disciplina
 }
 
-fn localizar_colunas_aluno_mapao(linha: &[Data], subcabecalho: Option<&Vec<Data>>) -> Option<ColunasAlunoMapao> {
+fn localizar_colunas_aluno_mapao(
+    linha: &[Data],
+    subcabecalho: Option<&Vec<Data>>,
+) -> Option<ColunasAlunoMapao> {
     let mut nome_col = None;
     let mut numero_col = None;
     let mut status_col = None;
@@ -3927,10 +4766,9 @@ fn localizar_colunas_aluno_mapao(linha: &[Data], subcabecalho: Option<&Vec<Data>
     }
     if numero_col.is_none() {
         if let Some(subcabecalho) = subcabecalho {
-            numero_col = subcabecalho
-                .iter()
-                .enumerate()
-                .find_map(|(col, celula)| rotulo_numero_chamada(&rotulo_celula(celula)).then_some(col));
+            numero_col = subcabecalho.iter().enumerate().find_map(|(col, celula)| {
+                rotulo_numero_chamada(&rotulo_celula(celula)).then_some(col)
+            });
         }
     }
 
@@ -3967,7 +4805,9 @@ fn extrair_aulas_disciplina(
         for coluna in inicio..=fim {
             let texto = linha
                 .get(coluna)
-                .map(|celula| normalizar_texto_basico_preservando_pontuacao(&texto_celula(Some(celula))))
+                .map(|celula| {
+                    normalizar_texto_basico_preservando_pontuacao(&texto_celula(Some(celula)))
+                })
                 .unwrap_or_default();
             if !texto.contains("AULAS DADAS") {
                 continue;
@@ -3993,14 +4833,20 @@ fn inserir_valor_bimestre(
     let raiz = info
         .entry(campo.to_string())
         .or_insert_with(|| Value::Object(serde_json::Map::new()));
-    let Some(raiz) = raiz.as_object_mut() else { return };
+    let Some(raiz) = raiz.as_object_mut() else {
+        return;
+    };
     let por_bimestre = raiz
         .entry(bimestre.to_string())
         .or_insert_with(|| Value::Object(serde_json::Map::new()));
-    let Some(por_bimestre) = por_bimestre.as_object_mut() else { return };
+    let Some(por_bimestre) = por_bimestre.as_object_mut() else {
+        return;
+    };
     por_bimestre.insert(
         disciplina.to_string(),
-        serde_json::Number::from_f64(valor).map(Value::Number).unwrap_or(Value::Null),
+        serde_json::Number::from_f64(valor)
+            .map(Value::Number)
+            .unwrap_or(Value::Null),
     );
 }
 
@@ -4018,7 +4864,12 @@ fn numero_celula(celula: &Data) -> Option<f64> {
     match celula {
         Data::Float(valor) => Some(*valor),
         Data::Int(valor) => Some(*valor as f64),
-        Data::String(texto) => texto.replace('%', "").replace(',', ".").trim().parse::<f64>().ok(),
+        Data::String(texto) => texto
+            .replace('%', "")
+            .replace(',', ".")
+            .trim()
+            .parse::<f64>()
+            .ok(),
         _ => None,
     }
 }
@@ -4159,10 +5010,16 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
         }
 
         if ativo {
-            let nome = info.get("nome").and_then(Value::as_str).unwrap_or("").to_string();
+            let nome = info
+                .get("nome")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             match normalizar_lideranca_sala(info.get("lideranca_sala").and_then(Value::as_str)) {
                 Some(cargo) if cargo == "lider" && lider_sala.is_none() => lider_sala = Some(nome),
-                Some(cargo) if cargo == "vice" && vice_lider_sala.is_none() => vice_lider_sala = Some(nome),
+                Some(cargo) if cargo == "vice" && vice_lider_sala.is_none() => {
+                    vice_lider_sala = Some(nome)
+                }
                 _ => {}
             }
         }
@@ -4225,7 +5082,9 @@ fn aluno_tem_deficiencias(info: &Value) -> bool {
 fn normalizar_lideranca_sala(valor: Option<&str>) -> Option<String> {
     match valor.unwrap_or("").trim().to_ascii_lowercase().as_str() {
         "lider" | "líder" => Some("lider".to_string()),
-        "vice" | "vice_lider" | "vice-lider" | "vice líder" | "vice lider" => Some("vice".to_string()),
+        "vice" | "vice_lider" | "vice-lider" | "vice líder" | "vice lider" => {
+            Some("vice".to_string())
+        }
         _ => None,
     }
 }
@@ -4260,11 +5119,18 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
             .get("elegivel_manual")
             .and_then(Value::as_bool)
             .unwrap_or_else(|| aluno_tem_deficiencias(&info));
-        let lideranca_sala = normalizar_lideranca_sala(info.get("lideranca_sala").and_then(Value::as_str));
+        let lideranca_sala =
+            normalizar_lideranca_sala(info.get("lideranca_sala").and_then(Value::as_str));
         let deficiencias = info
             .get("deficiencias")
             .and_then(Value::as_array)
-            .map(|lista| lista.iter().filter_map(Value::as_str).map(str::to_string).collect::<Vec<_>>())
+            .map(|lista| {
+                lista
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
             .map(|lista| normalizar_lista_deficiencias(&lista))
             .unwrap_or_default();
         let comentario_educacao_especial = info
@@ -4567,7 +5433,10 @@ fn extrair_disciplinas(
     let aulas = carga_horaria.get(bimestre).and_then(Value::as_object);
     let mut nomes = BTreeSet::new();
 
-    for mapa in [medias, frequencia, ajustes, aulas, medias_5c].into_iter().flatten() {
+    for mapa in [medias, frequencia, ajustes, aulas, medias_5c]
+        .into_iter()
+        .flatten()
+    {
         for nome in mapa.keys() {
             nomes.insert(nome.clone());
         }
@@ -4657,7 +5526,8 @@ fn extrair_disciplinas(
                 faltas,
                 total_aulas,
                 faltas_acumuladas: (total_aulas_acumuladas > 0.0).then_some(faltas_acumuladas),
-                total_aulas_acumuladas: (total_aulas_acumuladas > 0.0).then_some(total_aulas_acumuladas),
+                total_aulas_acumuladas: (total_aulas_acumuladas > 0.0)
+                    .then_some(total_aulas_acumuladas),
                 historico_bimestres,
                 situacao,
             }
@@ -4722,6 +5592,8 @@ fn main() {
             abrir_relatorio_professores,
             listar_documentos_conselho,
             abrir_documento_conselho,
+            gerar_relatorio_alunos_criticos,
+            gerar_relatorio_alteracoes_notas,
             salvar_finalizacao_conselho
         ])
         .run(tauri::generate_context!())
