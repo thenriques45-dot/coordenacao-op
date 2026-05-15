@@ -549,6 +549,53 @@ h3 {
   padding-bottom: 22px;
 }
 
+.council-documents-panel {
+  margin-top: 18px;
+}
+
+.council-document-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.council-document-list button {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  color: #101828;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  min-height: 48px;
+  padding: 10px 14px;
+  text-align: left;
+}
+
+.council-document-list button:hover {
+  border-color: #b9c4d4;
+}
+
+.council-document-list span {
+  font-weight: 700;
+}
+
+.council-document-list strong {
+  background: #edf1f4;
+  border-radius: 999px;
+  color: #52616a;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.council-document-list em {
+  color: #52616a;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
 .summary-selector {
   border-bottom: 1px solid #e5ebef;
   padding-bottom: 24px;
@@ -1224,24 +1271,6 @@ h3 {
   margin-top: auto;
 }
 
-.turma-card.conselho-card .council-state {
-  margin-bottom: 18px;
-}
-
-.turma-card.conselho-finalizado {
-  background: #dcfce7;
-  border-color: #86efac;
-}
-
-.turma-card.conselho-finalizado .details-action {
-  background: #16a34a;
-  color: #ffffff;
-}
-
-.turma-card.conselho-finalizado .details-action:hover {
-  background: #15803d;
-}
-
 .turma-card-actions {
   display: flex;
   gap: 14px;
@@ -1297,27 +1326,6 @@ h3 {
 
 .turma-card-meta .class-leaders-line strong {
   display: block;
-}
-
-.council-state {
-  align-items: center;
-  border-radius: 999px;
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 700;
-  justify-content: center;
-  padding: 7px 12px;
-  width: fit-content;
-}
-
-.council-state.done {
-  background: #bbf7d0;
-  color: #166534;
-}
-
-.council-state.pending {
-  background: #fef3c7;
-  color: #92400e;
 }
 
 .meta-line {
@@ -1806,9 +1814,152 @@ h3 {
 .student-profile-tabs button {
   background: transparent;
   border: 0;
-  border-bottom: 2px solid #050512;
+  border-bottom: 2px solid transparent;
+  color: #667085;
   font-weight: 800;
   padding: 0 16px 12px;
+}
+
+.student-profile-tabs button.active {
+  border-bottom-color: #050512;
+  color: #050316;
+}
+
+.special-education-panel {
+  display: grid;
+  gap: 18px;
+  margin-top: 26px;
+}
+
+.special-education-panel h3,
+.special-education-panel p {
+  margin: 0;
+}
+
+.special-education-panel p {
+  color: #667085;
+}
+
+.special-condition-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.special-condition-grid button {
+  background: #edf1f4;
+  border: 1px solid #dbe3ea;
+  border-radius: 8px;
+  color: #52616a;
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.special-condition-grid button.selected {
+  background: #dff3e5;
+  border-color: #bfe8cb;
+  color: #276749;
+}
+
+.empty-special-list {
+  background: #f8fafc;
+  border: 1px dashed #cfd6e3;
+  border-radius: 8px;
+  color: #667085;
+  font-weight: 700;
+  padding: 14px;
+  width: 100%;
+}
+
+.import-menu-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  margin-top: 26px;
+}
+
+.import-menu-card {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  color: #101828;
+  display: flex;
+  gap: 16px;
+  min-height: 126px;
+  padding: 24px;
+  text-align: left;
+}
+
+.import-menu-card:hover {
+  border-color: #b9c4d4;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+}
+
+.import-menu-card svg {
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.import-menu-card strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.import-menu-card span {
+  color: #52616a;
+  line-height: 1.45;
+}
+
+.special-add-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.special-add-row input,
+.special-comment textarea {
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  color: #101828;
+}
+
+.special-add-row input {
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.special-add-row button,
+.special-actions button {
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.special-comment {
+  color: #344054;
+  display: grid;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.special-comment textarea {
+  min-height: 130px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.special-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .student-performance-grid {
@@ -2101,6 +2252,73 @@ th:nth-child(3) {
   font-size: 13px;
   font-weight: 700;
   padding: 5px 9px;
+}
+
+.grade-history-cell {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
+  position: relative;
+}
+
+.grade-trend {
+  align-items: center;
+  background: #edf1f4;
+  border: 0;
+  border-radius: 999px;
+  color: #52616a;
+  display: inline-flex;
+  height: 24px;
+  justify-content: center;
+  padding: 0;
+  width: 24px;
+}
+
+.grade-trend.subiu {
+  background: var(--tag-good-bg);
+  color: var(--tag-good-text);
+}
+
+.grade-trend.desceu {
+  background: var(--tag-bad-bg);
+  color: var(--tag-bad-text);
+}
+
+.grade-trend.estavel {
+  background: var(--tag-warning-bg);
+  color: var(--tag-warning-text);
+}
+
+.grade-trend:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.grade-history-popover {
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  box-shadow: 0 16px 38px rgba(16, 24, 40, 0.16);
+  display: grid;
+  gap: 6px;
+  left: 50%;
+  min-width: 210px;
+  padding: 12px;
+  position: absolute;
+  text-align: left;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  z-index: 20;
+}
+
+.grade-history-popover strong {
+  color: #101828;
+}
+
+.grade-history-popover span {
+  color: #52616a;
+  font-size: 13px;
 }
 
 .frequency-low {

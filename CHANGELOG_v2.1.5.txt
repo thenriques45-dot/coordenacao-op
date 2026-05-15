@@ -1,0 +1,10 @@
+v2.1.5 - Educação especial e importação de mapões
+
+- Adicionada aba "Educação Especial" na tela individual de alunos elegíveis.
+- Condições especiais podem ser selecionadas como botões, novas condições podem ser criadas e comentários complementares podem ser salvos.
+- A tela de conselho agora reúne atas e relatórios no botão "Documentação de conselho", listando documentos por bimestre.
+- Removido o marcador "conselho finalizado/não finalizado" da tela de seleção de conselho.
+- Adicionado indicador de evolução por disciplina na tela de conselho, com histórico bimestral em balão flutuante.
+- Importadores foram agrupados no menu "Importar Dados".
+- O importador de mapões agora reconhece versões com nome, apenas número, ou nome e número do aluno.
+- Corrigida a leitura de blocos com "Nº/M/F/AC" para preservar médias, faltas e ausências compensadas corretamente.

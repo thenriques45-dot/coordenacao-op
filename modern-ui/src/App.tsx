@@ -1,4 +1,6 @@
 import {
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   CalendarClock,
@@ -9,6 +11,7 @@ import {
   GraduationCap,
   Home,
   Menu,
+  Minus,
   Pencil,
   Plus,
   Search,
@@ -25,7 +28,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "configuracoes";
 
 const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
@@ -46,7 +49,13 @@ type Disciplina = {
   totalAulas?: number | null;
   faltasAcumuladas?: number | null;
   totalAulasAcumuladas?: number | null;
+  historicoBimestres?: NotaBimestre[];
   situacao: "adequada" | "abaixo" | "cuidado" | "sem-nota" | "ajustada";
+};
+
+type NotaBimestre = {
+  bimestre: string;
+  media: number;
 };
 
 type Aluno = {
@@ -55,6 +64,8 @@ type Aluno = {
   nome: string;
   elegivel: boolean;
   liderancaSala?: "lider" | "vice" | null;
+  deficiencias: string[];
+  comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
   disciplinas: Disciplina[];
@@ -103,6 +114,12 @@ type BackupResultado = {
   backup_seguranca: string | null;
 };
 
+type DocumentoConselho = {
+  tipo: "ata" | "relatorio";
+  bimestre: string;
+  caminho: string;
+};
+
 type AtualizacaoInfo = {
   versao_atual: string;
   versao_disponivel: string | null;
@@ -117,6 +134,8 @@ type AlunoApi = {
   numero_chamada: number | null;
   elegivel: boolean;
   lideranca_sala: "lider" | "vice" | null;
+  deficiencias: string[];
+  comentario_educacao_especial: string | null;
   frequencia_percentual: number | null;
   encaminhamentos: number[];
   disciplinas: DisciplinaApi[];
@@ -132,6 +151,7 @@ type DisciplinaApi = {
   total_aulas: number | null;
   faltas_acumuladas: number | null;
   total_aulas_acumuladas: number | null;
+  historico_bimestres?: NotaBimestre[];
   situacao: Disciplina["situacao"];
 };
 
@@ -217,6 +237,13 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.1.5": [
+    "Aba Educação Especial na tela individual do aluno elegível, com condições selecionáveis e comentário complementar.",
+    "Documentação de conselho reunida em um único botão, listando atas e relatórios por bimestre.",
+    "Importadores agrupados no menu Importar Dados.",
+    "Importação de mapões adaptada para arquivos com nome, apenas número, ou nome e número do aluno.",
+    "Indicador de evolução das disciplinas na tela de conselho, com histórico bimestral ao clicar.",
+  ],
   "2.1.4": [
     "Nova tela “O que há de novidade” exibida uma vez após a atualização do programa.",
     "Lista de mudanças da versão apresentada diretamente ao abrir o CoordenacaoOP.",
@@ -230,6 +257,8 @@ const alunosDemo: Aluno[] = [
     chamada: 7,
     nome: "ANA CLARA MARTINS DOS SANTOS",
     elegivel: true,
+    deficiencias: ["Aluno elegível"],
+    comentarioEducacaoEspecial: "",
     frequencia: 86,
     encaminhamentos: [3, 9],
     disciplinas: [
@@ -244,6 +273,8 @@ const alunosDemo: Aluno[] = [
     chamada: 12,
     nome: "BRUNO HENRIQUE ALMEIDA",
     elegivel: false,
+    deficiencias: [],
+    comentarioEducacaoEspecial: "",
     frequencia: 92,
     encaminhamentos: [5],
     disciplinas: [
@@ -401,6 +432,30 @@ function classeTextoNota(nota: number | null | undefined) {
   return `grade-value ${classeNota(nota)}`;
 }
 
+type EvolucaoDisciplina = "subiu" | "desceu" | "estavel" | "sem-dados";
+
+function calcularEvolucaoDisciplina(disciplina: Disciplina, bimestreAtual: string): EvolucaoDisciplina {
+  const notaAtual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
+  if (typeof notaAtual !== "number" || !Number.isFinite(notaAtual)) {
+    return "sem-dados";
+  }
+
+  const atual = Number(bimestreAtual);
+  const historico = (disciplina.historicoBimestres ?? [])
+    .filter((item) => typeof item.media === "number" && Number.isFinite(item.media));
+  const referencias = historico.filter((item) => Number(item.bimestre) < atual);
+  const base = referencias.length ? referencias : historico.filter((item) => item.bimestre !== bimestreAtual);
+  if (!base.length) {
+    return "sem-dados";
+  }
+
+  const mediaHistorica = base.reduce((total, item) => total + item.media, 0) / base.length;
+  const diferenca = notaAtual - mediaHistorica;
+  if (diferenca > 0.05) return "subiu";
+  if (diferenca < -0.05) return "desceu";
+  return "estavel";
+}
+
 function rotuloClassificacao(aluno: Aluno) {
   const status = classificarAluno(aluno);
   if (status === "critico") return "Critico";
@@ -479,6 +534,8 @@ export function App() {
       nome: aluno.nome,
       elegivel: aluno.elegivel,
       liderancaSala: aluno.lideranca_sala,
+      deficiencias: aluno.deficiencias ?? [],
+      comentarioEducacaoEspecial: aluno.comentario_educacao_especial,
       frequencia: aluno.frequencia_percentual,
       encaminhamentos: aluno.encaminhamentos,
       disciplinas: aluno.disciplinas.map((disciplina) => ({
@@ -491,6 +548,7 @@ export function App() {
         totalAulas: disciplina.total_aulas,
         faltasAcumuladas: disciplina.faltas_acumuladas,
         totalAulasAcumuladas: disciplina.total_aulas_acumuladas,
+        historicoBimestres: disciplina.historico_bimestres ?? [],
         situacao: disciplina.situacao,
       })),
     }));
@@ -665,6 +723,23 @@ export function App() {
     });
   }
 
+  function salvarEducacaoEspecialAluno(matricula: string, deficiencias: string[], comentario: string) {
+    if (!turmaSelecionada || !turmaDetalhe) {
+      return Promise.reject(new Error("Selecione uma turma antes de salvar educação especial."));
+    }
+    return invoke<TurmaDetalhe>("salvar_educacao_especial_aluno", {
+      caminho: turmaSelecionada.caminho,
+      matricula,
+      input: { deficiencias, comentario },
+      bimestre: turmaDetalhe.bimestre,
+    }).then((detalheAtualizado) => {
+      setTurmaDetalhe(detalheAtualizado);
+      return invoke<TurmaResumo[]>("listar_turmas")
+        .then(setTurmas)
+        .catch(() => {});
+    });
+  }
+
   function criarTurma(payload: NovaTurmaPayload) {
     return invoke<TurmaResumo>("criar_turma", { input: payload }).then((novaTurma) => {
       setTurmas((atuais) => [...atuais, novaTurma].sort((a, b) => (a.ano - b.ano) || a.codigo.localeCompare(b.codigo, "pt-BR")));
@@ -764,8 +839,7 @@ export function App() {
         <nav className="nav-list">
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
-          <NavButton icon={<Upload size={18} />} label="Importar Notas" active={tela === "importar-notas"} onClick={() => navegarPara("importar-notas")} />
-          <NavButton icon={<Check size={18} />} label="Importar Elegíveis" active={tela === "importar-elegiveis"} onClick={() => navegarPara("importar-elegiveis")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<FileText size={18} />} label="Relatorios" active={tela === "relatorios"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
@@ -835,6 +909,13 @@ export function App() {
             onSalvarCoordenador={salvarCoordenadorTurma}
             onSalvarElegibilidade={salvarElegibilidadeAluno}
             onSalvarLideranca={salvarLiderancaAluno}
+            onSalvarEducacaoEspecial={salvarEducacaoEspecialAluno}
+          />
+        )}
+        {tela === "importar-dados" && (
+          <ImportarDados
+            onImportarNotas={() => navegarPara("importar-notas")}
+            onImportarElegiveis={() => navegarPara("importar-elegiveis")}
           />
         )}
         {tela === "importar-notas" && (
@@ -866,7 +947,7 @@ export function App() {
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1090,12 +1171,15 @@ function Council({
   setModoReuniao: (ativo: boolean) => void;
 }) {
   const [disciplinaEditando, setDisciplinaEditando] = useState<string | null>(null);
+  const [disciplinaHistoricoAberta, setDisciplinaHistoricoAberta] = useState<string | null>(null);
   const [valorEdicao, setValorEdicao] = useState("");
   const [erroEdicao, setErroEdicao] = useState("");
   const [salvandoDisciplina, setSalvandoDisciplina] = useState<string | null>(null);
   const [erroEncaminhamento, setErroEncaminhamento] = useState("");
   const [salvandoEncaminhamento, setSalvandoEncaminhamento] = useState<number | null>(null);
-  const [documentoAbrindo, setDocumentoAbrindo] = useState<"ata" | "relatorio" | null>(null);
+  const [documentosAbertos, setDocumentosAbertos] = useState(false);
+  const [documentosConselho, setDocumentosConselho] = useState<DocumentoConselho[]>([]);
+  const [documentoAbrindo, setDocumentoAbrindo] = useState<string | null>(null);
   const [mensagemDocumento, setMensagemDocumento] = useState("");
   const [alunosDeliberados, setAlunosDeliberados] = useState<Set<string>>(() => new Set());
   const [filtroAlunos, setFiltroAlunos] = useState<"todos" | "critico" | "atencao">("todos");
@@ -1164,20 +1248,34 @@ function Council({
     setFinalizacaoAberta(true);
   }
 
-  function abrirDocumentoConselho(tipo: "ata" | "relatorio") {
+  function alternarDocumentacaoConselho() {
     if (!turmaSelecionada || !turmaDetalhe) {
       setMensagemDocumento("Selecione uma turma e um bimestre antes de abrir o documento.");
       return;
     }
-
-    const comando = tipo === "ata" ? "abrir_ata" : "abrir_relatorio_professores";
+    if (documentosAbertos) {
+      setDocumentosAbertos(false);
+      return;
+    }
     setMensagemDocumento("");
-    setDocumentoAbrindo(tipo);
-    invoke<string>(comando, {
+    invoke<DocumentoConselho[]>("listar_documentos_conselho", {
       caminho: turmaSelecionada.caminho,
-      bimestre: turmaDetalhe.bimestre,
     })
-      .then(() => setMensagemDocumento(tipo === "ata" ? "Ata aberta." : "Relatório dos professores aberto."))
+      .then((documentos) => {
+        setDocumentosConselho(documentos);
+        setDocumentosAbertos(true);
+        if (!documentos.length) {
+          setMensagemDocumento("Nenhuma documentação de conselho gerada para esta turma.");
+        }
+      })
+      .catch((error) => setMensagemDocumento(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirDocumentoConselho(documento: DocumentoConselho) {
+    setMensagemDocumento("");
+    setDocumentoAbrindo(documento.caminho);
+    invoke<string>("abrir_documento_conselho", { input: { caminho: documento.caminho } })
+      .then(() => setMensagemDocumento(`${documento.tipo === "ata" ? "Ata" : "Relatório"} aberto.`))
       .catch((error) => setMensagemDocumento(error instanceof Error ? error.message : String(error)))
       .finally(() => setDocumentoAbrindo(null));
   }
@@ -1283,18 +1381,11 @@ function Council({
                 Modo reuniao
               </button>
               <button
-                onClick={() => abrirDocumentoConselho("ata")}
-                disabled={documentoAbrindo !== null || !turmaSelecionada || !turmaDetalhe}
-              >
-                <FileText size={18} />
-                {documentoAbrindo === "ata" ? "Abrindo..." : "Abrir ata"}
-              </button>
-              <button
-                onClick={() => abrirDocumentoConselho("relatorio")}
-                disabled={documentoAbrindo !== null || !turmaSelecionada || !turmaDetalhe}
+                onClick={alternarDocumentacaoConselho}
+                disabled={!turmaSelecionada || !turmaDetalhe}
               >
                 <ClipboardList size={18} />
-                {documentoAbrindo === "relatorio" ? "Abrindo..." : "Abrir relatório"}
+                Documentação de conselho
               </button>
             </>
           )}
@@ -1303,6 +1394,39 @@ function Council({
 
       {mensagemDocumento && !modoReuniao && (
         <div className="data-warning neutral">{mensagemDocumento}</div>
+      )}
+
+      {documentosAbertos && !modoReuniao && (
+        <section className="panel council-documents-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Documentação de conselho</h3>
+              <p>Atas e relatórios já gerados para esta turma.</p>
+            </div>
+            <button type="button" className="ghost-action" onClick={() => setDocumentosAbertos(false)}>
+              Fechar
+            </button>
+          </div>
+          {documentosConselho.length > 0 ? (
+            <div className="council-document-list">
+              {documentosConselho.map((documento) => (
+                <button
+                  key={`${documento.tipo}-${documento.bimestre}-${documento.caminho}`}
+                  type="button"
+                  onClick={() => abrirDocumentoConselho(documento)}
+                  disabled={documentoAbrindo !== null}
+                >
+                  <FileText size={18} />
+                  <span>{documento.tipo === "ata" ? "Ata" : "Relatório dos professores"}</span>
+                  <strong>{rotuloBimestre(documento.bimestre)}</strong>
+                  {documentoAbrindo === documento.caminho && <em>Abrindo...</em>}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-special-list">Nenhum documento foi gerado para esta turma.</div>
+          )}
+        </section>
       )}
 
       {!modoReuniao && <section className="panel council-summary-panel">
@@ -1436,10 +1560,43 @@ function Council({
                   </tr>
                 </thead>
                 <tbody>
-                  {aluno.disciplinas.map((disciplina) => (
+                  {aluno.disciplinas.map((disciplina) => {
+                    const evolucao = calcularEvolucaoDisciplina(disciplina, bimestreSelecionado);
+                    const historicoAberto = disciplinaHistoricoAberta === disciplina.nome;
+                    const historico = disciplina.historicoBimestres ?? [];
+                    return (
                     <tr key={disciplina.nome}>
                       <td>{disciplina.nome}</td>
-                      <td>{formatarNota(disciplina.mediaOriginal)}</td>
+                      <td>
+                        <div className="grade-history-cell">
+                          <button
+                            type="button"
+                            className={`grade-trend ${evolucao}`}
+                            onClick={() => setDisciplinaHistoricoAberta(historicoAberto ? null : disciplina.nome)}
+                            disabled={!historico.length}
+                            title="Ver histórico bimestral da disciplina"
+                          >
+                            {evolucao === "subiu" && <ArrowUpRight size={16} />}
+                            {evolucao === "desceu" && <ArrowDownRight size={16} />}
+                            {(evolucao === "estavel" || evolucao === "sem-dados") && <Minus size={16} />}
+                          </button>
+                          <span>{formatarNota(disciplina.mediaOriginal)}</span>
+                          {historicoAberto && (
+                            <div className="grade-history-popover">
+                              <strong>{disciplina.nome}</strong>
+                              {historico.length ? (
+                                historico.map((item) => (
+                                  <span key={`${disciplina.nome}-${item.bimestre}`}>
+                                    {rotuloBimestre(item.bimestre)}: <b>{formatarNota(item.media)}</b>
+                                  </span>
+                                ))
+                              ) : (
+                                <span>Sem histórico bimestral.</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td
                         className="editable-grade-cell"
                         onDoubleClick={() => iniciarEdicaoConselho(disciplina)}
@@ -1478,7 +1635,8 @@ function Council({
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1563,7 +1721,7 @@ function SelecaoConselho({
       <section className="turmas-card-grid">
         {turmasFiltradas.map((turma) => (
           <article
-            className={`turma-card conselho-card ${turma.conselho_finalizado ? "conselho-finalizado" : ""}`}
+            className="turma-card conselho-card"
             key={turma.caminho}
           >
             <div className="turma-card-main">
@@ -1590,13 +1748,10 @@ function SelecaoConselho({
               <span>
                 Elegíveis: <strong>{turma.alunos_elegiveis}</strong>
               </span>
-              <span className={`council-state ${turma.conselho_finalizado ? "done" : "pending"}`}>
-                {turma.conselho_finalizado ? "Ata e relatório gerados" : "Conselho não finalizado"}
-              </span>
             </div>
 
             <button className="details-action" onClick={() => onSelecionar(turma)}>
-              {turma.conselho_finalizado ? "Abrir conselho" : "Iniciar conselho"}
+              Abrir conselho
             </button>
           </article>
         ))}
@@ -1860,6 +2015,7 @@ function GestaoTurma({
   onSalvarCoordenador,
   onSalvarElegibilidade,
   onSalvarLideranca,
+  onSalvarEducacaoEspecial,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
@@ -1868,6 +2024,7 @@ function GestaoTurma({
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
+  onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas">("alunos");
   const [busca, setBusca] = useState("");
@@ -1876,6 +2033,13 @@ function GestaoTurma({
   const [salvandoElegivel, setSalvandoElegivel] = useState<string | null>(null);
   const [salvandoLideranca, setSalvandoLideranca] = useState<string | null>(null);
   const [alunoAberto, setAlunoAberto] = useState<Aluno | null>(null);
+  const catalogoDeficiencias = useMemo(() => {
+    const itens = new Set<string>();
+    alunos.forEach((aluno) => aluno.deficiencias.forEach((item) => {
+      if (item.trim()) itens.add(item.trim());
+    }));
+    return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [alunos]);
 
   useEffect(() => {
     setCoordenador(turma?.coordenador_turma ?? "");
@@ -1949,6 +2113,8 @@ function GestaoTurma({
           aluno={alunoAberto}
           bimestre={turmaDetalhe?.bimestre ?? "1"}
           onVoltar={() => setAlunoAberto(null)}
+          catalogoDeficiencias={catalogoDeficiencias}
+          onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
         />
       </>
     );
@@ -2120,11 +2286,22 @@ function AlunoDetalheGestao({
   aluno,
   bimestre,
   onVoltar,
+  catalogoDeficiencias,
+  onSalvarEducacaoEspecial,
 }: {
   aluno: Aluno;
   bimestre: string;
   onVoltar: () => void;
+  catalogoDeficiencias: string[];
+  onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
 }) {
+  const [aba, setAba] = useState<"desempenho" | "educacao">("desempenho");
+  const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
+  const [comentario, setComentario] = useState(aluno.comentarioEducacaoEspecial ?? "");
+  const [novaCondicao, setNovaCondicao] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
   const status = classificarAluno(aluno);
   const mediaAluno = calcularMediaAluno(aluno);
   const bimestreAtual = Math.max(1, Math.min(4, Number.parseInt(bimestre, 10) || 1));
@@ -2150,6 +2327,41 @@ function AlunoDetalheGestao({
       pontos,
     };
   });
+  const opcoesDeficiencia = useMemo(() => {
+    const itens = new Set([...catalogoDeficiencias, ...deficienciasSelecionadas].map((item) => item.trim()).filter(Boolean));
+    return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [catalogoDeficiencias, deficienciasSelecionadas]);
+
+  useEffect(() => {
+    setAba("desempenho");
+    setDeficienciasSelecionadas(aluno.deficiencias);
+    setComentario(aluno.comentarioEducacaoEspecial ?? "");
+    setNovaCondicao("");
+    setMensagem("");
+    setErro("");
+  }, [aluno.matricula]);
+
+  function alternarDeficiencia(item: string) {
+    setDeficienciasSelecionadas((atuais) => atuais.includes(item) ? atuais.filter((valor) => valor !== item) : [...atuais, item]);
+  }
+
+  function adicionarCondicao() {
+    const texto = novaCondicao.trim();
+    if (!texto) return;
+    setDeficienciasSelecionadas((atuais) => atuais.some((item) => item.toLocaleLowerCase("pt-BR") === texto.toLocaleLowerCase("pt-BR")) ? atuais : [...atuais, texto]);
+    setNovaCondicao("");
+  }
+
+  function salvarEducacaoEspecial() {
+    if (!aluno.matricula) return;
+    setSalvando(true);
+    setMensagem("");
+    setErro("");
+    onSalvarEducacaoEspecial(aluno.matricula, deficienciasSelecionadas, comentario)
+      .then(() => setMensagem("Informações de educação especial salvas."))
+      .catch((err) => setErro(String(err)))
+      .finally(() => setSalvando(false));
+  }
 
   return (
     <section className="panel student-profile-panel">
@@ -2163,9 +2375,14 @@ function AlunoDetalheGestao({
       </header>
 
       <div className="student-profile-tabs">
-        <button className="active">Desempenho</button>
+        <button className={aba === "desempenho" ? "active" : ""} onClick={() => setAba("desempenho")}>Desempenho</button>
+        {aluno.elegivel && (
+          <button className={aba === "educacao" ? "active" : ""} onClick={() => setAba("educacao")}>Educação Especial</button>
+        )}
       </div>
 
+      {aba === "desempenho" && (
+      <>
       <section className="student-performance-grid">
         <article className="student-subject-evolution">
           <div className="student-chart-heading">
@@ -2251,7 +2468,95 @@ function AlunoDetalheGestao({
         <h3>Parecer do Conselho - {bimestreAtual}º Bimestre</h3>
         <textarea placeholder="Digite aqui as observações e deliberações do conselho de classe..." />
       </section>
+      </>
+      )}
+
+      {aba === "educacao" && aluno.elegivel && (
+        <section className="special-education-panel">
+          <div>
+            <h3>Condições registradas</h3>
+            <p>Marque as condições que devem ficar registradas na gestão da turma. Essas informações não aparecem na tela projetada do conselho.</p>
+          </div>
+          <div className="special-condition-grid">
+            {opcoesDeficiencia.length ? opcoesDeficiencia.map((item) => (
+              <button
+                key={item}
+                className={deficienciasSelecionadas.includes(item) ? "selected" : ""}
+                onClick={() => alternarDeficiencia(item)}
+                type="button"
+              >
+                {item}
+              </button>
+            )) : (
+              <span className="empty-special-list">Nenhuma condição cadastrada ainda. Crie uma nova condição abaixo.</span>
+            )}
+          </div>
+          <div className="special-add-row">
+            <input
+              value={novaCondicao}
+              onChange={(event) => setNovaCondicao(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") adicionarCondicao();
+              }}
+              placeholder="Adicionar nova condição"
+            />
+            <button type="button" onClick={adicionarCondicao}>Adicionar</button>
+          </div>
+          <label className="special-comment">
+            Comentário complementar
+            <textarea
+              value={comentario}
+              onChange={(event) => setComentario(event.target.value)}
+              placeholder="Registre orientações internas, observações pedagógicas ou informações complementares necessárias."
+            />
+          </label>
+          <div className="special-actions">
+            <button className="primary-action" onClick={salvarEducacaoEspecial} disabled={salvando}>
+              {salvando ? "Salvando..." : "Salvar educação especial"}
+            </button>
+            {mensagem && <span className="success-text">{mensagem}</span>}
+            {erro && <span className="danger-text">{erro}</span>}
+          </div>
+        </section>
+      )}
     </section>
+  );
+}
+
+function ImportarDados({
+  onImportarNotas,
+  onImportarElegiveis,
+}: {
+  onImportarNotas: () => void;
+  onImportarElegiveis: () => void;
+}) {
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Importar dados</h1>
+          <p>Reúna aqui os arquivos vindos da SED e dos mapões.</p>
+        </div>
+      </header>
+
+      <section className="import-menu-grid">
+        <button type="button" className="import-menu-card" onClick={onImportarNotas}>
+          <Upload size={24} />
+          <div>
+            <strong>Importar notas</strong>
+            <span>Leia mapões em lote e atualize notas, faltas e aulas dadas.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarElegiveis}>
+          <Check size={24} />
+          <div>
+            <strong>Importar elegíveis</strong>
+            <span>Atualize a lista de estudantes elegíveis e suas condições cadastradas.</span>
+          </div>
+        </button>
+      </section>
+    </>
   );
 }
 
@@ -3536,6 +3841,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     dashboard: "Dashboard",
     turmas: "Turmas",
     "gestao-turma": "Gestão de Turma",
+    "importar-dados": "Importar Dados",
     "importar-notas": "Importar Notas",
     "importar-elegiveis": "Importar Elegíveis",
     conselhos: "Conselhos",

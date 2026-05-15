@@ -147,7 +147,7 @@ jobs:
       - name: Prepare release notes
         run: |
           cat > artifacts/RELEASE_NOTES.txt <<'EOF'
-          CoordenacaoOP 2.1.4 adiciona a tela O que ha de novidade apos atualizacoes.
+          CoordenacaoOP ${{ github.ref_name }} publica melhorias e correcoes da modern-ui.
 
           Esta release publica os instaladores Tauri para Windows e Linux, o pacote portable Windows, assinaturas do updater e latest.json para autoatualizacao.
           EOF

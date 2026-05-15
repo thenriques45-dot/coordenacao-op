@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "coordenacaoop"
-version = "2.1.4"
+version = "2.1.5"
 dependencies = [
  "calamine",
  "chrono",
