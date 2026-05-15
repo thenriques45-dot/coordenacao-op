@@ -119,6 +119,7 @@ struct TurmaResumo {
     total_alunos: usize,
     alunos_ativos: usize,
     alunos_elegiveis: usize,
+    nomes_alunos: Vec<String>,
     conselhos_com_ajustes: usize,
     conselho_finalizado: bool,
     caminho: String,
@@ -4994,11 +4995,17 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
     let mut conselhos_com_ajustes = 0;
     let mut lider_sala = None;
     let mut vice_lider_sala = None;
+    let mut nomes_alunos = Vec::new();
 
     for info in alunos.values() {
         let ativo = info.get("ativo").and_then(Value::as_bool).unwrap_or(true);
         if ativo {
             alunos_ativos += 1;
+            if let Some(nome) = info.get("nome").and_then(Value::as_str) {
+                if !nome.trim().is_empty() {
+                    nomes_alunos.push(nome.trim().to_string());
+                }
+            }
         }
 
         let elegivel = info
@@ -5040,6 +5047,7 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
             conselhos_com_ajustes += 1;
         }
     }
+    nomes_alunos.sort_by(|a, b| a.cmp(b));
 
     TurmaResumo {
         codigo: formatar_rotulo_turma_texto(&turma.codigo),
@@ -5054,6 +5062,7 @@ fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
         total_alunos,
         alunos_ativos,
         alunos_elegiveis,
+        nomes_alunos,
         conselhos_com_ajustes,
         conselho_finalizado,
         caminho: caminho.to_string_lossy().to_string(),

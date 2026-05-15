@@ -84,6 +84,7 @@ type TurmaResumo = {
   total_alunos: number;
   alunos_ativos: number;
   alunos_elegiveis: number;
+  nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
   caminho: string;
@@ -252,6 +253,10 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.1.7": [
+    "A busca nas telas de Turmas e Conselho agora também localiza turmas pelo nome dos alunos.",
+    "A busca ficou mais tolerante a acentos, permitindo encontrar João ao digitar Joao.",
+  ],
   "2.1.6": [
     "Relatório de Alunos Críticos disponível na central de relatórios.",
     "Novo relatório Alterações de Notas Pós-Conselho para comparar decisões do conselho com o último mapão importado.",
@@ -1749,7 +1754,7 @@ function SelecaoConselho({
           <input
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar turma ou coordenador de sala..."
+            placeholder="Buscar turma, coordenador ou aluno..."
           />
         </label>
       </section>
@@ -1805,7 +1810,7 @@ function SelecaoConselho({
 }
 
 function filtrarTurmas(turmas: TurmaResumo[], busca: string) {
-  const termo = busca.trim().toLocaleLowerCase("pt-BR");
+  const termo = normalizarBusca(busca);
   if (!termo) {
     return turmas;
   }
@@ -1820,9 +1825,21 @@ function filtrarTurmas(turmas: TurmaResumo[], busca: string) {
       turma.sala ?? "",
       turma.periodo ?? "",
       turma.ciclo ?? "",
+      turma.coordenador_turma ?? "",
+      turma.lider_sala ?? "",
+      turma.vice_lider_sala ?? "",
+      ...(turma.nomes_alunos ?? []),
     ];
-    return campos.some((campo) => campo.toLocaleLowerCase("pt-BR").includes(termo));
+    return campos.some((campo) => normalizarBusca(campo).includes(termo));
   });
+}
+
+function normalizarBusca(valor: string) {
+  return valor
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function rotuloSerie(valor?: string | null) {
@@ -3439,7 +3456,7 @@ function Turmas({
           <input
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
-            placeholder="Buscar turma ou coordenador de sala..."
+            placeholder="Buscar turma, coordenador ou aluno..."
           />
         </label>
         <label className="series-filter">

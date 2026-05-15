@@ -1,0 +1,4 @@
+v2.1.7 - Busca por aluno nas turmas
+
+- A busca nas telas de Turmas e Conselho agora também considera os nomes dos alunos ativos de cada sala.
+- A busca foi ajustada para ignorar acentos, permitindo localizar alunos e turmas mesmo com digitação simplificada.
