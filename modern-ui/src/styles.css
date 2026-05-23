@@ -117,6 +117,37 @@ select:disabled {
   color: #ffffff;
 }
 
+.nav-group {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-group-toggle span {
+  flex: 1;
+}
+
+.nav-submenu {
+  background: #1c1c2b;
+  border: 1px solid #2f2f42;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  margin: 0 0 2px;
+  padding: 8px;
+}
+
+.nav-submenu .nav-item {
+  color: #d9dced;
+  height: 42px;
+  padding-left: 12px;
+}
+
+.nav-submenu .nav-item.active,
+.nav-submenu .nav-item:hover {
+  background: #333247;
+  color: #ffffff;
+}
+
 .profile-box {
   align-items: center;
   border-top: 1px solid #222235;
@@ -471,6 +502,70 @@ h3 {
 
 .kanban-dashboard-task.baixa em {
   background: #13c65c;
+}
+
+.timeline-dashboard-panel {
+  gap: 14px;
+}
+
+.next-date-card,
+.timeline-row {
+  border: 1px solid #dde3ec;
+  width: 100%;
+}
+
+.next-date-card {
+  align-items: center;
+  background: #eef6ff;
+  border-color: #b9d4ff;
+  border-radius: 8px;
+  color: #101828;
+  display: flex;
+  justify-content: space-between;
+  min-height: 112px;
+  padding: 18px;
+  text-align: left;
+}
+
+.next-date-card span,
+.next-date-card small {
+  color: #667085;
+  display: block;
+  font-weight: 700;
+}
+
+.next-date-card strong {
+  display: block;
+  font-size: 20px;
+  margin: 6px 0;
+}
+
+.next-date-card em {
+  background: #2f78ff;
+  border-radius: 999px;
+  color: #ffffff;
+  font-style: normal;
+  font-weight: 800;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.timeline-row {
+  align-items: center;
+  background: #ffffff;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 64px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.timeline-dot {
+  border-radius: 999px;
+  height: 10px;
+  width: 10px;
 }
 
 .student-strip {
@@ -2953,6 +3048,359 @@ th:nth-child(3) {
   overflow-wrap: anywhere;
 }
 
+.calendar-page {
+  min-width: 0;
+}
+
+.calendar-layout {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  margin-top: 32px;
+}
+
+.calendar-panel,
+.calendar-agenda {
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+}
+
+.calendar-panel {
+  padding: 18px;
+}
+
+.calendar-month-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.calendar-month-header h2 {
+  font-size: 22px;
+  text-transform: capitalize;
+}
+
+.calendar-month-header button,
+.calendar-item-actions button,
+.calendar-empty-day {
+  align-items: center;
+  background: #f5f7fb;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  color: #344054;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+}
+
+.calendar-month-header button {
+  height: 36px;
+  width: 36px;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-weekdays span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 8px 8px;
+  text-transform: uppercase;
+}
+
+.calendar-grid {
+  border-left: 1px solid #e4e9f0;
+  border-top: 1px solid #e4e9f0;
+}
+
+.calendar-day {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 0;
+  border-bottom: 1px solid #e4e9f0;
+  border-right: 1px solid #e4e9f0;
+  color: #101828;
+  display: grid;
+  gap: 8px;
+  grid-template-rows: auto minmax(14px, 1fr) auto;
+  min-height: 108px;
+  padding: 10px;
+  text-align: left;
+}
+
+.calendar-day:hover,
+.calendar-day.selected {
+  background: #eef6ff;
+}
+
+.calendar-day.muted {
+  color: #98a2b3;
+}
+
+.calendar-day strong {
+  font-size: 14px;
+}
+
+.calendar-day div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.calendar-day div span {
+  border-radius: 999px;
+  height: 8px;
+  width: 8px;
+}
+
+.calendar-day em {
+  color: #667085;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.calendar-agenda {
+  align-content: start;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.calendar-agenda .panel-heading {
+  border-bottom: 1px solid #e4e9f0;
+  padding-bottom: 14px;
+}
+
+.calendar-agenda .panel-heading span {
+  color: #667085;
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.calendar-agenda-list {
+  display: grid;
+  gap: 12px;
+}
+
+.calendar-agenda-item {
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 14px;
+}
+
+.calendar-agenda-item.clickable {
+  cursor: pointer;
+}
+
+.calendar-agenda-item.clickable:hover {
+  background: #f8fbff;
+}
+
+.calendar-item-dot {
+  border-radius: 999px;
+  height: 10px;
+  margin-top: 5px;
+  width: 10px;
+}
+
+.calendar-agenda-item small,
+.calendar-agenda-item p {
+  color: #667085;
+}
+
+.calendar-agenda-item small {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.calendar-agenda-item p {
+  margin: 6px 0 0;
+}
+
+.calendar-linked-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.calendar-linked-tasks span,
+.calendar-linked-tasks button,
+.kanban-linked-meta span {
+  background: #eef6ff;
+  border: 1px solid #b9d4ff;
+  border-radius: 999px;
+  color: #1e4f9a;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
+.calendar-linked-tasks button {
+  font: inherit;
+}
+
+.calendar-item-actions {
+  display: flex;
+  gap: 6px;
+  grid-column: 2;
+  justify-content: flex-end;
+}
+
+.calendar-item-actions button,
+.calendar-item-actions span {
+  min-height: 30px;
+  padding: 0 9px;
+}
+
+.calendar-item-actions span {
+  align-items: center;
+  color: #667085;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.calendar-empty-day {
+  min-height: 52px;
+  padding: 0 14px;
+  width: 100%;
+}
+
+.calendar-hide-linked {
+  align-items: center;
+  color: #667085;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+}
+
+.calendar-hide-linked input {
+  height: 16px;
+  width: 16px;
+}
+
+.calendar-link-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendar-link-suggestions button {
+  background: #f5f7fb;
+  border: 1px solid #dde3ec;
+  border-radius: 999px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.linked-tasks-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 20px;
+}
+
+.linked-task-list {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 300px));
+  justify-content: start;
+}
+
+.linked-task-card {
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-left: 4px solid #13c65c;
+  border-radius: 8px;
+  color: #101828;
+  display: grid;
+  gap: 14px;
+  min-height: 156px;
+  padding: 14px 16px;
+  text-align: left;
+  width: 100%;
+}
+
+.linked-task-card:hover {
+  background: #f8fbff;
+}
+
+.linked-task-card.alta {
+  border-left-color: #f04438;
+}
+
+.linked-task-card.media {
+  border-left-color: #f2aa00;
+}
+
+.linked-task-card strong,
+.linked-task-card span,
+.linked-task-card small {
+  display: block;
+}
+
+.linked-task-card span,
+.linked-task-card small {
+  color: #667085;
+  margin-top: 4px;
+}
+
+.linked-task-card time {
+  color: #344054;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.calendar-color-picker {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.calendar-color-picker button {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  height: 26px;
+  width: 26px;
+}
+
+.calendar-color-picker button.selected {
+  border-color: #080819;
+}
+
+.kanban-linked-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kanban-linked-meta span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
 .kanban-page {
   min-width: 0;
 }
@@ -3073,6 +3521,8 @@ th:nth-child(3) {
 
 .kanban-column.drag-active {
   background: #fbfcff;
+  border-color: #b9d4ff;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .kanban-column-header {
@@ -3229,10 +3679,24 @@ th:nth-child(3) {
   display: grid;
   gap: 12px;
   padding: 16px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.kanban-task-card:hover {
+  border-color: #b9d4ff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
 }
 
 .kanban-task-card:active {
   cursor: grabbing;
+  opacity: 0.72;
+  transform: rotate(1deg) scale(0.99);
 }
 
 .kanban-card-title-row {
@@ -3536,6 +4000,10 @@ th:nth-child(3) {
     grid-template-columns: repeat(3, minmax(160px, 1fr));
   }
 
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .council-detail-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3654,6 +4122,7 @@ th:nth-child(3) {
 
   .council-topbar,
   .kanban-page .topbar,
+  .calendar-page .topbar,
   .student-detail-header,
   .bottom-actions {
     align-items: stretch;
@@ -3674,8 +4143,18 @@ th:nth-child(3) {
   }
 
   .kanban-metrics,
-  .kanban-form-grid {
+  .kanban-form-grid,
+  .calendar-weekdays,
+  .calendar-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendar-weekdays {
+    display: none;
+  }
+
+  .calendar-day {
+    min-height: 72px;
   }
 
   .council-summary-panel,
@@ -3749,6 +4228,16 @@ th:nth-child(3) {
 .theme-dark .activity-row span,
 .theme-dark .activity-row time,
 .theme-dark .council-card span,
+.theme-dark .next-date-card span,
+.theme-dark .next-date-card small,
+.theme-dark .calendar-weekdays span,
+.theme-dark .calendar-day em,
+.theme-dark .calendar-hide-linked,
+.theme-dark .calendar-agenda .panel-heading span,
+.theme-dark .calendar-agenda-item small,
+.theme-dark .calendar-agenda-item p,
+.theme-dark .linked-task-card span,
+.theme-dark .linked-task-card small,
 .theme-dark .kanban-metric-card span,
 .theme-dark .kanban-task-card p,
 .theme-dark .kanban-task-card footer,
@@ -3763,6 +4252,10 @@ th:nth-child(3) {
 .theme-dark .metric-card,
 .theme-dark .student-strip,
 .theme-dark .summary-grid article,
+.theme-dark .calendar-panel,
+.theme-dark .calendar-agenda,
+.theme-dark .calendar-agenda-item,
+.theme-dark .linked-task-card,
 .theme-dark .kanban-metric-card,
 .theme-dark .kanban-column,
 .theme-dark .kanban-task-card,
@@ -3789,6 +4282,10 @@ th:nth-child(3) {
 
 .theme-dark .kanban-column.drag-active,
 .theme-dark .kanban-card-menu button:hover,
+.theme-dark .calendar-day:hover,
+.theme-dark .calendar-day.selected,
+.theme-dark .calendar-agenda-item.clickable:hover,
+.theme-dark .linked-task-card:hover,
 .theme-dark .student-table-row:hover,
 .theme-dark .import-menu-card:hover,
 .theme-dark .report-menu-card:hover {
@@ -3797,6 +4294,10 @@ th:nth-child(3) {
 
 .theme-dark .kanban-column-header,
 .theme-dark .activity-row,
+.theme-dark .timeline-row,
+.theme-dark .calendar-grid,
+.theme-dark .calendar-day,
+.theme-dark .calendar-agenda .panel-heading,
 .theme-dark .meeting-topbar,
 .theme-dark .table-panel th,
 .theme-dark .table-panel td,
@@ -3807,6 +4308,11 @@ th:nth-child(3) {
 
 .theme-dark .secondary-action,
 .theme-dark .panel-heading button,
+.theme-dark .calendar-month-header button,
+.theme-dark .calendar-item-actions button,
+.theme-dark .calendar-item-actions span,
+.theme-dark .calendar-empty-day,
+.theme-dark .calendar-link-suggestions button,
 .theme-dark .bottom-actions button,
 .theme-dark .placeholder-actions button,
 .theme-dark .council-actions button,
@@ -3864,10 +4370,52 @@ th:nth-child(3) {
 
 .theme-dark .kanban-file-picker.highlight,
 .theme-dark .kanban-top-actions .secondary-action.selected,
+.theme-dark .next-date-card,
+.theme-dark .calendar-linked-tasks span,
+.theme-dark .calendar-linked-tasks button,
+.theme-dark .kanban-linked-meta span,
 .theme-dark .data-warning.neutral {
   background: #17314d;
   border-color: #3794ff;
   color: #cfe7ff;
+}
+
+.theme-dark .calendar-day,
+.theme-dark .timeline-row {
+  background: #252526;
+  color: #f3f4f6;
+}
+
+.theme-dark .calendar-day.muted {
+  color: #7f8794;
+}
+
+.theme-dark .calendar-color-picker button.selected {
+  border-color: #f3f4f6;
+}
+
+.theme-dark .nav-submenu {
+  background: #181824;
+  border-color: #383747;
+}
+
+.theme-dark .whats-new-modal {
+  background: #252526;
+  border: 1px solid #4a4a50;
+  color: #f3f4f6;
+}
+
+.theme-dark .whats-new-modal p,
+.theme-dark .whats-new-modal li {
+  color: #d9dde7;
+}
+
+.theme-dark .whats-new-modal .eyebrow {
+  color: #a6adbb;
+}
+
+.theme-dark .linked-task-card time {
+  color: #d9dde7;
 }
 
 .theme-dark .kanban-alert,

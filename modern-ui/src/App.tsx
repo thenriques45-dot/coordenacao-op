@@ -6,6 +6,8 @@ import {
   CalendarDays,
   CalendarClock,
   Check,
+  ChevronDown,
+  ChevronRight,
   ClipboardList,
   Clock,
   Download,
@@ -37,7 +39,16 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { Fragment, type DragEvent, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
+
+const tauriDisponivel = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+function invokeApp<T>(cmd: string, args?: Record<string, unknown>) {
+  if (!tauriDisponivel) {
+    return Promise.reject(new Error("Recurso disponível apenas no aplicativo desktop."));
+  }
+  return invoke<T>(cmd, args);
+}
 
 const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
@@ -277,6 +288,15 @@ type KanbanColuna = {
   cor: string;
 };
 
+type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
+
+type RecurrenceRule = {
+  frequency: RecurrenceFrequency;
+  interval: number;
+  weekdays?: number[];
+  until?: string;
+};
+
 type KanbanTarefa = {
   id: string;
   titulo: string;
@@ -286,10 +306,48 @@ type KanbanTarefa = {
   prazo: string;
   prioridade: KanbanPrioridade;
   status: KanbanStatus;
+  ordem?: number;
   anexos?: KanbanAnexo[];
+  eventId?: string;
+  vinculo?: string;
+  recorrencia?: RecurrenceRule;
+};
+
+type CalendarEvent = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  categoria: string;
+  cor: string;
+  prioridade: KanbanPrioridade;
+  vinculo: string;
+  recorrencia?: RecurrenceRule;
+};
+
+type TimelineItem = {
+  id: string;
+  origemId: string;
+  tipo: "evento" | "tarefa";
+  titulo: string;
+  descricao: string;
+  data: string;
+  hora?: string;
+  cor: string;
+  prioridade: KanbanPrioridade;
+  status?: KanbanStatus;
+  eventId?: string;
+  recorrente?: boolean;
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.0": [
+    "Novo Calendário de Gestão com eventos, recorrências e tarefas do Kanban em uma visão temporal unificada.",
+    "Tarefas agora podem ser associadas a eventos, alunos e turmas, com abas próprias nas telas de aluno e turma.",
+    "Quadro Kanban ganhou reordenação manual por arraste, ordenação automática por prazo e submenu dedicado na barra lateral.",
+  ],
   "2.2.0": [
     "Novo Quadro de Gestão em formato Kanban, com tarefas, etiquetas, anexos e colunas personalizáveis.",
     "Tema escuro com alternância rápida pela barra lateral.",
@@ -568,6 +626,7 @@ const proximosConselhos = [
 
 const KANBAN_STORAGE_KEY = "coordenacaoop:quadro-kanban:v1";
 const KANBAN_COLUMNS_STORAGE_KEY = "coordenacaoop:quadro-kanban-colunas:v1";
+const CALENDAR_STORAGE_KEY = "coordenacaoop:calendario-gestao:v1";
 
 const colunasKanbanPadrao: KanbanColuna[] = [
   { id: "fazer", titulo: "A Fazer", cor: "#2f78ff" },
@@ -577,6 +636,7 @@ const colunasKanbanPadrao: KanbanColuna[] = [
 ];
 
 const coresKanban = ["#2f78ff", "#f2aa00", "#a844f5", "#13c65c", "#f04438", "#14b8a6", "#64748b"];
+const coresCalendario = ["#3794ff", "#13c65c", "#f2aa00", "#a844f5", "#f04438", "#14b8a6", "#64748b"];
 
 const tarefasKanbanIniciais: KanbanTarefa[] = [
   {
@@ -661,6 +721,34 @@ const tarefasKanbanIniciais: KanbanTarefa[] = [
   },
 ];
 
+const eventosCalendarioIniciais: CalendarEvent[] = [
+  {
+    id: "evento-1",
+    titulo: "Conselho da 1ª Série A",
+    descricao: "Reunião de acompanhamento e deliberações do bimestre.",
+    data: "2026-05-26",
+    horaInicio: "14:00",
+    horaFim: "16:00",
+    categoria: "Conselho",
+    cor: "#3794ff",
+    prioridade: "alta",
+    vinculo: "1ª Série A",
+  },
+  {
+    id: "evento-2",
+    titulo: "Reunião pedagógica",
+    descricao: "Alinhamento semanal da equipe de coordenação.",
+    data: "2026-05-29",
+    horaInicio: "10:00",
+    horaFim: "11:00",
+    categoria: "Reunião",
+    cor: "#13c65c",
+    prioridade: "media",
+    vinculo: "Geral",
+    recorrencia: { frequency: "weekly", interval: 1, weekdays: [5] },
+  },
+];
+
 const opcoesBimestre = [
   { valor: "1", rotulo: "1º bimestre" },
   { valor: "2", rotulo: "2º bimestre" },
@@ -688,6 +776,7 @@ export function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
+  const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
   const alunosConselho = useMemo(() => {
     if (!turmaDetalhe?.alunos.length) {
       return alunosDemo;
@@ -726,6 +815,11 @@ export function App() {
   }, [temaEscuro]);
 
   useEffect(() => {
+    localStorage.setItem("coordenacaoop:menu-gestao", gestaoMenuAberto ? "aberto" : "fechado");
+  }, [gestaoMenuAberto]);
+
+  useEffect(() => {
+    if (!tauriDisponivel) return;
     check()
       .then((update) => {
         if (update) {
@@ -736,7 +830,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    invoke<AppInfo>("app_info")
+    invokeApp<AppInfo>("app_info")
       .then((info) => {
         setAppInfo(info);
         const chave = `coordenacaoop:novidades-lidas:${info.version}`;
@@ -768,14 +862,16 @@ export function App() {
         }
       });
       setStatusAtualizacao("Atualização instalada. Reiniciando...");
-      await relaunch();
+      if (tauriDisponivel) {
+        await relaunch();
+      }
     } catch (err) {
       setStatusAtualizacao(`Não foi possível atualizar automaticamente: ${String(err)}`);
     }
   }
 
   useEffect(() => {
-    invoke<TurmaResumo[]>("listar_turmas")
+    invokeApp<TurmaResumo[]>("listar_turmas")
       .then((resultado) => {
         setTurmas(resultado);
         setErroTurmas("");
@@ -792,7 +888,7 @@ export function App() {
     }
 
     setIndiceAluno(0);
-    invoke<TurmaDetalhe>("carregar_turma", {
+    invokeApp<TurmaDetalhe>("carregar_turma", {
       caminho: turmaSelecionada.caminho,
       bimestre: bimestreSelecionado,
     })
@@ -822,7 +918,7 @@ export function App() {
       return Promise.reject(new Error("Selecione uma turma antes de salvar ajustes."));
     }
 
-    return invoke<TurmaDetalhe>("salvar_ajustes_media", {
+    return invokeApp<TurmaDetalhe>("salvar_ajustes_media", {
       caminho: turmaSelecionada.caminho,
       matricula: aluno.matricula,
       bimestre: turmaDetalhe.bimestre,
@@ -837,7 +933,7 @@ export function App() {
       return Promise.reject(new Error("Selecione uma turma antes de salvar encaminhamentos."));
     }
 
-    return invoke<TurmaDetalhe>("salvar_encaminhamentos", {
+    return invokeApp<TurmaDetalhe>("salvar_encaminhamentos", {
       caminho: turmaSelecionada.caminho,
       matricula: aluno.matricula,
       bimestre: turmaDetalhe.bimestre,
@@ -851,13 +947,13 @@ export function App() {
     if (!turmaSelecionada) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar o coordenador."));
     }
-    return invoke<TurmaDetalhe>("salvar_coordenador_turma", {
+    return invokeApp<TurmaDetalhe>("salvar_coordenador_turma", {
       caminho: turmaSelecionada.caminho,
       input: { coordenador },
     }).then((detalheAtualizado) => {
       setTurmaDetalhe(detalheAtualizado);
       setTurmaSelecionada((atual) => atual ? { ...atual, coordenador_turma: detalheAtualizado.coordenador_turma } : atual);
-      return invoke<TurmaResumo[]>("listar_turmas")
+      return invokeApp<TurmaResumo[]>("listar_turmas")
         .then((resumoAtualizado) => {
           setTurmas(resumoAtualizado);
           setTurmaSelecionada((atual) => resumoAtualizado.find((item) => item.caminho === atual?.caminho) ?? atual);
@@ -870,7 +966,7 @@ export function App() {
     if (!turmaSelecionada || !turmaDetalhe) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar elegibilidade."));
     }
-    return invoke<TurmaDetalhe>("salvar_elegibilidade_aluno", {
+    return invokeApp<TurmaDetalhe>("salvar_elegibilidade_aluno", {
       caminho: turmaSelecionada.caminho,
       matricula,
       input: { elegivel },
@@ -882,14 +978,14 @@ export function App() {
     if (!turmaSelecionada || !turmaDetalhe) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar liderança."));
     }
-    return invoke<TurmaDetalhe>("salvar_lideranca_aluno", {
+    return invokeApp<TurmaDetalhe>("salvar_lideranca_aluno", {
       caminho: turmaSelecionada.caminho,
       matricula,
       input: { lideranca },
       bimestre: turmaDetalhe.bimestre,
     }).then((detalheAtualizado) => {
       setTurmaDetalhe(detalheAtualizado);
-      return invoke<TurmaResumo[]>("listar_turmas")
+      return invokeApp<TurmaResumo[]>("listar_turmas")
         .then((resumoAtualizado) => {
           setTurmas(resumoAtualizado);
           setTurmaSelecionada((atual) => resumoAtualizado.find((item) => item.caminho === atual?.caminho) ?? atual);
@@ -902,27 +998,27 @@ export function App() {
     if (!turmaSelecionada || !turmaDetalhe) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar educação especial."));
     }
-    return invoke<TurmaDetalhe>("salvar_educacao_especial_aluno", {
+    return invokeApp<TurmaDetalhe>("salvar_educacao_especial_aluno", {
       caminho: turmaSelecionada.caminho,
       matricula,
       input: { deficiencias, comentario },
       bimestre: turmaDetalhe.bimestre,
     }).then((detalheAtualizado) => {
       setTurmaDetalhe(detalheAtualizado);
-      return invoke<TurmaResumo[]>("listar_turmas")
+      return invokeApp<TurmaResumo[]>("listar_turmas")
         .then(setTurmas)
         .catch(() => {});
     });
   }
 
   function criarTurma(payload: NovaTurmaPayload) {
-    return invoke<TurmaResumo>("criar_turma", { input: payload }).then((novaTurma) => {
+    return invokeApp<TurmaResumo>("criar_turma", { input: payload }).then((novaTurma) => {
       setTurmas((atuais) => [...atuais, novaTurma].sort((a, b) => (a.ano - b.ano) || a.codigo.localeCompare(b.codigo, "pt-BR")));
     });
   }
 
   function editarTurma(turma: TurmaResumo, payload: NovaTurmaPayload) {
-    return invoke<TurmaResumo>("editar_turma", { caminho: turma.caminho, input: payload }).then((turmaAtualizada) => {
+    return invokeApp<TurmaResumo>("editar_turma", { caminho: turma.caminho, input: payload }).then((turmaAtualizada) => {
       setTurmas((atuais) => atuais
         .map((item) => item.caminho === turma.caminho ? turmaAtualizada : item)
         .sort((a, b) => (a.ano - b.ano) || a.codigo.localeCompare(b.codigo, "pt-BR")));
@@ -931,7 +1027,7 @@ export function App() {
   }
 
   function excluirTurma(turma: TurmaResumo) {
-    return invoke<void>("excluir_turma", { caminho: turma.caminho }).then(() => {
+    return invokeApp<void>("excluir_turma", { caminho: turma.caminho }).then(() => {
       setTurmas((atuais) => atuais.filter((item) => item.caminho !== turma.caminho));
       setTurmaSelecionada((atual) => atual?.caminho === turma.caminho ? null : atual);
     });
@@ -976,7 +1072,7 @@ export function App() {
     setMenuAberto(false);
     if (proximaTela !== "conselho") {
       setModoReuniao(false);
-      invoke("definir_fullscreen", { ativo: false }).catch(() => {});
+      invokeApp("definir_fullscreen", { ativo: false }).catch(() => {});
     }
   }
 
@@ -1016,7 +1112,23 @@ export function App() {
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
-          <NavButton icon={<ClipboardList size={18} />} label="Quadro de Gestão" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
+          <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
+            <button
+              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" ? "active" : ""}`}
+              type="button"
+              onClick={() => setGestaoMenuAberto((atual) => !atual)}
+            >
+              <ClipboardList size={18} />
+              <span>Quadro de Gestão</span>
+              {gestaoMenuAberto ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {gestaoMenuAberto && (
+              <div className="nav-submenu">
+                <NavButton icon={<ClipboardList size={17} />} label="Quadro Kanban" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
+                <NavButton icon={<CalendarDays size={17} />} label="Calendário" active={tela === "calendario"} onClick={() => navegarPara("calendario")} />
+              </div>
+            )}
+          </div>
           <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
@@ -1047,6 +1159,7 @@ export function App() {
             onOpenCouncil={() => navegarPara("conselhos")}
             onOpenTurmas={() => navegarPara("turmas")}
             onOpenKanban={() => navegarPara("kanban")}
+            onOpenCalendario={() => navegarPara("calendario")}
           />
         )}
         {tela === "conselhos" && (
@@ -1087,7 +1200,7 @@ export function App() {
           }} />
         )}
         {tela === "gestao-turma" && (
-          <GestaoTurma
+            <GestaoTurma
             turma={turmaSelecionada}
             turmaDetalhe={turmaDetalhe}
             alunos={alunosConselho}
@@ -1096,6 +1209,7 @@ export function App() {
             onSalvarElegibilidade={salvarElegibilidadeAluno}
             onSalvarLideranca={salvarLiderancaAluno}
             onSalvarEducacaoEspecial={salvarEducacaoEspecialAluno}
+            onOpenKanban={() => navegarPara("kanban")}
           />
         )}
         {tela === "importar-dados" && (
@@ -1121,9 +1235,9 @@ export function App() {
         )}
         {tela === "importar-elegiveis" && (
           <ImportarElegiveis onImportado={() => {
-            invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+            invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
             if (turmaSelecionada) {
-              invoke<TurmaDetalhe>("carregar_turma", {
+              invokeApp<TurmaDetalhe>("carregar_turma", {
                 caminho: turmaSelecionada.caminho,
                 bimestre: bimestreSelecionado,
               }).then(setTurmaDetalhe).catch(() => {});
@@ -1131,8 +1245,9 @@ export function App() {
           }} />
         )}
         {tela === "kanban" && <QuadroKanban />}
+        {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
-          invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+          invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
           <RelatoriosMenu
@@ -1142,7 +1257,7 @@ export function App() {
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "kanban" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1211,18 +1326,21 @@ function Dashboard({
   onOpenCouncil,
   onOpenTurmas,
   onOpenKanban,
+  onOpenCalendario,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
   onOpenCouncil: () => void;
   onOpenTurmas: () => void;
   onOpenKanban: () => void;
+  onOpenCalendario: () => void;
 }) {
   const totalAlunos = turmas.reduce((total, turma) => total + turma.alunos_ativos, 0);
   const totalElegiveis = turmas.reduce((total, turma) => total + turma.alunos_elegiveis, 0);
   const ajustes = turmas.reduce((total, turma) => total + turma.conselhos_com_ajustes, 0);
-  const turmasRecentes = turmas.slice(0, 4);
   const proximasTarefas = useMemo(() => carregarTarefasKanbanDashboard(), []);
+  const proximasDatas = useMemo(() => montarLinhaDoTempo(carregarTarefasKanban(), carregarEventosCalendario(), 4), []);
+  const proximaData = proximasDatas[0];
 
   return (
     <>
@@ -1248,30 +1366,41 @@ function Dashboard({
       {erroTurmas && <div className="data-warning">{erroTurmas}</div>}
 
       <section className="dashboard-grid">
-        <div className="panel activity-panel">
+        <div className="panel activity-panel timeline-dashboard-panel">
           <div className="panel-heading">
-            <h3>Turmas recentes</h3>
-            <button onClick={onOpenTurmas}>Ver turmas</button>
+            <h3>Próximas datas</h3>
+            <button onClick={onOpenCalendario}>Ver calendário</button>
           </div>
-          {(turmasRecentes.length ? turmasRecentes : atividades).map((atividade) => (
-            "codigo" in atividade ? (
-            <div className="activity-row" key={atividade.caminho}>
+          {proximaData && (
+            <button className="next-date-card" type="button" onClick={onOpenCalendario}>
               <div>
-                <strong>{rotuloTurma(atividade)}</strong>
-                <span>{rotuloSerie(atividade.serie) || atividade.ciclo || "Turma sem série definida"}</span>
+                <span>Próximo dia relevante</span>
+                <strong>{proximaData.titulo}</strong>
+                <small>{formatarDataLonga(proximaData.data)}{proximaData.hora ? ` · ${proximaData.hora}` : ""}</small>
               </div>
-              <time>{atividade.ano}</time>
-            </div>
-            ) : (
-              <div className="activity-row" key={`${atividade.turma}-${atividade.descricao}`}>
-                <div>
-                  <strong>{atividade.turma}</strong>
-                  <span>{atividade.descricao}</span>
-                </div>
-                <time>{atividade.data}</time>
+              <em>{rotuloDiasAte(proximaData.data)}</em>
+            </button>
+          )}
+          {proximasDatas.slice(proximaData ? 1 : 0).map((item) => (
+            <button className="activity-row timeline-row" key={item.id} onClick={item.tipo === "tarefa" ? onOpenKanban : onOpenCalendario}>
+              <span className="timeline-dot" style={{ background: item.cor }} />
+              <div>
+                <strong>{item.titulo}</strong>
+                <span>{item.tipo === "tarefa" ? "Tarefa" : "Evento"}{item.recorrente ? " recorrente" : ""} · {item.descricao}</span>
               </div>
-            )
+              <time>{formatarDataCurta(item.data)}</time>
+            </button>
           ))}
+          {!proximasDatas.length && (
+            <button className="activity-row timeline-row" onClick={onOpenCalendario}>
+              <span className="timeline-dot" style={{ background: "#64748b" }} />
+              <div>
+                <strong>Nenhuma data futura</strong>
+                <span>Crie eventos ou adicione prazos às tarefas.</span>
+              </div>
+              <time>Agenda</time>
+            </button>
+          )}
         </div>
 
         <div className="panel upcoming-panel">
@@ -1281,13 +1410,13 @@ function Dashboard({
           </div>
           {proximasTarefas.map((item) => (
             <button className={`council-card kanban-dashboard-task ${item.prioridade}`} key={item.id} onClick={onOpenKanban}>
-              <div>
-                <strong>{item.titulo}</strong>
-                <span>{item.descricao}</span>
-                <small>{item.responsavel} · {formatarDataCurta(item.prazo)}</small>
-              </div>
-              <em>{rotuloPrioridade(item.prioridade)}</em>
-            </button>
+                <div>
+                  <strong>{item.titulo}</strong>
+                  <span>{item.descricao}</span>
+                  <small>{item.responsavel} · {formatarDataCurta(item.prazo)}</small>
+                </div>
+                <em>{rotuloPrioridade(item.prioridade)}</em>
+              </button>
           ))}
           {!proximasTarefas.length && (
             <button className="council-card kanban-dashboard-task baixa" onClick={onOpenKanban}>
@@ -1306,9 +1435,7 @@ function Dashboard({
 
 function carregarTarefasKanbanDashboard() {
   try {
-    const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
-    const tarefas = salvas ? JSON.parse(salvas) as KanbanTarefa[] : tarefasKanbanIniciais;
-    return tarefas
+    return carregarTarefasKanban()
       .filter((tarefa) => tarefa.status === "fazer")
       .sort((a, b) => a.prazo.localeCompare(b.prazo))
       .slice(0, 3);
@@ -1324,6 +1451,243 @@ function rotuloPrioridade(prioridade: KanbanPrioridade) {
   if (prioridade === "alta") return "Alta";
   if (prioridade === "media") return "Média";
   return "Baixa";
+}
+
+function carregarTarefasKanban() {
+  try {
+    const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
+    return salvas ? JSON.parse(salvas) as KanbanTarefa[] : tarefasKanbanIniciais;
+  } catch {
+    return tarefasKanbanIniciais;
+  }
+}
+
+function carregarEventosCalendario() {
+  try {
+    const salvos = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    return salvos ? JSON.parse(salvos) as CalendarEvent[] : eventosCalendarioIniciais;
+  } catch {
+    return eventosCalendarioIniciais;
+  }
+}
+
+function parseDataLocal(data: string) {
+  const [ano, mes, dia] = data.split("-").map(Number);
+  return new Date(ano, (mes || 1) - 1, dia || 1);
+}
+
+function formatarDataLonga(data: string) {
+  if (!data) return "";
+  return parseDataLocal(data).toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function chaveData(data: Date) {
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(2, "0");
+  return `${ano}-${mes}-${dia}`;
+}
+
+function adicionarMeses(data: Date, meses: number) {
+  const proxima = new Date(data);
+  proxima.setMonth(proxima.getMonth() + meses);
+  return proxima;
+}
+
+function diferencaDias(data: string) {
+  const hoje = new Date();
+  const base = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const alvo = parseDataLocal(data);
+  return Math.ceil((alvo.getTime() - base.getTime()) / 86400000);
+}
+
+function rotuloDiasAte(data: string) {
+  const dias = diferencaDias(data);
+  if (dias < 0) return `${Math.abs(dias)} dia(s) atrás`;
+  if (dias === 0) return "Hoje";
+  if (dias === 1) return "Amanhã";
+  return `Faltam ${dias} dias`;
+}
+
+function rotuloRecorrencia(regra?: RecurrenceRule) {
+  if (!regra) return "Não repetir";
+  const intervalo = regra.interval > 1 ? ` a cada ${regra.interval}` : "";
+  if (regra.frequency === "daily") return `Diariamente${intervalo}`;
+  if (regra.frequency === "weekly") return `Semanalmente${intervalo}`;
+  if (regra.frequency === "monthly") return `Mensalmente${intervalo}`;
+  return `Anualmente${intervalo}`;
+}
+
+function proximaOcorrencia(baseData: string, regra?: RecurrenceRule, limiteDias = 180) {
+  if (!regra) return baseData;
+  const hoje = new Date();
+  const inicio = parseDataLocal(baseData);
+  const limite = new Date(hoje);
+  limite.setDate(limite.getDate() + limiteDias);
+  let atual = inicio;
+  let tentativas = 0;
+
+  while (atual < hoje && atual <= limite && tentativas < 400) {
+    if (regra.frequency === "daily") {
+      atual = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + regra.interval);
+    } else if (regra.frequency === "weekly") {
+      atual = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + 7 * regra.interval);
+    } else if (regra.frequency === "monthly") {
+      atual = adicionarMeses(atual, regra.interval);
+    } else {
+      atual = new Date(atual.getFullYear() + regra.interval, atual.getMonth(), atual.getDate());
+    }
+    tentativas += 1;
+  }
+
+  if (regra.until && atual > parseDataLocal(regra.until)) return baseData;
+  return chaveData(atual);
+}
+
+function expandirOcorrencias(baseData: string, regra?: RecurrenceRule, limiteDias = 90) {
+  const inicio = parseDataLocal(baseData);
+  const fim = new Date();
+  fim.setDate(fim.getDate() + limiteDias);
+  const ocorrencias: string[] = [];
+  let atual = inicio;
+  let tentativas = 0;
+
+  while (atual <= fim && tentativas < 200) {
+    const chave = chaveData(atual);
+    if (!regra?.until || atual <= parseDataLocal(regra.until)) {
+      ocorrencias.push(chave);
+    }
+    if (!regra) break;
+    if (regra.frequency === "daily") {
+      atual = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + regra.interval);
+    } else if (regra.frequency === "weekly") {
+      atual = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + 7 * regra.interval);
+    } else if (regra.frequency === "monthly") {
+      atual = adicionarMeses(atual, regra.interval);
+    } else {
+      atual = new Date(atual.getFullYear() + regra.interval, atual.getMonth(), atual.getDate());
+    }
+    tentativas += 1;
+  }
+
+  return ocorrencias;
+}
+
+function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], limite = 8) {
+  const itens: TimelineItem[] = [
+    ...eventos.flatMap((evento) => expandirOcorrencias(evento.data, evento.recorrencia).map((data) => ({
+      id: `${evento.id}-${data}`,
+      origemId: evento.id,
+      tipo: "evento" as const,
+      titulo: evento.titulo,
+      descricao: evento.vinculo || evento.descricao,
+      data,
+      hora: evento.horaInicio,
+      cor: evento.cor,
+      prioridade: evento.prioridade,
+      recorrente: Boolean(evento.recorrencia),
+    }))),
+    ...tarefas.filter((tarefa) => tarefa.prazo).flatMap((tarefa) => expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).map((data) => ({
+      id: `${tarefa.id}-${data}`,
+      origemId: tarefa.id,
+      tipo: "tarefa" as const,
+      titulo: tarefa.titulo,
+      descricao: tarefa.responsavel,
+      data,
+      cor: tarefa.status === "fazer" ? "#2f78ff" : tarefa.status === "progresso" ? "#f2aa00" : tarefa.status === "revisao" ? "#a844f5" : "#13c65c",
+      prioridade: tarefa.prioridade,
+      status: tarefa.status,
+      eventId: tarefa.eventId,
+      recorrente: Boolean(tarefa.recorrencia),
+    }))),
+  ];
+
+  return itens
+    .filter((item) => diferencaDias(item.data) >= 0)
+    .sort((a, b) => `${a.data}${a.hora ?? ""}`.localeCompare(`${b.data}${b.hora ?? ""}`))
+    .slice(0, limite);
+}
+
+function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarEvent[], termos: string[]) {
+  const evento = eventos.find((item) => item.id === tarefa.eventId);
+  const texto = [
+    tarefa.titulo,
+    tarefa.descricao,
+    tarefa.responsavel,
+    tarefa.vinculo ?? "",
+    ...(tarefa.etiquetas ?? []),
+    evento?.titulo ?? "",
+    evento?.vinculo ?? "",
+  ].map(normalizarBusca).join(" ");
+  return termos.map(normalizarBusca).filter(Boolean).some((termo) => texto.includes(termo));
+}
+
+function tarefasPorVinculo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], termos: string[]) {
+  return tarefas
+    .filter((tarefa) => tarefaCombinaComVinculo(tarefa, eventos, termos))
+    .sort(ordenarPorPrazoECriacao);
+}
+
+function extrairOrdemCriacao(id: string) {
+  const numero = Number(id.replace(/\D+/g, ""));
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function ordenarPorPrazoECriacao(a: KanbanTarefa, b: KanbanTarefa) {
+  const porPrazo = a.prazo.localeCompare(b.prazo);
+  if (porPrazo !== 0) return porPrazo;
+  return extrairOrdemCriacao(a.id) - extrairOrdemCriacao(b.id);
+}
+
+function ordenarTarefasKanban(a: KanbanTarefa, b: KanbanTarefa) {
+  const aManual = typeof a.ordem === "number";
+  const bManual = typeof b.ordem === "number";
+  if (aManual && bManual && a.ordem !== b.ordem) {
+    return (a.ordem ?? 0) - (b.ordem ?? 0);
+  }
+  if (aManual !== bManual) {
+    return aManual ? -1 : 1;
+  }
+  return ordenarPorPrazoECriacao(a, b);
+}
+
+function reordenarColunaKanban(tarefas: KanbanTarefa[], colunaOrdenada: KanbanTarefa[], status: KanbanStatus) {
+  const ordemPorId = new Map(colunaOrdenada.map((tarefa, indice) => [tarefa.id, indice]));
+  return tarefas.map((tarefa) => {
+    const ordem = ordemPorId.get(tarefa.id);
+    if (ordem === undefined) {
+      return tarefa.status === status ? { ...tarefa, ordem: undefined } : tarefa;
+    }
+    return { ...tarefa, status, ordem };
+  });
+}
+
+function TaskLinkList({ tarefas, eventos, emptyText, onOpenKanban }: { tarefas: KanbanTarefa[]; eventos: CalendarEvent[]; emptyText: string; onOpenKanban: () => void }) {
+  if (!tarefas.length) {
+    return <div className="empty-special-list">{emptyText}</div>;
+  }
+  return (
+    <div className="linked-task-list">
+      {tarefas.map((tarefa) => {
+        const evento = eventos.find((item) => item.id === tarefa.eventId);
+        return (
+          <button key={tarefa.id} type="button" className={`linked-task-card ${tarefa.prioridade}`} onClick={onOpenKanban}>
+            <div>
+              <strong>{tarefa.titulo}</strong>
+              <span>{tarefa.descricao}</span>
+              {evento && <small>Parte de: {evento.titulo}</small>}
+              {tarefa.vinculo && <small>Vínculo: {tarefa.vinculo}</small>}
+            </div>
+            <time>{formatarDataCurta(tarefa.prazo)}</time>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function MetricCard({
@@ -1448,7 +1812,7 @@ function Council({
       const total = tempoBaseReuniao + Math.floor((Date.now() - inicioReuniao) / 1000);
       setTempoReuniao(total);
       if (turmaSelecionada && turmaDetalhe && total % 15 === 0) {
-        invoke("salvar_tempo_conselho", {
+        invokeApp("salvar_tempo_conselho", {
           caminho: turmaSelecionada.caminho,
           bimestre: turmaDetalhe.bimestre,
           tempoSegundos: total,
@@ -1465,12 +1829,12 @@ function Council({
     setInicioReuniao(agora);
     setTempoReuniao(acumulado);
     setModoReuniao(true);
-    invoke("definir_fullscreen", { ativo: true }).catch(() => {});
+    invokeApp("definir_fullscreen", { ativo: true }).catch(() => {});
   }
 
   function abrirFinalizacao() {
     if (turmaSelecionada && turmaDetalhe) {
-      invoke("salvar_tempo_conselho", {
+      invokeApp("salvar_tempo_conselho", {
         caminho: turmaSelecionada.caminho,
         bimestre: turmaDetalhe.bimestre,
         tempoSegundos: tempoReuniao,
@@ -1489,7 +1853,7 @@ function Council({
       return;
     }
     setMensagemDocumento("");
-    invoke<DocumentoConselho[]>("listar_documentos_conselho", {
+    invokeApp<DocumentoConselho[]>("listar_documentos_conselho", {
       caminho: turmaSelecionada.caminho,
     })
       .then((documentos) => {
@@ -1505,7 +1869,7 @@ function Council({
   function abrirDocumentoConselho(documento: DocumentoConselho) {
     setMensagemDocumento("");
     setDocumentoAbrindo(documento.caminho);
-    invoke<string>("abrir_documento_conselho", { input: { caminho: documento.caminho } })
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: documento.caminho } })
       .then(() => setMensagemDocumento(`${documento.tipo === "ata" ? "Ata" : "Relatório"} aberto.`))
       .catch((error) => setMensagemDocumento(error instanceof Error ? error.message : String(error)))
       .finally(() => setDocumentoAbrindo(null));
@@ -1514,7 +1878,7 @@ function Council({
   function sairModoReuniao() {
     setModoReuniao(false);
     setFinalizacaoAberta(false);
-    invoke("definir_fullscreen", { ativo: false }).catch(() => {});
+    invokeApp("definir_fullscreen", { ativo: false }).catch(() => {});
   }
 
   function iniciarEdicaoConselho(disciplina: Disciplina) {
@@ -2259,6 +2623,7 @@ function GestaoTurma({
   onSalvarElegibilidade,
   onSalvarLideranca,
   onSalvarEducacaoEspecial,
+  onOpenKanban,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
@@ -2268,14 +2633,17 @@ function GestaoTurma({
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
+  onOpenKanban: () => void;
 }) {
-  const [aba, setAba] = useState<"alunos" | "estatisticas">("alunos");
+  const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
   const [busca, setBusca] = useState("");
   const [editandoCoordenador, setEditandoCoordenador] = useState(false);
   const [coordenador, setCoordenador] = useState(turma?.coordenador_turma ?? "");
   const [salvandoElegivel, setSalvandoElegivel] = useState<string | null>(null);
   const [salvandoLideranca, setSalvandoLideranca] = useState<string | null>(null);
   const [alunoAberto, setAlunoAberto] = useState<Aluno | null>(null);
+  const tarefasKanban = useMemo(() => carregarTarefasKanban(), []);
+  const eventosCalendario = useMemo(() => carregarEventosCalendario(), []);
   const catalogoDeficiencias = useMemo(() => {
     const itens = new Set<string>();
     alunos.forEach((aluno) => aluno.deficiencias.forEach((item) => {
@@ -2313,6 +2681,15 @@ function GestaoTurma({
     atencao: Math.round(metricas.atencao / total * 100),
     criticos: Math.round(metricas.criticos / total * 100),
   };
+  const tarefasDaTurma = useMemo(() => {
+    const termos = [
+      turma ? rotuloTurma(turma) : "",
+      turma?.codigo ?? "",
+      turma?.serie ? rotuloSerie(turma.serie) : "",
+      turma?.sala ? `Sala ${turma.sala}` : "",
+    ];
+    return tarefasPorVinculo(tarefasKanban, eventosCalendario, termos);
+  }, [tarefasKanban, eventosCalendario, turma]);
 
   function salvarCoordenador() {
     onSalvarCoordenador(coordenador).finally(() => setEditandoCoordenador(false));
@@ -2382,6 +2759,9 @@ function GestaoTurma({
           onVoltar={() => setAlunoAberto(null)}
           catalogoDeficiencias={catalogoDeficiencias}
           onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
+          tarefas={tarefasKanban}
+          eventos={eventosCalendario}
+          onOpenKanban={onOpenKanban}
         />
       </>
     );
@@ -2432,6 +2812,7 @@ function GestaoTurma({
       <div className="detail-tabs">
         <button className={aba === "alunos" ? "active" : ""} onClick={() => setAba("alunos")}>Alunos ({alunos.length})</button>
         <button className={aba === "estatisticas" ? "active" : ""} onClick={() => setAba("estatisticas")}>Estatísticas</button>
+        <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDaTurma.length})</button>
       </div>
 
       {aba === "alunos" && (
@@ -2545,6 +2926,18 @@ function GestaoTurma({
           </div>
         </section>
       )}
+
+      {aba === "tarefas" && (
+        <section className="panel linked-tasks-panel">
+          <div className="panel-heading">
+            <div>
+              <h3>Tarefas associadas à turma</h3>
+              <p>Cards do Kanban vinculados à turma, sala ou eventos relacionados.</p>
+            </div>
+          </div>
+          <TaskLinkList tarefas={tarefasDaTurma} eventos={eventosCalendario} emptyText="Nenhuma tarefa vinculada a esta turma." onOpenKanban={onOpenKanban} />
+        </section>
+      )}
     </>
   );
 }
@@ -2555,14 +2948,20 @@ function AlunoDetalheGestao({
   onVoltar,
   catalogoDeficiencias,
   onSalvarEducacaoEspecial,
+  tarefas,
+  eventos,
+  onOpenKanban,
 }: {
   aluno: Aluno;
   bimestre: string;
   onVoltar: () => void;
   catalogoDeficiencias: string[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
+  tarefas: KanbanTarefa[];
+  eventos: CalendarEvent[];
+  onOpenKanban: () => void;
 }) {
-  const [aba, setAba] = useState<"desempenho" | "educacao">("desempenho");
+  const [aba, setAba] = useState<"desempenho" | "educacao" | "tarefas">("desempenho");
   const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
   const [comentario, setComentario] = useState(aluno.comentarioEducacaoEspecial ?? "");
   const [novaCondicao, setNovaCondicao] = useState("");
@@ -2598,6 +2997,7 @@ function AlunoDetalheGestao({
     const itens = new Set([...catalogoDeficiencias, ...deficienciasSelecionadas].map((item) => item.trim()).filter(Boolean));
     return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
   }, [catalogoDeficiencias, deficienciasSelecionadas]);
+  const tarefasDoAluno = useMemo(() => tarefasPorVinculo(tarefas, eventos, [aluno.nome, aluno.matricula ?? ""]), [tarefas, eventos, aluno.nome, aluno.matricula]);
 
   useEffect(() => {
     setAba("desempenho");
@@ -2643,6 +3043,7 @@ function AlunoDetalheGestao({
 
       <div className="student-profile-tabs">
         <button className={aba === "desempenho" ? "active" : ""} onClick={() => setAba("desempenho")}>Desempenho</button>
+        <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDoAluno.length})</button>
         {aluno.elegivel && (
           <button className={aba === "educacao" ? "active" : ""} onClick={() => setAba("educacao")}>Educação Especial</button>
         )}
@@ -2786,6 +3187,18 @@ function AlunoDetalheGestao({
           </div>
         </section>
       )}
+
+      {aba === "tarefas" && (
+        <section className="linked-tasks-panel student-linked-tasks">
+          <div className="panel-heading">
+            <div>
+              <h3>Tarefas associadas ao aluno</h3>
+              <p>Cards vinculados ao nome ou RA do estudante.</p>
+            </div>
+          </div>
+          <TaskLinkList tarefas={tarefasDoAluno} eventos={eventos} emptyText="Nenhuma tarefa vinculada a este aluno." onOpenKanban={onOpenKanban} />
+        </section>
+      )}
     </section>
   );
 }
@@ -2869,7 +3282,7 @@ function ImportarNotas({
     setErro("");
     setMensagem("");
     setResultado(null);
-    invoke<PreviaImportacaoMapoes>("analisar_mapoes_lote", {
+    invokeApp<PreviaImportacaoMapoes>("analisar_mapoes_lote", {
       input: { bimestre, arquivos },
     })
       .then(setPrevia)
@@ -2882,7 +3295,7 @@ function ImportarNotas({
     setProcessando(true);
     setErro("");
     setMensagem("");
-    invoke<ResultadoImportacaoMapoes>("aplicar_mapoes_lote", {
+    invokeApp<ResultadoImportacaoMapoes>("aplicar_mapoes_lote", {
       input: { bimestre, arquivos },
     })
       .then(setResultado)
@@ -2913,7 +3326,7 @@ function ImportarNotas({
         }
         return onSubstituirCsvTurma(turma, alunos);
       })
-      .then(() => invoke<PreviaImportacaoMapoes>("analisar_mapoes_lote", {
+      .then(() => invokeApp<PreviaImportacaoMapoes>("analisar_mapoes_lote", {
         input: { bimestre, arquivos },
       }))
       .then((novaPrevia) => {
@@ -3103,7 +3516,7 @@ function ImportarElegiveis({ onImportado }: { onImportado: () => void }) {
     setProcessando(true);
     setErro("");
     setResultado(null);
-    invoke<ResultadoImportacaoElegiveis>("importar_alunos_elegiveis", {
+    invokeApp<ResultadoImportacaoElegiveis>("importar_alunos_elegiveis", {
       input: { nome: arquivoNome, bytes: arquivoBytes },
     })
       .then((resposta) => {
@@ -3773,7 +4186,7 @@ function FinalizacaoConselho({
 
     setErro("");
     setSalvando(true);
-    invoke<FinalizacaoResultado>("salvar_finalizacao_conselho", {
+    invokeApp<FinalizacaoResultado>("salvar_finalizacao_conselho", {
       caminho: turmaSelecionada.caminho,
       bimestre: turmaDetalhe.bimestre,
       finalizacao: {
@@ -3911,7 +4324,7 @@ function RelatorioAlunosCriticos({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
     setErro("");
     setMensagem("");
     setResultado(null);
-    invoke<RelatorioAlunosCriticosResultado>("gerar_relatorio_alunos_criticos", {
+    invokeApp<RelatorioAlunosCriticosResultado>("gerar_relatorio_alunos_criticos", {
       input: {
         serie: serie === "todas" ? null : serie,
         bimestre,
@@ -3928,14 +4341,14 @@ function RelatorioAlunosCriticos({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
   function abrirRelatorio() {
     if (!resultado?.caminho) return;
     setErro("");
-    invoke<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
   function abrirPastaRelatorios() {
     if (!resultado?.pasta) return;
     setErro("");
-    invoke<string>("abrir_pasta", { caminho: resultado.pasta })
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
@@ -4028,7 +4441,7 @@ function RelatorioAlteracoesNotas({ turmas, onVoltar }: { turmas: TurmaResumo[];
     setErro("");
     setMensagem("");
     setResultado(null);
-    invoke<RelatorioAlteracoesNotasResultado>("gerar_relatorio_alteracoes_notas", {
+    invokeApp<RelatorioAlteracoesNotasResultado>("gerar_relatorio_alteracoes_notas", {
       input: {
         serie: serie === "todas" ? null : serie,
         bimestre,
@@ -4047,14 +4460,14 @@ function RelatorioAlteracoesNotas({ turmas, onVoltar }: { turmas: TurmaResumo[];
   function abrirRelatorio() {
     if (!resultado?.caminho) return;
     setErro("");
-    invoke<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
   function abrirPastaRelatorios() {
     if (!resultado?.pasta) return;
     setErro("");
-    invoke<string>("abrir_pasta", { caminho: resultado.pasta })
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
@@ -4140,10 +4553,10 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
   }, [turmas]);
 
   useEffect(() => {
-    invoke<ConfiguracoesApp>("carregar_configuracoes")
+    invokeApp<ConfiguracoesApp>("carregar_configuracoes")
       .then(setConfig)
       .catch((err) => setErro(String(err)));
-    invoke<AppInfo>("app_info")
+    invokeApp<AppInfo>("app_info")
       .then(setAppInfo)
       .catch(() => setAppInfo(null));
   }, []);
@@ -4161,7 +4574,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     setMensagem("");
     setErro("");
     try {
-      const salvo = await invoke<ConfiguracoesApp>("salvar_configuracoes", { input: config });
+      const salvo = await invokeApp<ConfiguracoesApp>("salvar_configuracoes", { input: config });
       setConfig(salvo);
       setMensagem("Configurações salvas.");
       onDadosAlterados();
@@ -4184,7 +4597,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     setErro("");
     try {
       const bytes = Array.from(new Uint8Array(await arquivo.arrayBuffer()));
-      const salvo = await invoke<ConfiguracoesApp>("salvar_cabecalho_ata", {
+      const salvo = await invokeApp<ConfiguracoesApp>("salvar_cabecalho_ata", {
         input: { nome: arquivo.name, bytes },
       });
       setConfig(salvo);
@@ -4202,7 +4615,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     setErro("");
     try {
       const ciclos = ciclosBackup.includes("todos") ? [] : ciclosBackup;
-      const resultado = await invoke<BackupResultado>("exportar_backup_seletivo", { input: { ciclos } });
+      const resultado = await invokeApp<BackupResultado>("exportar_backup_seletivo", { input: { ciclos } });
       setUltimoBackup(resultado.caminho);
       setMensagem(`Backup gerado com ${resultado.arquivos} arquivos em: ${resultado.caminho}`);
     } catch (err) {
@@ -4223,7 +4636,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
 
   function abrirUltimoBackup() {
     if (!ultimoBackup) return;
-    invoke("abrir_pasta", { caminho: ultimoBackup }).catch((err) => setErro(String(err)));
+    invokeApp("abrir_pasta", { caminho: ultimoBackup }).catch((err) => setErro(String(err)));
   }
 
   async function importarBackup(arquivo: File | null, modo: "mesclar" | "substituir") {
@@ -4233,7 +4646,7 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     setErro("");
     try {
       const bytes = Array.from(new Uint8Array(await arquivo.arrayBuffer()));
-      const resultado = await invoke<BackupResultado>("importar_backup", {
+      const resultado = await invokeApp<BackupResultado>("importar_backup", {
         input: { nome: arquivo.name, bytes, modo },
       });
       if (modo === "substituir") {
@@ -4254,6 +4667,9 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     setMensagem("");
     setErro("");
     try {
+      if (!tauriDisponivel) {
+        throw new Error("Verificação disponível apenas no aplicativo desktop.");
+      }
       const update = await check();
       setAtualizacao(update);
       setMensagem(update ? `Nova versão disponível: ${update.version}.` : "Você já está usando a versão mais recente.");
@@ -4272,7 +4688,9 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
     try {
       await atualizacao.downloadAndInstall();
       setMensagem("Atualização instalada. Reiniciando...");
-      await relaunch();
+      if (tauriDisponivel) {
+        await relaunch();
+      }
     } catch (err) {
       setErro(`Não foi possível instalar a atualização: ${String(err)}`);
     } finally {
@@ -4376,6 +4794,555 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
   );
 }
 
+function CalendarioGestao({
+  turmas,
+  onOpenKanban,
+}: {
+  turmas: TurmaResumo[];
+  onOpenKanban: () => void;
+}) {
+  const [eventos, setEventos] = useState<CalendarEvent[]>(() => carregarEventosCalendario());
+  const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => carregarTarefasKanban());
+  const [mesAtual, setMesAtual] = useState(() => new Date());
+  const [diaSelecionado, setDiaSelecionado] = useState(() => chaveData(new Date()));
+  const [modalEvento, setModalEvento] = useState(false);
+  const [eventoEditando, setEventoEditando] = useState<CalendarEvent | null>(null);
+  const [modalTarefa, setModalTarefa] = useState(false);
+  const [eventoTarefa, setEventoTarefa] = useState<CalendarEvent | null>(null);
+  const [ocultarTarefasAssociadas, setOcultarTarefasAssociadas] = useState(false);
+  const [formEvento, setFormEvento] = useState({
+    titulo: "",
+    descricao: "",
+    data: chaveData(new Date()),
+    horaInicio: "",
+    horaFim: "",
+    categoria: "Geral",
+    cor: coresCalendario[0],
+    prioridade: "media" as KanbanPrioridade,
+    vinculo: "",
+    repetir: "none" as "none" | RecurrenceFrequency,
+    intervalo: 1,
+    repetirAte: "",
+  });
+  const [formTarefa, setFormTarefa] = useState({
+    titulo: "",
+    descricao: "",
+    etiquetas: "",
+    responsavel: "Coordenação",
+    prazo: chaveData(new Date()),
+    prioridade: "media" as KanbanPrioridade,
+    status: "fazer" as KanbanStatus,
+    vinculo: "",
+    repetir: "none" as "none" | RecurrenceFrequency,
+    intervalo: 1,
+    repetirAte: "",
+  });
+
+  useEffect(() => {
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
+  }, [eventos]);
+
+  useEffect(() => {
+    localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
+  }, [tarefas]);
+
+  useEffect(() => {
+    if (!modalEvento) return;
+    function fecharComEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setModalEvento(false);
+        setEventoEditando(null);
+      }
+    }
+    window.addEventListener("keydown", fecharComEsc);
+    return () => window.removeEventListener("keydown", fecharComEsc);
+  }, [modalEvento]);
+
+  useEffect(() => {
+    if (!modalTarefa) return;
+    function fecharComEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setModalTarefa(false);
+        setEventoTarefa(null);
+      }
+    }
+    window.addEventListener("keydown", fecharComEsc);
+    return () => window.removeEventListener("keydown", fecharComEsc);
+  }, [modalTarefa]);
+
+  const itensCalendario = useMemo(() => montarLinhaDoTempo(tarefas, eventos, 120), [tarefas, eventos]);
+  const itensPorDia = useMemo(() => {
+    return itensCalendario.reduce<Record<string, TimelineItem[]>>((resultado, item) => {
+      resultado[item.data] = [...(resultado[item.data] ?? []), item];
+      return resultado;
+    }, {});
+  }, [itensCalendario]);
+  const itensDiaSelecionado = itensPorDia[diaSelecionado] ?? [];
+
+  const diasDoMes = useMemo(() => {
+    const primeiro = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), 1);
+    const inicio = new Date(primeiro);
+    inicio.setDate(primeiro.getDate() - primeiro.getDay());
+    return Array.from({ length: 42 }, (_, indice) => {
+      const data = new Date(inicio);
+      data.setDate(inicio.getDate() + indice);
+      return data;
+    });
+  }, [mesAtual]);
+  const sugestoesVinculo = useMemo(() => {
+    const itens = new Set<string>();
+    turmas.forEach((turma) => {
+      itens.add(rotuloTurma(turma));
+      (turma.nomes_alunos ?? []).forEach((nome) => itens.add(nome));
+    });
+    eventos.forEach((evento) => {
+      if (evento.vinculo) itens.add(evento.vinculo);
+    });
+    tarefas.forEach((tarefa) => {
+      if (tarefa.vinculo) itens.add(tarefa.vinculo);
+    });
+    return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [turmas, eventos, tarefas]);
+  const sugestoesEvento = sugestoesVinculo
+    .filter((item) => formEvento.vinculo && normalizarBusca(item).includes(normalizarBusca(formEvento.vinculo)))
+    .slice(0, 5);
+  const sugestoesTarefa = sugestoesVinculo
+    .filter((item) => formTarefa.vinculo && normalizarBusca(item).includes(normalizarBusca(formTarefa.vinculo)))
+    .slice(0, 5);
+
+  function abrirNovoEvento(data = diaSelecionado) {
+    setEventoEditando(null);
+    setFormEvento({
+      titulo: "",
+      descricao: "",
+      data,
+      horaInicio: "",
+      horaFim: "",
+      categoria: "Geral",
+      cor: coresCalendario[0],
+      prioridade: "media",
+      vinculo: "",
+      repetir: "none",
+      intervalo: 1,
+      repetirAte: "",
+    });
+    setModalEvento(true);
+  }
+
+  function abrirEdicaoEvento(evento: CalendarEvent) {
+    setEventoEditando(evento);
+    setFormEvento({
+      titulo: evento.titulo,
+      descricao: evento.descricao,
+      data: evento.data,
+      horaInicio: evento.horaInicio,
+      horaFim: evento.horaFim,
+      categoria: evento.categoria,
+      cor: evento.cor,
+      prioridade: evento.prioridade,
+      vinculo: evento.vinculo,
+      repetir: evento.recorrencia?.frequency ?? "none",
+      intervalo: evento.recorrencia?.interval ?? 1,
+      repetirAte: evento.recorrencia?.until ?? "",
+    });
+    setModalEvento(true);
+  }
+
+  function salvarEvento(event: FormEvent) {
+    event.preventDefault();
+    const titulo = formEvento.titulo.trim();
+    if (!titulo) return;
+    const recorrencia = formEvento.repetir === "none" ? undefined : {
+      frequency: formEvento.repetir,
+      interval: Math.max(1, Number(formEvento.intervalo) || 1),
+      until: formEvento.repetirAte || undefined,
+    };
+    const payload: CalendarEvent = {
+      id: eventoEditando?.id ?? `evento-${Date.now()}`,
+      titulo,
+      descricao: formEvento.descricao.trim(),
+      data: formEvento.data || chaveData(new Date()),
+      horaInicio: formEvento.horaInicio,
+      horaFim: formEvento.horaFim,
+      categoria: formEvento.categoria.trim() || "Geral",
+      cor: formEvento.cor,
+      prioridade: formEvento.prioridade,
+      vinculo: formEvento.vinculo.trim() || "Geral",
+      recorrencia,
+    };
+    setEventos((atuais) => eventoEditando ? atuais.map((item) => item.id === eventoEditando.id ? payload : item) : [payload, ...atuais]);
+    setDiaSelecionado(payload.data);
+    setModalEvento(false);
+    setEventoEditando(null);
+  }
+
+  function apagarEvento(id: string) {
+    if (!window.confirm("Apagar este evento do calendário? As tarefas associadas permanecem no Kanban.")) return;
+    setEventos((atuais) => atuais.filter((evento) => evento.id !== id));
+    setTarefas((atuais) => atuais.map((tarefa) => tarefa.eventId === id ? { ...tarefa, eventId: undefined } : tarefa));
+  }
+
+  function abrirTarefaAssociada(evento: CalendarEvent) {
+    setEventoTarefa(evento);
+    setFormTarefa({
+      titulo: `Preparar ${evento.titulo}`,
+      descricao: evento.descricao || "Tarefa associada a evento do calendário.",
+      etiquetas: `${evento.categoria}, Calendário`,
+      responsavel: "Coordenação",
+      prazo: evento.data,
+      prioridade: evento.prioridade,
+      status: "fazer",
+      vinculo: evento.vinculo,
+      repetir: "none",
+      intervalo: 1,
+      repetirAte: "",
+    });
+    setModalTarefa(true);
+  }
+
+  function salvarTarefaAssociada(event: FormEvent) {
+    event.preventDefault();
+    if (!eventoTarefa || !formTarefa.titulo.trim()) return;
+    const recorrencia = formTarefa.repetir === "none" ? undefined : {
+      frequency: formTarefa.repetir,
+      interval: Math.max(1, Number(formTarefa.intervalo) || 1),
+      until: formTarefa.repetirAte || undefined,
+    };
+    const tarefa: KanbanTarefa = {
+      id: `kanban-${Date.now()}`,
+      titulo: formTarefa.titulo.trim(),
+      descricao: formTarefa.descricao.trim() || "Tarefa associada a evento do calendário.",
+      etiquetas: formTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean),
+      responsavel: formTarefa.responsavel.trim() || "Coordenação",
+      prazo: formTarefa.prazo || eventoTarefa.data,
+      prioridade: formTarefa.prioridade,
+      status: formTarefa.status,
+      eventId: eventoTarefa.id,
+      vinculo: formTarefa.vinculo.trim() || eventoTarefa.vinculo,
+      recorrencia,
+    };
+    setTarefas((atuais) => [tarefa, ...atuais]);
+    setModalTarefa(false);
+    setEventoTarefa(null);
+  }
+
+  return (
+    <section className="calendar-page">
+      <div className="topbar dashboard-topbar">
+        <div>
+          <h1>Calendário de Gestão</h1>
+          <p>Visualize eventos, tarefas com prazo e recorrências em uma agenda única.</p>
+        </div>
+        <div className="kanban-top-actions">
+          <button type="button" className="secondary-action" onClick={() => setMesAtual(new Date())}>
+            <Clock size={18} />
+            Hoje
+          </button>
+          <button type="button" className="primary-action" onClick={() => abrirNovoEvento()}>
+            <Plus size={18} />
+            Novo Evento
+          </button>
+        </div>
+      </div>
+
+      <section className="calendar-layout">
+        <div className="calendar-panel">
+          <header className="calendar-month-header">
+            <button type="button" onClick={() => setMesAtual(adicionarMeses(mesAtual, -1))}>‹</button>
+            <h2>{mesAtual.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</h2>
+            <button type="button" onClick={() => setMesAtual(adicionarMeses(mesAtual, 1))}>›</button>
+          </header>
+          <div className="calendar-weekdays">
+            {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((dia) => <span key={dia}>{dia}</span>)}
+          </div>
+          <div className="calendar-grid">
+            {diasDoMes.map((data) => {
+              const chave = chaveData(data);
+              const itens = itensPorDia[chave] ?? [];
+              const foraDoMes = data.getMonth() !== mesAtual.getMonth();
+              return (
+                <button
+                  key={chave}
+                  type="button"
+                  className={`calendar-day ${foraDoMes ? "muted" : ""} ${diaSelecionado === chave ? "selected" : ""}`}
+                  onClick={() => setDiaSelecionado(chave)}
+                  onDoubleClick={() => abrirNovoEvento(chave)}
+                >
+                  <strong>{data.getDate()}</strong>
+                  <div>
+                    {itens.slice(0, 3).map((item) => (
+                      <span key={item.id} style={{ background: item.cor }} title={item.titulo} />
+                    ))}
+                  </div>
+                  {itens.length > 3 && <em>+{itens.length - 3}</em>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="calendar-agenda">
+          <div className="panel-heading">
+            <div>
+              <h3>{formatarDataLonga(diaSelecionado)}</h3>
+              <span>{itensDiaSelecionado.length} item(ns) com data</span>
+            </div>
+            <button type="button" onClick={() => abrirNovoEvento(diaSelecionado)}>Adicionar</button>
+          </div>
+          <label className="calendar-hide-linked">
+            <input type="checkbox" checked={ocultarTarefasAssociadas} onChange={(event) => setOcultarTarefasAssociadas(event.target.checked)} />
+            Ocultar tarefas dentro dos eventos
+          </label>
+          <div className="calendar-agenda-list">
+            {itensDiaSelecionado.filter((item) => !(ocultarTarefasAssociadas && item.tipo === "tarefa" && item.eventId)).map((item) => {
+              const evento = eventos.find((atual) => atual.id === item.origemId);
+              const tarefasAssociadas = item.tipo === "evento" ? tarefas.filter((tarefa) => tarefa.eventId === item.origemId) : [];
+              const abrirItemCalendario = () => {
+                if (item.tipo === "tarefa") {
+                  onOpenKanban();
+                }
+              };
+              return (
+                <article
+                  className={`calendar-agenda-item ${item.tipo === "tarefa" ? "is-task clickable" : "is-event"}`}
+                  key={item.id}
+                  onClick={abrirItemCalendario}
+                  tabIndex={item.tipo === "tarefa" ? 0 : undefined}
+                  onKeyDown={(event) => {
+                    if (item.tipo === "tarefa" && event.key === "Enter") onOpenKanban();
+                  }}
+                >
+                  <span className="calendar-item-dot" style={{ background: item.cor }} />
+                  <div>
+                    <small>{item.tipo === "tarefa" ? "Tarefa do Kanban" : item.hora ? `Evento · ${item.hora}` : "Evento"}</small>
+                    <strong>{item.titulo}</strong>
+                    <p>{item.descricao}{item.recorrente ? ` · ${rotuloRecorrencia(evento?.recorrencia)}` : ""}</p>
+                    {!ocultarTarefasAssociadas && tarefasAssociadas.length > 0 && (
+                      <div className="calendar-linked-tasks">
+                        {tarefasAssociadas.map((tarefa) => (
+                          <button key={tarefa.id} type="button" onClick={onOpenKanban}>{tarefa.titulo}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {evento && (
+                    <div className="calendar-item-actions">
+                      <button type="button" onClick={() => abrirTarefaAssociada(evento)}>Tarefa</button>
+                      <button type="button" onClick={() => abrirEdicaoEvento(evento)}><Pencil size={14} /></button>
+                      <button type="button" onClick={() => apagarEvento(evento.id)}><Trash2 size={14} /></button>
+                    </div>
+                  )}
+                  {item.tipo === "tarefa" && (
+                    <div className="calendar-item-actions">
+                      <span>Abrir no Kanban</span>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+            {!itensDiaSelecionado.length && (
+              <button className="calendar-empty-day" type="button" onClick={() => abrirNovoEvento(diaSelecionado)}>
+                Nenhum item nesta data. Criar evento.
+              </button>
+            )}
+          </div>
+        </aside>
+      </section>
+
+      {modalEvento && (
+        <div className="modal-backdrop">
+          <form className="kanban-task-modal calendar-event-modal" onSubmit={salvarEvento}>
+            <div className="modal-title-row">
+              <div>
+                <h2>{eventoEditando ? "Editar evento" : "Novo evento"}</h2>
+                <p>Registre compromissos gerais ou vinculados à rotina escolar.</p>
+              </div>
+              <button type="button" onClick={() => setModalEvento(false)} aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              Título
+              <input value={formEvento.titulo} onChange={(event) => setFormEvento((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
+            </label>
+            <label>
+              Descrição
+              <textarea value={formEvento.descricao} onChange={(event) => setFormEvento((atual) => ({ ...atual, descricao: event.target.value }))} />
+            </label>
+            <div className="kanban-form-grid">
+              <label>
+                Data
+                <input type="date" value={formEvento.data} onChange={(event) => setFormEvento((atual) => ({ ...atual, data: event.target.value }))} />
+              </label>
+              <label>
+                Vínculo
+                <input list="calendar-vinculos" placeholder="Geral, turma, aluno ou conselho" value={formEvento.vinculo} onChange={(event) => setFormEvento((atual) => ({ ...atual, vinculo: event.target.value }))} />
+                {sugestoesEvento.length > 0 && (
+                  <span className="calendar-link-suggestions">
+                    {sugestoesEvento.map((item) => <button type="button" key={item} onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: item }))}>{item}</button>)}
+                  </span>
+                )}
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Início
+                <input type="time" value={formEvento.horaInicio} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaInicio: event.target.value }))} />
+              </label>
+              <label>
+                Fim
+                <input type="time" value={formEvento.horaFim} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaFim: event.target.value }))} />
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Categoria
+                <input value={formEvento.categoria} onChange={(event) => setFormEvento((atual) => ({ ...atual, categoria: event.target.value }))} />
+              </label>
+              <label>
+                Prioridade
+                <select value={formEvento.prioridade} onChange={(event) => setFormEvento((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Recorrência
+                <select value={formEvento.repetir} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                  <option value="none">Não repetir</option>
+                  <option value="daily">Diariamente</option>
+                  <option value="weekly">Semanalmente</option>
+                  <option value="monthly">Mensalmente</option>
+                  <option value="yearly">Anualmente</option>
+                </select>
+              </label>
+              <label>
+                Cor
+                <div className="calendar-color-picker">
+                  {coresCalendario.map((cor) => (
+                    <button key={cor} type="button" className={formEvento.cor === cor ? "selected" : ""} style={{ background: cor }} onClick={() => setFormEvento((atual) => ({ ...atual, cor }))} />
+                  ))}
+                </div>
+              </label>
+            </div>
+            {formEvento.repetir !== "none" && (
+              <div className="kanban-form-grid">
+                <label>
+                  Repetir a cada
+                  <input type="number" min={1} value={formEvento.intervalo} onChange={(event) => setFormEvento((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
+                </label>
+                <label>
+                  Repetir até
+                  <input type="date" value={formEvento.repetirAte} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                </label>
+              </div>
+            )}
+            <div className="modal-actions">
+              <button type="button" onClick={() => setModalEvento(false)}>Cancelar</button>
+              <button type="submit" className="primary-action">{eventoEditando ? "Salvar evento" : "Criar evento"}</button>
+            </div>
+            <datalist id="calendar-vinculos">
+              {sugestoesVinculo.map((item) => <option key={item} value={item} />)}
+            </datalist>
+          </form>
+        </div>
+      )}
+      {modalTarefa && eventoTarefa && (
+        <div className="modal-backdrop">
+          <form className="kanban-task-modal calendar-event-modal" onSubmit={salvarTarefaAssociada}>
+            <div className="modal-title-row">
+              <div>
+                <h2>Tarefa associada</h2>
+                <p>{eventoTarefa.titulo}</p>
+              </div>
+              <button type="button" onClick={() => setModalTarefa(false)} aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              Título
+              <input value={formTarefa.titulo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
+            </label>
+            <label>
+              Descrição
+              <textarea value={formTarefa.descricao} onChange={(event) => setFormTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
+            </label>
+            <div className="kanban-form-grid">
+              <label>
+                Responsável
+                <input value={formTarefa.responsavel} onChange={(event) => setFormTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+              </label>
+              <label>
+                Prazo
+                <input type="date" value={formTarefa.prazo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Etiquetas
+                <input value={formTarefa.etiquetas} onChange={(event) => setFormTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
+              </label>
+              <label>
+                Vínculo
+                <input list="calendar-vinculos-task" value={formTarefa.vinculo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
+                {sugestoesTarefa.length > 0 && (
+                  <span className="calendar-link-suggestions">
+                    {sugestoesTarefa.map((item) => <button type="button" key={item} onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: item }))}>{item}</button>)}
+                  </span>
+                )}
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Status
+                <select value={formTarefa.status} onChange={(event) => setFormTarefa((atual) => ({ ...atual, status: event.target.value as KanbanStatus }))}>
+                  {colunasKanbanPadrao.map((coluna) => <option key={coluna.id} value={coluna.id}>{coluna.titulo}</option>)}
+                </select>
+              </label>
+              <label>
+                Prioridade
+                <select value={formTarefa.prioridade} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Recorrência
+                <select value={formTarefa.repetir} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                  <option value="none">Não repetir</option>
+                  <option value="daily">Diariamente</option>
+                  <option value="weekly">Semanalmente</option>
+                  <option value="monthly">Mensalmente</option>
+                  <option value="yearly">Anualmente</option>
+                </select>
+              </label>
+              {formTarefa.repetir !== "none" && (
+                <label>
+                  Repetir até
+                  <input type="date" value={formTarefa.repetirAte} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                </label>
+              )}
+            </div>
+            <datalist id="calendar-vinculos-task">
+              {sugestoesVinculo.map((item) => <option key={item} value={item} />)}
+            </datalist>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setModalTarefa(false)}>Cancelar</button>
+              <button type="submit" className="primary-action">Criar tarefa</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function QuadroKanban() {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
     try {
@@ -4403,6 +5370,7 @@ function QuadroKanban() {
   const [tarefaArrastada, setTarefaArrastada] = useState<string | null>(null);
   const [mensagemQuadro, setMensagemQuadro] = useState("");
   const [erroQuadro, setErroQuadro] = useState("");
+  const eventosCalendario = useMemo(() => carregarEventosCalendario(), [modalNovaTarefa]);
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: "",
     descricao: "",
@@ -4412,6 +5380,11 @@ function QuadroKanban() {
     prioridade: "media" as KanbanPrioridade,
     status: "fazer" as KanbanStatus,
     anexos: [] as KanbanAnexo[],
+    eventId: "",
+    vinculo: "",
+    repetir: "none" as "none" | RecurrenceFrequency,
+    intervalo: 1,
+    repetirAte: "",
   });
 
   useEffect(() => {
@@ -4455,7 +5428,14 @@ function QuadroKanban() {
   const totalAltaPrioridade = tarefas.filter((tarefa) => tarefa.prioridade === "alta").length;
 
   function moverTarefa(id: string, status: KanbanStatus) {
-    setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === id ? { ...tarefa, status } : tarefa));
+    setTarefas((atuais) => {
+      const tarefaMovida = atuais.find((tarefa) => tarefa.id === id);
+      if (!tarefaMovida) return atuais;
+      const colunaDestino = atuais
+        .filter((tarefa) => tarefa.id !== id && tarefa.status === status)
+        .sort(ordenarTarefasKanban);
+      return reordenarColunaKanban(atuais, [{ ...tarefaMovida, status }, ...colunaDestino], status);
+    });
   }
 
   function aoSoltarTarefa(event: DragEvent<HTMLElement>, status: KanbanStatus) {
@@ -4467,9 +5447,31 @@ function QuadroKanban() {
     setTarefaArrastada(null);
   }
 
+  function reordenarTarefa(id: string, status: KanbanStatus, alvoId: string) {
+    setTarefas((atuais) => {
+      const tarefaMovida = atuais.find((tarefa) => tarefa.id === id);
+      if (!tarefaMovida) return atuais;
+      const colunaDestino = atuais
+        .filter((tarefa) => tarefa.id !== id && tarefa.status === status)
+        .sort(ordenarTarefasKanban);
+      const indiceAlvo = Math.max(0, colunaDestino.findIndex((tarefa) => tarefa.id === alvoId));
+      const proximaColuna = [
+        ...colunaDestino.slice(0, indiceAlvo),
+        { ...tarefaMovida, status },
+        ...colunaDestino.slice(indiceAlvo),
+      ];
+      return reordenarColunaKanban(atuais, proximaColuna, status);
+    });
+    setTarefaArrastada(null);
+  }
+
+  function ordenarAutomaticamente() {
+    setTarefas((atuais) => atuais.map((tarefa) => ({ ...tarefa, ordem: undefined })).sort(ordenarPorPrazoECriacao));
+  }
+
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
     setTarefaEditando(null);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [] });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "" });
     setModalNovaTarefa(true);
   }
 
@@ -4486,6 +5488,11 @@ function QuadroKanban() {
       prioridade: tarefa.prioridade,
       status: tarefa.status,
       anexos: tarefa.anexos ?? [],
+      eventId: tarefa.eventId ?? "",
+      vinculo: tarefa.vinculo ?? "",
+      repetir: tarefa.recorrencia?.frequency ?? "none",
+      intervalo: tarefa.recorrencia?.interval ?? 1,
+      repetirAte: tarefa.recorrencia?.until ?? "",
     });
     setModalNovaTarefa(true);
   }
@@ -4567,6 +5574,11 @@ function QuadroKanban() {
     if (!titulo) return;
 
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
+    const recorrencia = novaTarefa.repetir === "none" ? undefined : {
+      frequency: novaTarefa.repetir,
+      interval: Math.max(1, Number(novaTarefa.intervalo) || 1),
+      until: novaTarefa.repetirAte || undefined,
+    };
 
     if (tarefaEditando) {
       setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === tarefaEditando.id ? {
@@ -4579,6 +5591,9 @@ function QuadroKanban() {
         prioridade: novaTarefa.prioridade,
         status: novaTarefa.status,
         anexos: novaTarefa.anexos,
+        eventId: novaTarefa.eventId || undefined,
+        vinculo: novaTarefa.vinculo.trim() || undefined,
+        recorrencia,
       } : tarefa));
       setTarefaEditando(null);
       setDestacarAnexos(false);
@@ -4596,10 +5611,13 @@ function QuadroKanban() {
       prioridade: novaTarefa.prioridade,
       status: novaTarefa.status,
       anexos: novaTarefa.anexos,
+      eventId: novaTarefa.eventId || undefined,
+      vinculo: novaTarefa.vinculo.trim() || undefined,
+      recorrencia,
     };
 
     setTarefas((atuais) => [tarefa, ...atuais]);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [] });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "" });
     setDestacarAnexos(false);
     setModalNovaTarefa(false);
   }
@@ -4615,6 +5633,10 @@ function QuadroKanban() {
           <button type="button" className="secondary-action" onClick={exportarQuadro}>
             <Download size={18} />
             Exportar Quadro
+          </button>
+          <button type="button" className="secondary-action" onClick={ordenarAutomaticamente}>
+            <CalendarClock size={18} />
+            Ordenar
           </button>
           <label className="secondary-action kanban-import-action">
             <Upload size={18} />
@@ -4654,7 +5676,7 @@ function QuadroKanban() {
 
       <section className="kanban-board" aria-label="Quadro de tarefas">
         {colunas.map((coluna) => {
-          const tarefasColuna = tarefasVisiveis.filter((tarefa) => tarefa.status === coluna.id);
+          const tarefasColuna = tarefasVisiveis.filter((tarefa) => tarefa.status === coluna.id).sort(ordenarTarefasKanban);
           return (
             <article
               key={coluna.id}
@@ -4684,6 +5706,7 @@ function QuadroKanban() {
                   <KanbanTaskCard
                     key={tarefa.id}
                     tarefa={tarefa}
+                    evento={eventosCalendario.find((evento) => evento.id === tarefa.eventId)}
                     sugestoesEtiquetas={sugestoesEtiquetas}
                     menuAberto={menuTarefaAberto === tarefa.id}
                     editandoEtiquetas={etiquetasEditando === tarefa.id}
@@ -4700,6 +5723,14 @@ function QuadroKanban() {
                     onDragStart={(event) => {
                       event.dataTransfer.setData("text/plain", tarefa.id);
                       setTarefaArrastada(tarefa.id);
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const id = event.dataTransfer.getData("text/plain") || tarefaArrastada;
+                      if (id && id !== tarefa.id) {
+                        reordenarTarefa(id, coluna.id, tarefa.id);
+                      }
                     }}
                     onDragEnd={() => setTarefaArrastada(null)}
                   />
@@ -4758,6 +5789,45 @@ function QuadroKanban() {
                 </select>
               </label>
             </div>
+            <div className="kanban-form-grid">
+              <label>
+                Evento associado
+                <select value={novaTarefa.eventId} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, eventId: event.target.value }))}>
+                  <option value="">Nenhum evento</option>
+                  {eventosCalendario.map((evento) => (
+                    <option key={evento.id} value={evento.id}>{evento.titulo}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Vínculo
+                <input placeholder="Aluno, turma ou geral" value={novaTarefa.vinculo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Recorrência
+                <select value={novaTarefa.repetir} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                  <option value="none">Não repetir</option>
+                  <option value="daily">Diariamente</option>
+                  <option value="weekly">Semanalmente</option>
+                  <option value="monthly">Mensalmente</option>
+                  <option value="yearly">Anualmente</option>
+                </select>
+              </label>
+            </div>
+            {novaTarefa.repetir !== "none" && (
+              <div className="kanban-form-grid">
+                <label>
+                  Repetir a cada
+                  <input type="number" min={1} value={novaTarefa.intervalo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
+                </label>
+                <label>
+                  Repetir até
+                  <input type="date" value={novaTarefa.repetirAte} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                </label>
+              </div>
+            )}
             <label>
               Anexos
               <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
@@ -4852,6 +5922,7 @@ function ColumnEditor({
 
 function KanbanTaskCard({
   tarefa,
+  evento,
   sugestoesEtiquetas,
   menuAberto,
   editandoEtiquetas,
@@ -4863,9 +5934,11 @@ function KanbanTaskCard({
   onSalvarEtiquetas,
   onCancelarEtiquetas,
   onDragStart,
+  onDrop,
   onDragEnd,
 }: {
   tarefa: KanbanTarefa;
+  evento?: CalendarEvent;
   sugestoesEtiquetas: string[];
   menuAberto: boolean;
   editandoEtiquetas: boolean;
@@ -4877,6 +5950,7 @@ function KanbanTaskCard({
   onSalvarEtiquetas: (etiquetas: string) => void;
   onCancelarEtiquetas: () => void;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
+  onDrop: (event: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
 }) {
   const prioridadeClasse = tarefa.prioridade === "alta" ? "high" : tarefa.prioridade === "media" ? "medium" : "low";
@@ -4890,7 +5964,7 @@ function KanbanTaskCard({
   }, [tarefa.etiquetas]);
 
   return (
-    <article className="kanban-task-card" draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <article className="kanban-task-card" draggable onDragStart={onDragStart} onDragOver={(event) => event.preventDefault()} onDrop={onDrop} onDragEnd={onDragEnd}>
       <div className="kanban-card-title-row">
         <h3>{tarefa.titulo}</h3>
         <button type="button" aria-label="Mais opções" onClick={onToggleMenu}>
@@ -4921,6 +5995,22 @@ function KanbanTaskCard({
         </div>
       )}
       <p>{tarefa.descricao}</p>
+      {(evento || tarefa.recorrencia) && (
+        <div className="kanban-linked-meta">
+          {evento && (
+            <span>
+              <CalendarDays size={13} />
+              Parte de: {evento.titulo}
+            </span>
+          )}
+          {tarefa.recorrencia && (
+            <span>
+              <Clock size={13} />
+              {rotuloRecorrencia(tarefa.recorrencia)}
+            </span>
+          )}
+        </div>
+      )}
       {editandoEtiquetas ? (
         <div className="kanban-tags-editor">
           <input
@@ -5016,6 +6106,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     conselhos: "Conselhos",
     conselho: "Conselho",
     kanban: "Quadro de Gestão",
+    calendario: "Calendário",
     relatorios: "Relatórios",
     "relatorio-criticos": "Relatório de Alunos Críticos",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
