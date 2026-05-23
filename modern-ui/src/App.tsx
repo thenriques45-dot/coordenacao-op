@@ -3,32 +3,41 @@ import {
   ArrowUpRight,
   BarChart3,
   BookOpen,
+  CalendarDays,
   CalendarClock,
   Check,
   ClipboardList,
   Clock,
+  Download,
   FileText,
+  Filter,
   GraduationCap,
   Home,
   Menu,
   Minus,
+  Moon,
+  MoreVertical,
+  Paperclip,
   Pencil,
   Plus,
   Search,
   Settings,
+  Sun,
+  Tag,
   TrendingUp,
   Trash2,
   Upload,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
+import { Fragment, type DragEvent, type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
 
 const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
@@ -252,7 +261,40 @@ type AppInfo = {
   data_dir: string;
 };
 
+type KanbanStatus = "fazer" | "progresso" | "revisao" | "concluido";
+type KanbanPrioridade = "alta" | "media" | "baixa";
+
+type KanbanAnexo = {
+  id: string;
+  nome: string;
+  tipo: string;
+  dados: string;
+};
+
+type KanbanColuna = {
+  id: KanbanStatus;
+  titulo: string;
+  cor: string;
+};
+
+type KanbanTarefa = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  etiquetas: string[];
+  responsavel: string;
+  prazo: string;
+  prioridade: KanbanPrioridade;
+  status: KanbanStatus;
+  anexos?: KanbanAnexo[];
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.2.0": [
+    "Novo Quadro de Gestão em formato Kanban, com tarefas, etiquetas, anexos e colunas personalizáveis.",
+    "Tema escuro com alternância rápida pela barra lateral.",
+    "Dashboard agora exibe as próximas tarefas do Kanban.",
+  ],
   "2.1.7": [
     "A busca nas telas de Turmas e Conselho agora também localiza turmas pelo nome dos alunos.",
     "A busca ficou mais tolerante a acentos, permitindo encontrar João ao digitar Joao.",
@@ -524,6 +566,101 @@ const proximosConselhos = [
   { turma: "3C", descricao: "Realizado em 30/04/2026", status: "Concluido" },
 ];
 
+const KANBAN_STORAGE_KEY = "coordenacaoop:quadro-kanban:v1";
+const KANBAN_COLUMNS_STORAGE_KEY = "coordenacaoop:quadro-kanban-colunas:v1";
+
+const colunasKanbanPadrao: KanbanColuna[] = [
+  { id: "fazer", titulo: "A Fazer", cor: "#2f78ff" },
+  { id: "progresso", titulo: "Em Progresso", cor: "#f2aa00" },
+  { id: "revisao", titulo: "Em Revisão", cor: "#a844f5" },
+  { id: "concluido", titulo: "Concluído", cor: "#13c65c" },
+];
+
+const coresKanban = ["#2f78ff", "#f2aa00", "#a844f5", "#13c65c", "#f04438", "#14b8a6", "#64748b"];
+
+const tarefasKanbanIniciais: KanbanTarefa[] = [
+  {
+    id: "kanban-1",
+    titulo: "Atualizar notas do 4º bimestre",
+    descricao: "Lançar notas finais no sistema",
+    etiquetas: ["Notas", "Matemática"],
+    responsavel: "João Santos",
+    prazo: "2026-05-30",
+    prioridade: "alta",
+    status: "fazer",
+  },
+  {
+    id: "kanban-2",
+    titulo: "Reunião com responsáveis",
+    descricao: "Agendar reuniões individuais com pais de alunos em situação crítica",
+    etiquetas: ["Reunião", "Família"],
+    responsavel: "Ana Costa",
+    prazo: "2026-05-28",
+    prioridade: "media",
+    status: "fazer",
+  },
+  {
+    id: "kanban-3",
+    titulo: "Planejar atividades de recuperação",
+    descricao: "Criar cronograma e material para aulas de reforço",
+    etiquetas: ["Recuperação", "Planejamento"],
+    responsavel: "Pedro Lima",
+    prazo: "2026-06-01",
+    prioridade: "media",
+    status: "fazer",
+  },
+  {
+    id: "kanban-4",
+    titulo: "Preparar material do conselho de classe",
+    descricao: "Organizar relatórios e estatísticas dos alunos",
+    etiquetas: ["Conselho", "Urgente"],
+    responsavel: "Maria Silva",
+    prazo: "2026-05-25",
+    prioridade: "alta",
+    status: "progresso",
+  },
+  {
+    id: "kanban-5",
+    titulo: "Revisar frequências do mês",
+    descricao: "Verificar e corrigir registros de presença",
+    etiquetas: ["Frequência"],
+    responsavel: "Carla Souza",
+    prazo: "2026-05-27",
+    prioridade: "baixa",
+    status: "progresso",
+  },
+  {
+    id: "kanban-6",
+    titulo: "Organizar excursão pedagógica",
+    descricao: "Visita ao museu de ciências com turma 9º A",
+    etiquetas: ["Excursão", "Eventos"],
+    responsavel: "Rafael Alves",
+    prazo: "2026-06-15",
+    prioridade: "baixa",
+    status: "revisao",
+  },
+  {
+    id: "kanban-7",
+    titulo: "Atualizar grade curricular",
+    descricao: "Ajustar horários para o próximo semestre",
+    etiquetas: ["Grade", "Planejamento"],
+    responsavel: "João Santos",
+    prazo: "2026-06-10",
+    prioridade: "media",
+    status: "revisao",
+  },
+  {
+    id: "kanban-8",
+    titulo: "Finalizar relatório administrativo",
+    descricao: "Documento completo com indicadores e estatísticas",
+    etiquetas: ["Relatório", "Administrativo"],
+    responsavel: "Maria Silva",
+    prazo: "2026-05-22",
+    prioridade: "baixa",
+    status: "concluido",
+  },
+];
+
 const opcoesBimestre = [
   { valor: "1", rotulo: "1º bimestre" },
   { valor: "2", rotulo: "2º bimestre" },
@@ -550,6 +687,7 @@ export function App() {
   const [statusAtualizacao, setStatusAtualizacao] = useState("");
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
+  const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
   const alunosConselho = useMemo(() => {
     if (!turmaDetalhe?.alunos.length) {
       return alunosDemo;
@@ -582,6 +720,10 @@ export function App() {
   }, [turmaDetalhe]);
   const aluno = alunosConselho[Math.min(indiceAluno, alunosConselho.length - 1)] ?? alunosDemo[0];
   const novidadesVersao = appInfo?.version ? NOVIDADES_POR_VERSAO[appInfo.version] ?? [] : [];
+
+  useEffect(() => {
+    localStorage.setItem("coordenacaoop:tema", temaEscuro ? "escuro" : "claro");
+  }, [temaEscuro]);
 
   useEffect(() => {
     check()
@@ -839,7 +981,7 @@ export function App() {
   }
 
   return (
-    <main className={`app-shell ${modoReuniao ? "meeting-mode-shell" : ""}`}>
+    <main className={`app-shell ${temaEscuro ? "theme-dark" : "theme-light"} ${modoReuniao ? "meeting-mode-shell" : ""}`}>
       <button
         className="app-sidebar-toggle"
         type="button"
@@ -874,6 +1016,7 @@ export function App() {
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
+          <NavButton icon={<ClipboardList size={18} />} label="Quadro de Gestão" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
           <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
@@ -884,6 +1027,15 @@ export function App() {
             <strong>Coordenacao</strong>
             <small>Equipe pedagogica</small>
           </div>
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={() => setTemaEscuro((atual) => !atual)}
+            aria-label={temaEscuro ? "Ativar tema claro" : "Ativar tema escuro"}
+            title={temaEscuro ? "Tema claro" : "Tema escuro"}
+          >
+            {temaEscuro ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
       </aside>
 
@@ -894,6 +1046,7 @@ export function App() {
             erroTurmas={erroTurmas}
             onOpenCouncil={() => navegarPara("conselhos")}
             onOpenTurmas={() => navegarPara("turmas")}
+            onOpenKanban={() => navegarPara("kanban")}
           />
         )}
         {tela === "conselhos" && (
@@ -977,6 +1130,7 @@ export function App() {
             }
           }} />
         )}
+        {tela === "kanban" && <QuadroKanban />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invoke<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
@@ -988,7 +1142,7 @@ export function App() {
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "kanban" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1056,16 +1210,19 @@ function Dashboard({
   erroTurmas,
   onOpenCouncil,
   onOpenTurmas,
+  onOpenKanban,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
   onOpenCouncil: () => void;
   onOpenTurmas: () => void;
+  onOpenKanban: () => void;
 }) {
   const totalAlunos = turmas.reduce((total, turma) => total + turma.alunos_ativos, 0);
   const totalElegiveis = turmas.reduce((total, turma) => total + turma.alunos_elegiveis, 0);
   const ajustes = turmas.reduce((total, turma) => total + turma.conselhos_com_ajustes, 0);
   const turmasRecentes = turmas.slice(0, 4);
+  const proximasTarefas = useMemo(() => carregarTarefasKanbanDashboard(), []);
 
   return (
     <>
@@ -1119,21 +1276,54 @@ function Dashboard({
 
         <div className="panel upcoming-panel">
           <div className="panel-heading">
-            <h3>Proximos conselhos</h3>
+            <h3>Próximas tarefas</h3>
+            <button onClick={onOpenKanban}>Ver quadro</button>
           </div>
-          {proximosConselhos.map((item) => (
-            <button className={`council-card ${item.status.toLowerCase()}`} key={item.turma} onClick={onOpenCouncil}>
+          {proximasTarefas.map((item) => (
+            <button className={`council-card kanban-dashboard-task ${item.prioridade}`} key={item.id} onClick={onOpenKanban}>
               <div>
-                <strong>{item.turma}</strong>
+                <strong>{item.titulo}</strong>
                 <span>{item.descricao}</span>
+                <small>{item.responsavel} · {formatarDataCurta(item.prazo)}</small>
               </div>
-              <em>{item.status}</em>
+              <em>{rotuloPrioridade(item.prioridade)}</em>
             </button>
           ))}
+          {!proximasTarefas.length && (
+            <button className="council-card kanban-dashboard-task baixa" onClick={onOpenKanban}>
+              <div>
+                <strong>Nenhuma tarefa em aberto</strong>
+                <span>Adicione cards em A Fazer no Quadro de Gestão.</span>
+              </div>
+              <em>Kanban</em>
+            </button>
+          )}
         </div>
       </section>
     </>
   );
+}
+
+function carregarTarefasKanbanDashboard() {
+  try {
+    const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
+    const tarefas = salvas ? JSON.parse(salvas) as KanbanTarefa[] : tarefasKanbanIniciais;
+    return tarefas
+      .filter((tarefa) => tarefa.status === "fazer")
+      .sort((a, b) => a.prazo.localeCompare(b.prazo))
+      .slice(0, 3);
+  } catch {
+    return tarefasKanbanIniciais
+      .filter((tarefa) => tarefa.status === "fazer")
+      .sort((a, b) => a.prazo.localeCompare(b.prazo))
+      .slice(0, 3);
+  }
+}
+
+function rotuloPrioridade(prioridade: KanbanPrioridade) {
+  if (prioridade === "alta") return "Alta";
+  if (prioridade === "media") return "Média";
+  return "Baixa";
 }
 
 function MetricCard({
@@ -4186,6 +4376,635 @@ function Configuracoes({ turmas, onDadosAlterados }: { turmas: TurmaResumo[]; on
   );
 }
 
+function QuadroKanban() {
+  const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
+    try {
+      const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
+      return salvas ? JSON.parse(salvas) as KanbanTarefa[] : tarefasKanbanIniciais;
+    } catch {
+      return tarefasKanbanIniciais;
+    }
+  });
+  const [colunas, setColunas] = useState<KanbanColuna[]>(() => {
+    try {
+      const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
+      return salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao;
+    } catch {
+      return colunasKanbanPadrao;
+    }
+  });
+  const [filtroAltaPrioridade, setFiltroAltaPrioridade] = useState(false);
+  const [modalNovaTarefa, setModalNovaTarefa] = useState(false);
+  const [tarefaEditando, setTarefaEditando] = useState<KanbanTarefa | null>(null);
+  const [menuTarefaAberto, setMenuTarefaAberto] = useState<string | null>(null);
+  const [etiquetasEditando, setEtiquetasEditando] = useState<string | null>(null);
+  const [colunaEditando, setColunaEditando] = useState<KanbanStatus | null>(null);
+  const [destacarAnexos, setDestacarAnexos] = useState(false);
+  const [tarefaArrastada, setTarefaArrastada] = useState<string | null>(null);
+  const [mensagemQuadro, setMensagemQuadro] = useState("");
+  const [erroQuadro, setErroQuadro] = useState("");
+  const [novaTarefa, setNovaTarefa] = useState({
+    titulo: "",
+    descricao: "",
+    etiquetas: "",
+    responsavel: "",
+    prazo: "",
+    prioridade: "media" as KanbanPrioridade,
+    status: "fazer" as KanbanStatus,
+    anexos: [] as KanbanAnexo[],
+  });
+
+  useEffect(() => {
+    localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
+  }, [tarefas]);
+
+  useEffect(() => {
+    localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));
+  }, [colunas]);
+
+  useEffect(() => {
+    if (!modalNovaTarefa) return;
+
+    function fecharComEsc(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setModalNovaTarefa(false);
+      setTarefaEditando(null);
+      setDestacarAnexos(false);
+    }
+
+    window.addEventListener("keydown", fecharComEsc);
+    return () => window.removeEventListener("keydown", fecharComEsc);
+  }, [modalNovaTarefa]);
+
+  const tarefasVisiveis = useMemo(() => {
+    if (!filtroAltaPrioridade) return tarefas;
+    return tarefas.filter((tarefa) => tarefa.prioridade === "alta");
+  }, [tarefas, filtroAltaPrioridade]);
+
+  const contagemPorStatus = useMemo(() => {
+    return colunas.reduce<Record<KanbanStatus, number>>((resultado, coluna) => {
+      resultado[coluna.id] = tarefas.filter((tarefa) => tarefa.status === coluna.id).length;
+      return resultado;
+    }, { fazer: 0, progresso: 0, revisao: 0, concluido: 0 });
+  }, [tarefas, colunas]);
+
+  const sugestoesEtiquetas = useMemo(() => {
+    return Array.from(new Set(tarefas.flatMap((tarefa) => tarefa.etiquetas))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tarefas]);
+
+  const totalAltaPrioridade = tarefas.filter((tarefa) => tarefa.prioridade === "alta").length;
+
+  function moverTarefa(id: string, status: KanbanStatus) {
+    setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === id ? { ...tarefa, status } : tarefa));
+  }
+
+  function aoSoltarTarefa(event: DragEvent<HTMLElement>, status: KanbanStatus) {
+    event.preventDefault();
+    const id = event.dataTransfer.getData("text/plain") || tarefaArrastada;
+    if (id) {
+      moverTarefa(id, status);
+    }
+    setTarefaArrastada(null);
+  }
+
+  function abrirNovaTarefa(status: KanbanStatus = "fazer") {
+    setTarefaEditando(null);
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [] });
+    setModalNovaTarefa(true);
+  }
+
+  function abrirEdicaoTarefa(tarefa: KanbanTarefa, anexar = false) {
+    setMenuTarefaAberto(null);
+    setDestacarAnexos(anexar);
+    setTarefaEditando(tarefa);
+    setNovaTarefa({
+      titulo: tarefa.titulo,
+      descricao: tarefa.descricao,
+      etiquetas: tarefa.etiquetas.join(", "),
+      responsavel: tarefa.responsavel,
+      prazo: tarefa.prazo,
+      prioridade: tarefa.prioridade,
+      status: tarefa.status,
+      anexos: tarefa.anexos ?? [],
+    });
+    setModalNovaTarefa(true);
+  }
+
+  function apagarTarefa(id: string) {
+    setMenuTarefaAberto(null);
+    if (window.confirm("Apagar esta tarefa do quadro?")) {
+      setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id));
+    }
+  }
+
+  function salvarEtiquetas(id: string, etiquetas: string) {
+    setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === id ? {
+      ...tarefa,
+      etiquetas: etiquetas.split(",").map((item) => item.trim()).filter(Boolean),
+    } : tarefa));
+    setEtiquetasEditando(null);
+  }
+
+  function atualizarColuna(id: KanbanStatus, titulo: string, cor: string) {
+    setColunas((atuais) => atuais.map((coluna) => coluna.id === id ? { ...coluna, titulo: titulo.trim() || coluna.titulo, cor } : coluna));
+    setColunaEditando(null);
+  }
+
+  async function anexarArquivos(arquivos: FileList | null) {
+    if (!arquivos?.length) return;
+    const anexos = await Promise.all(Array.from(arquivos).map(arquivoParaAnexo));
+    setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+  }
+
+  function removerAnexo(id: string) {
+    setNovaTarefa((atual) => ({ ...atual, anexos: atual.anexos.filter((anexo) => anexo.id !== id) }));
+  }
+
+  function exportarQuadro() {
+    setMensagemQuadro("");
+    setErroQuadro("");
+    const payload = {
+      tipo: "coordenacaoop-kanban",
+      versao: 1,
+      exportado_em: new Date().toISOString(),
+      colunas,
+      tarefas,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `coordenacaoop_quadro_gestao_${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setMensagemQuadro("Backup do quadro gerado separadamente dos dados de turmas.");
+  }
+
+  async function importarQuadro(arquivo: File | null) {
+    if (!arquivo) return;
+    setMensagemQuadro("");
+    setErroQuadro("");
+    try {
+      const dados = JSON.parse(await arquivo.text()) as {
+        tipo?: string;
+        colunas?: KanbanColuna[];
+        tarefas?: KanbanTarefa[];
+      };
+      if (dados.tipo !== "coordenacaoop-kanban" || !Array.isArray(dados.colunas) || !Array.isArray(dados.tarefas)) {
+        throw new Error("Selecione um arquivo de backup do Quadro de Gestão.");
+      }
+      setColunas(dados.colunas);
+      setTarefas(dados.tarefas);
+      setMensagemQuadro("Backup do quadro importado. Os dados de turmas não foram alterados.");
+    } catch (error) {
+      setErroQuadro(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  function criarTarefa(event: FormEvent) {
+    event.preventDefault();
+    const titulo = novaTarefa.titulo.trim();
+    if (!titulo) return;
+
+    const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
+
+    if (tarefaEditando) {
+      setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === tarefaEditando.id ? {
+        ...tarefa,
+        titulo,
+        descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
+        etiquetas,
+        responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+        prazo: novaTarefa.prazo || new Date().toISOString().slice(0, 10),
+        prioridade: novaTarefa.prioridade,
+        status: novaTarefa.status,
+        anexos: novaTarefa.anexos,
+      } : tarefa));
+      setTarefaEditando(null);
+      setDestacarAnexos(false);
+      setModalNovaTarefa(false);
+      return;
+    }
+
+    const tarefa: KanbanTarefa = {
+      id: `kanban-${Date.now()}`,
+      titulo,
+      descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
+      etiquetas,
+      responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+      prazo: novaTarefa.prazo || new Date().toISOString().slice(0, 10),
+      prioridade: novaTarefa.prioridade,
+      status: novaTarefa.status,
+      anexos: novaTarefa.anexos,
+    };
+
+    setTarefas((atuais) => [tarefa, ...atuais]);
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [] });
+    setDestacarAnexos(false);
+    setModalNovaTarefa(false);
+  }
+
+  return (
+    <section className="kanban-page">
+      <div className="topbar dashboard-topbar">
+        <div>
+          <h1>Quadro Kanban</h1>
+          <p>Gerencie tarefas e atividades escolares</p>
+        </div>
+        <div className="kanban-top-actions">
+          <button type="button" className="secondary-action" onClick={exportarQuadro}>
+            <Download size={18} />
+            Exportar Quadro
+          </button>
+          <label className="secondary-action kanban-import-action">
+            <Upload size={18} />
+            Importar Quadro
+            <input type="file" accept=".json,application/json" onChange={(event) => importarQuadro(event.target.files?.[0] ?? null)} />
+          </label>
+          <button
+            type="button"
+            className={`secondary-action ${filtroAltaPrioridade ? "selected" : ""}`}
+            onClick={() => setFiltroAltaPrioridade((ativo) => !ativo)}
+          >
+            <Filter size={18} />
+            Filtros
+          </button>
+          <button type="button" className="primary-action kanban-new-task" onClick={() => abrirNovaTarefa()}>
+            <Plus size={18} />
+            Nova Tarefa
+          </button>
+        </div>
+      </div>
+
+      <section className="kanban-metrics" aria-label="Resumo do quadro Kanban">
+        <KanbanMetric label="Total de Tarefas" value={tarefas.length} icon={<Clock size={18} />} />
+        {colunas.map((coluna) => (
+          <KanbanMetric key={coluna.id} label={coluna.titulo} value={contagemPorStatus[coluna.id]} color={coluna.cor} />
+        ))}
+      </section>
+
+      {totalAltaPrioridade > 0 && (
+        <div className="kanban-alert">
+          <Tag size={18} />
+          <span>{totalAltaPrioridade} tarefa(s) de alta prioridade requer(em) atenção</span>
+        </div>
+      )}
+      {mensagemQuadro && <div className="notice success kanban-notice">{mensagemQuadro}</div>}
+      {erroQuadro && <div className="notice error kanban-notice">{erroQuadro}</div>}
+
+      <section className="kanban-board" aria-label="Quadro de tarefas">
+        {colunas.map((coluna) => {
+          const tarefasColuna = tarefasVisiveis.filter((tarefa) => tarefa.status === coluna.id);
+          return (
+            <article
+              key={coluna.id}
+              className={`kanban-column ${tarefaArrastada ? "drag-active" : ""}`}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => aoSoltarTarefa(event, coluna.id)}
+            >
+              <header className="kanban-column-header">
+                <div className="kanban-column-title-wrap">
+                  <span className="kanban-dot" style={{ background: coluna.cor }} />
+                  <h2>{coluna.titulo}</h2>
+                  <strong>{tarefasColuna.length}</strong>
+                  <button className="kanban-column-edit" type="button" aria-label={`Editar ${coluna.titulo}`} onClick={() => setColunaEditando((atual) => atual === coluna.id ? null : coluna.id)}>
+                    <Pencil size={14} />
+                  </button>
+                  {colunaEditando === coluna.id && (
+                    <ColumnEditor coluna={coluna} onSalvar={atualizarColuna} onFechar={() => setColunaEditando(null)} />
+                  )}
+                </div>
+                <button type="button" aria-label={`Adicionar tarefa em ${coluna.titulo}`} onClick={() => abrirNovaTarefa(coluna.id)}>
+                  <Plus size={18} />
+                </button>
+              </header>
+
+              <div className="kanban-column-body">
+                {tarefasColuna.map((tarefa) => (
+                  <KanbanTaskCard
+                    key={tarefa.id}
+                    tarefa={tarefa}
+                    sugestoesEtiquetas={sugestoesEtiquetas}
+                    menuAberto={menuTarefaAberto === tarefa.id}
+                    editandoEtiquetas={etiquetasEditando === tarefa.id}
+                    onToggleMenu={() => setMenuTarefaAberto((atual) => atual === tarefa.id ? null : tarefa.id)}
+                    onEditar={() => abrirEdicaoTarefa(tarefa)}
+                    onAnexar={() => abrirEdicaoTarefa(tarefa, true)}
+                    onApagar={() => apagarTarefa(tarefa.id)}
+                    onEditarEtiquetas={() => {
+                      setMenuTarefaAberto(null);
+                      setEtiquetasEditando(tarefa.id);
+                    }}
+                    onSalvarEtiquetas={(etiquetas) => salvarEtiquetas(tarefa.id, etiquetas)}
+                    onCancelarEtiquetas={() => setEtiquetasEditando(null)}
+                    onDragStart={(event) => {
+                      event.dataTransfer.setData("text/plain", tarefa.id);
+                      setTarefaArrastada(tarefa.id);
+                    }}
+                    onDragEnd={() => setTarefaArrastada(null)}
+                  />
+                ))}
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      {modalNovaTarefa && (
+        <div className="modal-backdrop">
+          <form className="kanban-task-modal" onSubmit={criarTarefa}>
+            <div className="modal-title-row">
+              <div>
+                <h2>{tarefaEditando ? "Editar tarefa" : "Nova tarefa"}</h2>
+                <p>{tarefaEditando ? "Atualize os dados da pendência." : "Inclua uma pendência no quadro de gestão."}</p>
+              </div>
+              <button type="button" onClick={() => {
+                setModalNovaTarefa(false);
+                setTarefaEditando(null);
+                setDestacarAnexos(false);
+              }} aria-label="Fechar">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              Título
+              <input value={novaTarefa.titulo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
+            </label>
+            <label>
+              Descrição
+              <textarea value={novaTarefa.descricao} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
+            </label>
+            <div className="kanban-form-grid">
+              <label>
+                Responsável
+                <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+              </label>
+              <label>
+                Prazo
+                <input type="date" value={novaTarefa.prazo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
+              </label>
+            </div>
+            <div className="kanban-form-grid">
+              <label>
+                Etiquetas
+                <input list="kanban-etiquetas-sugeridas" placeholder="Conselho, Urgente" value={novaTarefa.etiquetas} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
+              </label>
+              <label>
+                Prioridade
+                <select value={novaTarefa.prioridade} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Anexos
+              <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
+                <Paperclip size={16} />
+                <strong>Selecionar arquivos</strong>
+                <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
+              </span>
+            </label>
+            {novaTarefa.anexos.length > 0 && (
+              <div className="kanban-attachment-list">
+                {novaTarefa.anexos.map((anexo) => (
+                  <span key={anexo.id}>
+                    <Paperclip size={14} />
+                    {anexo.nome}
+                    <button type="button" onClick={() => removerAnexo(anexo.id)} aria-label={`Remover ${anexo.nome}`}>
+                      <X size={13} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <datalist id="kanban-etiquetas-sugeridas">
+              {sugestoesEtiquetas.map((etiqueta) => (
+                <option key={etiqueta} value={etiqueta} />
+              ))}
+            </datalist>
+            <div className="modal-actions">
+              <button type="button" onClick={() => {
+                setModalNovaTarefa(false);
+                setTarefaEditando(null);
+                setDestacarAnexos(false);
+              }}>Cancelar</button>
+              <button type="submit" className="primary-action">{tarefaEditando ? "Salvar tarefa" : "Criar tarefa"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function KanbanMetric({ label, value, color, icon }: { label: string; value: number; color?: string; icon?: ReactNode }) {
+  return (
+    <article className="kanban-metric-card">
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+      {icon ?? <span className="kanban-metric-dot" style={{ background: color }} />}
+    </article>
+  );
+}
+
+function ColumnEditor({
+  coluna,
+  onSalvar,
+  onFechar,
+}: {
+  coluna: KanbanColuna;
+  onSalvar: (id: KanbanStatus, titulo: string, cor: string) => void;
+  onFechar: () => void;
+}) {
+  const [titulo, setTitulo] = useState(coluna.titulo);
+  const [cor, setCor] = useState(coluna.cor);
+
+  return (
+    <div className="kanban-column-editor">
+      <label>
+        Nome da coluna
+        <input value={titulo} onChange={(event) => setTitulo(event.target.value)} />
+      </label>
+      <div className="kanban-color-options" aria-label="Cores da coluna">
+        {coresKanban.map((opcao) => (
+          <button
+            key={opcao}
+            type="button"
+            className={cor === opcao ? "selected" : ""}
+            style={{ background: opcao }}
+            onClick={() => setCor(opcao)}
+            aria-label={`Usar cor ${opcao}`}
+          />
+        ))}
+      </div>
+      <div className="kanban-editor-actions">
+        <button type="button" onClick={onFechar}>Cancelar</button>
+        <button type="button" onClick={() => onSalvar(coluna.id, titulo, cor)}>Salvar</button>
+      </div>
+    </div>
+  );
+}
+
+function KanbanTaskCard({
+  tarefa,
+  sugestoesEtiquetas,
+  menuAberto,
+  editandoEtiquetas,
+  onToggleMenu,
+  onEditar,
+  onAnexar,
+  onApagar,
+  onEditarEtiquetas,
+  onSalvarEtiquetas,
+  onCancelarEtiquetas,
+  onDragStart,
+  onDragEnd,
+}: {
+  tarefa: KanbanTarefa;
+  sugestoesEtiquetas: string[];
+  menuAberto: boolean;
+  editandoEtiquetas: boolean;
+  onToggleMenu: () => void;
+  onEditar: () => void;
+  onAnexar: () => void;
+  onApagar: () => void;
+  onEditarEtiquetas: () => void;
+  onSalvarEtiquetas: (etiquetas: string) => void;
+  onCancelarEtiquetas: () => void;
+  onDragStart: (event: DragEvent<HTMLElement>) => void;
+  onDragEnd: () => void;
+}) {
+  const prioridadeClasse = tarefa.prioridade === "alta" ? "high" : tarefa.prioridade === "media" ? "medium" : "low";
+  const anexos = tarefa.anexos ?? [];
+  const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
+  const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
+  const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
+
+  useEffect(() => {
+    setTextoEtiquetas(tarefa.etiquetas.join(", "));
+  }, [tarefa.etiquetas]);
+
+  return (
+    <article className="kanban-task-card" draggable onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <div className="kanban-card-title-row">
+        <h3>{tarefa.titulo}</h3>
+        <button type="button" aria-label="Mais opções" onClick={onToggleMenu}>
+          <MoreVertical size={17} />
+        </button>
+        {menuAberto && (
+          <div className="kanban-card-menu">
+            <button type="button" onClick={onEditar}>
+              <Pencil size={14} />
+              Editar
+            </button>
+            <button type="button" onClick={onAnexar}>
+              <Paperclip size={14} />
+              Anexar
+            </button>
+            <button type="button" onClick={onApagar}>
+              <Trash2 size={14} />
+              Apagar
+            </button>
+          </div>
+        )}
+      </div>
+      {imagens.length > 0 && (
+        <div className="kanban-image-attachments">
+          {imagens.map((anexo) => (
+            <img key={anexo.id} src={anexo.dados} alt={anexo.nome} />
+          ))}
+        </div>
+      )}
+      <p>{tarefa.descricao}</p>
+      {editandoEtiquetas ? (
+        <div className="kanban-tags-editor">
+          <input
+            list={`kanban-tags-${tarefa.id}`}
+            value={textoEtiquetas}
+            onChange={(event) => setTextoEtiquetas(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onSalvarEtiquetas(textoEtiquetas);
+              }
+              if (event.key === "Escape") {
+                onCancelarEtiquetas();
+              }
+            }}
+            autoFocus
+          />
+          <datalist id={`kanban-tags-${tarefa.id}`}>
+            {sugestoesEtiquetas.map((etiqueta) => (
+              <option key={etiqueta} value={etiqueta} />
+            ))}
+          </datalist>
+          <button type="button" onClick={() => onSalvarEtiquetas(textoEtiquetas)} aria-label="Salvar etiquetas">
+            <Check size={14} />
+          </button>
+        </div>
+      ) : (
+        <div className="kanban-tags">
+          {tarefa.etiquetas.map((etiqueta) => (
+            <span key={etiqueta}>{etiqueta}</span>
+          ))}
+          <button type="button" onClick={onEditarEtiquetas} aria-label="Editar etiquetas">
+            <Pencil size={13} />
+          </button>
+        </div>
+      )}
+      {documentos.length > 0 && (
+        <div className="kanban-doc-attachments">
+          {documentos.map((anexo) => (
+            <a key={anexo.id} href={anexo.dados} download={anexo.nome}>
+              <Paperclip size={13} />
+              {anexo.nome}
+            </a>
+          ))}
+        </div>
+      )}
+      <footer>
+        <span>
+          <UserRound size={14} />
+          {tarefa.responsavel}
+        </span>
+        <span>
+          <CalendarDays size={14} />
+          {formatarDataCurta(tarefa.prazo)}
+        </span>
+        <i className={prioridadeClasse} title={`Prioridade ${tarefa.prioridade}`} />
+      </footer>
+    </article>
+  );
+}
+
+function arquivoParaAnexo(arquivo: File): Promise<KanbanAnexo> {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      resolve({
+        id: `anexo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        nome: arquivo.name,
+        tipo: arquivo.type || "application/octet-stream",
+        dados: String(leitor.result),
+      });
+    };
+    leitor.onerror = () => reject(leitor.error);
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+function formatarDataCurta(data: string) {
+  if (!data) return "";
+  const [ano, mes, dia] = data.split("-");
+  if (!ano || !mes || !dia) return data;
+  return `${dia}/${mes}/${ano}`;
+}
+
 function Placeholder({ tela }: { tela: Tela }) {
   const nomes: Record<Tela, string> = {
     dashboard: "Dashboard",
@@ -4196,6 +5015,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     "importar-elegiveis": "Importar Elegíveis",
     conselhos: "Conselhos",
     conselho: "Conselho",
+    kanban: "Quadro de Gestão",
     relatorios: "Relatórios",
     "relatorio-criticos": "Relatório de Alunos Críticos",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",

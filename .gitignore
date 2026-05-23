@@ -1,6 +1,7 @@
 __pycache__/
 .env
 .venv/
+.tools/
 node_modules/
 1x/
 *.ai
