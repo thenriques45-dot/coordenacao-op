@@ -343,6 +343,10 @@ type TimelineItem = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.1": [
+    "Correção para iniciar Quadro Kanban e Calendário sem tarefas ou eventos de demonstração.",
+    "Os dados do Quadro de Gestão permanecem dependentes apenas do uso local ou de backups importados.",
+  ],
   "2.3.0": [
     "Novo Calendário de Gestão com eventos, recorrências e tarefas do Kanban em uma visão temporal unificada.",
     "Tarefas agora podem ser associadas a eventos, alunos e turmas, com abas próprias nas telas de aluno e turma.",
@@ -638,116 +642,8 @@ const colunasKanbanPadrao: KanbanColuna[] = [
 const coresKanban = ["#2f78ff", "#f2aa00", "#a844f5", "#13c65c", "#f04438", "#14b8a6", "#64748b"];
 const coresCalendario = ["#3794ff", "#13c65c", "#f2aa00", "#a844f5", "#f04438", "#14b8a6", "#64748b"];
 
-const tarefasKanbanIniciais: KanbanTarefa[] = [
-  {
-    id: "kanban-1",
-    titulo: "Atualizar notas do 4º bimestre",
-    descricao: "Lançar notas finais no sistema",
-    etiquetas: ["Notas", "Matemática"],
-    responsavel: "João Santos",
-    prazo: "2026-05-30",
-    prioridade: "alta",
-    status: "fazer",
-  },
-  {
-    id: "kanban-2",
-    titulo: "Reunião com responsáveis",
-    descricao: "Agendar reuniões individuais com pais de alunos em situação crítica",
-    etiquetas: ["Reunião", "Família"],
-    responsavel: "Ana Costa",
-    prazo: "2026-05-28",
-    prioridade: "media",
-    status: "fazer",
-  },
-  {
-    id: "kanban-3",
-    titulo: "Planejar atividades de recuperação",
-    descricao: "Criar cronograma e material para aulas de reforço",
-    etiquetas: ["Recuperação", "Planejamento"],
-    responsavel: "Pedro Lima",
-    prazo: "2026-06-01",
-    prioridade: "media",
-    status: "fazer",
-  },
-  {
-    id: "kanban-4",
-    titulo: "Preparar material do conselho de classe",
-    descricao: "Organizar relatórios e estatísticas dos alunos",
-    etiquetas: ["Conselho", "Urgente"],
-    responsavel: "Maria Silva",
-    prazo: "2026-05-25",
-    prioridade: "alta",
-    status: "progresso",
-  },
-  {
-    id: "kanban-5",
-    titulo: "Revisar frequências do mês",
-    descricao: "Verificar e corrigir registros de presença",
-    etiquetas: ["Frequência"],
-    responsavel: "Carla Souza",
-    prazo: "2026-05-27",
-    prioridade: "baixa",
-    status: "progresso",
-  },
-  {
-    id: "kanban-6",
-    titulo: "Organizar excursão pedagógica",
-    descricao: "Visita ao museu de ciências com turma 9º A",
-    etiquetas: ["Excursão", "Eventos"],
-    responsavel: "Rafael Alves",
-    prazo: "2026-06-15",
-    prioridade: "baixa",
-    status: "revisao",
-  },
-  {
-    id: "kanban-7",
-    titulo: "Atualizar grade curricular",
-    descricao: "Ajustar horários para o próximo semestre",
-    etiquetas: ["Grade", "Planejamento"],
-    responsavel: "João Santos",
-    prazo: "2026-06-10",
-    prioridade: "media",
-    status: "revisao",
-  },
-  {
-    id: "kanban-8",
-    titulo: "Finalizar relatório administrativo",
-    descricao: "Documento completo com indicadores e estatísticas",
-    etiquetas: ["Relatório", "Administrativo"],
-    responsavel: "Maria Silva",
-    prazo: "2026-05-22",
-    prioridade: "baixa",
-    status: "concluido",
-  },
-];
-
-const eventosCalendarioIniciais: CalendarEvent[] = [
-  {
-    id: "evento-1",
-    titulo: "Conselho da 1ª Série A",
-    descricao: "Reunião de acompanhamento e deliberações do bimestre.",
-    data: "2026-05-26",
-    horaInicio: "14:00",
-    horaFim: "16:00",
-    categoria: "Conselho",
-    cor: "#3794ff",
-    prioridade: "alta",
-    vinculo: "1ª Série A",
-  },
-  {
-    id: "evento-2",
-    titulo: "Reunião pedagógica",
-    descricao: "Alinhamento semanal da equipe de coordenação.",
-    data: "2026-05-29",
-    horaInicio: "10:00",
-    horaFim: "11:00",
-    categoria: "Reunião",
-    cor: "#13c65c",
-    prioridade: "media",
-    vinculo: "Geral",
-    recorrencia: { frequency: "weekly", interval: 1, weekdays: [5] },
-  },
-];
+const tarefasKanbanIniciais: KanbanTarefa[] = [];
+const eventosCalendarioIniciais: CalendarEvent[] = [];
 
 const opcoesBimestre = [
   { valor: "1", rotulo: "1º bimestre" },
