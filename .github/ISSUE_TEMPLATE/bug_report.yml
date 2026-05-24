@@ -27,4 +27,4 @@ body:
     id: ambiente
     attributes:
       label: Ambiente
-      description: SO, versão do app, Python (se aplicável)
+      description: SO, versão do app e tipo de instalação (instalador, portátil ou AppImage)

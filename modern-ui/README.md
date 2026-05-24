@@ -1,39 +1,35 @@
 # CoordenacaoOP Modern UI
 
-Prova de conceito da nova interface desktop usando Tauri, React, TypeScript e Vite.
+Interface oficial do CoordenacaoOP, construída com Tauri 2, React, TypeScript, Vite e Rust.
 
-Esta pasta e independente da interface Tkinter atual. A ideia e migrar por etapas, comecando pela tela de conselho, enquanto a versao Python existente continua funcionando.
-
-## Objetivo da primeira etapa
-
-- Validar a experiencia visual da tela de conselho em uma interface moderna.
-- Definir navegacao, layout, tabelas e estados de aluno elegivel.
-- Preparar a estrutura para conectar a interface aos dados reais do aplicativo atual.
+Esta pasta concentra a aplicação desktop atual e é a base dos releases oficiais.
 
 ## Requisitos de desenvolvimento
 
 - Node.js LTS
 - Rust stable
-- Dependencias do Tauri para Windows
+- Dependências nativas do Tauri para o sistema operacional usado
 
-Referencias oficiais:
-- https://v2.tauri.app/start/prerequisites/
-- https://v2.tauri.app/start/frontend/vite/
+Referência oficial:
+<https://v2.tauri.app/start/prerequisites/>
 
-## Comandos
+## Comandos principais
 
 ```powershell
 cd modern-ui
-npm install
-npm run dev
+npm ci
+npm run build
 npm run tauri dev
 ```
 
-## Proximo passo tecnico
+Para validar o backend Tauri:
 
-Criar uma ponte entre o Tauri e os dados atuais do CoordenacaoOP. Existem duas rotas possiveis:
+```powershell
+cd modern-ui/src-tauri
+cargo check
+cargo test
+```
 
-- Manter os servicos Python por enquanto e chamar um processo local/CLI.
-- Migrar gradualmente regras estaveis para TypeScript ou Rust.
+## Dados locais
 
-Para reduzir risco, a recomendacao inicial e reaproveitar os arquivos JSON atuais e implementar primeiro leitura em modo somente visualizacao.
+O aplicativo prioriza funcionamento portátil. Em builds instalados ou portáteis, os dados do usuário ficam na estrutura `dados/` resolvida pelo backend Rust, evitando que dados reais sejam versionados no Git.

@@ -31,12 +31,13 @@ As versões prontas para uso ficam na página de Releases do GitHub:
 
 Arquivos publicados:
 
-- Windows moderno: `CoordenacaoOP_2.0.0_x64-setup.exe`
-- Linux moderno: `CoordenacaoOP_2.0.0_amd64.AppImage`
+- Windows: instalador `CoordenacaoOP_<versao>_x64-setup.exe`
+- Windows portátil: pacote `CoordenacaoOP_<versao>_windows_portable.zip`
+- Linux: `CoordenacaoOP_<versao>_amd64.AppImage`
 
 ## Como usar no Windows
 
-1. Baixe o instalador `CoordenacaoOP_2.0.0_x64-setup.exe` da versão desejada.
+1. Baixe o instalador `CoordenacaoOP_<versao>_x64-setup.exe` da versão desejada.
 2. Execute o instalador.
 3. Abra o CoordenacaoOP pelo atalho criado.
 
@@ -45,7 +46,7 @@ Dependendo das configurações do Windows/SmartScreen, pode aparecer alerta de a
 
 ## Como usar no Linux
 
-1. Baixe o arquivo `CoordenacaoOP-x86_64.AppImage`.
+1. Baixe o arquivo `CoordenacaoOP_<versao>_amd64.AppImage`.
 2. Dê permissão de execução ao arquivo.
 3. Execute o AppImage.
 
@@ -58,9 +59,8 @@ Este projeto é desenvolvido com forte uso de vibe coding: a evolução do softw
 Se você pretende rodar o projeto a partir do código-fonte:
 
 - Interface oficial: Tauri 2, React, TypeScript, Rust e Node.js
-- Interface legada: Python 3.11+ (recomendado 3.12), dependências em `requirements.txt`
-- Interface oficial em desenvolvimento: `cd modern-ui && npm run tauri dev`
-- Interface legada: `python main_gui.py`
+- Desenvolvimento: `cd modern-ui && npm run tauri dev`
+- Validação: `cd modern-ui && npm run build`, `cd modern-ui/src-tauri && cargo check && cargo test`
 
 ## Licença
 

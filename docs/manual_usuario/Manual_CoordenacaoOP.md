@@ -1,6 +1,6 @@
 # Manual de uso do CoordenacaoOP
 
-Versão de referência: 2.1.2
+Versão de referência: 2.3.1
 
 > As imagens deste manual usam dados fictícios e servem como referência visual da interface. Não compartilhe prints com dados reais de alunos, especialmente informações de elegibilidade ou deficiência.
 

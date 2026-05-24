@@ -4,8 +4,10 @@
 
 ## Como foi validado
 
-- [ ] `python -m unittest -v`
-- [ ] Validação manual da GUI (se aplicável)
+- [ ] `cd modern-ui && npm run build`
+- [ ] `cd modern-ui/src-tauri && cargo check`
+- [ ] `cd modern-ui/src-tauri && cargo test`
+- [ ] Validação manual da interface (se aplicável)
 
 ## Checklist
 

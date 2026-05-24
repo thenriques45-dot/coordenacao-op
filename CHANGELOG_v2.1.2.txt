@@ -1,8 +1,0 @@
-v2.1.2 - Elegiveis e lideranca de sala
-
-- Portado para a modern-ui o importador da lista geral de alunos elegiveis.
-- Importacao de elegiveis com casamento por RA e, quando necessario, por nome.
-- Registro da lista de deficiencias do aluno nas turmas existentes.
-- Relatorio de alunos nao encontrados e nomes ambiguos apos a importacao.
-- Marcacao manual de lider e vice lider na gestao de turma, com apenas um aluno por funcao.
-- Exibicao dos lideres de sala no card da turma.

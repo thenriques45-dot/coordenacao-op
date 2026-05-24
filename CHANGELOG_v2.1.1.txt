@@ -1,7 +1,0 @@
-v2.1.1 - Proteções de cadastro e backup seletivo
-
-- Bloqueio de turmas usando a mesma sala no mesmo período e ano letivo.
-- Validação de CSVs duplicados na criação de salas em lote.
-- Filtro de ciclos na tela de turmas limitado aos ciclos realmente cadastrados.
-- Backup com seleção por ciclo, mostrando apenas ciclos existentes.
-- Atalho para abrir a pasta do último backup gerado.

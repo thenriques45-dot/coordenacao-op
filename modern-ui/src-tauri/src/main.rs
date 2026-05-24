@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
 use chrono::{Datelike, Local, NaiveDate};
@@ -4793,7 +4793,10 @@ fn rotulo_numero_chamada(rotulo: &str) -> bool {
 
 fn situacao_ativa_mapao(celula: Option<&Data>) -> bool {
     let status = celula.map(rotulo_celula).unwrap_or_default();
-    matches!(status.as_str(), "ATIVO" | "MATRICULADO" | "FREQUENTE")
+    matches!(
+        status.as_str(),
+        "ATIVO" | "MATRICULADO" | "FREQUENTE" | "ENCERRADO"
+    )
 }
 
 fn extrair_aulas_disciplina(
@@ -5777,6 +5780,16 @@ mod tests {
             data_por_extenso(data),
             "seis de maio de dois mil e vinte e seis"
         );
+    }
+
+    #[test]
+    fn situacao_encerrado_no_mapao_conta_como_aluno_ativo() {
+        assert!(situacao_ativa_mapao(Some(&Data::String(
+            "Encerrado".to_string()
+        ))));
+        assert!(!situacao_ativa_mapao(Some(&Data::String(
+            "Transferido".to_string()
+        ))));
     }
 
     #[test]

@@ -11,6 +11,8 @@ node_modules/
 build/
 dist/
 modern-ui/dist/
+modern-ui/tauri-dev.log
+modern-ui/vite-dev*.log
 modern-ui/src-tauri/target/
 AppDir/
 backups/
