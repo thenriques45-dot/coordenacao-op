@@ -23,6 +23,12 @@ export type RecurrenceRule = {
   until?: string;
 };
 
+export type KanbanAlerta = {
+  diasAntes: number;
+  ativo: boolean;
+  disparadoEm?: string;
+};
+
 export type KanbanTarefa = {
   id: string;
   titulo: string;
@@ -37,6 +43,7 @@ export type KanbanTarefa = {
   eventId?: string;
   vinculo?: string;
   recorrencia?: RecurrenceRule;
+  alertas?: KanbanAlerta[];
 };
 
 export type KanbanDragPreview = {

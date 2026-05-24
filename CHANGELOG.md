@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.3 - Alertas de prazo nas tarefas
+
+- Adicionada integração com notificações nativas do Windows e Linux para prazos de tarefas.
+- Cada tarefa pode ativar alertas independentes para 2 dias antes, 1 dia antes e no dia do prazo.
+- O aplicativo verifica alertas ao abrir e periodicamente enquanto estiver em execução.
+- Alertas disparados são marcados para evitar notificações repetidas para o mesmo prazo.
+
 ## v2.3.2 - Correções do importador, tarefas e tema escuro
 
 - Corrigida a importação de mapões para considerar alunos com situação `Encerrado` como ativos.

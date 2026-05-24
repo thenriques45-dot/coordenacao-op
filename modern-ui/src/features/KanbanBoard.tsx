@@ -40,6 +40,42 @@ import {
   type RecurrenceFrequency,
 } from "./management";
 
+const ALERTAS_TAREFA = [
+  { chave: "doisDias", diasAntes: 2, titulo: "Alerta 1", descricao: "2 dias antes" },
+  { chave: "umDia", diasAntes: 1, titulo: "Alerta 2", descricao: "1 dia antes" },
+  { chave: "noDia", diasAntes: 0, titulo: "Alerta 3", descricao: "No dia" },
+] as const;
+
+type AlertasFormulario = Record<(typeof ALERTAS_TAREFA)[number]["chave"], boolean>;
+
+const alertasFormularioPadrao: AlertasFormulario = {
+  doisDias: false,
+  umDia: false,
+  noDia: false,
+};
+
+function alertasParaFormulario(tarefa: KanbanTarefa | null): AlertasFormulario {
+  return ALERTAS_TAREFA.reduce<AlertasFormulario>((resultado, alerta) => {
+    resultado[alerta.chave] = Boolean(tarefa?.alertas?.some((item) => item.diasAntes === alerta.diasAntes && item.ativo));
+    return resultado;
+  }, { ...alertasFormularioPadrao });
+}
+
+function montarAlertasTarefa(alertas: AlertasFormulario, prazo: string, tarefaAnterior?: KanbanTarefa | null) {
+  return ALERTAS_TAREFA
+    .filter((alerta) => alertas[alerta.chave])
+    .map((alerta) => {
+      const anterior = tarefaAnterior?.prazo === prazo
+        ? tarefaAnterior.alertas?.find((item) => item.diasAntes === alerta.diasAntes)
+        : undefined;
+      return {
+        diasAntes: alerta.diasAntes,
+        ativo: true,
+        disparadoEm: anterior?.disparadoEm,
+      };
+    });
+}
+
 export function QuadroKanban() {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
     try {
@@ -83,6 +119,7 @@ export function QuadroKanban() {
     repetir: "none" as "none" | RecurrenceFrequency,
     intervalo: 1,
     repetirAte: "",
+    alertas: { ...alertasFormularioPadrao },
   });
 
   useEffect(() => {
@@ -185,7 +222,7 @@ export function QuadroKanban() {
 
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
     setTarefaEditando(null);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "" });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", alertas: { ...alertasFormularioPadrao } });
     setModalNovaTarefa(true);
   }
 
@@ -207,6 +244,7 @@ export function QuadroKanban() {
       repetir: tarefa.recorrencia?.frequency ?? "none",
       intervalo: tarefa.recorrencia?.interval ?? 1,
       repetirAte: tarefa.recorrencia?.until ?? "",
+      alertas: alertasParaFormulario(tarefa),
     });
     setModalNovaTarefa(true);
   }
@@ -288,6 +326,7 @@ export function QuadroKanban() {
     if (!titulo) return;
 
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
+    const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
     const recorrencia = novaTarefa.repetir === "none" ? undefined : {
       frequency: novaTarefa.repetir,
       interval: Math.max(1, Number(novaTarefa.intervalo) || 1),
@@ -301,13 +340,14 @@ export function QuadroKanban() {
         descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
         etiquetas,
         responsavel: novaTarefa.responsavel.trim() || "Coordenação",
-        prazo: novaTarefa.prazo || new Date().toISOString().slice(0, 10),
+        prazo,
         prioridade: novaTarefa.prioridade,
         status: novaTarefa.status,
         anexos: novaTarefa.anexos,
         eventId: novaTarefa.eventId || undefined,
         vinculo: novaTarefa.vinculo.trim() || undefined,
         recorrencia,
+        alertas: montarAlertasTarefa(novaTarefa.alertas, prazo, tarefa),
       } : tarefa));
       setTarefaEditando(null);
       setDestacarAnexos(false);
@@ -321,17 +361,18 @@ export function QuadroKanban() {
       descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
       etiquetas,
       responsavel: novaTarefa.responsavel.trim() || "Coordenação",
-      prazo: novaTarefa.prazo || new Date().toISOString().slice(0, 10),
+      prazo,
       prioridade: novaTarefa.prioridade,
       status: novaTarefa.status,
       anexos: novaTarefa.anexos,
       eventId: novaTarefa.eventId || undefined,
       vinculo: novaTarefa.vinculo.trim() || undefined,
       recorrencia,
+      alertas: montarAlertasTarefa(novaTarefa.alertas, prazo),
     };
 
     setTarefas((atuais) => [tarefa, ...atuais]);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "" });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", alertas: { ...alertasFormularioPadrao } });
     setDestacarAnexos(false);
     setModalNovaTarefa(false);
   }
@@ -495,6 +536,28 @@ export function QuadroKanban() {
                 Prazo
                 <input type="date" value={novaTarefa.prazo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
               </label>
+            </div>
+            <div className="kanban-alert-options">
+              <span>Alertas do prazo</span>
+              <div>
+                {ALERTAS_TAREFA.map((alerta) => (
+                  <button
+                    key={alerta.chave}
+                    type="button"
+                    className={novaTarefa.alertas[alerta.chave] ? "selected" : ""}
+                    onClick={() => setNovaTarefa((atual) => ({
+                      ...atual,
+                      alertas: {
+                        ...atual.alertas,
+                        [alerta.chave]: !atual.alertas[alerta.chave],
+                      },
+                    }))}
+                  >
+                    <strong>{alerta.titulo}</strong>
+                    <small>{alerta.descricao}</small>
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="kanban-form-grid">
               <label>
@@ -687,6 +750,7 @@ function KanbanTaskCard({
   const anexos = tarefa.anexos ?? [];
   const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
+  const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
 
   useEffect(() => {
@@ -791,6 +855,16 @@ function KanbanTaskCard({
               <Paperclip size={13} />
               {anexo.nome}
             </a>
+          ))}
+        </div>
+      )}
+      {alertasAtivos.length > 0 && (
+        <div className="kanban-reminder-tags">
+          {alertasAtivos.map((alerta) => (
+            <span key={alerta.diasAntes}>
+              <CalendarClock size={13} />
+              {alerta.diasAntes === 0 ? "No dia" : `${alerta.diasAntes} dia(s) antes`}
+            </span>
           ))}
         </div>
       )}

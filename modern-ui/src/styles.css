@@ -3897,6 +3897,26 @@ th:nth-child(3) {
   padding: 0;
 }
 
+.kanban-reminder-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.kanban-reminder-tags span {
+  align-items: center;
+  background: #fff7df;
+  border: 1px solid #f5d58a;
+  border-radius: 999px;
+  color: #8a5a00;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 5px;
+  min-height: 26px;
+  padding: 4px 8px;
+}
+
 .kanban-task-card footer {
   align-items: center;
   color: #667085;
@@ -3998,6 +4018,50 @@ th:nth-child(3) {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.kanban-alert-options {
+  display: grid;
+  gap: 10px;
+}
+
+.kanban-alert-options > span {
+  color: #344054;
+  font-weight: 800;
+}
+
+.kanban-alert-options > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kanban-alert-options button {
+  align-items: flex-start;
+  background: #f8fafc;
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  color: #344054;
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.kanban-alert-options button.selected {
+  background: #dff3e5;
+  border-color: #94d3aa;
+  color: #276749;
+}
+
+.kanban-alert-options button strong {
+  font-size: 13px;
+}
+
+.kanban-alert-options button small {
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .kanban-file-picker {
@@ -4405,6 +4469,7 @@ th:nth-child(3) {
 .theme-dark .kanban-doc-attachments a,
 .theme-dark .kanban-attachment-list span,
 .theme-dark .kanban-file-picker,
+.theme-dark .kanban-alert-options button,
 .theme-dark .eligible-badge,
 .theme-dark .status-pill,
 .theme-dark .student-badge,
@@ -4415,6 +4480,7 @@ th:nth-child(3) {
 }
 
 .theme-dark .kanban-file-picker.highlight,
+.theme-dark .kanban-alert-options button.selected,
 .theme-dark .kanban-top-actions .secondary-action.selected,
 .theme-dark .next-date-card,
 .theme-dark .calendar-linked-tasks span,
@@ -4424,6 +4490,25 @@ th:nth-child(3) {
   background: #17314d;
   border-color: #3794ff;
   color: #cfe7ff;
+}
+
+.theme-dark .kanban-alert-options > span,
+.theme-dark .kanban-alert-options button strong {
+  color: #f3f4f6;
+}
+
+.theme-dark .kanban-alert-options button small {
+  color: #a6adbb;
+}
+
+.theme-dark .kanban-alert-options button.selected small {
+  color: #cfe7ff;
+}
+
+.theme-dark .kanban-reminder-tags span {
+  background: #3a3217;
+  border-color: #7a5d16;
+  color: #fde68a;
 }
 
 .theme-dark .calendar-day,

@@ -38,6 +38,7 @@ import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
 import { Configuracoes } from "./features/SettingsPage";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
+import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
 
 type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
 
@@ -165,6 +166,11 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.3": [
+    "Tarefas do Quadro Kanban agora podem ter alertas de prazo configuráveis.",
+    "É possível ativar alertas para 2 dias antes, 1 dia antes e no dia do prazo.",
+    "Com o aplicativo aberto, o CoordenacaoOP verifica os prazos e envia notificações nativas do sistema.",
+  ],
   "2.3.2": [
     "Correção na importação de mapões para considerar alunos com situação Encerrado como ativos.",
     "Aba de tarefas em turmas e alunos agora aparece apenas quando há tarefas vinculadas.",
@@ -301,6 +307,11 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("coordenacaoop:menu-gestao", gestaoMenuAberto ? "aberto" : "fechado");
   }, [gestaoMenuAberto]);
+
+  useEffect(() => {
+    if (!tauriDisponivel) return;
+    return iniciarMonitorAlertasTarefas();
+  }, []);
 
   useEffect(() => {
     if (!tauriDisponivel) return;
