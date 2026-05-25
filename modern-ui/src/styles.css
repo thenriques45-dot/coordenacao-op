@@ -3831,6 +3831,7 @@ th:nth-child(3) {
 .kanban-tags-editor {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -3855,6 +3856,22 @@ th:nth-child(3) {
   width: 34px;
 }
 
+.kanban-tags-editor .calendar-link-suggestions {
+  flex-basis: 100%;
+}
+
+.kanban-tags-editor .calendar-link-suggestions button {
+  background: #f5f7fb;
+  border: 1px solid #dde3ec;
+  border-radius: 999px;
+  color: #344054;
+  font-size: 12px;
+  height: auto;
+  min-height: 28px;
+  padding: 0 10px;
+  width: auto;
+}
+
 .kanban-doc-attachments,
 .kanban-attachment-list {
   display: grid;
@@ -3862,6 +3879,7 @@ th:nth-child(3) {
 }
 
 .kanban-doc-attachments a,
+.kanban-doc-attachments button,
 .kanban-attachment-list span {
   align-items: center;
   background: #f5f7fb;
@@ -3877,6 +3895,12 @@ th:nth-child(3) {
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.kanban-doc-attachments button {
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .kanban-attachment-list span {
@@ -4075,6 +4099,8 @@ th:nth-child(3) {
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 58px;
   padding: 10px 12px;
+  text-align: left;
+  width: 100%;
 }
 
 .kanban-file-picker.highlight {
@@ -4467,6 +4493,7 @@ th:nth-child(3) {
 .theme-dark .kanban-column-header strong,
 .theme-dark .kanban-tags span,
 .theme-dark .kanban-doc-attachments a,
+.theme-dark .kanban-doc-attachments button,
 .theme-dark .kanban-attachment-list span,
 .theme-dark .kanban-file-picker,
 .theme-dark .kanban-alert-options button,

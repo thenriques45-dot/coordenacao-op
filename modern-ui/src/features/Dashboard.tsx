@@ -6,6 +6,7 @@ import {
   carregarTarefasKanbanDashboard,
   formatarDataCurta,
   formatarDataLonga,
+  formatarVinculosTarefa,
   montarLinhaDoTempo,
   rotuloDiasAte,
   rotuloPrioridade,
@@ -139,13 +140,14 @@ export function TaskLinkList({ tarefas, eventos, emptyText, onOpenKanban }: { ta
     <div className="linked-task-list">
       {tarefas.map((tarefa) => {
         const evento = eventos.find((item) => item.id === tarefa.eventId);
+        const vinculos = formatarVinculosTarefa(tarefa);
         return (
           <button key={tarefa.id} type="button" className={`linked-task-card ${tarefa.prioridade}`} onClick={onOpenKanban}>
             <div>
               <strong>{tarefa.titulo}</strong>
               <span>{tarefa.descricao}</span>
               {evento && <small>Parte de: {evento.titulo}</small>}
-              {tarefa.vinculo && <small>Vínculo: {tarefa.vinculo}</small>}
+              {vinculos && <small>Vínculo: {vinculos}</small>}
             </div>
             <time>{formatarDataCurta(tarefa.prazo)}</time>
           </button>

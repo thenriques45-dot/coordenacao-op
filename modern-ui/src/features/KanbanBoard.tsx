@@ -23,12 +23,17 @@ import {
   carregarEventosCalendario,
   colunasKanbanPadrao,
   coresKanban,
+  filtrarSugestoesFuzzy,
   formatarDataCurta,
+  formatarVinculosTarefa,
+  normalizarTextoGestao,
+  obterVinculosTarefa,
   ordenarPorPrazoECriacao,
   ordenarTarefasKanban,
   reordenarColunaKanban,
   rotuloRecorrencia,
   salvarTarefasKanban,
+  separarVinculos,
   tarefasKanbanIniciais,
   type CalendarEvent,
   type KanbanAnexo,
@@ -39,6 +44,20 @@ import {
   type KanbanTarefa,
   type RecurrenceFrequency,
 } from "./management";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
+import { invokeApp, tauriDisponivel } from "./appBridge";
+
+type TurmaKanban = {
+  codigo: string;
+  serie: string | null;
+  nomes_alunos: string[];
+};
+
+type KanbanAnexoDesktop = KanbanAnexo & {
+  caminho: string;
+  origem: "interno" | "externo";
+};
 
 const ALERTAS_TAREFA = [
   { chave: "doisDias", diasAntes: 2, titulo: "Alerta 1", descricao: "2 dias antes" },
@@ -76,7 +95,45 @@ function montarAlertasTarefa(alertas: AlertasFormulario, prazo: string, tarefaAn
     });
 }
 
-export function QuadroKanban() {
+function rotuloSerie(valor?: string | null) {
+  if (!valor) return "";
+  return valor
+    .replace(/\b([1-3])\s*a\s+serie\b/gi, "$1ª Série")
+    .replace(/\b([1-9])\s*o\s+ano\b/gi, "$1º Ano")
+    .replace(/\bpre-escola\b/gi, "Pré-escola")
+    .replace(/\bbercario\b/gi, "Berçário")
+    .replace(/\bserie\b/gi, "Série")
+    .replace(/\bano\b/gi, "Ano");
+}
+
+function rotuloTurma(turma: TurmaKanban) {
+  const serie = rotuloSerie(turma.serie);
+  const codigo = turma.codigo ?? "";
+  if (!serie) return rotuloSerie(codigo) || codigo;
+  if (normalizarTextoGestao(codigo).startsWith(normalizarTextoGestao(turma.serie ?? ""))) {
+    const resto = codigo.slice(turma.serie?.length ?? 0).trim();
+    return `${serie} ${resto}`.trim();
+  }
+  return rotuloSerie(codigo) || codigo;
+}
+
+function adicionarSugestaoEmLista(texto: string, sugestao: string) {
+  const vinculos = separarItensSeparados(texto);
+  const chave = normalizarTextoGestao(sugestao);
+  const semAtual = vinculos.filter((item) => normalizarTextoGestao(item) !== chave);
+  return [...semAtual, sugestao].join(", ");
+}
+
+function separarItensSeparados(valor: string) {
+  return separarVinculos(valor);
+}
+
+function ultimoItemDigitado(valor: string) {
+  const partes = valor.split(/[,;\n]/);
+  return partes[partes.length - 1]?.trim() ?? "";
+}
+
+export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
     try {
       const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
@@ -160,6 +217,37 @@ export function QuadroKanban() {
     return Array.from(new Set(tarefas.flatMap((tarefa) => tarefa.etiquetas))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tarefas]);
 
+  const termoEtiquetaAtual = ultimoItemDigitado(novaTarefa.etiquetas);
+  const etiquetasSelecionadas = separarItensSeparados(novaTarefa.etiquetas);
+  const sugestoesEtiquetaTarefa = filtrarSugestoesFuzzy(
+    sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
+    termoEtiquetaAtual,
+    6,
+  );
+
+  const sugestoesVinculo = useMemo(() => {
+    const itens = new Set<string>();
+    turmas.forEach((turma) => {
+      itens.add(rotuloTurma(turma));
+      (turma.nomes_alunos ?? []).forEach((nome) => itens.add(nome));
+    });
+    eventosCalendario.forEach((evento) => {
+      if (evento.vinculo) itens.add(evento.vinculo);
+    });
+    tarefas.forEach((tarefa) => {
+      obterVinculosTarefa(tarefa).forEach((vinculo) => itens.add(vinculo));
+    });
+    return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [turmas, eventosCalendario, tarefas]);
+
+  const termoVinculoAtual = ultimoItemDigitado(novaTarefa.vinculo);
+  const vinculosSelecionados = separarVinculos(novaTarefa.vinculo);
+  const sugestoesVinculoTarefa = filtrarSugestoesFuzzy(
+    sugestoesVinculo.filter((item) => !vinculosSelecionados.some((vinculo) => normalizarTextoGestao(vinculo) === normalizarTextoGestao(item))),
+    termoVinculoAtual,
+    6,
+  );
+
   const totalAltaPrioridade = tarefas.filter((tarefa) => tarefa.prioridade === "alta").length;
 
   function moverTarefa(id: string, status: KanbanStatus) {
@@ -240,7 +328,7 @@ export function QuadroKanban() {
       status: tarefa.status,
       anexos: tarefa.anexos ?? [],
       eventId: tarefa.eventId ?? "",
-      vinculo: tarefa.vinculo ?? "",
+      vinculo: formatarVinculosTarefa(tarefa),
       repetir: tarefa.recorrencia?.frequency ?? "none",
       intervalo: tarefa.recorrencia?.interval ?? 1,
       repetirAte: tarefa.recorrencia?.until ?? "",
@@ -273,6 +361,33 @@ export function QuadroKanban() {
     if (!arquivos?.length) return;
     const anexos = await Promise.all(Array.from(arquivos).map(arquivoParaAnexo));
     setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+  }
+
+  async function selecionarAnexosDesktop() {
+    setErroQuadro("");
+    try {
+      const selecionados = await abrirDialogoArquivo({
+        multiple: true,
+        title: "Selecionar anexos da tarefa",
+      });
+      const caminhos = Array.isArray(selecionados) ? selecionados : selecionados ? [selecionados] : [];
+      if (!caminhos.length) return;
+      const anexos = await Promise.all(
+        caminhos.map((caminho) => invokeApp<KanbanAnexoDesktop>("preparar_anexo_kanban", { caminho })),
+      );
+      setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+    } catch (error) {
+      setErroQuadro(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async function abrirAnexo(anexo: KanbanAnexo) {
+    if (!anexo.caminho) return;
+    try {
+      await invokeApp("abrir_anexo_kanban", { caminho: anexo.caminho });
+    } catch (error) {
+      setErroQuadro(error instanceof Error ? error.message : String(error));
+    }
   }
 
   function removerAnexo(id: string) {
@@ -326,6 +441,7 @@ export function QuadroKanban() {
     if (!titulo) return;
 
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
+    const vinculos = separarVinculos(novaTarefa.vinculo);
     const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
     const recorrencia = novaTarefa.repetir === "none" ? undefined : {
       frequency: novaTarefa.repetir,
@@ -345,7 +461,8 @@ export function QuadroKanban() {
         status: novaTarefa.status,
         anexos: novaTarefa.anexos,
         eventId: novaTarefa.eventId || undefined,
-        vinculo: novaTarefa.vinculo.trim() || undefined,
+        vinculo: vinculos[0],
+        vinculos: vinculos.length ? vinculos : undefined,
         recorrencia,
         alertas: montarAlertasTarefa(novaTarefa.alertas, prazo, tarefa),
       } : tarefa));
@@ -366,7 +483,8 @@ export function QuadroKanban() {
       status: novaTarefa.status,
       anexos: novaTarefa.anexos,
       eventId: novaTarefa.eventId || undefined,
-      vinculo: novaTarefa.vinculo.trim() || undefined,
+      vinculo: vinculos[0],
+      vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
       alertas: montarAlertasTarefa(novaTarefa.alertas, prazo),
     };
@@ -474,6 +592,7 @@ export function QuadroKanban() {
                     }}
                     onSalvarEtiquetas={(etiquetas) => salvarEtiquetas(tarefa.id, etiquetas)}
                     onCancelarEtiquetas={() => setEtiquetasEditando(null)}
+                    onAbrirAnexo={abrirAnexo}
                     onPointerDown={(event) => aoIniciarArrastePorPonteiro(event, tarefa.id)}
                     onPointerMove={aoMoverArrastePorPonteiro}
                     onPointerUp={(event) => aoSoltarArrastePorPonteiro(event, tarefa.id)}
@@ -563,6 +682,19 @@ export function QuadroKanban() {
               <label>
                 Etiquetas
                 <input list="kanban-etiquetas-sugeridas" placeholder="Conselho, Urgente" value={novaTarefa.etiquetas} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
+                {sugestoesEtiquetaTarefa.length > 0 && (
+                  <span className="calendar-link-suggestions">
+                    {sugestoesEtiquetaTarefa.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        onClick={() => setNovaTarefa((atual) => ({ ...atual, etiquetas: adicionarSugestaoEmLista(atual.etiquetas, item) }))}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </span>
+                )}
               </label>
               <label>
                 Prioridade
@@ -584,8 +716,26 @@ export function QuadroKanban() {
                 </select>
               </label>
               <label>
-                Vínculo
-                <input placeholder="Aluno, turma ou geral" value={novaTarefa.vinculo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
+                Vínculos
+                <input
+                  list="kanban-vinculos-sugeridos"
+                  placeholder="Aluno, turma ou geral"
+                  value={novaTarefa.vinculo}
+                  onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))}
+                />
+                {sugestoesVinculoTarefa.length > 0 && (
+                  <span className="calendar-link-suggestions">
+                    {sugestoesVinculoTarefa.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        onClick={() => setNovaTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </span>
+                )}
               </label>
             </div>
             <div className="kanban-form-grid">
@@ -614,12 +764,20 @@ export function QuadroKanban() {
             )}
             <label>
               Anexos
-              <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
-                <Paperclip size={16} />
-                <strong>Selecionar arquivos</strong>
-                <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
-                <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
-              </span>
+              {tauriDisponivel ? (
+                <button type="button" className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`} onClick={selecionarAnexosDesktop}>
+                  <Paperclip size={16} />
+                  <strong>Selecionar arquivos</strong>
+                  <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                </button>
+              ) : (
+                <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
+                  <Paperclip size={16} />
+                  <strong>Selecionar arquivos</strong>
+                  <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                  <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
+                </span>
+              )}
             </label>
             {novaTarefa.anexos.length > 0 && (
               <div className="kanban-attachment-list">
@@ -637,6 +795,11 @@ export function QuadroKanban() {
             <datalist id="kanban-etiquetas-sugeridas">
               {sugestoesEtiquetas.map((etiqueta) => (
                 <option key={etiqueta} value={etiqueta} />
+              ))}
+            </datalist>
+            <datalist id="kanban-vinculos-sugeridos">
+              {sugestoesVinculo.map((vinculo) => (
+                <option key={vinculo} value={vinculo} />
               ))}
             </datalist>
             <div className="modal-actions">
@@ -709,6 +872,12 @@ function ColumnEditor({
   );
 }
 
+function origemImagemAnexo(anexo: KanbanAnexo) {
+  if (anexo.dados) return anexo.dados;
+  if (anexo.caminho && tauriDisponivel) return convertFileSrc(anexo.caminho);
+  return "";
+}
+
 function KanbanTaskCard({
   tarefa,
   evento,
@@ -722,6 +891,7 @@ function KanbanTaskCard({
   onEditarEtiquetas,
   onSalvarEtiquetas,
   onCancelarEtiquetas,
+  onAbrirAnexo,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -740,6 +910,7 @@ function KanbanTaskCard({
   onEditarEtiquetas: () => void;
   onSalvarEtiquetas: (etiquetas: string) => void;
   onCancelarEtiquetas: () => void;
+  onAbrirAnexo: (anexo: KanbanAnexo) => void;
   onPointerDown: (event: PointerEvent<HTMLElement>) => void;
   onPointerMove: (event: PointerEvent<HTMLElement>) => void;
   onPointerUp: (event: PointerEvent<HTMLElement>) => void;
@@ -751,7 +922,15 @@ function KanbanTaskCard({
   const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
   const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
+  const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
+  const termoEtiquetaAtual = ultimoItemDigitado(textoEtiquetas);
+  const etiquetasSelecionadas = separarItensSeparados(textoEtiquetas);
+  const sugestoesEtiquetasFiltradas = filtrarSugestoesFuzzy(
+    sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
+    termoEtiquetaAtual,
+    5,
+  );
 
   useEffect(() => {
     setTextoEtiquetas(tarefa.etiquetas.join(", "));
@@ -791,12 +970,12 @@ function KanbanTaskCard({
       {imagens.length > 0 && (
         <div className="kanban-image-attachments">
           {imagens.map((anexo) => (
-            <img key={anexo.id} src={anexo.dados} alt={anexo.nome} draggable={false} />
+            <img key={anexo.id} src={origemImagemAnexo(anexo)} alt={anexo.nome} draggable={false} />
           ))}
         </div>
       )}
       <p>{tarefa.descricao}</p>
-      {(evento || tarefa.recorrencia) && (
+      {(evento || tarefa.recorrencia || vinculos.length > 0) && (
         <div className="kanban-linked-meta">
           {evento && (
             <span>
@@ -804,6 +983,12 @@ function KanbanTaskCard({
               Parte de: {evento.titulo}
             </span>
           )}
+          {vinculos.map((vinculo) => (
+            <span key={vinculo}>
+              <Tag size={13} />
+              {vinculo}
+            </span>
+          ))}
           {tarefa.recorrencia && (
             <span>
               <Clock size={13} />
@@ -834,6 +1019,15 @@ function KanbanTaskCard({
               <option key={etiqueta} value={etiqueta} />
             ))}
           </datalist>
+          {sugestoesEtiquetasFiltradas.length > 0 && (
+            <span className="calendar-link-suggestions">
+              {sugestoesEtiquetasFiltradas.map((etiqueta) => (
+                <button type="button" key={etiqueta} onClick={() => setTextoEtiquetas((atual) => adicionarSugestaoEmLista(atual, etiqueta))}>
+                  {etiqueta}
+                </button>
+              ))}
+            </span>
+          )}
           <button type="button" onClick={() => onSalvarEtiquetas(textoEtiquetas)} aria-label="Salvar etiquetas">
             <Check size={14} />
           </button>
@@ -850,7 +1044,12 @@ function KanbanTaskCard({
       )}
       {documentos.length > 0 && (
         <div className="kanban-doc-attachments">
-          {documentos.map((anexo) => (
+          {documentos.map((anexo) => anexo.caminho ? (
+            <button key={anexo.id} type="button" onClick={() => onAbrirAnexo(anexo)}>
+              <Paperclip size={13} />
+              {anexo.nome}
+            </button>
+          ) : (
             <a key={anexo.id} href={anexo.dados} download={anexo.nome}>
               <Paperclip size={13} />
               {anexo.nome}

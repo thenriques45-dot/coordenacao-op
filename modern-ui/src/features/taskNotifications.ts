@@ -1,5 +1,5 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { carregarTarefasKanban, chaveData, parseDataLocal, salvarTarefasKanban, type KanbanTarefa } from "./management";
+import { carregarTarefasKanban, chaveData, KANBAN_UPDATED_EVENT, parseDataLocal, salvarTarefasKanban, type KanbanTarefa } from "./management";
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -57,10 +57,14 @@ export async function verificarAlertasTarefas() {
 
       const alertasDisparados = new Set(item.alertas.map((alerta) => alerta.diasAntes));
       const menorPrazo = Math.min(...item.alertas.map((alerta) => alerta.diasAntes));
-      sendNotification({
-        title: "Prazo de tarefa",
-        body: `${tarefa.titulo} ${rotuloAlerta(menorPrazo)}.`,
-      });
+      try {
+        sendNotification({
+          title: "Prazo de tarefa",
+          body: `${tarefa.titulo} ${rotuloAlerta(menorPrazo)}.`,
+        });
+      } catch {
+        return tarefa;
+      }
 
       return {
         ...tarefa,
@@ -81,6 +85,23 @@ export function iniciarMonitorAlertasTarefas() {
   const intervalo = window.setInterval(() => {
     void verificarAlertasTarefas();
   }, CHECK_INTERVAL_MS);
+  let verificacaoAgendada: number | null = null;
+  const verificarAposSalvarKanban = () => {
+    if (verificacaoAgendada !== null) {
+      window.clearTimeout(verificacaoAgendada);
+    }
+    verificacaoAgendada = window.setTimeout(() => {
+      verificacaoAgendada = null;
+      void verificarAlertasTarefas();
+    }, 500);
+  };
+  window.addEventListener(KANBAN_UPDATED_EVENT, verificarAposSalvarKanban);
 
-  return () => window.clearInterval(intervalo);
+  return () => {
+    window.clearInterval(intervalo);
+    if (verificacaoAgendada !== null) {
+      window.clearTimeout(verificacaoAgendada);
+    }
+    window.removeEventListener(KANBAN_UPDATED_EVENT, verificarAposSalvarKanban);
+  };
 }

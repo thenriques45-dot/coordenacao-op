@@ -9,9 +9,13 @@ import {
   chaveData,
   colunasKanbanPadrao,
   coresCalendario,
+  filtrarSugestoesFuzzy,
   formatarDataLonga,
   montarLinhaDoTempo,
+  normalizarTextoGestao,
+  obterVinculosTarefa,
   rotuloRecorrencia,
+  separarVinculos,
   type CalendarEvent,
   type KanbanPrioridade,
   type KanbanStatus,
@@ -55,6 +59,19 @@ function rotuloTurma(turma: TurmaCalendario) {
   }
   return rotuloSerie(codigo) || codigo;
 }
+
+function adicionarSugestaoEmLista(texto: string, sugestao: string) {
+  const vinculos = separarVinculos(texto);
+  const chave = normalizarTextoGestao(sugestao);
+  const semAtual = vinculos.filter((item) => normalizarTextoGestao(item) !== chave);
+  return [...semAtual, sugestao].join(", ");
+}
+
+function ultimoItemDigitado(valor: string) {
+  const partes = valor.split(/[,;\n]/);
+  return partes[partes.length - 1]?.trim() ?? "";
+}
+
 export function CalendarioGestao({
   turmas,
   onOpenKanban,
@@ -160,16 +177,18 @@ export function CalendarioGestao({
       if (evento.vinculo) itens.add(evento.vinculo);
     });
     tarefas.forEach((tarefa) => {
-      if (tarefa.vinculo) itens.add(tarefa.vinculo);
+      obterVinculosTarefa(tarefa).forEach((vinculo) => itens.add(vinculo));
     });
     return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [turmas, eventos, tarefas]);
-  const sugestoesEvento = sugestoesVinculo
-    .filter((item) => formEvento.vinculo && normalizarBusca(item).includes(normalizarBusca(formEvento.vinculo)))
-    .slice(0, 5);
-  const sugestoesTarefa = sugestoesVinculo
-    .filter((item) => formTarefa.vinculo && normalizarBusca(item).includes(normalizarBusca(formTarefa.vinculo)))
-    .slice(0, 5);
+  const sugestoesEvento = filtrarSugestoesFuzzy(sugestoesVinculo, formEvento.vinculo, 5);
+  const termoVinculoTarefa = ultimoItemDigitado(formTarefa.vinculo);
+  const vinculosTarefaSelecionados = separarVinculos(formTarefa.vinculo);
+  const sugestoesTarefa = filtrarSugestoesFuzzy(
+    sugestoesVinculo.filter((item) => !vinculosTarefaSelecionados.some((vinculo) => normalizarTextoGestao(vinculo) === normalizarTextoGestao(item))),
+    termoVinculoTarefa,
+    5,
+  );
 
   function abrirNovoEvento(data = diaSelecionado) {
     setEventoEditando(null);
@@ -264,6 +283,7 @@ export function CalendarioGestao({
   function salvarTarefaAssociada(event: FormEvent) {
     event.preventDefault();
     if (!eventoTarefa || !formTarefa.titulo.trim()) return;
+    const vinculos = separarVinculos(formTarefa.vinculo || eventoTarefa.vinculo);
     const recorrencia = formTarefa.repetir === "none" ? undefined : {
       frequency: formTarefa.repetir,
       interval: Math.max(1, Number(formTarefa.intervalo) || 1),
@@ -279,7 +299,8 @@ export function CalendarioGestao({
       prioridade: formTarefa.prioridade,
       status: formTarefa.status,
       eventId: eventoTarefa.id,
-      vinculo: formTarefa.vinculo.trim() || eventoTarefa.vinculo,
+      vinculo: vinculos[0] ?? eventoTarefa.vinculo,
+      vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
     };
     setTarefas((atuais) => [tarefa, ...atuais]);
@@ -547,11 +568,19 @@ export function CalendarioGestao({
                 <input value={formTarefa.etiquetas} onChange={(event) => setFormTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
               </label>
               <label>
-                Vínculo
+                Vínculos
                 <input list="calendar-vinculos-task" value={formTarefa.vinculo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
                 {sugestoesTarefa.length > 0 && (
                   <span className="calendar-link-suggestions">
-                    {sugestoesTarefa.map((item) => <button type="button" key={item} onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: item }))}>{item}</button>)}
+                    {sugestoesTarefa.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </span>
                 )}
               </label>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.3.4 - Vínculos, anexos e notificações do Kanban
+
+- Autocomplete de etiquetas e vínculos do Kanban agora usa busca aproximada.
+- Tarefas podem ser vinculadas a múltiplas turmas, alunos ou eventos.
+- Imagens anexadas ao Kanban são copiadas para a pasta de dados do programa.
+- Documentos e planilhas anexados ao Kanban passam a abrir o arquivo original pelo aplicativo padrão do sistema.
+- Alertas de prazo são verificados também logo após criar ou editar tarefas.
+
 ## v2.3.3 - Alertas de prazo nas tarefas
 
 - Adicionada integração com notificações nativas do Windows e Linux para prazos de tarefas.
@@ -505,4 +513,3 @@ Arquivos principais
 - main.py (novo menu)
 - services/configuracao.py (configurações + migração)
 - services/gerador_ata.py (texto da direção)
-

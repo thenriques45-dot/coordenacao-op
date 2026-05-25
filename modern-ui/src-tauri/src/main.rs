@@ -43,6 +43,16 @@ struct ImagemCabecalhoInput {
     bytes: Vec<u8>,
 }
 
+#[derive(Serialize)]
+struct KanbanAnexoResultado {
+    id: String,
+    nome: String,
+    tipo: String,
+    dados: String,
+    caminho: Option<String>,
+    origem: String,
+}
+
 #[derive(Deserialize)]
 struct BackupImportInput {
     nome: String,
@@ -503,6 +513,63 @@ fn abrir_pasta(caminho: String) -> Result<(), String> {
             .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
     }
     Ok(())
+}
+
+#[tauri::command]
+fn preparar_anexo_kanban(caminho: String) -> Result<KanbanAnexoResultado, String> {
+    let origem = PathBuf::from(caminho);
+    if !origem.exists() || !origem.is_file() {
+        return Err("Arquivo nao encontrado.".to_string());
+    }
+
+    let nome = origem
+        .file_name()
+        .and_then(|valor| valor.to_str())
+        .unwrap_or("anexo")
+        .to_string();
+    let tipo = tipo_mime_por_caminho(&origem);
+    let id = format!(
+        "anexo-{}-{}",
+        Local::now().timestamp_millis(),
+        sanitizar_segmento(&nome)
+    );
+
+    if tipo.starts_with("image/") {
+        let pasta = data_dir()
+            .map_err(|err| err.to_string())?
+            .join("kanban")
+            .join("anexos");
+        fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+        let destino = pasta.join(format!("{}_{}", id, sanitizar_segmento(&nome)));
+        fs::copy(&origem, &destino)
+            .map_err(|err| format!("Nao foi possivel copiar a imagem para os dados do programa: {err}"))?;
+        Ok(KanbanAnexoResultado {
+            id,
+            nome,
+            tipo,
+            dados: String::new(),
+            caminho: Some(destino.to_string_lossy().to_string()),
+            origem: "interno".to_string(),
+        })
+    } else {
+        Ok(KanbanAnexoResultado {
+            id,
+            nome,
+            tipo,
+            dados: String::new(),
+            caminho: Some(origem.to_string_lossy().to_string()),
+            origem: "externo".to_string(),
+        })
+    }
+}
+
+#[tauri::command]
+fn abrir_anexo_kanban(caminho: String) -> Result<(), String> {
+    let arquivo = PathBuf::from(caminho);
+    if !arquivo.exists() || !arquivo.is_file() {
+        return Err("Arquivo nao encontrado. Ele pode ter sido movido, renomeado ou apagado.".to_string());
+    }
+    abrir_arquivo(&arquivo)
 }
 
 #[tauri::command]
@@ -1499,19 +1566,65 @@ fn nome_documento_finalizacao(prefixo: &str, codigo: &str, bimestre: &str) -> St
 }
 
 fn abrir_arquivo(arquivo: &Path) -> Result<(), String> {
-    let caminho = arquivo.to_string_lossy();
-    let script = format!("Start-Process -FilePath {}", aspas_powershell(&caminho));
-    Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            &script,
-        ])
-        .spawn()
-        .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
+    #[cfg(target_os = "windows")]
+    {
+        let caminho = arquivo.to_string_lossy();
+        let script = format!("Start-Process -FilePath {}", aspas_powershell(&caminho));
+        Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                &script,
+            ])
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(arquivo)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(arquivo)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
+    }
     Ok(())
+}
+
+fn tipo_mime_por_caminho(caminho: &Path) -> String {
+    match caminho
+        .extension()
+        .and_then(|valor| valor.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "pdf" => "application/pdf",
+        "doc" => "application/msword",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls" => "application/vnd.ms-excel",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "ppt" => "application/vnd.ms-powerpoint",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "txt" => "text/plain",
+        "csv" => "text/csv",
+        "odt" => "application/vnd.oasis.opendocument.text",
+        "ods" => "application/vnd.oasis.opendocument.spreadsheet",
+        _ => "application/octet-stream",
+    }
+    .to_string()
 }
 
 fn aspas_powershell(valor: &str) -> String {
@@ -5571,6 +5684,7 @@ fn valor_para_f64(valor: &Value) -> Option<f64> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -5586,6 +5700,8 @@ fn main() {
             verificar_atualizacao,
             abrir_url,
             abrir_pasta,
+            preparar_anexo_kanban,
+            abrir_anexo_kanban,
             listar_turmas,
             criar_turma,
             editar_turma,

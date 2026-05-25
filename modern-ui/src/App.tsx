@@ -166,6 +166,12 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.4": [
+    "Autocomplete de etiquetas e vínculos do Kanban agora usa busca aproximada.",
+    "Tarefas podem ser vinculadas a múltiplas turmas, alunos ou eventos.",
+    "Anexos do Kanban agora preservam documentos editáveis como link para o arquivo original.",
+    "Alertas de prazo são verificados logo após criar ou editar tarefas.",
+  ],
   "2.3.3": [
     "Tarefas do Quadro Kanban agora podem ter alertas de prazo configuráveis.",
     "É possível ativar alertas para 2 dias antes, 1 dia antes e no dia do prazo.",
@@ -745,7 +751,7 @@ export function App() {
             }
           }} />
         )}
-        {tela === "kanban" && <QuadroKanban />}
+        {tela === "kanban" && <QuadroKanban turmas={turmas} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

@@ -6,6 +6,8 @@ export type KanbanAnexo = {
   nome: string;
   tipo: string;
   dados: string;
+  caminho?: string;
+  origem?: "embutido" | "interno" | "externo";
 };
 
 export type KanbanColuna = {
@@ -42,6 +44,7 @@ export type KanbanTarefa = {
   anexos?: KanbanAnexo[];
   eventId?: string;
   vinculo?: string;
+  vinculos?: string[];
   recorrencia?: RecurrenceRule;
   alertas?: KanbanAlerta[];
 };
@@ -285,12 +288,88 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
     .slice(0, limite);
 }
 
-function normalizarTextoGestao(valor: string) {
+export function normalizarTextoGestao(valor: string) {
   return valor
     .trim()
     .toLocaleLowerCase("pt-BR")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+export function separarVinculos(valor: string) {
+  const vistos = new Set<string>();
+  return valor
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const chave = normalizarTextoGestao(item);
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+}
+
+export function obterVinculosTarefa(tarefa: KanbanTarefa) {
+  const valores = [
+    ...(Array.isArray(tarefa.vinculos) ? tarefa.vinculos : []),
+    tarefa.vinculo ?? "",
+  ];
+  const vistos = new Set<string>();
+  return valores
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const chave = normalizarTextoGestao(item);
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+}
+
+export function formatarVinculosTarefa(tarefa: KanbanTarefa) {
+  return obterVinculosTarefa(tarefa).join(", ");
+}
+
+function pontuarBuscaFuzzy(opcao: string, busca: string) {
+  const alvo = normalizarTextoGestao(opcao);
+  const termo = normalizarTextoGestao(busca);
+  if (!termo) return 0;
+  if (!alvo) return -1;
+  if (alvo === termo) return 1000;
+
+  const indice = alvo.indexOf(termo);
+  if (indice >= 0) return 800 - indice;
+
+  const partes = termo.split(/\s+/).filter(Boolean);
+  if (partes.length > 1 && partes.every((parte) => alvo.includes(parte))) {
+    return 650 - partes.reduce((total, parte) => total + alvo.indexOf(parte), 0);
+  }
+
+  let cursor = 0;
+  let lacunas = 0;
+  for (const caractere of termo) {
+    const encontrado = alvo.indexOf(caractere, cursor);
+    if (encontrado < 0) return -1;
+    lacunas += encontrado - cursor;
+    cursor = encontrado + 1;
+  }
+  return 420 - lacunas - Math.max(0, alvo.length - termo.length) * 0.5;
+}
+
+export function correspondeBuscaFuzzy(opcao: string, busca: string) {
+  return pontuarBuscaFuzzy(opcao, busca) >= 0;
+}
+
+export function filtrarSugestoesFuzzy(opcoes: string[], busca: string, limite = 5) {
+  const termo = normalizarTextoGestao(busca);
+  if (!termo) return [];
+  return opcoes
+    .map((opcao) => ({ opcao, score: pontuarBuscaFuzzy(opcao, termo) }))
+    .filter((item) => item.score >= 0)
+    .sort((a, b) => b.score - a.score || a.opcao.localeCompare(b.opcao, "pt-BR"))
+    .slice(0, limite)
+    .map((item) => item.opcao);
 }
 
 export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarEvent[], termos: string[]) {
@@ -299,12 +378,12 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
     tarefa.titulo,
     tarefa.descricao,
     tarefa.responsavel,
-    tarefa.vinculo ?? "",
+    ...obterVinculosTarefa(tarefa),
     ...(tarefa.etiquetas ?? []),
     evento?.titulo ?? "",
     evento?.vinculo ?? "",
   ].map(normalizarTextoGestao).join(" ");
-  return termos.map(normalizarTextoGestao).filter(Boolean).some((termo) => texto.includes(termo));
+  return termos.map(normalizarTextoGestao).filter(Boolean).some((termo) => correspondeBuscaFuzzy(texto, termo));
 }
 
 export function tarefasPorVinculo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], termos: string[]) {
@@ -363,6 +442,7 @@ export function arquivoParaAnexo(arquivo: File): Promise<KanbanAnexo> {
         nome: arquivo.name,
         tipo: arquivo.type || "application/octet-stream",
         dados: String(leitor.result),
+        origem: "embutido",
       });
     };
     leitor.onerror = () => reject(leitor.error);
