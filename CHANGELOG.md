@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3.5 - Tarefas concluídas fora das pendências
+
+- Tarefas movidas para `Concluído` continuam no histórico do Kanban.
+- Tarefas concluídas não aparecem mais em próximas tarefas, próximas datas, calendário ou listas vinculadas de alunos e turmas.
+
 ## v2.3.4 - Vínculos, anexos e notificações do Kanban
 
 - Autocomplete de etiquetas e vínculos do Kanban agora usa busca aproximada.

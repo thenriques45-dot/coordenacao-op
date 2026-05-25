@@ -130,15 +130,19 @@ export function carregarEventosCalendario() {
 export function carregarTarefasKanbanDashboard() {
   try {
     return carregarTarefasKanban()
-      .filter((tarefa) => tarefa.status === "fazer")
+      .filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.status === "fazer")
       .sort((a, b) => a.prazo.localeCompare(b.prazo))
       .slice(0, 3);
   } catch {
     return tarefasKanbanIniciais
-      .filter((tarefa) => tarefa.status === "fazer")
+      .filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.status === "fazer")
       .sort((a, b) => a.prazo.localeCompare(b.prazo))
       .slice(0, 3);
   }
+}
+
+export function tarefaEstaAtiva(tarefa: KanbanTarefa) {
+  return tarefa.status !== "concluido";
 }
 
 export function rotuloPrioridade(prioridade: KanbanPrioridade) {
@@ -267,7 +271,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
       prioridade: evento.prioridade,
       recorrente: Boolean(evento.recorrencia),
     }))),
-    ...tarefas.filter((tarefa) => tarefa.prazo).flatMap((tarefa) => expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).map((data) => ({
+    ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prazo).flatMap((tarefa) => expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).map((data) => ({
       id: `${tarefa.id}-${data}`,
       origemId: tarefa.id,
       tipo: "tarefa" as const,
@@ -388,6 +392,7 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
 
 export function tarefasPorVinculo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], termos: string[]) {
   return tarefas
+    .filter(tarefaEstaAtiva)
     .filter((tarefa) => tarefaCombinaComVinculo(tarefa, eventos, termos))
     .sort(ordenarPorPrazoECriacao);
 }

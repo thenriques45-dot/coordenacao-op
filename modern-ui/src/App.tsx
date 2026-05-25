@@ -166,6 +166,10 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.5": [
+    "Tarefas concluídas continuam no histórico do Kanban, mas deixam de aparecer como pendências.",
+    "Dashboard, calendário e listas de tarefas vinculadas agora ocultam atividades em Concluído.",
+  ],
   "2.3.4": [
     "Autocomplete de etiquetas e vínculos do Kanban agora usa busca aproximada.",
     "Tarefas podem ser vinculadas a múltiplas turmas, alunos ou eventos.",
