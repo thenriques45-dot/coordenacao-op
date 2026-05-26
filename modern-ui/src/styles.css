@@ -168,6 +168,14 @@ select:disabled {
   width: 32px;
 }
 
+.profile-avatar {
+  border: 1px solid #383747;
+  border-radius: 999px;
+  height: 36px;
+  object-fit: cover;
+  width: 36px;
+}
+
 .profile-box strong,
 .profile-box small {
   display: block;
@@ -193,6 +201,17 @@ select:disabled {
 
 .theme-toggle:hover {
   background: #383747;
+}
+
+.profile-box > div {
+  min-width: 0;
+}
+
+.profile-box strong,
+.profile-box small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace {
@@ -2784,6 +2803,116 @@ th:nth-child(3) {
   padding: 8px 0 0;
 }
 
+.sync-wizard {
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  width: min(620px, 100%);
+}
+
+.sync-wizard h2,
+.sync-wizard p {
+  margin: 0;
+}
+
+.sync-wizard-progress {
+  display: flex;
+  gap: 8px;
+}
+
+.sync-wizard-progress span {
+  background: #e5e7eb;
+  border-radius: 999px;
+  height: 6px;
+  width: 42px;
+}
+
+.sync-wizard-progress span.active {
+  background: #2563eb;
+}
+
+.sync-wizard-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sync-wizard-grid article {
+  background: #f8fafc;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.sync-wizard-grid article svg {
+  color: #2563eb;
+}
+
+.sync-wizard-grid article span,
+.sync-wizard-note {
+  color: #667085;
+  line-height: 1.45;
+}
+
+.sync-wizard-form {
+  display: grid;
+  gap: 12px;
+}
+
+.sync-wizard-form label {
+  color: #344054;
+  display: grid;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.sync-wizard-form input {
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 8px;
+  color: #101828;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.sync-folder-picker {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.sync-folder-picker button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.sync-folder-picker span {
+  color: #52616a;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-page {
   display: grid;
   gap: 22px;
@@ -2850,6 +2979,125 @@ th:nth-child(3) {
   background: #2563eb;
   border-color: #2563eb;
   color: #ffffff;
+}
+
+.settings-check-row {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  display: flex !important;
+  gap: 10px !important;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.settings-check-row input {
+  min-height: 0;
+  width: auto;
+}
+
+.sync-actions-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.profile-photo-settings {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profile-photo-settings img,
+.profile-photo-settings > span {
+  border-radius: 999px;
+  height: 56px;
+  width: 56px;
+}
+
+.profile-photo-settings img {
+  border: 1px solid #d5dbe6;
+  object-fit: cover;
+}
+
+.profile-photo-settings > span {
+  align-items: center;
+  background: #edf1f4;
+  color: #52616a;
+  display: inline-flex;
+  font-weight: 900;
+  justify-content: center;
+}
+
+.avatar-cropper-modal {
+  background: #ffffff;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  width: min(520px, 100%);
+}
+
+.avatar-cropper-modal h2 {
+  margin: 0;
+}
+
+.avatar-cropper-preview {
+  background: #edf1f4;
+  border-radius: 999px;
+  height: 240px;
+  justify-self: center;
+  overflow: hidden;
+  position: relative;
+  width: 240px;
+}
+
+.avatar-cropper-preview img {
+  height: 100%;
+  left: 50%;
+  object-fit: cover;
+  position: absolute;
+  top: 50%;
+  transform-origin: center;
+  width: 100%;
+}
+
+.avatar-cropper-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.avatar-cropper-controls label {
+  color: #344054;
+  display: grid;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 6px;
+}
+
+.kanban-assignee-avatar,
+.kanban-assignee-initials {
+  border-radius: 999px;
+  height: 18px;
+  width: 18px;
+}
+
+.kanban-assignee-avatar {
+  object-fit: cover;
+}
+
+.kanban-assignee-initials {
+  align-items: center;
+  background: #edf1f4;
+  color: #52616a;
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 900;
+  justify-content: center;
 }
 
 .file-action input {
@@ -4396,6 +4644,8 @@ th:nth-child(3) {
 .theme-dark .kanban-card-menu,
 .theme-dark .update-modal,
 .theme-dark .whats-new-modal,
+.theme-dark .sync-wizard,
+.theme-dark .avatar-cropper-modal,
 .theme-dark .modal-panel,
 .theme-dark .settings-card,
 .theme-dark .report-generator-card,
@@ -4563,13 +4813,42 @@ th:nth-child(3) {
   color: #f3f4f6;
 }
 
+.theme-dark .sync-wizard p,
 .theme-dark .whats-new-modal p,
 .theme-dark .whats-new-modal li {
   color: #d9dde7;
 }
 
+.theme-dark .sync-wizard .eyebrow,
 .theme-dark .whats-new-modal .eyebrow {
   color: #a6adbb;
+}
+
+.theme-dark .sync-wizard-grid article,
+.theme-dark .sync-folder-picker,
+.theme-dark .settings-check-row,
+.theme-dark .avatar-cropper-preview,
+.theme-dark .profile-photo-settings > span,
+.theme-dark .kanban-assignee-initials {
+  background: #2d2d30;
+  border-color: #3f3f46;
+  color: #f3f4f6;
+}
+
+.theme-dark .sync-wizard-grid article span,
+.theme-dark .sync-wizard-note,
+.theme-dark .sync-folder-picker span {
+  color: #a6adbb;
+}
+
+.theme-dark .sync-folder-picker button {
+  background: #1f1f23;
+  border-color: #3f3f46;
+  color: #f3f4f6;
+}
+
+.theme-dark .avatar-cropper-controls label {
+  color: #c7ccd6;
 }
 
 .theme-dark .linked-task-card time {
@@ -4794,6 +5073,7 @@ th:nth-child(3) {
 .theme-dark .import-notes-controls select,
 .theme-dark .csv-repair-cell select,
 .theme-dark .report-controls select,
+.theme-dark .sync-wizard-form input,
 .theme-dark .settings-card select,
 .theme-dark .settings-card input {
   background: #1f1f23 !important;

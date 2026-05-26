@@ -13,6 +13,8 @@ import {
   formatarDataLonga,
   montarLinhaDoTempo,
   normalizarTextoGestao,
+  formatarVinculosEvento,
+  obterVinculosEvento,
   obterVinculosTarefa,
   rotuloRecorrencia,
   separarVinculos,
@@ -23,6 +25,7 @@ import {
   type RecurrenceFrequency,
   type TimelineItem,
 } from "./management";
+import { registrarExclusaoSincronizacao, WORKGROUP_SYNC_APPLIED_EVENT } from "./workgroupSync";
 
 type TurmaCalendario = {
   codigo: string;
@@ -125,6 +128,15 @@ export function CalendarioGestao({
   }, [tarefas]);
 
   useEffect(() => {
+    function recarregarEstadoCompartilhado() {
+      setEventos(carregarEventosCalendario());
+      setTarefas(carregarTarefasKanban());
+    }
+    window.addEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+    return () => window.removeEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+  }, []);
+
+  useEffect(() => {
     if (!modalEvento) return;
     function fecharComEsc(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -174,14 +186,20 @@ export function CalendarioGestao({
       (turma.nomes_alunos ?? []).forEach((nome) => itens.add(nome));
     });
     eventos.forEach((evento) => {
-      if (evento.vinculo) itens.add(evento.vinculo);
+      obterVinculosEvento(evento).forEach((vinculo) => itens.add(vinculo));
     });
     tarefas.forEach((tarefa) => {
       obterVinculosTarefa(tarefa).forEach((vinculo) => itens.add(vinculo));
     });
     return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [turmas, eventos, tarefas]);
-  const sugestoesEvento = filtrarSugestoesFuzzy(sugestoesVinculo, formEvento.vinculo, 5);
+  const termoVinculoEvento = ultimoItemDigitado(formEvento.vinculo);
+  const vinculosEventoSelecionados = separarVinculos(formEvento.vinculo);
+  const sugestoesEvento = filtrarSugestoesFuzzy(
+    sugestoesVinculo.filter((item) => !vinculosEventoSelecionados.some((vinculo) => normalizarTextoGestao(vinculo) === normalizarTextoGestao(item))),
+    termoVinculoEvento,
+    5,
+  );
   const termoVinculoTarefa = ultimoItemDigitado(formTarefa.vinculo);
   const vinculosTarefaSelecionados = separarVinculos(formTarefa.vinculo);
   const sugestoesTarefa = filtrarSugestoesFuzzy(
@@ -220,7 +238,7 @@ export function CalendarioGestao({
       categoria: evento.categoria,
       cor: evento.cor,
       prioridade: evento.prioridade,
-      vinculo: evento.vinculo,
+      vinculo: formatarVinculosEvento(evento),
       repetir: evento.recorrencia?.frequency ?? "none",
       intervalo: evento.recorrencia?.interval ?? 1,
       repetirAte: evento.recorrencia?.until ?? "",
@@ -237,6 +255,8 @@ export function CalendarioGestao({
       interval: Math.max(1, Number(formEvento.intervalo) || 1),
       until: formEvento.repetirAte || undefined,
     };
+    const agora = new Date().toISOString();
+    const vinculos = separarVinculos(formEvento.vinculo);
     const payload: CalendarEvent = {
       id: eventoEditando?.id ?? `evento-${Date.now()}`,
       titulo,
@@ -247,8 +267,11 @@ export function CalendarioGestao({
       categoria: formEvento.categoria.trim() || "Geral",
       cor: formEvento.cor,
       prioridade: formEvento.prioridade,
-      vinculo: formEvento.vinculo.trim() || "Geral",
+      vinculo: vinculos[0] ?? "Geral",
+      vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
+      createdAt: eventoEditando?.createdAt ?? agora,
+      updatedAt: agora,
     };
     setEventos((atuais) => eventoEditando ? atuais.map((item) => item.id === eventoEditando.id ? payload : item) : [payload, ...atuais]);
     setDiaSelecionado(payload.data);
@@ -258,6 +281,7 @@ export function CalendarioGestao({
 
   function apagarEvento(id: string) {
     if (!window.confirm("Apagar este evento do calendário? As tarefas associadas permanecem no Kanban.")) return;
+    registrarExclusaoSincronizacao("calendarEvent", id);
     setEventos((atuais) => atuais.filter((evento) => evento.id !== id));
     setTarefas((atuais) => atuais.map((tarefa) => tarefa.eventId === id ? { ...tarefa, eventId: undefined } : tarefa));
   }
@@ -272,7 +296,7 @@ export function CalendarioGestao({
       prazo: evento.data,
       prioridade: evento.prioridade,
       status: "fazer",
-      vinculo: evento.vinculo,
+      vinculo: formatarVinculosEvento(evento),
       repetir: "none",
       intervalo: 1,
       repetirAte: "",
@@ -283,7 +307,7 @@ export function CalendarioGestao({
   function salvarTarefaAssociada(event: FormEvent) {
     event.preventDefault();
     if (!eventoTarefa || !formTarefa.titulo.trim()) return;
-    const vinculos = separarVinculos(formTarefa.vinculo || eventoTarefa.vinculo);
+    const vinculos = separarVinculos(formTarefa.vinculo || formatarVinculosEvento(eventoTarefa));
     const recorrencia = formTarefa.repetir === "none" ? undefined : {
       frequency: formTarefa.repetir,
       interval: Math.max(1, Number(formTarefa.intervalo) || 1),
@@ -302,6 +326,8 @@ export function CalendarioGestao({
       vinculo: vinculos[0] ?? eventoTarefa.vinculo,
       vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     setTarefas((atuais) => [tarefa, ...atuais]);
     setModalTarefa(false);
@@ -457,11 +483,19 @@ export function CalendarioGestao({
                 <input type="date" value={formEvento.data} onChange={(event) => setFormEvento((atual) => ({ ...atual, data: event.target.value }))} />
               </label>
               <label>
-                Vínculo
+                Vínculos
                 <input list="calendar-vinculos" placeholder="Geral, turma, aluno ou conselho" value={formEvento.vinculo} onChange={(event) => setFormEvento((atual) => ({ ...atual, vinculo: event.target.value }))} />
                 {sugestoesEvento.length > 0 && (
                   <span className="calendar-link-suggestions">
-                    {sugestoesEvento.map((item) => <button type="button" key={item} onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: item }))}>{item}</button>)}
+                    {sugestoesEvento.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </span>
                 )}
               </label>

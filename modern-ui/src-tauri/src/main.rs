@@ -7,6 +7,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
     env, fs, io,
+    hash::{Hash, Hasher},
     io::Cursor,
     io::Write,
     path::{Path, PathBuf},
@@ -41,6 +42,33 @@ struct ConfiguracoesInput {
 struct ImagemCabecalhoInput {
     nome: String,
     bytes: Vec<u8>,
+}
+
+#[derive(Deserialize)]
+struct SyncStateInput {
+    pasta: String,
+    device_id: String,
+    payload: Value,
+}
+
+#[derive(Serialize)]
+struct SyncStateResultado {
+    caminho: String,
+    atualizado_em: String,
+}
+
+#[derive(Deserialize)]
+struct SyncInstitutionalInput {
+    pasta: String,
+    device_id: String,
+}
+
+#[derive(Serialize)]
+struct SyncInstitutionalResultado {
+    caminho: Option<String>,
+    arquivos: usize,
+    atualizado_em: String,
+    backup_seguranca: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -423,6 +451,190 @@ fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<ConfiguracoesApp,
     let config = ler_configuracoes();
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
+}
+
+#[tauri::command]
+fn publicar_estado_sincronizacao(input: SyncStateInput) -> Result<SyncStateResultado, String> {
+    let raiz = validar_pasta_sincronizacao(&input.pasta)?;
+    let estado = raiz.join("state");
+    let dispositivos = raiz.join("devices");
+    fs::create_dir_all(&estado).map_err(|err| err.to_string())?;
+    fs::create_dir_all(&dispositivos).map_err(|err| err.to_string())?;
+
+    let destino = estado.join("workspace-state.json");
+    let temporario = estado.join(format!("workspace-state.{}.tmp", Local::now().timestamp_millis()));
+    let conteudo = serde_json::to_vec_pretty(&input.payload).map_err(|err| err.to_string())?;
+    fs::write(&temporario, conteudo).map_err(|err| err.to_string())?;
+    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
+
+    if let Some(profile) = input.payload.get("profile") {
+        let perfil_path = dispositivos.join(format!("{}.json", nome_arquivo_seguro(&input.device_id)));
+        let perfil = serde_json::to_vec_pretty(profile).map_err(|err| err.to_string())?;
+        fs::write(perfil_path, perfil).map_err(|err| err.to_string())?;
+    }
+
+    Ok(SyncStateResultado {
+        caminho: destino.to_string_lossy().to_string(),
+        atualizado_em: Local::now().to_rfc3339(),
+    })
+}
+
+#[tauri::command]
+fn carregar_estado_sincronizacao(pasta: String) -> Result<Option<Value>, String> {
+    let raiz = validar_pasta_sincronizacao(&pasta)?;
+    let arquivo = raiz.join("state").join("workspace-state.json");
+    if !arquivo.exists() {
+        return Ok(None);
+    }
+    let texto = fs::read_to_string(arquivo).map_err(|err| err.to_string())?;
+    serde_json::from_str(&texto).map(Some).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn publicar_dados_institucionais_sincronizacao(
+    input: SyncInstitutionalInput,
+) -> Result<SyncInstitutionalResultado, String> {
+    let raiz = validar_pasta_sincronizacao(&input.pasta)?;
+    let estado = raiz.join("state");
+    fs::create_dir_all(&estado).map_err(|err| err.to_string())?;
+
+    let origem = data_dir().map_err(|err| err.to_string())?;
+    let destino = estado.join("institutional-data");
+    let assinatura = assinatura_diretorio(&origem).map_err(|err| err.to_string())?;
+    let manifesto_atual = fs::read_to_string(destino.join("manifest.json"))
+        .ok()
+        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok());
+    if manifesto_atual
+        .as_ref()
+        .and_then(|dados| dados.get("assinatura").and_then(Value::as_str))
+        == Some(assinatura.as_str())
+    {
+        let atualizado_em = manifesto_atual
+            .as_ref()
+            .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_string();
+        if !atualizado_em.is_empty() {
+            salvar_marcador_sincronizacao_institucional(&atualizado_em)
+                .map_err(|err| err.to_string())?;
+        }
+        return Ok(SyncInstitutionalResultado {
+            caminho: Some(destino.to_string_lossy().to_string()),
+            arquivos: contar_arquivos_recursivamente(&origem).map_err(|err| err.to_string())?,
+            atualizado_em,
+            backup_seguranca: None,
+        });
+    }
+
+    let temporario = estado.join(format!(
+        "institutional-data.{}.tmp",
+        Local::now().timestamp_millis()
+    ));
+    if temporario.exists() {
+        fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
+    }
+    fs::create_dir_all(&temporario).map_err(|err| err.to_string())?;
+
+    let mut total = 0;
+    if origem.exists() {
+        copiar_recursivamente_contando(&origem, &temporario.join("dados"), &mut total)
+            .map_err(|err| err.to_string())?;
+    } else {
+        fs::create_dir_all(temporario.join("dados")).map_err(|err| err.to_string())?;
+    }
+
+    let atualizado_em = Local::now().to_rfc3339();
+    let manifesto = serde_json::json!({
+        "app": "CoordenacaoOP",
+        "tipo": "coordenacaoop-institutional-data",
+        "formato": 1,
+        "versao_app": env!("CARGO_PKG_VERSION"),
+        "device_id": input.device_id,
+        "atualizado_em": atualizado_em,
+        "assinatura": assinatura,
+        "total_arquivos": total,
+    });
+    fs::write(
+        temporario.join("manifest.json"),
+        serde_json::to_vec_pretty(&manifesto).map_err(|err| err.to_string())?,
+    )
+    .map_err(|err| err.to_string())?;
+
+    if destino.exists() {
+        fs::remove_dir_all(&destino).map_err(|err| err.to_string())?;
+    }
+    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
+    salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
+
+    Ok(SyncInstitutionalResultado {
+        caminho: Some(destino.to_string_lossy().to_string()),
+        arquivos: total,
+        atualizado_em,
+        backup_seguranca: None,
+    })
+}
+
+#[tauri::command]
+fn carregar_dados_institucionais_sincronizacao(
+    pasta: String,
+) -> Result<SyncInstitutionalResultado, String> {
+    let raiz = validar_pasta_sincronizacao(&pasta)?;
+    let origem = raiz.join("state").join("institutional-data");
+    let origem_dados = origem.join("dados");
+    if !origem_dados.exists() {
+        return Ok(SyncInstitutionalResultado {
+            caminho: None,
+            arquivos: 0,
+            atualizado_em: String::new(),
+            backup_seguranca: None,
+        });
+    }
+
+    let manifesto = origem.join("manifest.json");
+    let atualizado_em = fs::read_to_string(&manifesto)
+        .ok()
+        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+        .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string))
+        .unwrap_or_else(|| Local::now().to_rfc3339());
+
+    if ler_marcador_sincronizacao_institucional().as_deref() == Some(atualizado_em.as_str()) {
+        return Ok(SyncInstitutionalResultado {
+            caminho: Some(origem.to_string_lossy().to_string()),
+            arquivos: contar_arquivos_recursivamente(&origem_dados).map_err(|err| err.to_string())?,
+            atualizado_em,
+            backup_seguranca: None,
+        });
+    }
+
+    let seguranca = exportar_backup_interno()
+        .map_err(|err| format!("Não foi possível criar backup de segurança antes da sincronização: {err}"))?
+        .caminho;
+
+    let destino = data_dir().map_err(|err| err.to_string())?;
+    let temporario = app_base_dir()
+        .map_err(|err| err.to_string())?
+        .join(format!("dados_sync_tmp_{}", Local::now().timestamp_millis()));
+    if temporario.exists() {
+        fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
+    }
+
+    let mut total = 0;
+    copiar_recursivamente_contando(&origem_dados, &temporario, &mut total)
+        .map_err(|err| err.to_string())?;
+    if destino.exists() {
+        fs::remove_dir_all(&destino).map_err(|err| err.to_string())?;
+    }
+    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
+    preparar_base_portatil(&app_base_dir().map_err(|err| err.to_string())?)
+        .map_err(|err| err.to_string())?;
+    salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
+
+    Ok(SyncInstitutionalResultado {
+        caminho: Some(origem.to_string_lossy().to_string()),
+        arquivos: total,
+        atualizado_em,
+        backup_seguranca: seguranca,
+    })
 }
 
 #[tauri::command]
@@ -4073,6 +4285,34 @@ fn validar_entrada_backup(nome: &str) -> io::Result<()> {
     Ok(())
 }
 
+fn validar_pasta_sincronizacao(pasta: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(pasta.trim());
+    if pasta.trim().is_empty() {
+        return Err("Escolha uma pasta compartilhada para a sincronização.".to_string());
+    }
+    if !path.exists() {
+        return Err("A pasta de sincronização não existe.".to_string());
+    }
+    if !path.is_dir() {
+        return Err("O caminho de sincronização precisa ser uma pasta.".to_string());
+    }
+    Ok(path)
+}
+
+fn nome_arquivo_seguro(valor: &str) -> String {
+    let normalizado = valor
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' { ch } else { '-' })
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string();
+    if normalizado.is_empty() {
+        "instalacao".to_string()
+    } else {
+        normalizado
+    }
+}
+
 fn mesclar_recursivamente(
     origem: &Path,
     destino: &Path,
@@ -5074,6 +5314,93 @@ fn copiar_recursivamente(origem: &Path, destino: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn copiar_recursivamente_contando(
+    origem: &Path,
+    destino: &Path,
+    total: &mut usize,
+) -> io::Result<()> {
+    if origem.is_dir() {
+        fs::create_dir_all(destino)?;
+        for entrada in fs::read_dir(origem)? {
+            let entrada = entrada?;
+            let origem_item = entrada.path();
+            let destino_item = destino.join(entrada.file_name());
+            copiar_recursivamente_contando(&origem_item, &destino_item, total)?;
+        }
+    } else {
+        if let Some(parent) = destino.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::copy(origem, destino)?;
+        *total += 1;
+    }
+    Ok(())
+}
+
+fn contar_arquivos_recursivamente(pasta: &Path) -> io::Result<usize> {
+    if pasta.is_file() {
+        return Ok(1);
+    }
+    let mut total = 0;
+    if pasta.is_dir() {
+        for entrada in fs::read_dir(pasta)? {
+            total += contar_arquivos_recursivamente(&entrada?.path())?;
+        }
+    }
+    Ok(total)
+}
+
+fn assinatura_diretorio(pasta: &Path) -> io::Result<String> {
+    fn visitar(caminho: &Path, raiz: &Path, partes: &mut Vec<String>) -> io::Result<()> {
+        if !caminho.exists() {
+            return Ok(());
+        }
+        if caminho.is_dir() {
+            let mut entradas = fs::read_dir(caminho)?.collect::<Result<Vec<_>, io::Error>>()?;
+            entradas.sort_by_key(|entrada| entrada.file_name());
+            for entrada in entradas {
+                visitar(&entrada.path(), raiz, partes)?;
+            }
+            return Ok(());
+        }
+        let relativo = caminho
+            .strip_prefix(raiz)
+            .unwrap_or(caminho)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let bytes = fs::read(caminho)?;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        relativo.hash(&mut hasher);
+        bytes.hash(&mut hasher);
+        partes.push(format!("{relativo}:{}:{:x}", bytes.len(), hasher.finish()));
+        Ok(())
+    }
+
+    let mut partes = Vec::new();
+    visitar(pasta, pasta, &mut partes)?;
+    Ok(partes.join("|"))
+}
+
+fn marcador_sincronizacao_institucional_path() -> io::Result<PathBuf> {
+    Ok(config_dir()?.join("sync_institutional_last_applied.txt"))
+}
+
+fn ler_marcador_sincronizacao_institucional() -> Option<String> {
+    marcador_sincronizacao_institucional_path()
+        .ok()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .map(|texto| texto.trim().to_string())
+        .filter(|texto| !texto.is_empty())
+}
+
+fn salvar_marcador_sincronizacao_institucional(valor: &str) -> io::Result<()> {
+    let path = marcador_sincronizacao_institucional_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, valor)
+}
+
 fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>) -> Result<(), String> {
     for entrada in fs::read_dir(pasta).map_err(|err| err.to_string())? {
         let entrada = entrada.map_err(|err| err.to_string())?;
@@ -5693,6 +6020,10 @@ fn main() {
             carregar_configuracoes,
             salvar_configuracoes,
             salvar_cabecalho_ata,
+            publicar_estado_sincronizacao,
+            carregar_estado_sincronizacao,
+            publicar_dados_institucionais_sincronizacao,
+            carregar_dados_institucionais_sincronizacao,
             exportar_backup,
             exportar_backup_seletivo,
             importar_backup,

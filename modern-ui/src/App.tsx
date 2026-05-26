@@ -6,8 +6,10 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Cloud,
   FileText,
   Filter,
+  FolderOpen,
   Home,
   Menu,
   Moon,
@@ -25,6 +27,7 @@ import {
 } from "lucide-react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
+import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 import { invokeApp, tauriDisponivel } from "./features/appBridge";
@@ -39,6 +42,15 @@ import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } fro
 import { Configuracoes } from "./features/SettingsPage";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
+import {
+  aplicarPayloadSincronizacao,
+  carregarPerfilSincronizacao,
+  iniciaisPerfil,
+  montarPayloadSincronizacao,
+  salvarPerfilSincronizacao,
+  type WorkgroupSyncPayload,
+  type WorkgroupSyncProfile,
+} from "./features/workgroupSync";
 
 type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
 
@@ -165,7 +177,25 @@ type AppInfo = {
   data_dir: string;
 };
 
+type SyncStateResultado = {
+  caminho: string;
+  atualizado_em: string;
+};
+
+type SyncInstitutionalResultado = {
+  caminho: string | null;
+  arquivos: number;
+  atualizado_em: string;
+  backup_seguranca: string | null;
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.4.0": [
+    "Sincronização de grupo de trabalho com perfil de coordenador, foto e pasta compartilhada.",
+    "Kanban e calendário agora sincronizam tarefas, eventos, colunas, anexos e exclusões entre instalações.",
+    "Turmas, alunos, elegíveis e demais status institucionais podem ser sincronizados com backup automático de segurança.",
+    "Eventos do calendário aceitam múltiplos vínculos com turmas e alunos, usando autocomplete aproximado.",
+  ],
   "2.3.6": [
     "O alerta de alta prioridade do Kanban agora ignora tarefas em Concluído.",
     "Ícones do aplicativo no Linux foram ajustados para melhorar a integração com GNOME/Dash to Dock.",
@@ -281,6 +311,8 @@ export function App() {
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
+  const [perfilSync, setPerfilSync] = useState<WorkgroupSyncProfile>(() => carregarPerfilSincronizacao());
+  const [mostrarAssistenteSync, setMostrarAssistenteSync] = useState(() => carregarPerfilSincronizacao().onboarding === "pending");
   const alunosConselho = useMemo(() => {
     if (!turmaDetalhe?.alunos.length) {
       return alunosDemo;
@@ -350,11 +382,95 @@ export function App() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!tauriDisponivel || !perfilSync.syncEnabled || !perfilSync.syncFolder) return;
+    let cancelado = false;
+    let sincronizando = false;
+    let ciclos = 0;
+
+    async function sincronizarAutomaticamente() {
+      if (sincronizando || cancelado) return;
+      sincronizando = true;
+      try {
+        const remoto = await invokeApp<WorkgroupSyncPayload | null>("carregar_estado_sincronizacao", { pasta: perfilSync.syncFolder });
+        const recebeu = Boolean(remoto);
+        if (remoto) {
+          aplicarPayloadSincronizacao(remoto);
+        }
+        const payload = montarPayloadSincronizacao(perfilSync);
+        const resultado = await invokeApp<SyncStateResultado>("publicar_estado_sincronizacao", {
+          input: {
+            pasta: perfilSync.syncFolder,
+            device_id: perfilSync.userId,
+            payload,
+          },
+        });
+        if (!cancelado) {
+          setPerfilSync((atual) => salvarPerfilSincronizacao({
+            ...atual,
+            lastPublishedAt: resultado.atualizado_em,
+            lastPulledAt: recebeu ? new Date().toISOString() : atual.lastPulledAt,
+          }));
+        }
+        const sincronizarDadosInstitucionais = ciclos === 0 || ciclos % 20 === 0;
+        if (sincronizarDadosInstitucionais) {
+          const dadosInstitucionais = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
+            pasta: perfilSync.syncFolder,
+          });
+          const recebeuDadosInstitucionais = Boolean(dadosInstitucionais.caminho);
+          if (recebeuDadosInstitucionais && !cancelado) {
+            invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+          }
+          const publicacaoDados = await invokeApp<SyncInstitutionalResultado>("publicar_dados_institucionais_sincronizacao", {
+            input: {
+              pasta: perfilSync.syncFolder,
+              device_id: perfilSync.userId,
+            },
+          });
+          if (!cancelado) {
+            setPerfilSync((atual) => salvarPerfilSincronizacao({
+              ...atual,
+              lastInstitutionalPublishedAt: publicacaoDados.atualizado_em,
+              lastInstitutionalPulledAt: recebeuDadosInstitucionais
+                ? dadosInstitucionais.atualizado_em || new Date().toISOString()
+                : atual.lastInstitutionalPulledAt,
+            }));
+          }
+        }
+      } catch {
+        // A sincronização automática é silenciosa; a tela de Configurações mantém os controles manuais.
+      } finally {
+        ciclos += 1;
+        sincronizando = false;
+      }
+    }
+
+    const inicial = window.setTimeout(sincronizarAutomaticamente, 5000);
+    const intervalo = window.setInterval(sincronizarAutomaticamente, 45000);
+    return () => {
+      cancelado = true;
+      window.clearTimeout(inicial);
+      window.clearInterval(intervalo);
+    };
+  }, [
+    perfilSync.syncEnabled,
+    perfilSync.syncFolder,
+    perfilSync.userId,
+    perfilSync.displayName,
+    perfilSync.role,
+    perfilSync.deviceName,
+    perfilSync.avatarDataUrl,
+  ]);
+
   function fecharNovidades() {
     if (appInfo?.version) {
       localStorage.setItem(`coordenacaoop:novidades-lidas:${appInfo.version}`, "sim");
     }
     setMostrarNovidades(false);
+  }
+
+  function atualizarPerfilSync(perfil: WorkgroupSyncProfile) {
+    setPerfilSync(salvarPerfilSincronizacao(perfil));
   }
 
   async function instalarAtualizacaoDisponivel() {
@@ -643,10 +759,14 @@ export function App() {
         </nav>
 
         <div className="profile-box">
-          <span>CP</span>
+          {perfilSync.avatarDataUrl ? (
+            <img className="profile-avatar" src={perfilSync.avatarDataUrl} alt="" />
+          ) : (
+            <span>{iniciaisPerfil(perfilSync.displayName)}</span>
+          )}
           <div>
-            <strong>Coordenacao</strong>
-            <small>Equipe pedagogica</small>
+            <strong>{perfilSync.displayName || "Coordenacao"}</strong>
+            <small>{perfilSync.syncEnabled ? "Sincronização ativa" : perfilSync.role || "Equipe pedagogica"}</small>
           </div>
           <button
             className="theme-toggle"
@@ -759,9 +879,9 @@ export function App() {
             }
           }} />
         )}
-        {tela === "kanban" && <QuadroKanban turmas={turmas} />}
+        {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
@@ -812,7 +932,147 @@ export function App() {
           </section>
         </div>
       )}
+      {!mostrarNovidades && mostrarAssistenteSync && (
+        <AssistenteSincronizacaoGrupo
+          perfil={perfilSync}
+          onConcluir={(perfil) => {
+            atualizarPerfilSync(perfil);
+            setMostrarAssistenteSync(false);
+          }}
+          onDispensar={() => {
+            atualizarPerfilSync({ ...perfilSync, syncEnabled: false, onboarding: "dismissed" });
+            setMostrarAssistenteSync(false);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function AssistenteSincronizacaoGrupo({
+  perfil,
+  onConcluir,
+  onDispensar,
+}: {
+  perfil: WorkgroupSyncProfile;
+  onConcluir: (perfil: WorkgroupSyncProfile) => void;
+  onDispensar: () => void;
+}) {
+  const [passo, setPasso] = useState(0);
+  const [rascunho, setRascunho] = useState(perfil);
+  const [erro, setErro] = useState("");
+  const totalPassos = 3;
+
+  async function escolherPasta() {
+    setErro("");
+    try {
+      const selecionado = await abrirDialogoArquivo({
+        directory: true,
+        multiple: false,
+        title: "Escolher pasta compartilhada do grupo de trabalho",
+      });
+      if (typeof selecionado === "string") {
+        setRascunho((atual) => ({ ...atual, syncFolder: selecionado }));
+      }
+    } catch (error) {
+      setErro(`Não foi possível abrir o seletor de pasta: ${String(error)}`);
+    }
+  }
+
+  function finalizar() {
+    if (!rascunho.syncFolder.trim()) {
+      setErro("Escolha a pasta compartilhada antes de finalizar a ativação.");
+      return;
+    }
+    onConcluir({
+      ...rascunho,
+      displayName: rascunho.displayName.trim() || "Coordenação",
+      role: rascunho.role.trim() || "Coordenação pedagógica",
+      syncEnabled: true,
+      onboarding: "enabled",
+    });
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <section className="sync-wizard" role="dialog" aria-modal="true" aria-labelledby="sync-wizard-title">
+        <div className="sync-wizard-progress" aria-label={`Etapa ${passo + 1} de ${totalPassos}`}>
+          {Array.from({ length: totalPassos }).map((_, indice) => (
+            <span key={indice} className={indice <= passo ? "active" : ""} />
+          ))}
+        </div>
+
+        {passo === 0 && (
+          <>
+            <span className="eyebrow">Trabalho em equipe</span>
+            <h2 id="sync-wizard-title">Sincronização de grupo de trabalho</h2>
+            <p>O CoordenacaoOP pode preparar esta instalação para compartilhar dados com outros coordenadores usando uma pasta comum, como o OneDrive da escola.</p>
+            <div className="sync-wizard-grid">
+              <article>
+                <UserRound size={20} />
+                <strong>Perfil identificado</strong>
+                <span>Cada alteração futura poderá registrar quem fez e de qual instalação veio.</span>
+              </article>
+              <article>
+                <Cloud size={20} />
+                <strong>Sem servidor próprio</strong>
+                <span>A pasta compartilhada funciona apenas como transporte dos arquivos de sincronização.</span>
+              </article>
+            </div>
+            <p className="sync-wizard-note">Se preferir decidir depois, este recurso fica em Configurações, na seção Perfil e sincronização.</p>
+          </>
+        )}
+
+        {passo === 1 && (
+          <>
+            <span className="eyebrow">Perfil do coordenador</span>
+            <h2 id="sync-wizard-title">Identifique esta instalação</h2>
+            <p>Esses dados ajudam o grupo a entender a origem das alterações. Eles não substituem login nem enviam dados para servidor externo.</p>
+            <div className="sync-wizard-form">
+              <label>
+                Seu nome
+                <input value={rascunho.displayName} onChange={(event) => setRascunho((atual) => ({ ...atual, displayName: event.target.value }))} placeholder="Ex.: Thiago Henrique" />
+              </label>
+              <label>
+                Função
+                <input value={rascunho.role} onChange={(event) => setRascunho((atual) => ({ ...atual, role: event.target.value }))} />
+              </label>
+              <label>
+                Nome deste dispositivo
+                <input value={rascunho.deviceName} onChange={(event) => setRascunho((atual) => ({ ...atual, deviceName: event.target.value }))} />
+              </label>
+            </div>
+          </>
+        )}
+
+        {passo === 2 && (
+          <>
+            <span className="eyebrow">Pasta compartilhada</span>
+            <h2 id="sync-wizard-title">Escolha a pasta do grupo</h2>
+            <p>Use uma pasta OneDrive compartilhada entre os coordenadores. O ideal é criar uma pasta exclusiva, por exemplo `CoordenacaoOP-Sync`.</p>
+            <div className="sync-folder-picker">
+              <button type="button" onClick={escolherPasta}>
+                <FolderOpen size={18} />
+                Escolher pasta
+              </button>
+              <span>{rascunho.syncFolder || "Nenhuma pasta selecionada"}</span>
+            </div>
+            <p className="sync-wizard-note">Por enquanto o aplicativo salva o perfil e a pasta. A sincronização dos dados será ativada em etapa posterior com segurança contra conflitos.</p>
+            {erro && <div className="notice error">{erro}</div>}
+          </>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" onClick={onDispensar}>Agora não</button>
+          {passo > 0 && <button type="button" onClick={() => setPasso((atual) => atual - 1)}>Voltar</button>}
+          {passo < totalPassos - 1 ? (
+            <button type="button" className="primary-action" onClick={() => setPasso((atual) => atual + 1)}>Próximo</button>
+          ) : (
+            <button type="button" className="primary-action" onClick={finalizar}>Finalizar</button>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 

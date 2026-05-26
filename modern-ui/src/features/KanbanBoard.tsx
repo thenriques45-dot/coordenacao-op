@@ -20,6 +20,7 @@ import {
   KANBAN_COLUMNS_STORAGE_KEY,
   KANBAN_STORAGE_KEY,
   arquivoParaAnexo,
+  carregarTarefasKanban,
   carregarEventosCalendario,
   colunasKanbanPadrao,
   coresKanban,
@@ -27,6 +28,7 @@ import {
   formatarDataCurta,
   formatarVinculosTarefa,
   normalizarTextoGestao,
+  obterVinculosEvento,
   obterVinculosTarefa,
   ordenarPorPrazoECriacao,
   ordenarTarefasKanban,
@@ -48,6 +50,7 @@ import {
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp, tauriDisponivel } from "./appBridge";
+import { iniciaisPerfil, registrarExclusaoSincronizacao, WORKGROUP_SYNC_APPLIED_EVENT, type WorkgroupSyncProfile } from "./workgroupSync";
 
 type TurmaKanban = {
   codigo: string;
@@ -134,7 +137,7 @@ function ultimoItemDigitado(valor: string) {
   return partes[partes.length - 1]?.trim() ?? "";
 }
 
-export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
+export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; perfil?: WorkgroupSyncProfile }) {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
     try {
       const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
@@ -189,6 +192,20 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
   }, [colunas]);
 
   useEffect(() => {
+    function recarregarEstadoCompartilhado() {
+      setTarefas(carregarTarefasKanban());
+      try {
+        const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
+        setColunas(salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao);
+      } catch {
+        setColunas(colunasKanbanPadrao);
+      }
+    }
+    window.addEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+    return () => window.removeEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+  }, []);
+
+  useEffect(() => {
     if (!modalNovaTarefa) return;
 
     function fecharComEsc(event: KeyboardEvent) {
@@ -233,7 +250,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
       (turma.nomes_alunos ?? []).forEach((nome) => itens.add(nome));
     });
     eventosCalendario.forEach((evento) => {
-      if (evento.vinculo) itens.add(evento.vinculo);
+      obterVinculosEvento(evento).forEach((vinculo) => itens.add(vinculo));
     });
     tarefas.forEach((tarefa) => {
       obterVinculosTarefa(tarefa).forEach((vinculo) => itens.add(vinculo));
@@ -258,7 +275,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
       const colunaDestino = atuais
         .filter((tarefa) => tarefa.id !== id && tarefa.status === status)
         .sort(ordenarTarefasKanban);
-      return reordenarColunaKanban(atuais, [{ ...tarefaMovida, status }, ...colunaDestino], status);
+      return reordenarColunaKanban(atuais, [{ ...tarefaMovida, status, updatedAt: new Date().toISOString() }, ...colunaDestino], status);
     });
   }
 
@@ -341,6 +358,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
   function apagarTarefa(id: string) {
     setMenuTarefaAberto(null);
     if (window.confirm("Apagar esta tarefa do quadro?")) {
+      registrarExclusaoSincronizacao("kanbanTask", id);
       setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id));
     }
   }
@@ -349,6 +367,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
     setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === id ? {
       ...tarefa,
       etiquetas: etiquetas.split(",").map((item) => item.trim()).filter(Boolean),
+      updatedAt: new Date().toISOString(),
     } : tarefa));
     setEtiquetasEditando(null);
   }
@@ -444,6 +463,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
     const vinculos = separarVinculos(novaTarefa.vinculo);
     const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
+    const agora = new Date().toISOString();
     const recorrencia = novaTarefa.repetir === "none" ? undefined : {
       frequency: novaTarefa.repetir,
       interval: Math.max(1, Number(novaTarefa.intervalo) || 1),
@@ -466,6 +486,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
         vinculos: vinculos.length ? vinculos : undefined,
         recorrencia,
         alertas: montarAlertasTarefa(novaTarefa.alertas, prazo, tarefa),
+        updatedAt: agora,
       } : tarefa));
       setTarefaEditando(null);
       setDestacarAnexos(false);
@@ -488,6 +509,8 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
       vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
       alertas: montarAlertasTarefa(novaTarefa.alertas, prazo),
+      createdAt: agora,
+      updatedAt: agora,
     };
 
     setTarefas((atuais) => [tarefa, ...atuais]);
@@ -580,6 +603,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
                     key={tarefa.id}
                     tarefa={tarefa}
                     evento={eventosCalendario.find((evento) => evento.id === tarefa.eventId)}
+                    perfil={perfil}
                     sugestoesEtiquetas={sugestoesEtiquetas}
                     menuAberto={menuTarefaAberto === tarefa.id}
                     editandoEtiquetas={etiquetasEditando === tarefa.id}
@@ -882,6 +906,7 @@ function origemImagemAnexo(anexo: KanbanAnexo) {
 function KanbanTaskCard({
   tarefa,
   evento,
+  perfil,
   sugestoesEtiquetas,
   menuAberto,
   editandoEtiquetas,
@@ -901,6 +926,7 @@ function KanbanTaskCard({
 }: {
   tarefa: KanbanTarefa;
   evento?: CalendarEvent;
+  perfil?: WorkgroupSyncProfile;
   sugestoesEtiquetas: string[];
   menuAberto: boolean;
   editandoEtiquetas: boolean;
@@ -923,6 +949,7 @@ function KanbanTaskCard({
   const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
   const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
+  const usarAvatarPerfil = Boolean(perfil?.avatarDataUrl && normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(perfil.displayName));
   const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
   const termoEtiquetaAtual = ultimoItemDigitado(textoEtiquetas);
@@ -1070,7 +1097,13 @@ function KanbanTaskCard({
       )}
       <footer>
         <span>
-          <UserRound size={14} />
+          {usarAvatarPerfil ? (
+            <img className="kanban-assignee-avatar" src={perfil?.avatarDataUrl} alt="" />
+          ) : (
+            perfil?.displayName && normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(perfil.displayName)
+              ? <span className="kanban-assignee-initials">{iniciaisPerfil(perfil.displayName)}</span>
+              : <UserRound size={14} />
+          )}
           {tarefa.responsavel}
         </span>
         <span>

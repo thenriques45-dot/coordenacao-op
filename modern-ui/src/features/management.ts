@@ -47,6 +47,8 @@ export type KanbanTarefa = {
   vinculos?: string[];
   recorrencia?: RecurrenceRule;
   alertas?: KanbanAlerta[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type KanbanDragPreview = {
@@ -68,7 +70,10 @@ export type CalendarEvent = {
   cor: string;
   prioridade: KanbanPrioridade;
   vinculo: string;
+  vinculos?: string[];
   recorrencia?: RecurrenceRule;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type TimelineItem = {
@@ -264,7 +269,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
       origemId: evento.id,
       tipo: "evento" as const,
       titulo: evento.titulo,
-      descricao: evento.vinculo || evento.descricao,
+      descricao: formatarVinculosEvento(evento) || evento.descricao,
       data,
       hora: evento.horaInicio,
       cor: evento.cor,
@@ -335,6 +340,27 @@ export function formatarVinculosTarefa(tarefa: KanbanTarefa) {
   return obterVinculosTarefa(tarefa).join(", ");
 }
 
+export function obterVinculosEvento(evento: CalendarEvent) {
+  const valores = [
+    ...(Array.isArray(evento.vinculos) ? evento.vinculos : []),
+    evento.vinculo ?? "",
+  ];
+  const vistos = new Set<string>();
+  return valores
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const chave = normalizarTextoGestao(item);
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+}
+
+export function formatarVinculosEvento(evento: CalendarEvent) {
+  return obterVinculosEvento(evento).join(", ");
+}
+
 function pontuarBuscaFuzzy(opcao: string, busca: string) {
   const alvo = normalizarTextoGestao(opcao);
   const termo = normalizarTextoGestao(busca);
@@ -385,7 +411,7 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
     ...obterVinculosTarefa(tarefa),
     ...(tarefa.etiquetas ?? []),
     evento?.titulo ?? "",
-    evento?.vinculo ?? "",
+    ...(evento ? obterVinculosEvento(evento) : []),
   ].map(normalizarTextoGestao).join(" ");
   return termos.map(normalizarTextoGestao).filter(Boolean).some((termo) => correspondeBuscaFuzzy(texto, termo));
 }
