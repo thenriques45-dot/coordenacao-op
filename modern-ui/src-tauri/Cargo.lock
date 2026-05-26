@@ -576,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "coordenacaoop"
-version = "2.3.5"
+version = "2.3.6"
 dependencies = [
  "calamine",
  "chrono",

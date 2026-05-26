@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.6 - Ícone Linux e alerta do Kanban
+
+- Corrigido o banner de alta prioridade do Kanban para ignorar tarefas em `Concluído`.
+- Normalizados os ícones Linux do aplicativo para tamanhos padrão usados pelo GNOME/Dash to Dock.
+- O AppImage passa a incluir metadados de categoria e ícone compatíveis com a integração do desktop.
+
 ## v2.3.5 - Tarefas concluídas fora das pendências
 
 - Tarefas movidas para `Concluído` continuam no histórico do Kanban.

@@ -166,6 +166,10 @@ type AppInfo = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.3.6": [
+    "O alerta de alta prioridade do Kanban agora ignora tarefas em Concluído.",
+    "Ícones do aplicativo no Linux foram ajustados para melhorar a integração com GNOME/Dash to Dock.",
+  ],
   "2.3.5": [
     "Tarefas concluídas continuam no histórico do Kanban, mas deixam de aparecer como pendências.",
     "Dashboard, calendário e listas de tarefas vinculadas agora ocultam atividades em Concluído.",
