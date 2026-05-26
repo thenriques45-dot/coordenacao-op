@@ -34,6 +34,7 @@ import {
   rotuloRecorrencia,
   salvarTarefasKanban,
   separarVinculos,
+  tarefaEstaAtiva,
   tarefasKanbanIniciais,
   type CalendarEvent,
   type KanbanAnexo,
@@ -248,7 +249,7 @@ export function QuadroKanban({ turmas = [] }: { turmas?: TurmaKanban[] }) {
     6,
   );
 
-  const totalAltaPrioridade = tarefas.filter((tarefa) => tarefa.prioridade === "alta").length;
+  const totalAltaPrioridade = tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prioridade === "alta").length;
 
   function moverTarefa(id: string, status: KanbanStatus) {
     setTarefas((atuais) => {
