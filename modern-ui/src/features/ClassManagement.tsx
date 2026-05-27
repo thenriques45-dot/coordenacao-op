@@ -1,5 +1,10 @@
-import { BookOpen, CalendarClock, Pencil, Search, TrendingUp, Users } from "lucide-react";
+import { BookOpen, CalendarClock, Copy, Pencil, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  carregarAiAssistantSettings,
+  gerarRelatorioPedagogico,
+  type AiAssistantSettings,
+} from "./aiAssistant";
 import { TaskLinkList } from "./Dashboard";
 import {
   carregarEventosCalendario,
@@ -215,11 +220,11 @@ function classeStatusDiagnostico(status: string) {
 
 function diagnosticoSarespPorDisciplina(diagnostico: DiagnosticoAprendizagem | null | undefined, disciplina: string) {
   if (!diagnostico) return null;
-  const nome = disciplina.toLocaleLowerCase("pt-BR");
-  if (nome.includes("portugu") || nome.includes("língua portuguesa") || nome.includes("lingua portuguesa")) {
+  const nome = normalizarBusca(disciplina);
+  if (nome === "portugues" || nome === "portuguesa" || nome === "lingua portuguesa") {
     return diagnostico.portugues;
   }
-  if (nome.includes("matem")) {
+  if (nome === "matematica") {
     return diagnostico.matematica;
   }
   return null;
@@ -461,6 +466,7 @@ export function GestaoTurma({
         <AlunoDetalheGestao
           aluno={alunoAberto}
           bimestre={turmaDetalhe?.bimestre ?? "1"}
+          turmaLabel={turma ? rotuloTurma(turma) : undefined}
           onVoltar={() => setAlunoAberto(null)}
           catalogoDeficiencias={catalogoDeficiencias}
           onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
@@ -652,6 +658,7 @@ export function GestaoTurma({
 function AlunoDetalheGestao({
   aluno,
   bimestre,
+  turmaLabel,
   onVoltar,
   catalogoDeficiencias,
   onSalvarEducacaoEspecial,
@@ -661,6 +668,7 @@ function AlunoDetalheGestao({
 }: {
   aluno: Aluno;
   bimestre: string;
+  turmaLabel?: string;
   onVoltar: () => void;
   catalogoDeficiencias: string[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
@@ -675,6 +683,11 @@ function AlunoDetalheGestao({
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
+  const [assistenteAberto, setAssistenteAberto] = useState(false);
+  const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
+  const [erroRelatorio, setErroRelatorio] = useState("");
+  const [relatorioIa, setRelatorioIa] = useState("");
+  const [aiSettings, setAiSettings] = useState<AiAssistantSettings>(() => carregarAiAssistantSettings());
   const status = classificarAluno(aluno);
   const mediaAluno = calcularMediaAluno(aluno);
   const bimestreAtual = Math.max(1, Math.min(4, Number.parseInt(bimestre, 10) || 1));
@@ -713,6 +726,10 @@ function AlunoDetalheGestao({
     setNovaCondicao("");
     setMensagem("");
     setErro("");
+    setAssistenteAberto(false);
+    setErroRelatorio("");
+    setRelatorioIa("");
+    setAiSettings(carregarAiAssistantSettings());
   }, [aluno.matricula]);
 
   useEffect(() => {
@@ -743,6 +760,39 @@ function AlunoDetalheGestao({
       .finally(() => setSalvando(false));
   }
 
+  async function gerarRelatorio() {
+    setAiSettings(carregarAiAssistantSettings());
+    setAssistenteAberto(true);
+    setGerandoRelatorio(true);
+    setErroRelatorio("");
+    setRelatorioIa("");
+    try {
+      const texto = await gerarRelatorioPedagogico(carregarAiAssistantSettings(), {
+        aluno,
+        bimestre,
+        turma: turmaLabel,
+        tarefas: tarefasDoAluno.map((tarefa) => ({
+          titulo: tarefa.titulo,
+          descricao: tarefa.descricao,
+          prazo: tarefa.prazo,
+          prioridade: tarefa.prioridade,
+          status: tarefa.status,
+        })),
+      });
+      setRelatorioIa(texto);
+    } catch (err) {
+      setErroRelatorio(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGerandoRelatorio(false);
+    }
+  }
+
+  async function copiarRelatorio() {
+    if (!relatorioIa.trim()) return;
+    await navigator.clipboard.writeText(relatorioIa);
+    setMensagem("Relatório copiado para a área de transferência.");
+  }
+
   return (
     <section className="panel student-profile-panel">
       <button className="back-link student-profile-back" onClick={onVoltar}>← Voltar para alunos</button>
@@ -751,7 +801,13 @@ function AlunoDetalheGestao({
           <h2>{aluno.nome}</h2>
           <p>RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}</p>
         </div>
-        <span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span>
+        <div className="student-profile-actions">
+          <button type="button" className="ai-report-action" onClick={gerarRelatorio}>
+            <Sparkles size={17} />
+            Gerar relatório
+          </button>
+          <span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span>
+        </div>
       </header>
 
       <div className="student-profile-tabs">
@@ -935,6 +991,88 @@ function AlunoDetalheGestao({
           <TaskLinkList tarefas={tarefasDoAluno} eventos={eventos} emptyText="Nenhuma tarefa vinculada a este aluno." onOpenKanban={onOpenKanban} />
         </section>
       )}
+
+      {assistenteAberto && (
+        <AssistenteRelatorioModal
+          settings={aiSettings}
+          alunoNome={aluno.nome}
+          texto={relatorioIa}
+          erro={erroRelatorio}
+          gerando={gerandoRelatorio}
+          onTextoChange={setRelatorioIa}
+          onCopiar={copiarRelatorio}
+          onTentarNovamente={gerarRelatorio}
+          onFechar={() => setAssistenteAberto(false)}
+        />
+      )}
     </section>
+  );
+}
+
+function AssistenteRelatorioModal({
+  settings,
+  alunoNome,
+  texto,
+  erro,
+  gerando,
+  onTextoChange,
+  onCopiar,
+  onTentarNovamente,
+  onFechar,
+}: {
+  settings: AiAssistantSettings;
+  alunoNome: string;
+  texto: string;
+  erro: string;
+  gerando: boolean;
+  onTextoChange: (texto: string) => void;
+  onCopiar: () => void;
+  onTentarNovamente: () => void;
+  onFechar: () => void;
+}) {
+  return (
+    <div className="modal-backdrop">
+      <section className="ai-report-modal" role="dialog" aria-modal="true" aria-labelledby="ai-report-title">
+        <header>
+          <div>
+            <span className="eyebrow">Assistente Pedagógico</span>
+            <h2 id="ai-report-title">Relatório de {alunoNome}</h2>
+            <p>{settings.provider === "ollama" ? "Ollama" : "Servidor local compatível"} · {settings.model}</p>
+          </div>
+          <button type="button" className="icon-action" onClick={onFechar} aria-label="Fechar relatório">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="ai-report-privacy-note">
+          Este texto é um rascunho. Revise o conteúdo antes de usar em ata, reunião ou documento oficial.
+        </div>
+        {gerando ? (
+          <div className="ai-report-loading">
+            <Sparkles size={22} />
+            <strong>Gerando rascunho pedagógico...</strong>
+            <span>A IA local está lendo apenas o resumo estruturado deste aluno.</span>
+          </div>
+        ) : erro ? (
+          <div className="ai-report-error">
+            <strong>Não foi possível gerar o relatório.</strong>
+            <span>{erro}</span>
+            <button type="button" onClick={onTentarNovamente}>Tentar novamente</button>
+          </div>
+        ) : (
+          <textarea
+            value={texto}
+            onChange={(event) => onTextoChange(event.target.value)}
+            placeholder="O rascunho gerado aparecerá aqui."
+          />
+        )}
+        <footer>
+          <button type="button" onClick={onFechar}>Fechar</button>
+          <button type="button" className="primary-action" onClick={onCopiar} disabled={!texto.trim() || gerando}>
+            <Copy size={16} />
+            Copiar texto
+          </button>
+        </footer>
+      </section>
+    </div>
   );
 }

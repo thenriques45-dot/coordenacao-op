@@ -4,6 +4,12 @@ import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import {
+  carregarAiAssistantSettings,
+  salvarAiAssistantSettings,
+  testarAiAssistant,
+  type AiAssistantSettings,
+} from "./aiAssistant";
+import {
   aplicarPayloadSincronizacao,
   montarPayloadSincronizacao,
   type WorkgroupSyncPayload,
@@ -48,6 +54,24 @@ type SyncInstitutionalResultado = {
   backup_seguranca: string | null;
 };
 
+type DiagnosticoIaLocal = {
+  ollama_instalado: boolean;
+  servidor_ativo: boolean;
+  modelo_instalado: boolean;
+  modelos: string[];
+  mensagem: string;
+};
+
+type SettingsSection = "instituicao" | "perfil" | "assistente" | "backup" | "atualizacao";
+
+const secoesConfiguracoes: Array<{ id: SettingsSection; titulo: string; descricao: string }> = [
+  { id: "instituicao", titulo: "Instituição", descricao: "Direção, critérios e cabeçalho" },
+  { id: "perfil", titulo: "Perfil e sincronização", descricao: "Coordenador e grupo de trabalho" },
+  { id: "assistente", titulo: "Assistente Pedagógico", descricao: "IA local para relatórios" },
+  { id: "backup", titulo: "Backup", descricao: "Exportar e restaurar dados" },
+  { id: "atualizacao", titulo: "Atualização", descricao: "Versão e update do app" },
+];
+
 function rotuloCiclo(ciclo: string) {
   const rotulos: Record<string, string> = {
     EI: "Educação Infantil",
@@ -85,6 +109,12 @@ export function Configuracoes({
   const [ciclosBackup, setCiclosBackup] = useState<string[]>(["todos"]);
   const [ultimoBackup, setUltimoBackup] = useState<string | null>(null);
   const [avatarOrigem, setAvatarOrigem] = useState<string | null>(null);
+  const [aiSettings, setAiSettings] = useState<AiAssistantSettings>(() => carregarAiAssistantSettings());
+  const [aiStatus, setAiStatus] = useState<DiagnosticoIaLocal | null>(null);
+  const [verificandoIa, setVerificandoIa] = useState(false);
+  const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
+  const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
+  const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
   const ciclosExistentes = useMemo(() => {
     const ciclos = Array.from(new Set(turmas.map((turma) => turma.ciclo || "Sem ciclo").filter(Boolean)));
     return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
@@ -106,6 +136,12 @@ export function Configuracoes({
       return validos.length ? validos : ["todos"];
     });
   }, [ciclosExistentes]);
+
+  useEffect(() => {
+    if (secaoConfig === "assistente" && tauriDisponivel) {
+      verificarIaLocal(false);
+    }
+  }, [secaoConfig]);
 
   async function salvar() {
     setProcessando(true);
@@ -257,6 +293,82 @@ export function Configuracoes({
     onPerfilSyncChange({ ...perfilSync, [campo]: valor });
   }
 
+  function atualizarAiSettings(campo: keyof AiAssistantSettings, valor: string | boolean | number) {
+    setAiSettings((atual) => {
+      const proximo = { ...atual, [campo]: valor } as AiAssistantSettings;
+      salvarAiAssistantSettings(proximo);
+      return proximo;
+    });
+  }
+
+  async function testarConexaoIa() {
+    setAcaoIa("testar");
+    setProcessando(true);
+    setMensagem("");
+    setErro("");
+    try {
+      const resposta = await testarAiAssistant(aiSettings);
+      setMensagem(`Assistente Pedagógico conectado: ${resposta}`);
+      await verificarIaLocal(false);
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setAcaoIa(null);
+      setProcessando(false);
+    }
+  }
+
+  async function verificarIaLocal(mostrarMensagem = true) {
+    setVerificandoIa(true);
+    if (mostrarMensagem) {
+      setMensagem("");
+      setErro("");
+    }
+    try {
+      const status = await invokeApp<DiagnosticoIaLocal>("diagnosticar_ia_local", { modelo: aiSettings.model });
+      setAiStatus(status);
+      if (mostrarMensagem) {
+        setMensagem(status.mensagem);
+      }
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setVerificandoIa(false);
+    }
+  }
+
+  async function iniciarIaLocal() {
+    setAcaoIa("iniciar");
+    setMensagem("");
+    setErro("");
+    try {
+      await invokeApp<DiagnosticoIaLocal>("iniciar_ollama_local");
+      await verificarIaLocal(false);
+      setMensagem("Ollama iniciado. Verifique se o modelo recomendado está disponível.");
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setAcaoIa(null);
+    }
+  }
+
+  async function baixarModeloIaLocal() {
+    setAcaoIa("baixar");
+    setMensagem("Baixando modelo local. Isso pode demorar e depende da rede.");
+    setErro("");
+    try {
+      const status = await invokeApp<DiagnosticoIaLocal>("baixar_modelo_ia_local", {
+        input: { modelo: aiSettings.model },
+      });
+      setAiStatus(status);
+      setMensagem(status.mensagem);
+    } catch (err) {
+      setErro(`Não foi possível baixar o modelo. ${String(err)}`);
+    } finally {
+      setAcaoIa(null);
+    }
+  }
+
   function escolherFotoPerfil(arquivo: File | null) {
     if (!arquivo) return;
     if (!arquivo.type.startsWith("image/")) {
@@ -382,7 +494,23 @@ export function Configuracoes({
         </div>
       </div>
 
-      <section className="panel settings-grid">
+      <section className="panel settings-layout">
+        <nav className="settings-nav" aria-label="Seções de configurações">
+          {secoesConfiguracoes.map((secao) => (
+            <button
+              key={secao.id}
+              type="button"
+              className={secaoConfig === secao.id ? "active" : ""}
+              onClick={() => setSecaoConfig(secao.id)}
+            >
+              <strong>{secao.titulo}</strong>
+              <span>{secao.descricao}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="settings-content">
+        {secaoConfig === "instituicao" && (
         <article className="settings-card">
           <h2>Direção e critérios</h2>
           <label>
@@ -413,7 +541,9 @@ export function Configuracoes({
           </div>
           <button className="primary-action" onClick={salvar} disabled={processando}>Salvar configurações</button>
         </article>
+        )}
 
+        {secaoConfig === "perfil" && (
         <article className="settings-card">
           <h2>Perfil e sincronização</h2>
           <p>Identifique esta instalação antes de compartilhar dados com outros coordenadores.</p>
@@ -474,7 +604,9 @@ export function Configuracoes({
           {perfilSync.lastInstitutionalPublishedAt && <span className="settings-version">Última publicação de turmas: {new Date(perfilSync.lastInstitutionalPublishedAt).toLocaleString("pt-BR")}</span>}
           {perfilSync.lastInstitutionalPulledAt && <span className="settings-version">Última atualização de turmas: {new Date(perfilSync.lastInstitutionalPulledAt).toLocaleString("pt-BR")}</span>}
         </article>
+        )}
 
+        {secaoConfig === "backup" && (
         <article className="settings-card">
           <h2>Backup</h2>
           <p>O formato antigo de backup é compatível com a modern-ui.</p>
@@ -511,7 +643,97 @@ export function Configuracoes({
             }} />
           </label>
         </article>
+        )}
 
+        {secaoConfig === "assistente" && (
+        <article className="settings-card">
+          <h2>Assistente Pedagógico</h2>
+          <p>Gera rascunhos de relatórios com uma IA instalada no computador. Os dados dos alunos não saem da máquina quando o Ollama local está pronto.</p>
+          <label className="settings-check-row">
+            <input type="checkbox" checked={aiSettings.enabled} onChange={(event) => atualizarAiSettings("enabled", event.target.checked)} />
+            Ativar geração de relatórios com IA local
+          </label>
+          <div className="ai-setup-panel">
+            <div className="ai-setup-heading">
+              <strong>Status da IA local</strong>
+              <span className={`ai-status-pill ${aiStatus?.modelo_instalado ? "ready" : aiStatus?.servidor_ativo ? "warning" : "blocked"}`}>
+                {verificandoIa
+                  ? "Verificando..."
+                  : aiStatus?.modelo_instalado
+                    ? "Pronto"
+                    : aiStatus?.servidor_ativo
+                      ? "Falta modelo"
+                      : aiStatus?.ollama_instalado
+                        ? "Ollama desligado"
+                        : "Não configurado"}
+              </span>
+            </div>
+            <p>{aiStatus?.mensagem ?? "Clique em verificar para diagnosticar a IA local neste computador."}</p>
+            <div className="ai-setup-steps">
+              <span className={aiStatus?.ollama_instalado ? "done" : ""}>1. Ollama instalado</span>
+              <span className={aiStatus?.servidor_ativo ? "done" : ""}>2. Servidor local ativo</span>
+              <span className={aiStatus?.modelo_instalado ? "done" : ""}>3. Modelo recomendado baixado</span>
+            </div>
+            <div className="sync-actions-row">
+              <button type="button" onClick={() => verificarIaLocal()} disabled={verificandoIa || acaoIa !== null}>
+                {verificandoIa ? "Verificando..." : "Verificar IA local"}
+              </button>
+              {!aiStatus?.ollama_instalado ? (
+                <button type="button" onClick={() => window.open("https://ollama.com/download", "_blank")}>
+                  Instalar Ollama
+                </button>
+              ) : !aiStatus?.servidor_ativo ? (
+                <button type="button" onClick={iniciarIaLocal} disabled={acaoIa !== null}>
+                  {acaoIa === "iniciar" ? "Iniciando..." : "Iniciar Ollama"}
+                </button>
+              ) : !aiStatus?.modelo_instalado ? (
+                <button type="button" onClick={baixarModeloIaLocal} disabled={acaoIa !== null}>
+                  {acaoIa === "baixar" ? "Baixando..." : "Baixar modelo"}
+                </button>
+              ) : (
+                <button type="button" onClick={testarConexaoIa} disabled={processando || acaoIa !== null}>
+                  {acaoIa === "testar" ? "Testando..." : "Testar assistente"}
+                </button>
+              )}
+            </div>
+            {aiStatus?.modelos.length ? (
+              <span className="settings-version">Modelos disponíveis: {aiStatus.modelos.join(", ")}</span>
+            ) : (
+              <span className="settings-version">Modelo recomendado: {aiSettings.model}</span>
+            )}
+          </div>
+          <button type="button" className="secondary-action" onClick={() => setMostrarIaAvancado((atual) => !atual)}>
+            {mostrarIaAvancado ? "Ocultar opções avançadas" : "Mostrar opções avançadas"}
+          </button>
+          {mostrarIaAvancado && (
+            <div className="ai-advanced-grid">
+              <label>
+                Provedor local
+                <select value={aiSettings.provider} onChange={(event) => atualizarAiSettings("provider", event.target.value)}>
+                  <option value="ollama">Ollama</option>
+                  <option value="openai-compatible">LM Studio / Jan / compatível com OpenAI</option>
+                </select>
+              </label>
+              <label>
+                Endereço local
+                <input value={aiSettings.endpoint} onChange={(event) => atualizarAiSettings("endpoint", event.target.value)} placeholder="http://127.0.0.1:11434" />
+              </label>
+              <label>
+                Modelo
+                <input value={aiSettings.model} onChange={(event) => atualizarAiSettings("model", event.target.value)} placeholder="llama3.2:3b" />
+              </label>
+              <label>
+                Criatividade
+                <input type="range" min="0" max="1" step="0.05" value={aiSettings.temperature} onChange={(event) => atualizarAiSettings("temperature", Number(event.target.value))} />
+              </label>
+              <span className="settings-version">Valor atual: {aiSettings.temperature.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <button type="button" onClick={testarConexaoIa} disabled={processando || acaoIa !== null}>Testar conexão manual</button>
+            </div>
+          )}
+        </article>
+        )}
+
+        {secaoConfig === "atualizacao" && (
         <article className="settings-card">
           <h2>Atualização</h2>
           <p>A verificação consulta a última versão publicada no GitHub.</p>
@@ -522,6 +744,8 @@ export function Configuracoes({
           )}
           {atualizacao && <span className="settings-version">Disponível: {atualizacao.version}</span>}
         </article>
+        )}
+        </div>
       </section>
 
       {mensagem && <div className="notice success">{mensagem}</div>}

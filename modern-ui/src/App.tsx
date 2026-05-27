@@ -204,6 +204,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.4.2": [
+    "Novo Assistente Pedagógico com IA local para gerar rascunhos de relatórios individuais dos alunos.",
+    "Configurações foram reorganizadas em seções para facilitar perfil, sincronização, backup, atualização e IA.",
+    "Configuração guiada do Ollama local agora diagnostica instalação, servidor e modelo recomendado.",
+    "Tags do Diagnóstico SARESP aparecem apenas em Português e Matemática, com cores alinhadas ao padrão do app.",
+  ],
   "2.4.1": [
     "Importador Diagnóstico SARESP agora aceita múltiplas planilhas e mostra prévia por arquivo.",
     "Tela do aluno exibe tags SARESP em Português e Matemática com nível e equivalência de ano.",

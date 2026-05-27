@@ -11,7 +11,7 @@ use std::{
     io::Cursor,
     io::Write,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
@@ -121,6 +121,30 @@ struct AtualizacaoInfo {
     disponivel: bool,
     url: Option<String>,
     mensagem: String,
+}
+
+#[derive(Serialize)]
+struct DiagnosticoIaLocal {
+    ollama_instalado: bool,
+    servidor_ativo: bool,
+    modelo_instalado: bool,
+    modelos: Vec<String>,
+    mensagem: String,
+}
+
+#[derive(Deserialize)]
+struct ModeloIaInput {
+    modelo: String,
+}
+
+#[derive(Deserialize)]
+struct OllamaTagsResponse {
+    models: Option<Vec<OllamaModelInfo>>,
+}
+
+#[derive(Deserialize)]
+struct OllamaModelInfo {
+    name: String,
 }
 
 #[derive(Clone)]
@@ -4511,6 +4535,125 @@ fn verificar_atualizacao_interno() -> Result<AtualizacaoInfo, Box<dyn std::error
     })
 }
 
+#[tauri::command]
+fn diagnosticar_ia_local(modelo: Option<String>) -> DiagnosticoIaLocal {
+    let modelo = modelo
+        .filter(|valor| !valor.trim().is_empty())
+        .unwrap_or_else(|| "llama3.2:3b".to_string());
+    let ollama_instalado = comando_ollama_disponivel();
+    if !ollama_instalado {
+        return DiagnosticoIaLocal {
+            ollama_instalado,
+            servidor_ativo: false,
+            modelo_instalado: false,
+            modelos: Vec::new(),
+            mensagem: "Ollama não encontrado neste computador.".to_string(),
+        };
+    }
+
+    match modelos_ollama_instalados() {
+        Ok(modelos) => {
+            let modelo_instalado = modelos.iter().any(|item| item == &modelo);
+            DiagnosticoIaLocal {
+                ollama_instalado,
+                servidor_ativo: true,
+                modelo_instalado,
+                modelos,
+                mensagem: if modelo_instalado {
+                    "Assistente local pronto para uso.".to_string()
+                } else {
+                    format!("Ollama está ativo, mas o modelo {modelo} ainda não foi baixado.")
+                },
+            }
+        }
+        Err(err) => DiagnosticoIaLocal {
+            ollama_instalado,
+            servidor_ativo: false,
+            modelo_instalado: false,
+            modelos: Vec::new(),
+            mensagem: err,
+        },
+    }
+}
+
+#[tauri::command]
+fn iniciar_ollama_local() -> Result<DiagnosticoIaLocal, String> {
+    if !comando_ollama_disponivel() {
+        return Err("Ollama não encontrado neste computador.".to_string());
+    }
+
+    if modelos_ollama_instalados().is_err() {
+        Command::new("ollama")
+            .arg("serve")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|err| format!("Não foi possível iniciar o Ollama: {err}"))?;
+        std::thread::sleep(std::time::Duration::from_millis(900));
+    }
+
+    Ok(diagnosticar_ia_local(Some("llama3.2:3b".to_string())))
+}
+
+#[tauri::command]
+fn baixar_modelo_ia_local(input: ModeloIaInput) -> Result<DiagnosticoIaLocal, String> {
+    let modelo = input.modelo.trim();
+    if modelo.is_empty() {
+        return Err("Informe o modelo de IA local.".to_string());
+    }
+    if !comando_ollama_disponivel() {
+        return Err("Ollama não encontrado neste computador.".to_string());
+    }
+
+    let saida = Command::new("ollama")
+        .arg("pull")
+        .arg(modelo)
+        .output()
+        .map_err(|err| format!("Não foi possível executar o download do modelo: {err}"))?;
+    if !saida.status.success() {
+        let erro = String::from_utf8_lossy(&saida.stderr).trim().to_string();
+        return Err(if erro.is_empty() {
+            "Não foi possível baixar o modelo. Verifique a conexão da rede.".to_string()
+        } else {
+            erro
+        });
+    }
+
+    Ok(diagnosticar_ia_local(Some(modelo.to_string())))
+}
+
+fn comando_ollama_disponivel() -> bool {
+    Command::new("ollama")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+fn modelos_ollama_instalados() -> Result<Vec<String>, String> {
+    let resposta = reqwest::blocking::Client::new()
+        .get("http://127.0.0.1:11434/api/tags")
+        .timeout(std::time::Duration::from_secs(2))
+        .send()
+        .map_err(|_| "Ollama instalado, mas o servidor local não está ativo.".to_string())?
+        .error_for_status()
+        .map_err(|err| format!("Ollama respondeu com erro: {err}"))?
+        .json::<OllamaTagsResponse>()
+        .map_err(|err| format!("Não foi possível ler a lista de modelos do Ollama: {err}"))?;
+    let mut modelos = resposta
+        .models
+        .unwrap_or_default()
+        .into_iter()
+        .map(|item| item.name)
+        .collect::<Vec<_>>();
+    modelos.sort();
+    Ok(modelos)
+}
+
 fn versao_maior(candidata: &str, atual: &str) -> bool {
     let parse = |texto: &str| {
         texto
@@ -6345,6 +6488,9 @@ fn main() {
             analisar_diagnostico_aprendizagem,
             aplicar_diagnostico_aprendizagem,
             verificar_atualizacao,
+            diagnosticar_ia_local,
+            iniciar_ollama_local,
+            baixar_modelo_ia_local,
             abrir_url,
             abrir_pasta,
             preparar_anexo_kanban,
