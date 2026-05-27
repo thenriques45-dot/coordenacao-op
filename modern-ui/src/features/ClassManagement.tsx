@@ -39,7 +39,20 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
+};
+
+type DiagnosticoAprendizagem = {
+  turma_origem: string | null;
+  portugues: DiagnosticoComponente;
+  matematica: DiagnosticoComponente;
+  atualizado_em: string | null;
+};
+
+type DiagnosticoComponente = {
+  aprendizagem_equivalente: string | null;
+  status: string | null;
 };
 
 type TurmaResumo = {
@@ -173,6 +186,43 @@ function calcularMetricasTurma(alunos: Aluno[]) {
     },
     { adequados: 0, atencao: 0, criticos: 0, mediaGeral },
   );
+}
+
+function DiagnosticSubjectCard({
+  titulo,
+  diagnostico,
+}: {
+  titulo: string;
+  diagnostico: DiagnosticoComponente;
+}) {
+  const status = diagnostico.status ?? "-";
+  return (
+    <article className={`diagnostic-subject-card ${classeStatusDiagnostico(status)}`}>
+      <span>{titulo}</span>
+      <strong>{status}</strong>
+      <small>Aprendizagem equivalente: {diagnostico.aprendizagem_equivalente ?? "-"}</small>
+    </article>
+  );
+}
+
+function classeStatusDiagnostico(status: string) {
+  const texto = status.toLocaleLowerCase("pt-BR");
+  if (texto.includes("abaixo")) return "below-basic";
+  if (texto.includes("profic")) return "proficient";
+  if (texto.includes("bas")) return "basic";
+  return "unknown";
+}
+
+function diagnosticoSarespPorDisciplina(diagnostico: DiagnosticoAprendizagem | null | undefined, disciplina: string) {
+  if (!diagnostico) return null;
+  const nome = disciplina.toLocaleLowerCase("pt-BR");
+  if (nome.includes("portugu") || nome.includes("língua portuguesa") || nome.includes("lingua portuguesa")) {
+    return diagnostico.portugues;
+  }
+  if (nome.includes("matem")) {
+    return diagnostico.matematica;
+  }
+  return null;
 }
 
 function normalizarBusca(valor: string) {
@@ -716,6 +766,18 @@ function AlunoDetalheGestao({
 
       {aba === "desempenho" && (
       <>
+      {aluno.diagnosticoAprendizagem && (
+        <section className="student-diagnostic-panel">
+          <div className="student-chart-heading">
+            <h3>Diagnóstico SARESP</h3>
+            {aluno.diagnosticoAprendizagem.turma_origem && <span>{aluno.diagnosticoAprendizagem.turma_origem}</span>}
+          </div>
+          <div className="student-diagnostic-grid">
+            <DiagnosticSubjectCard titulo="Português" diagnostico={aluno.diagnosticoAprendizagem.portugues} />
+            <DiagnosticSubjectCard titulo="Matemática" diagnostico={aluno.diagnosticoAprendizagem.matematica} />
+          </div>
+        </section>
+      )}
       <section className="student-performance-grid">
         <article className="student-subject-evolution">
           <div className="student-chart-heading">
@@ -778,9 +840,18 @@ function AlunoDetalheGestao({
               {aluno.disciplinas.map((disciplina) => {
                 const nota = disciplina.mediaConselho ?? disciplina.mediaOriginal;
                 const frequencia = calcularFrequenciaDisciplina(disciplina);
+                const diagnosticoDisciplina = diagnosticoSarespPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
                 return (
                   <tr key={disciplina.nome}>
-                    <td><strong>{disciplina.nome}</strong></td>
+                    <td>
+                      <strong>{disciplina.nome}</strong>
+                      {diagnosticoDisciplina && (
+                        <span className="subject-diagnostic-tags">
+                          <i className={`diagnostic-level-tag ${classeStatusDiagnostico(diagnosticoDisciplina.status ?? "")}`}>{diagnosticoDisciplina.status ?? "-"}</i>
+                          <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente ?? "-"}</i>
+                        </span>
+                      )}
+                    </td>
                     {[1, 2, 3, 4].map((indice) => (
                       <td key={indice} className={classeTextoNota(indice === bimestreAtual ? nota : null)}>
                         {indice === bimestreAtual ? formatarNota(nota) : "-"}

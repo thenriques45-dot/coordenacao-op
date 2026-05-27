@@ -47,6 +47,7 @@ export type KanbanTarefa = {
   vinculos?: string[];
   recorrencia?: RecurrenceRule;
   alertas?: KanbanAlerta[];
+  compartilhada?: boolean;
   createdAt?: string;
   updatedAt?: string;
 };

@@ -156,7 +156,7 @@ export function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Workgr
       avatarDataUrl: perfil.avatarDataUrl,
     },
     data: {
-      kanbanTasks: carregarTarefasKanban(),
+      kanbanTasks: carregarTarefasKanban().filter((tarefa) => tarefa.compartilhada === true),
       kanbanColumns: carregarColunasKanban(),
       calendarEvents: carregarEventosCalendario(),
       deletedKanbanTasks: tombstones.kanbanTasks,

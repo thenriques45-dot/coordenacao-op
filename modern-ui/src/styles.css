@@ -2081,6 +2081,104 @@ h3 {
   line-height: 1.45;
 }
 
+.diagnostic-import-summary {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #52616a;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.diagnostic-import-summary strong {
+  color: #101828;
+}
+
+.student-diagnostic-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.student-diagnostic-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.diagnostic-subject-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.diagnostic-subject-card span,
+.diagnostic-subject-card small {
+  color: #667085;
+  font-weight: 700;
+}
+
+.diagnostic-subject-card strong {
+  color: #101828;
+  font-size: 22px;
+}
+
+.diagnostic-subject-card.below-basic {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.diagnostic-subject-card.basic {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.diagnostic-subject-card.proficient {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+}
+
+.subject-diagnostic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.subject-diagnostic-tags i {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  padding: 5px 8px;
+}
+
+.diagnostic-level-tag.below-basic {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.diagnostic-level-tag.basic {
+  background: #fef3c7;
+  color: #a16207;
+}
+
+.diagnostic-level-tag.proficient {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.diagnostic-level-tag.unknown,
+.diagnostic-year-tag {
+  background: #edf1f4;
+  color: #52616a;
+}
+
 .special-add-row {
   display: grid;
   gap: 10px;
@@ -4336,6 +4434,37 @@ th:nth-child(3) {
   font-weight: 700;
 }
 
+.kanban-share-toggle {
+  align-items: flex-start;
+  background: #f8fafc;
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  color: #344054;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+
+.kanban-share-toggle input {
+  margin-top: 3px;
+}
+
+.kanban-share-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.kanban-share-toggle strong {
+  color: #101828;
+  font-size: 13px;
+}
+
+.kanban-share-toggle small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .kanban-file-picker {
   align-items: center;
   background: #f8fafc;
@@ -4747,6 +4876,7 @@ th:nth-child(3) {
 .theme-dark .kanban-attachment-list span,
 .theme-dark .kanban-file-picker,
 .theme-dark .kanban-alert-options button,
+.theme-dark .kanban-share-toggle,
 .theme-dark .eligible-badge,
 .theme-dark .status-pill,
 .theme-dark .student-badge,
@@ -4770,11 +4900,13 @@ th:nth-child(3) {
 }
 
 .theme-dark .kanban-alert-options > span,
-.theme-dark .kanban-alert-options button strong {
+.theme-dark .kanban-alert-options button strong,
+.theme-dark .kanban-share-toggle strong {
   color: #f3f4f6;
 }
 
-.theme-dark .kanban-alert-options button small {
+.theme-dark .kanban-alert-options button small,
+.theme-dark .kanban-share-toggle small {
   color: #a6adbb;
 }
 
@@ -5184,6 +5316,59 @@ th:nth-child(3) {
 .theme-dark .import-preview-table-wrap {
   background: #252526;
   border-color: #3f3f46;
+}
+
+.theme-dark .diagnostic-import-summary,
+.theme-dark .diagnostic-subject-card {
+  background: #2d2d30;
+  border-color: #3f3f46;
+}
+
+.theme-dark .diagnostic-import-summary strong,
+.theme-dark .diagnostic-subject-card strong {
+  color: #f3f4f6;
+}
+
+.theme-dark .diagnostic-import-summary,
+.theme-dark .diagnostic-subject-card span,
+.theme-dark .diagnostic-subject-card small {
+  color: #a6adbb;
+}
+
+.theme-dark .diagnostic-subject-card.below-basic {
+  background: #3a2428;
+  border-color: #7f303c;
+}
+
+.theme-dark .diagnostic-subject-card.basic {
+  background: #3a3320;
+  border-color: #7c611b;
+}
+
+.theme-dark .diagnostic-subject-card.proficient {
+  background: #1e3328;
+  border-color: #2d8054;
+}
+
+.theme-dark .diagnostic-level-tag.below-basic {
+  background: #4a2228;
+  color: #fecdd3;
+}
+
+.theme-dark .diagnostic-level-tag.basic {
+  background: #4a3b1c;
+  color: #fde68a;
+}
+
+.theme-dark .diagnostic-level-tag.proficient {
+  background: #1f3a2b;
+  color: #bbf7d0;
+}
+
+.theme-dark .diagnostic-level-tag.unknown,
+.theme-dark .diagnostic-year-tag {
+  background: #333337;
+  color: #d9dde7;
 }
 
 .theme-dark .students-table th,

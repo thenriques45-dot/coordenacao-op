@@ -1,4 +1,4 @@
-import { Check, Upload } from "lucide-react";
+import { BarChart3, Check, Upload } from "lucide-react";
 import { Fragment, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
@@ -56,6 +56,32 @@ type ResultadoImportacaoElegiveis = {
   nomes_ambiguos: string[];
 };
 
+type PreviaArquivoDiagnostico = {
+  nome: string;
+  registros_lidos: number;
+  correspondencias: number;
+  nao_encontrados: number;
+  nomes_nao_encontrados: string[];
+  duplicados: number;
+  nomes_duplicados: string[];
+  turmas_identificadas: string[];
+  erro: string | null;
+};
+
+type PreviaImportacaoDiagnostico = {
+  arquivos: PreviaArquivoDiagnostico[];
+  total_registros: number;
+  total_correspondencias: number;
+  total_nao_encontrados: number;
+  total_duplicados: number;
+};
+
+type ResultadoImportacaoDiagnostico = {
+  previa: PreviaImportacaoDiagnostico;
+  turmas_atualizadas: number;
+  alunos_atualizados: number;
+};
+
 function rotuloSerie(valor?: string | null) {
   if (!valor) return "";
   return valor
@@ -80,9 +106,11 @@ function rotuloTurma(turma: TurmaResumoImportacao) {
 export function ImportarDados({
   onImportarNotas,
   onImportarElegiveis,
+  onImportarDiagnostico,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
+  onImportarDiagnostico: () => void;
 }) {
   return (
     <>
@@ -107,6 +135,13 @@ export function ImportarDados({
           <div>
             <strong>Importar elegíveis</strong>
             <span>Atualize a lista de estudantes elegíveis e suas condições cadastradas.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarDiagnostico}>
+          <BarChart3 size={24} />
+          <div>
+            <strong>Importar Diagnóstico SARESP</strong>
+            <span>Leia a planilha de Português e Matemática com aprendizagem equivalente e status.</span>
           </div>
         </button>
       </section>
@@ -477,6 +512,161 @@ export function ImportarElegiveis({ onImportado }: { onImportado: () => void }) 
               )}
             </div>
           )}
+        </section>
+      )}
+    </>
+  );
+}
+
+export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }) {
+  const [arquivos, setArquivos] = useState<ArquivoMapaoPayload[]>([]);
+  const [previa, setPrevia] = useState<PreviaImportacaoDiagnostico | null>(null);
+  const [resultado, setResultado] = useState<ResultadoImportacaoDiagnostico | null>(null);
+  const [erro, setErro] = useState("");
+  const [processando, setProcessando] = useState(false);
+
+  function selecionarArquivos(lista: FileList | null) {
+    setErro("");
+    setPrevia(null);
+    setResultado(null);
+    setArquivos([]);
+    if (!lista?.length) return;
+    const arquivosSelecionados = Array.from(lista);
+    const invalido = arquivosSelecionados.find((arquivo) => !/\.(xlsx|xls)$/i.test(arquivo.name));
+    if (invalido) {
+      setErro(`Selecione apenas planilhas Excel. Arquivo inválido: ${invalido.name}`);
+      return;
+    }
+    Promise.all(arquivosSelecionados.map(async (arquivo) => ({
+      nome: arquivo.name,
+      bytes: Array.from(new Uint8Array(await arquivo.arrayBuffer())),
+    })))
+      .then(setArquivos)
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function analisar() {
+    if (!arquivos.length) {
+      setErro("Selecione ao menos uma planilha de Diagnóstico SARESP.");
+      return;
+    }
+    setProcessando(true);
+    setErro("");
+    setResultado(null);
+    invokeApp<PreviaImportacaoDiagnostico>("analisar_diagnostico_aprendizagem", {
+      input: { arquivos },
+    })
+      .then(setPrevia)
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function aplicar() {
+    if (!arquivos.length || !previa) return;
+    setProcessando(true);
+    setErro("");
+    invokeApp<ResultadoImportacaoDiagnostico>("aplicar_diagnostico_aprendizagem", {
+      input: { arquivos },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        setPrevia(resposta.previa);
+        onImportado();
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Diagnóstico SARESP</span>
+          <h1>Importar Diagnóstico SARESP</h1>
+          <p>Atualize Português e Matemática por aluno a partir da planilha de aprendizagem equivalente.</p>
+        </div>
+      </header>
+
+      <section className="panel import-notes-panel">
+        <div className="import-notes-controls">
+          <label className="file-picker-button">
+            Selecionar planilhas
+            <input type="file" multiple accept=".xlsx,.xls" onChange={(event) => selecionarArquivos(event.target.files)} />
+          </label>
+          <button className="primary-action" onClick={analisar} disabled={processando || !arquivos.length}>
+            {processando ? "Processando..." : "Analisar"}
+          </button>
+        </div>
+
+        <div className="import-file-summary">
+          {arquivos.length ? `${arquivos.length} planilha(s) selecionada(s)` : "Nenhuma planilha selecionada"}
+        </div>
+
+        {erro && <div className="inline-edit-error">{erro}</div>}
+      </section>
+
+      {previa && (
+        <section className="panel import-preview-panel">
+          <div className="import-preview-heading">
+            <h2>Prévia da importação</h2>
+            <div>
+              <span>Registros: <strong>{previa.total_registros}</strong></span>
+              <span>Correspondências: <strong>{previa.total_correspondencias}</strong></span>
+              <span>Não encontrados: <strong>{previa.total_nao_encontrados}</strong></span>
+              <span>Duplicados: <strong>{previa.total_duplicados}</strong></span>
+            </div>
+          </div>
+          <div className="import-preview-table-wrap">
+            <table className="import-preview-table">
+              <thead>
+                <tr><th>Arquivo</th><th>Registros</th><th>Casados</th><th>Não encontrados</th><th>Duplicados</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {previa.arquivos.map((arquivo) => (
+                  <Fragment key={arquivo.nome}>
+                    <tr>
+                      <td><span className="truncated-file-name" title={arquivo.nome}>{arquivo.nome}</span></td>
+                      <td>{arquivo.registros_lidos}</td>
+                      <td className="success-text">{arquivo.correspondencias}</td>
+                      <td className={arquivo.nao_encontrados ? "danger-text" : ""}>{arquivo.nao_encontrados}</td>
+                      <td className={arquivo.duplicados ? "danger-text" : ""}>{arquivo.duplicados}</td>
+                      <td>{arquivo.erro ? <span className="class-status-pill critico">Erro</span> : <span className="class-status-pill adequado">Lido</span>}</td>
+                    </tr>
+                    {(arquivo.erro || arquivo.nomes_nao_encontrados.length > 0 || arquivo.nomes_duplicados.length > 0) && (
+                      <tr className="import-error-row">
+                        <td colSpan={6}>
+                          {arquivo.erro && <p>{arquivo.erro}</p>}
+                          {arquivo.nomes_nao_encontrados.length > 0 && <p><strong>Não encontrados:</strong> {arquivo.nomes_nao_encontrados.slice(0, 20).join(", ")}{arquivo.nomes_nao_encontrados.length > 20 ? ` e mais ${arquivo.nomes_nao_encontrados.length - 20}` : ""}</p>}
+                          {arquivo.nomes_duplicados.length > 0 && <p><strong>Duplicados:</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {(previa.total_nao_encontrados > 0 || previa.total_duplicados > 0) && (
+            <div className="import-diagnostics">
+              <strong>Verifique antes de aplicar</strong>
+              <span>Alunos não encontrados ou ambíguos ficam de fora para evitar gravar diagnóstico no estudante errado.</span>
+            </div>
+          )}
+
+          <div className="import-preview-actions">
+            <button className="primary-action" onClick={aplicar} disabled={processando || previa.total_correspondencias === 0}>
+              {processando ? "Importando..." : "Aplicar Diagnóstico SARESP"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {resultado && (
+        <section className="finish-confirmation import-result">
+          <strong>Diagnóstico SARESP importado.</strong>
+          <span>Turmas atualizadas: {resultado.turmas_atualizadas}</span>
+          <span>Alunos atualizados: {resultado.alunos_atualizados}</span>
         </section>
       )}
     </>

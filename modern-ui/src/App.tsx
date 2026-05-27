@@ -36,7 +36,7 @@ import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
-import { ImportarDados, ImportarElegiveis, ImportarNotas } from "./features/Imports";
+import { ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarNotas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
 import { Configuracoes } from "./features/SettingsPage";
@@ -52,7 +52,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
@@ -85,6 +85,7 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  diagnosticoAprendizagem?: DiagnosticoAprendizagemApi | null;
   disciplinas: Disciplina[];
 };
 
@@ -135,7 +136,20 @@ type AlunoApi = {
   comentario_educacao_especial: string | null;
   frequencia_percentual: number | null;
   encaminhamentos: number[];
+  diagnostico_aprendizagem: DiagnosticoAprendizagemApi | null;
   disciplinas: DisciplinaApi[];
+};
+
+type DiagnosticoAprendizagemApi = {
+  turma_origem: string | null;
+  portugues: DiagnosticoComponenteApi;
+  matematica: DiagnosticoComponenteApi;
+  atualizado_em: string | null;
+};
+
+type DiagnosticoComponenteApi = {
+  aprendizagem_equivalente: string | null;
+  status: string | null;
 };
 
 type DisciplinaApi = {
@@ -190,6 +204,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.4.1": [
+    "Importador Diagnóstico SARESP agora aceita múltiplas planilhas e mostra prévia por arquivo.",
+    "Tela do aluno exibe tags SARESP em Português e Matemática com nível e equivalência de ano.",
+    "Tarefas do Kanban só entram na sincronização quando marcadas para compartilhar com o grupo.",
+  ],
   "2.4.0": [
     "Sincronização de grupo de trabalho com perfil de coordenador, foto e pasta compartilhada.",
     "Kanban e calendário agora sincronizam tarefas, eventos, colunas, anexos e exclusões entre instalações.",
@@ -328,6 +347,7 @@ export function App() {
       comentarioEducacaoEspecial: aluno.comentario_educacao_especial,
       frequencia: aluno.frequencia_percentual,
       encaminhamentos: aluno.encaminhamentos,
+      diagnosticoAprendizagem: aluno.diagnostico_aprendizagem,
       disciplinas: aluno.disciplinas.map((disciplina) => ({
         nome: disciplina.nome,
         mediaOriginal: disciplina.media_original,
@@ -735,7 +755,7 @@ export function App() {
         <nav className="nav-list">
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
-          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis"} onClick={() => navegarPara("importar-dados")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
@@ -845,6 +865,7 @@ export function App() {
           <ImportarDados
             onImportarNotas={() => navegarPara("importar-notas")}
             onImportarElegiveis={() => navegarPara("importar-elegiveis")}
+            onImportarDiagnostico={() => navegarPara("importar-diagnostico")}
           />
         )}
         {tela === "importar-notas" && (
@@ -879,6 +900,17 @@ export function App() {
             }
           }} />
         )}
+        {tela === "importar-diagnostico" && (
+          <ImportarDiagnostico onImportado={() => {
+            invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+            if (turmaSelecionada) {
+              invokeApp<TurmaDetalhe>("carregar_turma", {
+                caminho: turmaSelecionada.caminho,
+                bimestre: bimestreSelecionado,
+              }).then(setTurmaDetalhe).catch(() => {});
+            }
+          }} />
+        )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onDadosAlterados={() => {
@@ -892,7 +924,7 @@ export function App() {
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1103,6 +1135,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     "importar-dados": "Importar Dados",
     "importar-notas": "Importar Notas",
     "importar-elegiveis": "Importar Elegíveis",
+    "importar-diagnostico": "Importar Diagnóstico SARESP",
     conselhos: "Conselhos",
     conselho: "Conselho",
     kanban: "Quadro de Gestão",

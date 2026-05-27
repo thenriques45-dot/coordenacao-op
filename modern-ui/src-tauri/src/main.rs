@@ -204,7 +204,22 @@ struct AlunoDetalhe {
     comentario_educacao_especial: Option<String>,
     frequencia_percentual: Option<f64>,
     encaminhamentos: Vec<i64>,
+    diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     disciplinas: Vec<DisciplinaDetalhe>,
+}
+
+#[derive(Serialize)]
+struct DiagnosticoAprendizagem {
+    turma_origem: Option<String>,
+    portugues: DiagnosticoComponente,
+    matematica: DiagnosticoComponente,
+    atualizado_em: Option<String>,
+}
+
+#[derive(Serialize)]
+struct DiagnosticoComponente {
+    aprendizagem_equivalente: Option<String>,
+    status: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -340,6 +355,50 @@ struct ArquivoMapaoInput {
 struct ImportacaoMapoesInput {
     bimestre: String,
     arquivos: Vec<ArquivoMapaoInput>,
+}
+
+#[derive(Deserialize)]
+struct ImportacaoDiagnosticoInput {
+    arquivos: Vec<ArquivoMapaoInput>,
+}
+
+#[derive(Clone)]
+struct RegistroDiagnostico {
+    turma: String,
+    estudante: String,
+    portugues_ano: String,
+    portugues_status: String,
+    matematica_ano: String,
+    matematica_status: String,
+}
+
+#[derive(Serialize)]
+struct PreviaArquivoDiagnostico {
+    nome: String,
+    registros_lidos: usize,
+    correspondencias: usize,
+    nao_encontrados: usize,
+    nomes_nao_encontrados: Vec<String>,
+    duplicados: usize,
+    nomes_duplicados: Vec<String>,
+    turmas_identificadas: Vec<String>,
+    erro: Option<String>,
+}
+
+#[derive(Serialize)]
+struct PreviaImportacaoDiagnostico {
+    arquivos: Vec<PreviaArquivoDiagnostico>,
+    total_registros: usize,
+    total_correspondencias: usize,
+    total_nao_encontrados: usize,
+    total_duplicados: usize,
+}
+
+#[derive(Serialize)]
+struct ResultadoImportacaoDiagnostico {
+    previa: PreviaImportacaoDiagnostico,
+    turmas_atualizadas: usize,
+    alunos_atualizados: usize,
 }
 
 #[derive(Serialize, Clone)]
@@ -1119,6 +1178,84 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
 
     Ok(ResultadoImportacaoMapoes {
         arquivos,
+        turmas_atualizadas: turmas_alteradas.len(),
+        alunos_atualizados: alunos_atualizados.len(),
+    })
+}
+
+#[tauri::command]
+fn analisar_diagnostico_aprendizagem(
+    input: ImportacaoDiagnosticoInput,
+) -> Result<PreviaImportacaoDiagnostico, String> {
+    let turmas = carregar_turmas_com_caminho()?;
+    analisar_diagnostico_input(&input.arquivos, &turmas)
+}
+
+#[tauri::command]
+fn aplicar_diagnostico_aprendizagem(
+    input: ImportacaoDiagnosticoInput,
+) -> Result<ResultadoImportacaoDiagnostico, String> {
+    let mut turmas = carregar_turmas_com_caminho()?;
+    let previa = analisar_diagnostico_input(&input.arquivos, &turmas)?;
+    let mut alunos_atualizados = BTreeSet::new();
+    let mut turmas_alteradas = BTreeSet::new();
+
+    for arquivo in &input.arquivos {
+        let Ok(registros) = ler_diagnostico_bytes(&arquivo.bytes) else {
+            continue;
+        };
+        for registro in registros {
+            let alvos = alvos_para_diagnostico(&registro.turma, &turmas);
+            let destinos = destinos_nome_arquivo(
+                &normalizar_nome_busca(&registro.estudante),
+                &indice_alunos_por_nome(&turmas),
+                &alvos,
+            );
+            if destinos.len() != 1 {
+                continue;
+            }
+            let (turma_idx, matricula) = &destinos[0];
+            let Some((caminho, turma)) = turmas.get_mut(*turma_idx) else {
+                continue;
+            };
+            let Some(info) = turma
+                .alunos
+                .as_mut()
+                .and_then(|alunos| alunos.get_mut(matricula))
+                .and_then(Value::as_object_mut)
+            else {
+                continue;
+            };
+
+            info.insert(
+                "diagnostico_aprendizagem".to_string(),
+                serde_json::json!({
+                    "turma_origem": registro.turma,
+                    "portugues": {
+                        "aprendizagem_equivalente": registro.portugues_ano,
+                        "status": registro.portugues_status,
+                    },
+                    "matematica": {
+                        "aprendizagem_equivalente": registro.matematica_ano,
+                        "status": registro.matematica_status,
+                    },
+                    "atualizado_em": Local::now().to_rfc3339(),
+                }),
+            );
+            alunos_atualizados.insert((caminho.to_string_lossy().to_string(), matricula.clone()));
+            turmas_alteradas.insert(caminho.to_string_lossy().to_string());
+        }
+    }
+
+    for (caminho, turma) in &turmas {
+        if turmas_alteradas.contains(&caminho.to_string_lossy().to_string()) {
+            let texto = serde_json::to_string_pretty(turma).map_err(|err| err.to_string())?;
+            fs::write(caminho, texto).map_err(|err| err.to_string())?;
+        }
+    }
+
+    Ok(ResultadoImportacaoDiagnostico {
+        previa,
         turmas_atualizadas: turmas_alteradas.len(),
         alunos_atualizados: alunos_atualizados.len(),
     })
@@ -5037,6 +5174,158 @@ fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
     })
 }
 
+fn ler_diagnostico_bytes(bytes: &[u8]) -> Result<Vec<RegistroDiagnostico>, String> {
+    let cursor = Cursor::new(bytes.to_vec());
+    let mut workbook: Xlsx<_> =
+        open_workbook_from_rs(cursor).map_err(|err: XlsxError| err.to_string())?;
+    let sheet_name = workbook
+        .sheet_names()
+        .first()
+        .cloned()
+        .ok_or_else(|| "Planilha sem abas.".to_string())?;
+    let range = workbook
+        .worksheet_range(&sheet_name)
+        .map_err(|err| err.to_string())?;
+    let linhas = range.rows().map(|row| row.to_vec()).collect::<Vec<_>>();
+    let linha_inicio = linhas
+        .iter()
+        .position(linha_parece_cabecalho_diagnostico)
+        .ok_or_else(|| "Cabeçalho do diagnóstico não encontrado.".to_string())?;
+    let mut registros = Vec::new();
+    for linha in linhas.iter().skip(linha_inicio + 1) {
+        let turma = texto_celula(linha.get(0)).trim().to_string();
+        let estudante = texto_celula(linha.get(2)).trim().to_string();
+        if turma.is_empty() && estudante.is_empty() {
+            continue;
+        }
+        if estudante.is_empty() {
+            continue;
+        }
+        registros.push(RegistroDiagnostico {
+            turma,
+            estudante,
+            portugues_ano: texto_celula(linha.get(4)).trim().to_string(),
+            portugues_status: texto_celula(linha.get(5)).trim().to_string(),
+            matematica_ano: texto_celula(linha.get(6)).trim().to_string(),
+            matematica_status: texto_celula(linha.get(7)).trim().to_string(),
+        });
+    }
+    if registros.is_empty() {
+        return Err("Não encontrei estudantes válidos na planilha de diagnóstico.".to_string());
+    }
+    Ok(registros)
+}
+
+fn linha_parece_cabecalho_diagnostico(linha: &Vec<Data>) -> bool {
+    let rotulos = linha.iter().map(rotulo_celula).collect::<Vec<_>>();
+    rotulos.get(0).map(String::as_str) == Some("TURMA")
+        && rotulos.get(2).map(String::as_str) == Some("ESTUDANTE")
+        && rotulos.iter().filter(|rotulo| rotulo.contains("APRENDIZAGEM")).count() >= 2
+        && rotulos.iter().filter(|rotulo| rotulo == &"STATUS").count() >= 2
+}
+
+fn analisar_diagnostico_arquivo(
+    arquivo: &ArquivoMapaoInput,
+    turmas: &[(PathBuf, TurmaArquivo)],
+) -> PreviaArquivoDiagnostico {
+    let registros = match ler_diagnostico_bytes(&arquivo.bytes) {
+        Ok(registros) => registros,
+        Err(err) => {
+            return PreviaArquivoDiagnostico {
+                nome: arquivo.nome.clone(),
+                registros_lidos: 0,
+                correspondencias: 0,
+                nao_encontrados: 0,
+                nomes_nao_encontrados: Vec::new(),
+                duplicados: 0,
+                nomes_duplicados: Vec::new(),
+                turmas_identificadas: Vec::new(),
+                erro: Some(err),
+            };
+        }
+    };
+    let indice = indice_alunos_por_nome(turmas);
+    let mut correspondencias = 0;
+    let mut nao_encontrados = Vec::new();
+    let mut duplicados = Vec::new();
+    let mut turmas_identificadas = BTreeSet::new();
+
+    for registro in &registros {
+        if !registro.turma.is_empty() {
+            turmas_identificadas.insert(registro.turma.clone());
+        }
+        let alvos = alvos_para_diagnostico(&registro.turma, turmas);
+        let destinos =
+            destinos_nome_arquivo(&normalizar_nome_busca(&registro.estudante), &indice, &alvos);
+        if destinos.len() == 1 {
+            correspondencias += 1;
+        } else if destinos.is_empty() {
+            nao_encontrados.push(format!("{} ({})", registro.estudante, registro.turma));
+        } else {
+            duplicados.push(format!("{} ({})", registro.estudante, registro.turma));
+        }
+    }
+
+    PreviaArquivoDiagnostico {
+        nome: arquivo.nome.clone(),
+        registros_lidos: registros.len(),
+        correspondencias,
+        nao_encontrados: nao_encontrados.len(),
+        nomes_nao_encontrados: nao_encontrados,
+        duplicados: duplicados.len(),
+        nomes_duplicados: duplicados,
+        turmas_identificadas: turmas_identificadas.into_iter().collect(),
+        erro: None,
+    }
+}
+
+fn analisar_diagnostico_input(
+    arquivos: &[ArquivoMapaoInput],
+    turmas: &[(PathBuf, TurmaArquivo)],
+) -> Result<PreviaImportacaoDiagnostico, String> {
+    if arquivos.is_empty() {
+        return Err("Selecione ao menos uma planilha de diagnóstico SARESP.".to_string());
+    }
+    let arquivos = arquivos
+        .iter()
+        .map(|arquivo| analisar_diagnostico_arquivo(arquivo, turmas))
+        .collect::<Vec<_>>();
+    Ok(PreviaImportacaoDiagnostico {
+        total_registros: arquivos.iter().map(|arquivo| arquivo.registros_lidos).sum(),
+        total_correspondencias: arquivos.iter().map(|arquivo| arquivo.correspondencias).sum(),
+        total_nao_encontrados: arquivos.iter().map(|arquivo| arquivo.nao_encontrados).sum(),
+        total_duplicados: arquivos.iter().map(|arquivo| arquivo.duplicados).sum(),
+        arquivos,
+    })
+}
+
+fn alvos_para_diagnostico(
+    turma_planilha: &str,
+    turmas: &[(PathBuf, TurmaArquivo)],
+) -> BTreeSet<usize> {
+    let texto = normalizar_texto_basico(turma_planilha);
+    if texto.is_empty() {
+        return BTreeSet::new();
+    }
+    let tokens_planilha = texto.split_whitespace().collect::<BTreeSet<_>>();
+    let mut alvos = BTreeSet::new();
+    for (idx, (_, turma)) in turmas.iter().enumerate() {
+        let identificadores = [
+            normalizar_texto_basico(&turma.codigo),
+            turma.serie.as_deref().map(normalizar_texto_basico).unwrap_or_default(),
+        ];
+        if identificadores.iter().any(|id| !id.is_empty() && texto.contains(id)) {
+            alvos.insert(idx);
+            continue;
+        }
+        let codigo_tokens = identificadores[0].split_whitespace().collect::<BTreeSet<_>>();
+        if !codigo_tokens.is_empty() && codigo_tokens.is_subset(&tokens_planilha) {
+            alvos.insert(idx);
+        }
+    }
+    alvos
+}
+
 fn localizar_colunas_bloco(
     linhas: &[Vec<Data>],
     linha_inicio: usize,
@@ -5601,6 +5890,7 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
             comentario_educacao_especial,
             frequencia_percentual,
             encaminhamentos: extrair_encaminhamentos(&info, &bimestre),
+            diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
         });
     }
@@ -5873,6 +6163,30 @@ fn extrair_encaminhamentos(info: &Value, bimestre: &str) -> Vec<i64> {
     codigos
 }
 
+fn extrair_diagnostico_aprendizagem(info: &Value) -> Option<DiagnosticoAprendizagem> {
+    let dados = info.get("diagnostico_aprendizagem")?.as_object()?;
+    Some(DiagnosticoAprendizagem {
+        turma_origem: dados.get("turma_origem").and_then(Value::as_str).map(str::to_string),
+        portugues: extrair_diagnostico_componente(dados.get("portugues")),
+        matematica: extrair_diagnostico_componente(dados.get("matematica")),
+        atualizado_em: dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string),
+    })
+}
+
+fn extrair_diagnostico_componente(valor: Option<&Value>) -> DiagnosticoComponente {
+    let objeto = valor.and_then(Value::as_object);
+    DiagnosticoComponente {
+        aprendizagem_equivalente: objeto
+            .and_then(|dados| dados.get("aprendizagem_equivalente"))
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        status: objeto
+            .and_then(|dados| dados.get("status"))
+            .and_then(Value::as_str)
+            .map(str::to_string),
+    }
+}
+
 fn extrair_disciplinas(
     info: &Value,
     bimestre: &str,
@@ -6028,6 +6342,8 @@ fn main() {
             exportar_backup_seletivo,
             importar_backup,
             importar_alunos_elegiveis,
+            analisar_diagnostico_aprendizagem,
+            aplicar_diagnostico_aprendizagem,
             verificar_atualizacao,
             abrir_url,
             abrir_pasta,

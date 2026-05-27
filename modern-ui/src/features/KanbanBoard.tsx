@@ -180,6 +180,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     repetir: "none" as "none" | RecurrenceFrequency,
     intervalo: 1,
     repetirAte: "",
+    compartilhada: false,
     alertas: { ...alertasFormularioPadrao },
   });
 
@@ -328,7 +329,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
 
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
     setTarefaEditando(null);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", alertas: { ...alertasFormularioPadrao } });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
     setModalNovaTarefa(true);
   }
 
@@ -350,6 +351,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       repetir: tarefa.recorrencia?.frequency ?? "none",
       intervalo: tarefa.recorrencia?.interval ?? 1,
       repetirAte: tarefa.recorrencia?.until ?? "",
+      compartilhada: tarefa.compartilhada === true,
       alertas: alertasParaFormulario(tarefa),
     });
     setModalNovaTarefa(true);
@@ -358,7 +360,10 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   function apagarTarefa(id: string) {
     setMenuTarefaAberto(null);
     if (window.confirm("Apagar esta tarefa do quadro?")) {
-      registrarExclusaoSincronizacao("kanbanTask", id);
+      const tarefa = tarefas.find((item) => item.id === id);
+      if (tarefa?.compartilhada === true) {
+        registrarExclusaoSincronizacao("kanbanTask", id);
+      }
       setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id));
     }
   }
@@ -485,6 +490,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         vinculo: vinculos[0],
         vinculos: vinculos.length ? vinculos : undefined,
         recorrencia,
+        compartilhada: novaTarefa.compartilhada,
         alertas: montarAlertasTarefa(novaTarefa.alertas, prazo, tarefa),
         updatedAt: agora,
       } : tarefa));
@@ -508,13 +514,14 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       vinculo: vinculos[0],
       vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
+      compartilhada: novaTarefa.compartilhada,
       alertas: montarAlertasTarefa(novaTarefa.alertas, prazo),
       createdAt: agora,
       updatedAt: agora,
     };
 
     setTarefas((atuais) => [tarefa, ...atuais]);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", alertas: { ...alertasFormularioPadrao } });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
     setDestacarAnexos(false);
     setModalNovaTarefa(false);
   }
@@ -703,6 +710,17 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                 ))}
               </div>
             </div>
+            <label className="kanban-share-toggle">
+              <input
+                type="checkbox"
+                checked={novaTarefa.compartilhada}
+                onChange={(event) => setNovaTarefa((atual) => ({ ...atual, compartilhada: event.target.checked }))}
+              />
+              <span>
+                <strong>Compartilhar com o grupo de trabalho</strong>
+                <small>Quando desativado, esta tarefa fica somente nesta instalação.</small>
+              </span>
+            </label>
             <div className="kanban-form-grid">
               <label>
                 Etiquetas
