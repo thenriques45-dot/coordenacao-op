@@ -160,6 +160,10 @@ jobs:
         with:
           body_path: artifacts/RELEASE_NOTES.txt
           files: |
-            artifacts/*
-            artifacts/**/*
+            artifacts/*.json
+            artifacts/*.txt
+            artifacts/**/*.AppImage
+            artifacts/**/*.sig
+            artifacts/**/*.exe
+            artifacts/**/*.zip
           generate_release_notes: true
