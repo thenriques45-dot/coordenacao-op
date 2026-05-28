@@ -4596,17 +4596,20 @@ th:nth-child(3) {
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.2);
-  display: grid;
-  gap: 16px;
-  max-width: 620px;
-  padding: 24px;
-  width: min(620px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 56px);
+  max-width: 760px;
+  overflow: hidden;
+  width: min(760px, calc(100vw - 32px));
 }
 
 .modal-title-row {
   align-items: flex-start;
+  border-bottom: 1px solid #e5ebef;
   display: flex;
   justify-content: space-between;
+  padding: 22px 24px 18px;
 }
 
 .modal-title-row p {
@@ -4617,6 +4620,46 @@ th:nth-child(3) {
 .modal-title-row button {
   height: 34px;
   width: 34px;
+}
+
+.kanban-task-title-field {
+  padding: 16px 24px 0;
+}
+
+.kanban-task-tabs {
+  border-bottom: 1px solid #e5ebef;
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 14px 24px 0;
+}
+
+.kanban-task-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #667085;
+  flex: 0 0 auto;
+  font-weight: 800;
+  min-height: 38px;
+  padding: 0 10px 10px;
+}
+
+.kanban-task-tabs button.active {
+  border-color: #2f78ff;
+  color: #101828;
+}
+
+.kanban-task-modal-body {
+  min-height: 260px;
+  overflow: auto;
+  padding: 18px 24px;
+}
+
+.kanban-task-tab-panel {
+  display: grid;
+  gap: 16px;
 }
 
 .kanban-task-modal label {
@@ -4645,6 +4688,11 @@ th:nth-child(3) {
   min-height: 92px;
   padding: 10px 12px;
   resize: vertical;
+}
+
+.kanban-task-modal .modal-actions {
+  flex: 0 0 auto;
+  padding: 16px 24px;
 }
 
 .kanban-form-grid {
@@ -5088,7 +5136,9 @@ th:nth-child(3) {
 .theme-dark .table-panel th,
 .theme-dark .table-panel td,
 .theme-dark .details-section,
-.theme-dark .modal-header {
+.theme-dark .modal-header,
+.theme-dark .modal-title-row,
+.theme-dark .kanban-task-tabs {
   border-color: #3f3f46;
 }
 
@@ -5183,6 +5233,15 @@ th:nth-child(3) {
 
 .theme-dark .kanban-alert-options button.selected small {
   color: #cfe7ff;
+}
+
+.theme-dark .kanban-task-tabs button {
+  color: #a6adbb;
+}
+
+.theme-dark .kanban-task-tabs button.active {
+  border-color: #3794ff;
+  color: #f3f4f6;
 }
 
 .theme-dark .kanban-reminder-tags span {

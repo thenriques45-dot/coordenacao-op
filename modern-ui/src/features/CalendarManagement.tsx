@@ -33,6 +33,23 @@ type TurmaCalendario = {
   nomes_alunos: string[];
 };
 
+type AbaFormularioEvento = "detalhes" | "vinculos" | "aparencia" | "recorrencia";
+type AbaFormularioTarefaCalendario = "detalhes" | "vinculos" | "etiquetas" | "recorrencia";
+
+const ABAS_FORMULARIO_EVENTO: { id: AbaFormularioEvento; label: string }[] = [
+  { id: "detalhes", label: "Detalhes" },
+  { id: "vinculos", label: "Vínculos" },
+  { id: "aparencia", label: "Aparência" },
+  { id: "recorrencia", label: "Recorrência" },
+];
+
+const ABAS_FORMULARIO_TAREFA_CALENDARIO: { id: AbaFormularioTarefaCalendario; label: string }[] = [
+  { id: "detalhes", label: "Detalhes" },
+  { id: "vinculos", label: "Vínculos" },
+  { id: "etiquetas", label: "Etiquetas" },
+  { id: "recorrencia", label: "Recorrência" },
+];
+
 function normalizarBusca(valor: string) {
   return valor
     .trim()
@@ -88,8 +105,10 @@ export function CalendarioGestao({
   const [diaSelecionado, setDiaSelecionado] = useState(() => chaveData(new Date()));
   const [modalEvento, setModalEvento] = useState(false);
   const [eventoEditando, setEventoEditando] = useState<CalendarEvent | null>(null);
+  const [abaEvento, setAbaEvento] = useState<AbaFormularioEvento>("detalhes");
   const [modalTarefa, setModalTarefa] = useState(false);
   const [eventoTarefa, setEventoTarefa] = useState<CalendarEvent | null>(null);
+  const [abaTarefa, setAbaTarefa] = useState<AbaFormularioTarefaCalendario>("detalhes");
   const [ocultarTarefasAssociadas, setOcultarTarefasAssociadas] = useState(false);
   const [formEvento, setFormEvento] = useState({
     titulo: "",
@@ -210,6 +229,7 @@ export function CalendarioGestao({
 
   function abrirNovoEvento(data = diaSelecionado) {
     setEventoEditando(null);
+    setAbaEvento("detalhes");
     setFormEvento({
       titulo: "",
       descricao: "",
@@ -229,6 +249,7 @@ export function CalendarioGestao({
 
   function abrirEdicaoEvento(evento: CalendarEvent) {
     setEventoEditando(evento);
+    setAbaEvento("detalhes");
     setFormEvento({
       titulo: evento.titulo,
       descricao: evento.descricao,
@@ -288,6 +309,7 @@ export function CalendarioGestao({
 
   function abrirTarefaAssociada(evento: CalendarEvent) {
     setEventoTarefa(evento);
+    setAbaTarefa("detalhes");
     setFormTarefa({
       titulo: `Preparar ${evento.titulo}`,
       descricao: evento.descricao || "Tarefa associada a evento do calendário.",
@@ -469,93 +491,128 @@ export function CalendarioGestao({
                 <X size={18} />
               </button>
             </div>
-            <label>
+            <label className="kanban-task-title-field">
               Título
               <input value={formEvento.titulo} onChange={(event) => setFormEvento((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
             </label>
-            <label>
-              Descrição
-              <textarea value={formEvento.descricao} onChange={(event) => setFormEvento((atual) => ({ ...atual, descricao: event.target.value }))} />
-            </label>
-            <div className="kanban-form-grid">
-              <label>
-                Data
-                <input type="date" value={formEvento.data} onChange={(event) => setFormEvento((atual) => ({ ...atual, data: event.target.value }))} />
-              </label>
-              <label>
-                Vínculos
-                <input list="calendar-vinculos" placeholder="Geral, turma, aluno ou conselho" value={formEvento.vinculo} onChange={(event) => setFormEvento((atual) => ({ ...atual, vinculo: event.target.value }))} />
-                {sugestoesEvento.length > 0 && (
-                  <span className="calendar-link-suggestions">
-                    {sugestoesEvento.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </label>
+            <div className="kanban-task-tabs" role="tablist" aria-label="Seções do evento">
+              {ABAS_FORMULARIO_EVENTO.map((aba) => (
+                <button
+                  key={aba.id}
+                  type="button"
+                  className={abaEvento === aba.id ? "active" : ""}
+                  onClick={() => setAbaEvento(aba.id)}
+                  role="tab"
+                  aria-selected={abaEvento === aba.id}
+                >
+                  {aba.label}
+                </button>
+              ))}
             </div>
-            <div className="kanban-form-grid">
-              <label>
-                Início
-                <input type="time" value={formEvento.horaInicio} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaInicio: event.target.value }))} />
-              </label>
-              <label>
-                Fim
-                <input type="time" value={formEvento.horaFim} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaFim: event.target.value }))} />
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Categoria
-                <input value={formEvento.categoria} onChange={(event) => setFormEvento((atual) => ({ ...atual, categoria: event.target.value }))} />
-              </label>
-              <label>
-                Prioridade
-                <select value={formEvento.prioridade} onChange={(event) => setFormEvento((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
-                  <option value="alta">Alta</option>
-                  <option value="media">Média</option>
-                  <option value="baixa">Baixa</option>
-                </select>
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Recorrência
-                <select value={formEvento.repetir} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
-                  <option value="none">Não repetir</option>
-                  <option value="daily">Diariamente</option>
-                  <option value="weekly">Semanalmente</option>
-                  <option value="monthly">Mensalmente</option>
-                  <option value="yearly">Anualmente</option>
-                </select>
-              </label>
-              <label>
-                Cor
-                <div className="calendar-color-picker">
-                  {coresCalendario.map((cor) => (
-                    <button key={cor} type="button" className={formEvento.cor === cor ? "selected" : ""} style={{ background: cor }} onClick={() => setFormEvento((atual) => ({ ...atual, cor }))} />
-                  ))}
+            <div className="kanban-task-modal-body">
+              {abaEvento === "detalhes" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Descrição
+                    <textarea value={formEvento.descricao} onChange={(event) => setFormEvento((atual) => ({ ...atual, descricao: event.target.value }))} />
+                  </label>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Data
+                      <input type="date" value={formEvento.data} onChange={(event) => setFormEvento((atual) => ({ ...atual, data: event.target.value }))} />
+                    </label>
+                    <label>
+                      Prioridade
+                      <select value={formEvento.prioridade} onChange={(event) => setFormEvento((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Início
+                      <input type="time" value={formEvento.horaInicio} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaInicio: event.target.value }))} />
+                    </label>
+                    <label>
+                      Fim
+                      <input type="time" value={formEvento.horaFim} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaFim: event.target.value }))} />
+                    </label>
+                  </div>
                 </div>
-              </label>
+              )}
+
+              {abaEvento === "vinculos" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Vínculos
+                    <input list="calendar-vinculos" placeholder="Geral, turma, aluno ou conselho" value={formEvento.vinculo} onChange={(event) => setFormEvento((atual) => ({ ...atual, vinculo: event.target.value }))} />
+                    {sugestoesEvento.length > 0 && (
+                      <span className="calendar-link-suggestions">
+                        {sugestoesEvento.map((item) => (
+                          <button
+                            type="button"
+                            key={item}
+                            onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </label>
+                </div>
+              )}
+
+              {abaEvento === "aparencia" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Categoria
+                      <input value={formEvento.categoria} onChange={(event) => setFormEvento((atual) => ({ ...atual, categoria: event.target.value }))} />
+                    </label>
+                    <label>
+                      Cor
+                      <div className="calendar-color-picker">
+                        {coresCalendario.map((cor) => (
+                          <button key={cor} type="button" className={formEvento.cor === cor ? "selected" : ""} style={{ background: cor }} onClick={() => setFormEvento((atual) => ({ ...atual, cor }))} />
+                        ))}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {abaEvento === "recorrencia" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Recorrência
+                      <select value={formEvento.repetir} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                        <option value="none">Não repetir</option>
+                        <option value="daily">Diariamente</option>
+                        <option value="weekly">Semanalmente</option>
+                        <option value="monthly">Mensalmente</option>
+                        <option value="yearly">Anualmente</option>
+                      </select>
+                    </label>
+                  </div>
+                  {formEvento.repetir !== "none" && (
+                    <div className="kanban-form-grid">
+                      <label>
+                        Repetir a cada
+                        <input type="number" min={1} value={formEvento.intervalo} onChange={(event) => setFormEvento((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
+                      </label>
+                      <label>
+                        Repetir até
+                        <input type="date" value={formEvento.repetirAte} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            {formEvento.repetir !== "none" && (
-              <div className="kanban-form-grid">
-                <label>
-                  Repetir a cada
-                  <input type="number" min={1} value={formEvento.intervalo} onChange={(event) => setFormEvento((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
-                </label>
-                <label>
-                  Repetir até
-                  <input type="date" value={formEvento.repetirAte} onChange={(event) => setFormEvento((atual) => ({ ...atual, repetirAte: event.target.value }))} />
-                </label>
-              </div>
-            )}
             <div className="modal-actions">
               <button type="button" onClick={() => setModalEvento(false)}>Cancelar</button>
               <button type="submit" className="primary-action">{eventoEditando ? "Salvar evento" : "Criar evento"}</button>
@@ -578,79 +635,118 @@ export function CalendarioGestao({
                 <X size={18} />
               </button>
             </div>
-            <label>
+            <label className="kanban-task-title-field">
               Título
               <input value={formTarefa.titulo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
             </label>
-            <label>
-              Descrição
-              <textarea value={formTarefa.descricao} onChange={(event) => setFormTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
-            </label>
-            <div className="kanban-form-grid">
-              <label>
-                Responsável
-                <input value={formTarefa.responsavel} onChange={(event) => setFormTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
-              </label>
-              <label>
-                Prazo
-                <input type="date" value={formTarefa.prazo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
-              </label>
+            <div className="kanban-task-tabs" role="tablist" aria-label="Seções da tarefa associada">
+              {ABAS_FORMULARIO_TAREFA_CALENDARIO.map((aba) => (
+                <button
+                  key={aba.id}
+                  type="button"
+                  className={abaTarefa === aba.id ? "active" : ""}
+                  onClick={() => setAbaTarefa(aba.id)}
+                  role="tab"
+                  aria-selected={abaTarefa === aba.id}
+                >
+                  {aba.label}
+                </button>
+              ))}
             </div>
-            <div className="kanban-form-grid">
-              <label>
-                Etiquetas
-                <input value={formTarefa.etiquetas} onChange={(event) => setFormTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
-              </label>
-              <label>
-                Vínculos
-                <input list="calendar-vinculos-task" value={formTarefa.vinculo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
-                {sugestoesTarefa.length > 0 && (
-                  <span className="calendar-link-suggestions">
-                    {sugestoesTarefa.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Status
-                <select value={formTarefa.status} onChange={(event) => setFormTarefa((atual) => ({ ...atual, status: event.target.value as KanbanStatus }))}>
-                  {colunasKanbanPadrao.map((coluna) => <option key={coluna.id} value={coluna.id}>{coluna.titulo}</option>)}
-                </select>
-              </label>
-              <label>
-                Prioridade
-                <select value={formTarefa.prioridade} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
-                  <option value="alta">Alta</option>
-                  <option value="media">Média</option>
-                  <option value="baixa">Baixa</option>
-                </select>
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Recorrência
-                <select value={formTarefa.repetir} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
-                  <option value="none">Não repetir</option>
-                  <option value="daily">Diariamente</option>
-                  <option value="weekly">Semanalmente</option>
-                  <option value="monthly">Mensalmente</option>
-                  <option value="yearly">Anualmente</option>
-                </select>
-              </label>
-              {formTarefa.repetir !== "none" && (
-                <label>
-                  Repetir até
-                  <input type="date" value={formTarefa.repetirAte} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
-                </label>
+            <div className="kanban-task-modal-body">
+              {abaTarefa === "detalhes" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Descrição
+                    <textarea value={formTarefa.descricao} onChange={(event) => setFormTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
+                  </label>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Responsável
+                      <input value={formTarefa.responsavel} onChange={(event) => setFormTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+                    </label>
+                    <label>
+                      Prazo
+                      <input type="date" value={formTarefa.prazo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
+                    </label>
+                  </div>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Status
+                      <select value={formTarefa.status} onChange={(event) => setFormTarefa((atual) => ({ ...atual, status: event.target.value as KanbanStatus }))}>
+                        {colunasKanbanPadrao.map((coluna) => <option key={coluna.id} value={coluna.id}>{coluna.titulo}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Prioridade
+                      <select value={formTarefa.prioridade} onChange={(event) => setFormTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {abaTarefa === "vinculos" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Vínculos
+                    <input list="calendar-vinculos-task" value={formTarefa.vinculo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
+                    {sugestoesTarefa.length > 0 && (
+                      <span className="calendar-link-suggestions">
+                        {sugestoesTarefa.map((item) => (
+                          <button
+                            type="button"
+                            key={item}
+                            onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </label>
+                </div>
+              )}
+
+              {abaTarefa === "etiquetas" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Etiquetas
+                    <input value={formTarefa.etiquetas} onChange={(event) => setFormTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
+                  </label>
+                </div>
+              )}
+
+              {abaTarefa === "recorrencia" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Recorrência
+                      <select value={formTarefa.repetir} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                        <option value="none">Não repetir</option>
+                        <option value="daily">Diariamente</option>
+                        <option value="weekly">Semanalmente</option>
+                        <option value="monthly">Mensalmente</option>
+                        <option value="yearly">Anualmente</option>
+                      </select>
+                    </label>
+                  </div>
+                  {formTarefa.repetir !== "none" && (
+                    <div className="kanban-form-grid">
+                      <label>
+                        Repetir a cada
+                        <input type="number" min={1} value={formTarefa.intervalo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
+                      </label>
+                      <label>
+                        Repetir até
+                        <input type="date" value={formTarefa.repetirAte} onChange={(event) => setFormTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                      </label>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             <datalist id="calendar-vinculos-task">

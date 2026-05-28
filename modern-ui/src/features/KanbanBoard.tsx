@@ -70,6 +70,15 @@ const ALERTAS_TAREFA = [
 ] as const;
 
 type AlertasFormulario = Record<(typeof ALERTAS_TAREFA)[number]["chave"], boolean>;
+type AbaFormularioTarefa = "detalhes" | "vinculos" | "etiquetas" | "anexos" | "recorrencia";
+
+const ABAS_FORMULARIO_TAREFA: { id: AbaFormularioTarefa; label: string }[] = [
+  { id: "detalhes", label: "Detalhes" },
+  { id: "vinculos", label: "Vínculos" },
+  { id: "etiquetas", label: "Etiquetas" },
+  { id: "anexos", label: "Anexos" },
+  { id: "recorrencia", label: "Recorrência" },
+];
 
 const alertasFormularioPadrao: AlertasFormulario = {
   doisDias: false,
@@ -157,6 +166,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   const [filtroAltaPrioridade, setFiltroAltaPrioridade] = useState(false);
   const [modalNovaTarefa, setModalNovaTarefa] = useState(false);
   const [tarefaEditando, setTarefaEditando] = useState<KanbanTarefa | null>(null);
+  const [abaFormulario, setAbaFormulario] = useState<AbaFormularioTarefa>("detalhes");
   const [menuTarefaAberto, setMenuTarefaAberto] = useState<string | null>(null);
   const [etiquetasEditando, setEtiquetasEditando] = useState<string | null>(null);
   const [colunaEditando, setColunaEditando] = useState<KanbanStatus | null>(null);
@@ -330,6 +340,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
     setTarefaEditando(null);
     setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
+    setAbaFormulario("detalhes");
     setModalNovaTarefa(true);
   }
 
@@ -337,6 +348,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     setMenuTarefaAberto(null);
     setDestacarAnexos(anexar);
     setTarefaEditando(tarefa);
+    setAbaFormulario(anexar ? "anexos" : "detalhes");
     setNovaTarefa({
       titulo: tarefa.titulo,
       descricao: tarefa.descricao,
@@ -670,171 +682,219 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                 <X size={18} />
               </button>
             </div>
-            <label>
+            <label className="kanban-task-title-field">
               Título
               <input value={novaTarefa.titulo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
             </label>
-            <label>
-              Descrição
-              <textarea value={novaTarefa.descricao} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
-            </label>
-            <div className="kanban-form-grid">
-              <label>
-                Responsável
-                <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
-              </label>
-              <label>
-                Prazo
-                <input type="date" value={novaTarefa.prazo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
-              </label>
-            </div>
-            <div className="kanban-alert-options">
-              <span>Alertas do prazo</span>
-              <div>
-                {ALERTAS_TAREFA.map((alerta) => (
-                  <button
-                    key={alerta.chave}
-                    type="button"
-                    className={novaTarefa.alertas[alerta.chave] ? "selected" : ""}
-                    onClick={() => setNovaTarefa((atual) => ({
-                      ...atual,
-                      alertas: {
-                        ...atual.alertas,
-                        [alerta.chave]: !atual.alertas[alerta.chave],
-                      },
-                    }))}
-                  >
-                    <strong>{alerta.titulo}</strong>
-                    <small>{alerta.descricao}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="kanban-share-toggle">
-              <input
-                type="checkbox"
-                checked={novaTarefa.compartilhada}
-                onChange={(event) => setNovaTarefa((atual) => ({ ...atual, compartilhada: event.target.checked }))}
-              />
-              <span>
-                <strong>Compartilhar com o grupo de trabalho</strong>
-                <small>Quando desativado, esta tarefa fica somente nesta instalação.</small>
-              </span>
-            </label>
-            <div className="kanban-form-grid">
-              <label>
-                Etiquetas
-                <input list="kanban-etiquetas-sugeridas" placeholder="Conselho, Urgente" value={novaTarefa.etiquetas} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
-                {sugestoesEtiquetaTarefa.length > 0 && (
-                  <span className="calendar-link-suggestions">
-                    {sugestoesEtiquetaTarefa.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        onClick={() => setNovaTarefa((atual) => ({ ...atual, etiquetas: adicionarSugestaoEmLista(atual.etiquetas, item) }))}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </label>
-              <label>
-                Prioridade
-                <select value={novaTarefa.prioridade} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
-                  <option value="alta">Alta</option>
-                  <option value="media">Média</option>
-                  <option value="baixa">Baixa</option>
-                </select>
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Evento associado
-                <select value={novaTarefa.eventId} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, eventId: event.target.value }))}>
-                  <option value="">Nenhum evento</option>
-                  {eventosCalendario.map((evento) => (
-                    <option key={evento.id} value={evento.id}>{evento.titulo}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Vínculos
-                <input
-                  list="kanban-vinculos-sugeridos"
-                  placeholder="Aluno, turma ou geral"
-                  value={novaTarefa.vinculo}
-                  onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))}
-                />
-                {sugestoesVinculoTarefa.length > 0 && (
-                  <span className="calendar-link-suggestions">
-                    {sugestoesVinculoTarefa.map((item) => (
-                      <button
-                        type="button"
-                        key={item}
-                        onClick={() => setNovaTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </label>
-            </div>
-            <div className="kanban-form-grid">
-              <label>
-                Recorrência
-                <select value={novaTarefa.repetir} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
-                  <option value="none">Não repetir</option>
-                  <option value="daily">Diariamente</option>
-                  <option value="weekly">Semanalmente</option>
-                  <option value="monthly">Mensalmente</option>
-                  <option value="yearly">Anualmente</option>
-                </select>
-              </label>
-            </div>
-            {novaTarefa.repetir !== "none" && (
-              <div className="kanban-form-grid">
-                <label>
-                  Repetir a cada
-                  <input type="number" min={1} value={novaTarefa.intervalo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
-                </label>
-                <label>
-                  Repetir até
-                  <input type="date" value={novaTarefa.repetirAte} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
-                </label>
-              </div>
-            )}
-            <label>
-              Anexos
-              {tauriDisponivel ? (
-                <button type="button" className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`} onClick={selecionarAnexosDesktop}>
-                  <Paperclip size={16} />
-                  <strong>Selecionar arquivos</strong>
-                  <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+            <div className="kanban-task-tabs" role="tablist" aria-label="Seções da tarefa">
+              {ABAS_FORMULARIO_TAREFA.map((aba) => (
+                <button
+                  key={aba.id}
+                  type="button"
+                  className={abaFormulario === aba.id ? "active" : ""}
+                  onClick={() => setAbaFormulario(aba.id)}
+                  role="tab"
+                  aria-selected={abaFormulario === aba.id}
+                >
+                  {aba.label}
                 </button>
-              ) : (
-                <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
-                  <Paperclip size={16} />
-                  <strong>Selecionar arquivos</strong>
-                  <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
-                  <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
-                </span>
+              ))}
+            </div>
+            <div className="kanban-task-modal-body">
+              {abaFormulario === "detalhes" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Descrição
+                    <textarea value={novaTarefa.descricao} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
+                  </label>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Responsável
+                      <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+                    </label>
+                    <label>
+                      Prazo
+                      <input type="date" value={novaTarefa.prazo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
+                    </label>
+                  </div>
+                  <div className="kanban-form-grid">
+                    <label>
+                      Status
+                      <select value={novaTarefa.status} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, status: event.target.value as KanbanStatus }))}>
+                        {colunas.map((coluna) => (
+                          <option key={coluna.id} value={coluna.id}>{coluna.titulo}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Prioridade
+                      <select value={novaTarefa.prioridade} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
+                        <option value="alta">Alta</option>
+                        <option value="media">Média</option>
+                        <option value="baixa">Baixa</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="kanban-alert-options">
+                    <span>Alertas do prazo</span>
+                    <div>
+                      {ALERTAS_TAREFA.map((alerta) => (
+                        <button
+                          key={alerta.chave}
+                          type="button"
+                          className={novaTarefa.alertas[alerta.chave] ? "selected" : ""}
+                          onClick={() => setNovaTarefa((atual) => ({
+                            ...atual,
+                            alertas: {
+                              ...atual.alertas,
+                              [alerta.chave]: !atual.alertas[alerta.chave],
+                            },
+                          }))}
+                        >
+                          <strong>{alerta.titulo}</strong>
+                          <small>{alerta.descricao}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="kanban-share-toggle">
+                    <input
+                      type="checkbox"
+                      checked={novaTarefa.compartilhada}
+                      onChange={(event) => setNovaTarefa((atual) => ({ ...atual, compartilhada: event.target.checked }))}
+                    />
+                    <span>
+                      <strong>Compartilhar com o grupo de trabalho</strong>
+                      <small>Quando desativado, esta tarefa fica somente nesta instalação.</small>
+                    </span>
+                  </label>
+                </div>
               )}
-            </label>
-            {novaTarefa.anexos.length > 0 && (
-              <div className="kanban-attachment-list">
-                {novaTarefa.anexos.map((anexo) => (
-                  <span key={anexo.id}>
-                    <Paperclip size={14} />
-                    {anexo.nome}
-                    <button type="button" onClick={() => removerAnexo(anexo.id)} aria-label={`Remover ${anexo.nome}`}>
-                      <X size={13} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+
+              {abaFormulario === "vinculos" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Evento associado
+                      <select value={novaTarefa.eventId} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, eventId: event.target.value }))}>
+                        <option value="">Nenhum evento</option>
+                        {eventosCalendario.map((evento) => (
+                          <option key={evento.id} value={evento.id}>{evento.titulo}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Vínculos
+                      <input
+                        list="kanban-vinculos-sugeridos"
+                        placeholder="Aluno, turma ou geral"
+                        value={novaTarefa.vinculo}
+                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))}
+                      />
+                      {sugestoesVinculoTarefa.length > 0 && (
+                        <span className="calendar-link-suggestions">
+                          {sugestoesVinculoTarefa.map((item) => (
+                            <button
+                              type="button"
+                              key={item}
+                              onClick={() => setNovaTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {abaFormulario === "etiquetas" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Etiquetas
+                    <input list="kanban-etiquetas-sugeridas" placeholder="Conselho, Urgente" value={novaTarefa.etiquetas} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
+                    {sugestoesEtiquetaTarefa.length > 0 && (
+                      <span className="calendar-link-suggestions">
+                        {sugestoesEtiquetaTarefa.map((item) => (
+                          <button
+                            type="button"
+                            key={item}
+                            onClick={() => setNovaTarefa((atual) => ({ ...atual, etiquetas: adicionarSugestaoEmLista(atual.etiquetas, item) }))}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </span>
+                    )}
+                  </label>
+                </div>
+              )}
+
+              {abaFormulario === "anexos" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Anexos
+                    {tauriDisponivel ? (
+                      <button type="button" className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`} onClick={selecionarAnexosDesktop}>
+                        <Paperclip size={16} />
+                        <strong>Selecionar arquivos</strong>
+                        <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                      </button>
+                    ) : (
+                      <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
+                        <Paperclip size={16} />
+                        <strong>Selecionar arquivos</strong>
+                        <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                        <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
+                      </span>
+                    )}
+                  </label>
+                  {novaTarefa.anexos.length > 0 && (
+                    <div className="kanban-attachment-list">
+                      {novaTarefa.anexos.map((anexo) => (
+                        <span key={anexo.id}>
+                          <Paperclip size={14} />
+                          {anexo.nome}
+                          <button type="button" onClick={() => removerAnexo(anexo.id)} aria-label={`Remover ${anexo.nome}`}>
+                            <X size={13} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {abaFormulario === "recorrencia" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Recorrência
+                      <select value={novaTarefa.repetir} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
+                        <option value="none">Não repetir</option>
+                        <option value="daily">Diariamente</option>
+                        <option value="weekly">Semanalmente</option>
+                        <option value="monthly">Mensalmente</option>
+                        <option value="yearly">Anualmente</option>
+                      </select>
+                    </label>
+                  </div>
+                  {novaTarefa.repetir !== "none" && (
+                    <div className="kanban-form-grid">
+                      <label>
+                        Repetir a cada
+                        <input type="number" min={1} value={novaTarefa.intervalo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
+                      </label>
+                      <label>
+                        Repetir até
+                        <input type="date" value={novaTarefa.repetirAte} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <datalist id="kanban-etiquetas-sugeridas">
               {sugestoesEtiquetas.map((etiqueta) => (
                 <option key={etiqueta} value={etiqueta} />
