@@ -4,9 +4,12 @@ import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import {
+  aplicarPadroesDoProvedor,
   carregarAiAssistantSettings,
+  rotuloAiProvider,
   salvarAiAssistantSettings,
   testarAiAssistant,
+  type AiProvider,
   type AiAssistantSettings,
 } from "./aiAssistant";
 import {
@@ -67,7 +70,7 @@ type SettingsSection = "instituicao" | "perfil" | "assistente" | "backup" | "atu
 const secoesConfiguracoes: Array<{ id: SettingsSection; titulo: string; descricao: string }> = [
   { id: "instituicao", titulo: "Instituição", descricao: "Direção, critérios e cabeçalho" },
   { id: "perfil", titulo: "Perfil e sincronização", descricao: "Coordenador e grupo de trabalho" },
-  { id: "assistente", titulo: "Assistente Pedagógico", descricao: "IA local para relatórios" },
+  { id: "assistente", titulo: "Assistente Pedagógico", descricao: "IA para relatórios" },
   { id: "backup", titulo: "Backup", descricao: "Exportar e restaurar dados" },
   { id: "atualizacao", titulo: "Atualização", descricao: "Versão e update do app" },
 ];
@@ -138,10 +141,10 @@ export function Configuracoes({
   }, [ciclosExistentes]);
 
   useEffect(() => {
-    if (secaoConfig === "assistente" && tauriDisponivel) {
+    if (secaoConfig === "assistente" && tauriDisponivel && aiSettings.provider === "ollama") {
       verificarIaLocal(false);
     }
-  }, [secaoConfig]);
+  }, [secaoConfig, aiSettings.provider]);
 
   async function salvar() {
     setProcessando(true);
@@ -295,10 +298,32 @@ export function Configuracoes({
 
   function atualizarAiSettings(campo: keyof AiAssistantSettings, valor: string | boolean | number) {
     setAiSettings((atual) => {
-      const proximo = { ...atual, [campo]: valor } as AiAssistantSettings;
+      const alteraConexao = campo === "provider" || campo === "endpoint" || campo === "model" || campo === "apiKey";
+      const proximo = {
+        ...atual,
+        [campo]: valor,
+        ...(alteraConexao ? { connectionOk: false, lastTestedAt: undefined } : {}),
+      } as AiAssistantSettings;
       salvarAiAssistantSettings(proximo);
       return proximo;
     });
+  }
+
+  function trocarProvedorIa(provider: AiProvider) {
+    setAiSettings((atual) => {
+      const proximo = aplicarPadroesDoProvedor(atual, provider);
+      salvarAiAssistantSettings(proximo);
+      setAiStatus(null);
+      return proximo;
+    });
+  }
+
+  function abrirLinkExterno(url: string) {
+    if (tauriDisponivel) {
+      invokeApp("abrir_url", { url }).catch((err) => setErro(String(err)));
+      return;
+    }
+    window.open(url, "_blank");
   }
 
   async function testarConexaoIa() {
@@ -308,9 +333,15 @@ export function Configuracoes({
     setErro("");
     try {
       const resposta = await testarAiAssistant(aiSettings);
+      const validado = { ...aiSettings, connectionOk: true, lastTestedAt: new Date().toISOString() };
+      setAiSettings(validado);
+      salvarAiAssistantSettings(validado);
       setMensagem(`Assistente Pedagógico conectado: ${resposta}`);
-      await verificarIaLocal(false);
+      if (aiSettings.provider === "ollama") await verificarIaLocal(false);
     } catch (err) {
+      const invalidado = { ...aiSettings, connectionOk: false, lastTestedAt: undefined };
+      setAiSettings(invalidado);
+      salvarAiAssistantSettings(invalidado);
       setErro(String(err));
     } finally {
       setAcaoIa(null);
@@ -648,11 +679,74 @@ export function Configuracoes({
         {secaoConfig === "assistente" && (
         <article className="settings-card">
           <h2>Assistente Pedagógico</h2>
-          <p>Gera rascunhos de relatórios com uma IA instalada no computador. Os dados dos alunos não saem da máquina quando o Ollama local está pronto.</p>
+          <p>Gera rascunhos de relatórios pedagógicos. Provedores em nuvem recebem os dados enviados para o relatório; use apenas com autorização da escola.</p>
           <label className="settings-check-row">
             <input type="checkbox" checked={aiSettings.enabled} onChange={(event) => atualizarAiSettings("enabled", event.target.checked)} />
-            Ativar geração de relatórios com IA local
+            Ativar geração de relatórios com IA
           </label>
+          <div className="ai-provider-options">
+            {[
+              { id: "gemini" as const, titulo: "Gemini", texto: "Grátis com limites. Requer chave do Google AI Studio." },
+              { id: "manual-prompt" as const, titulo: "Prompt manual", texto: "Copia instruções para usar no Copilot, ChatGPT ou outra IA aberta pelo usuário." },
+              { id: "ollama" as const, titulo: "Ollama local", texto: "Sem envio à nuvem, mas exige download de modelo e costuma ter qualidade menor." },
+            ].map((opcao) => (
+              <button
+                key={opcao.id}
+                type="button"
+                className={aiSettings.provider === opcao.id ? "selected" : ""}
+                onClick={() => trocarProvedorIa(opcao.id)}
+              >
+                <strong>{opcao.titulo}</strong>
+                <small>{opcao.texto}</small>
+              </button>
+            ))}
+          </div>
+          {aiSettings.provider === "gemini" && (
+            <div className="data-warning neutral ai-privacy-warning">
+              <strong>Uso em nuvem e custos</strong>
+              <span>
+                Gemini pode ser usado gratuitamente dentro dos limites do Google. Os dados usados para gerar o relatório são enviados ao serviço do Google quando este modo está ativo.
+              </span>
+            </div>
+          )}
+          {aiSettings.provider === "manual-prompt" && (
+            <div className="data-warning neutral ai-privacy-warning">
+              <strong>Modo manual</strong>
+              <span>O aplicativo não acessa contas externas. Ele monta um prompt pedagógico para você copiar e colar na IA de sua preferência.</span>
+            </div>
+          )}
+          {aiSettings.provider === "gemini" && (
+            <div className="ai-advanced-grid">
+              <label>
+                Chave de API
+                <input
+                  type="password"
+                  value={aiSettings.apiKey}
+                  onChange={(event) => atualizarAiSettings("apiKey", event.target.value)}
+                  placeholder="Chave do Google AI Studio"
+                />
+              </label>
+              <label>
+                Modelo
+                <input value={aiSettings.model} onChange={(event) => atualizarAiSettings("model", event.target.value)} />
+              </label>
+              <button type="button" onClick={() => abrirLinkExterno("https://aistudio.google.com/app/apikey")}>
+                Gerar chave no Google AI Studio
+              </button>
+              <button type="button" onClick={testarConexaoIa} disabled={processando || acaoIa !== null || !aiSettings.apiKey.trim()}>
+                {acaoIa === "testar" ? "Testando..." : "Testar conexão"}
+              </button>
+              <span className={`ai-status-pill ${aiSettings.connectionOk ? "ready" : "blocked"}`}>
+                {aiSettings.connectionOk ? `Pronto: ${rotuloAiProvider(aiSettings.provider)}` : "Aguardando teste"}
+              </span>
+            </div>
+          )}
+          {aiSettings.lastTestedAt && (
+            <span className="settings-version">
+              Último teste bem-sucedido: {new Date(aiSettings.lastTestedAt).toLocaleString("pt-BR")}
+            </span>
+          )}
+          {aiSettings.provider === "ollama" && (
           <div className="ai-setup-panel">
             <div className="ai-setup-heading">
               <strong>Status da IA local</strong>
@@ -679,7 +773,7 @@ export function Configuracoes({
                 {verificandoIa ? "Verificando..." : "Verificar IA local"}
               </button>
               {!aiStatus?.ollama_instalado ? (
-                <button type="button" onClick={() => window.open("https://ollama.com/download", "_blank")}>
+                <button type="button" onClick={() => abrirLinkExterno("https://ollama.com/download")}>
                   Instalar Ollama
                 </button>
               ) : !aiStatus?.servidor_ativo ? (
@@ -702,25 +796,31 @@ export function Configuracoes({
               <span className="settings-version">Modelo recomendado: {aiSettings.model}</span>
             )}
           </div>
+          )}
           <button type="button" className="secondary-action" onClick={() => setMostrarIaAvancado((atual) => !atual)}>
             {mostrarIaAvancado ? "Ocultar opções avançadas" : "Mostrar opções avançadas"}
           </button>
           {mostrarIaAvancado && (
             <div className="ai-advanced-grid">
               <label>
-                Provedor local
-                <select value={aiSettings.provider} onChange={(event) => atualizarAiSettings("provider", event.target.value)}>
-                  <option value="ollama">Ollama</option>
-                  <option value="openai-compatible">LM Studio / Jan / compatível com OpenAI</option>
+                Provedor
+                <select value={aiSettings.provider} onChange={(event) => trocarProvedorIa(event.target.value as AiProvider)}>
+                  <option value="gemini">Gemini</option>
+                  <option value="manual-prompt">Prompt manual</option>
+                  <option value="ollama">Ollama local</option>
                 </select>
               </label>
               <label>
-                Endereço local
-                <input value={aiSettings.endpoint} onChange={(event) => atualizarAiSettings("endpoint", event.target.value)} placeholder="http://127.0.0.1:11434" />
+                Endereço
+                <input value={aiSettings.endpoint} onChange={(event) => atualizarAiSettings("endpoint", event.target.value)} placeholder="https://generativelanguage.googleapis.com" />
               </label>
               <label>
                 Modelo
-                <input value={aiSettings.model} onChange={(event) => atualizarAiSettings("model", event.target.value)} placeholder="llama3.2:3b" />
+                <input value={aiSettings.model} onChange={(event) => atualizarAiSettings("model", event.target.value)} placeholder="gemini-2.5-flash" />
+              </label>
+              <label>
+                Chave de API
+                <input type="password" value={aiSettings.apiKey} onChange={(event) => atualizarAiSettings("apiKey", event.target.value)} placeholder="Opcional para IA local" />
               </label>
               <label>
                 Criatividade

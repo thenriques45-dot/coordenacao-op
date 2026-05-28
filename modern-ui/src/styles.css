@@ -1982,6 +1982,34 @@ h3 {
   padding: 0 12px;
 }
 
+.ai-report-action.secondary-ai-action {
+  background: #ffffff;
+  border-color: #cfd6e3;
+  color: #344054;
+}
+
+.manual-prompt-modal textarea {
+  min-height: 220px;
+}
+
+.manual-prompt-steps {
+  background: #f8fafc;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.manual-prompt-steps strong {
+  color: #101828;
+}
+
+.manual-prompt-steps span {
+  color: #667085;
+  font-weight: 700;
+}
+
 .student-profile-header h2 {
   font-size: 22px;
   margin: 0;
@@ -3289,6 +3317,47 @@ th:nth-child(3) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.ai-provider-options {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-provider-options button {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #e5ebef;
+  border-radius: 8px;
+  color: #344054;
+  display: grid;
+  gap: 5px;
+  min-height: 82px;
+  padding: 12px;
+  text-align: left;
+}
+
+.ai-provider-options button.selected {
+  background: #eef6ff;
+  border-color: #2f78ff;
+  color: #123d75;
+}
+
+.ai-provider-options strong {
+  color: #101828;
+  font-size: 14px;
+}
+
+.ai-provider-options small {
+  color: #667085;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-privacy-warning {
+  display: grid;
+  gap: 4px;
+}
+
 .ai-setup-panel,
 .ai-advanced-grid {
   background: #f8fafc;
@@ -3354,6 +3423,10 @@ th:nth-child(3) {
 
 .ai-advanced-grid {
   background: transparent;
+}
+
+.ai-advanced-grid .ai-status-pill {
+  justify-self: start;
 }
 
 .profile-photo-settings {
@@ -5289,6 +5362,7 @@ th:nth-child(3) {
 .theme-dark .sync-wizard-grid article,
 .theme-dark .sync-folder-picker,
 .theme-dark .settings-nav,
+.theme-dark .ai-provider-options button,
 .theme-dark .ai-setup-panel,
 .theme-dark .ai-advanced-grid,
 .theme-dark .settings-check-row,
@@ -5328,6 +5402,20 @@ th:nth-child(3) {
 }
 
 .theme-dark .settings-nav span {
+  color: #a6adbb;
+}
+
+.theme-dark .ai-provider-options button.selected {
+  background: #17314d;
+  border-color: #3794ff;
+  color: #cfe7ff;
+}
+
+.theme-dark .ai-provider-options strong {
+  color: #f3f4f6;
+}
+
+.theme-dark .ai-provider-options small {
   color: #a6adbb;
 }
 
@@ -5669,6 +5757,25 @@ th:nth-child(3) {
   background: #3794ff;
   border-color: #3794ff;
   color: #06121f;
+}
+
+.theme-dark .ai-report-action.secondary-ai-action {
+  background: #2d2d30;
+  border-color: #3f3f46;
+  color: #f3f4f6;
+}
+
+.theme-dark .manual-prompt-steps {
+  background: #1f1f23;
+  border-color: #3f3f46;
+}
+
+.theme-dark .manual-prompt-steps strong {
+  color: #f3f4f6;
+}
+
+.theme-dark .manual-prompt-steps span {
+  color: #a6adbb;
 }
 
 .theme-dark .ai-report-modal {

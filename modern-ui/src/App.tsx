@@ -204,6 +204,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.4.4": [
+    "Assistente Pedagógico simplificado com foco em Gemini, prompt manual e Ollama local.",
+    "Configurações do Gemini ganharam atalho para gerar chave no Google AI Studio.",
+    "Modo manual agora abre uma janela com instruções para usar o prompt no Copilot, ChatGPT ou outra IA.",
+    "Abertura de links externos foi corrigida no Linux e no aplicativo desktop.",
+  ],
   "2.4.3": [
     "Janelas de criação e edição de tarefas do Kanban foram reorganizadas em abas, com rolagem interna e ações sempre visíveis.",
     "Criação e edição de eventos do calendário agora seguem o mesmo padrão em abas para evitar formulários longos.",

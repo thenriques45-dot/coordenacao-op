@@ -1,11 +1,15 @@
 import { BookOpen, CalendarClock, Copy, Pencil, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  assistentePedagogicoDisponivel,
+  assistenteManualDisponivel,
   carregarAiAssistantSettings,
   gerarRelatorioPedagogico,
+  montarPromptRelatorioPedagogico,
   type AiAssistantSettings,
 } from "./aiAssistant";
 import { TaskLinkList } from "./Dashboard";
+import { invokeApp, tauriDisponivel } from "./appBridge";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -687,6 +691,8 @@ function AlunoDetalheGestao({
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
   const [erroRelatorio, setErroRelatorio] = useState("");
   const [relatorioIa, setRelatorioIa] = useState("");
+  const [promptManual, setPromptManual] = useState("");
+  const [modalPromptManual, setModalPromptManual] = useState(false);
   const [aiSettings, setAiSettings] = useState<AiAssistantSettings>(() => carregarAiAssistantSettings());
   const status = classificarAluno(aluno);
   const mediaAluno = calcularMediaAluno(aluno);
@@ -718,6 +724,8 @@ function AlunoDetalheGestao({
     return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
   }, [catalogoDeficiencias, deficienciasSelecionadas]);
   const tarefasDoAluno = useMemo(() => tarefasPorVinculo(tarefas, eventos, [aluno.nome, aluno.matricula ?? ""]), [tarefas, eventos, aluno.nome, aluno.matricula]);
+  const podeGerarRelatorioIa = assistentePedagogicoDisponivel(aiSettings);
+  const podeUsarPromptManual = assistenteManualDisponivel(aiSettings);
 
   useEffect(() => {
     setAba("desempenho");
@@ -727,6 +735,8 @@ function AlunoDetalheGestao({
     setMensagem("");
     setErro("");
     setAssistenteAberto(false);
+    setModalPromptManual(false);
+    setPromptManual("");
     setErroRelatorio("");
     setRelatorioIa("");
     setAiSettings(carregarAiAssistantSettings());
@@ -793,6 +803,55 @@ function AlunoDetalheGestao({
     setMensagem("Relatório copiado para a área de transferência.");
   }
 
+  function abrirPromptManual() {
+    const prompt = montarPromptRelatorioPedagogico({
+      aluno,
+      bimestre,
+      turma: turmaLabel,
+      tarefas: tarefasDoAluno.map((tarefa) => ({
+        titulo: tarefa.titulo,
+        descricao: tarefa.descricao,
+        prazo: tarefa.prazo,
+        prioridade: tarefa.prioridade,
+        status: tarefa.status,
+      })),
+    });
+    setPromptManual(prompt);
+    setModalPromptManual(true);
+  }
+
+  async function copiarPromptManual() {
+    if (!promptManual.trim()) return;
+    await navigator.clipboard.writeText(promptManual);
+    setMensagem("Prompt copiado para colar na IA escolhida.");
+  }
+
+  async function abrirCopilotComPrompt() {
+    await copiarPromptManual();
+    abrirLinkExterno("https://copilot.microsoft.com");
+  }
+
+  async function abrirChatGptComPrompt() {
+    await copiarPromptManual();
+    abrirLinkExterno("https://chatgpt.com");
+  }
+
+  function abrirLinkExterno(url: string) {
+    if (tauriDisponivel) {
+      invokeApp("abrir_url", { url }).catch((err) => setErro(String(err)));
+      return;
+    }
+    window.open(url, "_blank");
+  }
+
+  function onGerarRelatorioClick() {
+    if (podeUsarPromptManual) {
+      abrirPromptManual();
+      return;
+    }
+    gerarRelatorio();
+  }
+
   return (
     <section className="panel student-profile-panel">
       <button className="back-link student-profile-back" onClick={onVoltar}>← Voltar para alunos</button>
@@ -802,10 +861,12 @@ function AlunoDetalheGestao({
           <p>RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}</p>
         </div>
         <div className="student-profile-actions">
-          <button type="button" className="ai-report-action" onClick={gerarRelatorio}>
+          {(podeGerarRelatorioIa || podeUsarPromptManual) && (
+          <button type="button" className="ai-report-action" onClick={onGerarRelatorioClick}>
             <Sparkles size={17} />
             Gerar relatório
           </button>
+          )}
           <span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span>
         </div>
       </header>
@@ -1005,6 +1066,15 @@ function AlunoDetalheGestao({
           onFechar={() => setAssistenteAberto(false)}
         />
       )}
+      {modalPromptManual && (
+        <PromptManualModal
+          prompt={promptManual}
+          onCopiar={copiarPromptManual}
+          onAbrirCopilot={abrirCopilotComPrompt}
+          onAbrirChatGpt={abrirChatGptComPrompt}
+          onFechar={() => setModalPromptManual(false)}
+        />
+      )}
     </section>
   );
 }
@@ -1037,7 +1107,7 @@ function AssistenteRelatorioModal({
           <div>
             <span className="eyebrow">Assistente Pedagógico</span>
             <h2 id="ai-report-title">Relatório de {alunoNome}</h2>
-            <p>{settings.provider === "ollama" ? "Ollama" : "Servidor local compatível"} · {settings.model}</p>
+            <p>{settings.provider === "ollama" ? "Ollama local" : "Gemini"} · {settings.model}</p>
           </div>
           <button type="button" className="icon-action" onClick={onFechar} aria-label="Fechar relatório">
             <X size={18} />
@@ -1050,7 +1120,7 @@ function AssistenteRelatorioModal({
           <div className="ai-report-loading">
             <Sparkles size={22} />
             <strong>Gerando rascunho pedagógico...</strong>
-            <span>A IA local está lendo apenas o resumo estruturado deste aluno.</span>
+            <span>A IA está lendo apenas o resumo estruturado deste aluno.</span>
           </div>
         ) : erro ? (
           <div className="ai-report-error">
@@ -1071,6 +1141,56 @@ function AssistenteRelatorioModal({
             <Copy size={16} />
             Copiar texto
           </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function PromptManualModal({
+  prompt,
+  onCopiar,
+  onAbrirCopilot,
+  onAbrirChatGpt,
+  onFechar,
+}: {
+  prompt: string;
+  onCopiar: () => void;
+  onAbrirCopilot: () => void;
+  onAbrirChatGpt: () => void;
+  onFechar: () => void;
+}) {
+  return (
+    <div className="modal-backdrop">
+      <section className="ai-report-modal manual-prompt-modal" role="dialog" aria-modal="true" aria-labelledby="manual-prompt-title">
+        <header>
+          <div>
+            <span className="eyebrow">Assistente Pedagógico</span>
+            <h2 id="manual-prompt-title">Gerar relatório em modo manual</h2>
+            <p>Use o prompt em uma IA aberta pela sua própria conta.</p>
+          </div>
+          <button type="button" className="icon-action" onClick={onFechar} aria-label="Fechar instruções">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="ai-report-privacy-note">
+          O CoordenaçãoOP não envia os dados neste modo. Ao colar o texto em outro serviço, revise as regras de privacidade e autorização da escola.
+        </div>
+        <div className="manual-prompt-steps">
+          <strong>Como usar</strong>
+          <span>1. Clique em copiar prompt ou abra o Copilot/ChatGPT por aqui.</span>
+          <span>2. Cole o texto na conversa da IA escolhida.</span>
+          <span>3. Revise cuidadosamente o relatório antes de usar em ata, reunião ou documento oficial.</span>
+        </div>
+        <textarea readOnly value={prompt} />
+        <footer>
+          <button type="button" onClick={onFechar}>Fechar</button>
+          <button type="button" onClick={onCopiar}>
+            <Copy size={16} />
+            Copiar prompt
+          </button>
+          <button type="button" className="primary-action" onClick={onAbrirCopilot}>Abrir Copilot</button>
+          <button type="button" className="primary-action" onClick={onAbrirChatGpt}>Abrir ChatGPT</button>
         </footer>
       </section>
     </div>

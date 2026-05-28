@@ -138,6 +138,19 @@ struct ModeloIaInput {
 }
 
 #[derive(Deserialize)]
+struct RequisicaoIaJsonInput {
+    url: String,
+    headers: BTreeMap<String, String>,
+    body: Value,
+}
+
+#[derive(Serialize)]
+struct RequisicaoIaJsonResultado {
+    status: u16,
+    body: Value,
+}
+
+#[derive(Deserialize)]
 struct OllamaTagsResponse {
     models: Option<Vec<OllamaModelInfo>>,
 }
@@ -760,6 +773,8 @@ fn verificar_atualizacao() -> Result<AtualizacaoInfo, String> {
 
 #[tauri::command]
 fn abrir_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
     let script = format!("Start-Process {}", aspas_powershell(&url));
     Command::new("powershell")
         .args([
@@ -771,6 +786,24 @@ fn abrir_url(url: String) -> Result<(), String> {
         ])
         .spawn()
         .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
+    }
+
     Ok(())
 }
 
@@ -2000,6 +2033,7 @@ fn tipo_mime_por_caminho(caminho: &Path) -> String {
     .to_string()
 }
 
+#[cfg(target_os = "windows")]
 fn aspas_powershell(valor: &str) -> String {
     format!("'{}'", valor.replace('\'', "''"))
 }
@@ -4623,6 +4657,36 @@ fn baixar_modelo_ia_local(input: ModeloIaInput) -> Result<DiagnosticoIaLocal, St
     Ok(diagnosticar_ia_local(Some(modelo.to_string())))
 }
 
+#[tauri::command]
+fn requisicao_ia_json(input: RequisicaoIaJsonInput) -> Result<RequisicaoIaJsonResultado, String> {
+    let url = input.url.trim();
+    if !url.starts_with("https://") && !url.starts_with("http://127.0.0.1") && !url.starts_with("http://localhost") {
+        return Err("Por segurança, informe uma URL HTTPS ou um servidor local de IA.".to_string());
+    }
+
+    let cliente = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|err| format!("Não foi possível preparar a conexão com a IA: {err}"))?;
+    let mut requisicao = cliente.post(url).json(&input.body);
+    for (chave, valor) in input.headers {
+        let chave_normalizada = chave.trim().to_ascii_lowercase();
+        if chave_normalizada == "content-type" || chave_normalizada == "authorization" || chave_normalizada == "api-key" || chave_normalizada == "http-referer" || chave_normalizada == "x-title" {
+            requisicao = requisicao.header(chave, valor);
+        }
+    }
+
+    let resposta = requisicao
+        .send()
+        .map_err(|err| format!("Não foi possível conectar ao provedor de IA: {err}"))?;
+    let status = resposta.status().as_u16();
+    let texto = resposta
+        .text()
+        .map_err(|err| format!("Não foi possível ler a resposta da IA: {err}"))?;
+    let body = serde_json::from_str::<Value>(&texto).unwrap_or_else(|_| Value::String(texto));
+    Ok(RequisicaoIaJsonResultado { status, body })
+}
+
 fn comando_ollama_disponivel() -> bool {
     Command::new("ollama")
         .arg("--version")
@@ -6491,6 +6555,7 @@ fn main() {
             diagnosticar_ia_local,
             iniciar_ollama_local,
             baixar_modelo_ia_local,
+            requisicao_ia_json,
             abrir_url,
             abrir_pasta,
             preparar_anexo_kanban,
