@@ -27,6 +27,15 @@ export type WorkgroupSyncProfile = {
   lastInstitutionalPulledAt?: string;
 };
 
+export type WorkgroupSyncMember = {
+  userId: string;
+  displayName: string;
+  role: string;
+  deviceName: string;
+  avatarDataUrl?: string;
+  updatedAt?: string;
+};
+
 export type WorkgroupSyncPayload = {
   tipo: "coordenacaoop-workgroup-state";
   versao: 1;
@@ -38,6 +47,7 @@ export type WorkgroupSyncPayload = {
     deviceName: string;
     avatarDataUrl?: string;
   };
+  profiles?: WorkgroupSyncMember[];
   data: {
     kanbanTasks: KanbanTarefa[];
     kanbanColumns: KanbanColuna[];
@@ -48,6 +58,7 @@ export type WorkgroupSyncPayload = {
 };
 
 export const WORKGROUP_SYNC_PROFILE_KEY = "coordenacaoop:workgroup-sync-profile:v1";
+export const WORKGROUP_SYNC_MEMBERS_KEY = "coordenacaoop:workgroup-sync-members:v1";
 export const WORKGROUP_SYNC_TOMBSTONES_KEY = "coordenacaoop:workgroup-sync-tombstones:v1";
 export const WORKGROUP_SYNC_APPLIED_EVENT = "coordenacaoop:workgroup-sync-applied";
 
@@ -102,6 +113,7 @@ export function carregarPerfilSincronizacao(): WorkgroupSyncProfile {
 export function salvarPerfilSincronizacao(perfil: WorkgroupSyncProfile) {
   const atualizado = { ...perfil, updatedAt: new Date().toISOString() };
   localStorage.setItem(WORKGROUP_SYNC_PROFILE_KEY, JSON.stringify(atualizado));
+  registrarMembroSincronizacao(atualizado);
   window.dispatchEvent(new CustomEvent("coordenacaoop:workgroup-sync-profile-updated", { detail: atualizado }));
   return atualizado;
 }
@@ -126,6 +138,43 @@ function salvarTombstones(tombstones: SyncTombstones) {
   localStorage.setItem(WORKGROUP_SYNC_TOMBSTONES_KEY, JSON.stringify(tombstones));
 }
 
+export function carregarMembrosSincronizacao(): WorkgroupSyncMember[] {
+  try {
+    const salvos = localStorage.getItem(WORKGROUP_SYNC_MEMBERS_KEY);
+    if (!salvos) return [];
+    return (JSON.parse(salvos) as WorkgroupSyncMember[]).filter((membro) => membro.userId && membro.displayName);
+  } catch {
+    return [];
+  }
+}
+
+function salvarMembrosSincronizacao(membros: WorkgroupSyncMember[]) {
+  const porId = new Map<string, WorkgroupSyncMember>();
+  membros.forEach((membro) => {
+    if (!membro.userId || !membro.displayName) return;
+    const anterior = porId.get(membro.userId);
+    if (!anterior || Date.parse(membro.updatedAt ?? "") >= Date.parse(anterior.updatedAt ?? "")) {
+      porId.set(membro.userId, membro);
+    }
+  });
+  localStorage.setItem(WORKGROUP_SYNC_MEMBERS_KEY, JSON.stringify(Array.from(porId.values())));
+}
+
+export function registrarMembroSincronizacao(perfil: WorkgroupSyncMember | WorkgroupSyncProfile) {
+  if (!perfil.userId || !perfil.displayName) return;
+  salvarMembrosSincronizacao([
+    ...carregarMembrosSincronizacao(),
+    {
+      userId: perfil.userId,
+      displayName: perfil.displayName,
+      role: perfil.role,
+      deviceName: perfil.deviceName,
+      avatarDataUrl: perfil.avatarDataUrl,
+      updatedAt: perfil.updatedAt ?? new Date().toISOString(),
+    },
+  ]);
+}
+
 export function registrarExclusaoSincronizacao(tipo: "kanbanTask" | "calendarEvent", id: string) {
   const tombstones = carregarTombstones();
   const destino = tipo === "kanbanTask" ? tombstones.kanbanTasks : tombstones.calendarEvents;
@@ -144,6 +193,7 @@ function carregarColunasKanban() {
 
 export function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): WorkgroupSyncPayload {
   const tombstones = carregarTombstones();
+  registrarMembroSincronizacao(perfil);
   return {
     tipo: "coordenacaoop-workgroup-state",
     versao: 1,
@@ -155,6 +205,7 @@ export function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Workgr
       deviceName: perfil.deviceName,
       avatarDataUrl: perfil.avatarDataUrl,
     },
+    profiles: carregarMembrosSincronizacao(),
     data: {
       kanbanTasks: carregarTarefasKanban().filter((tarefa) => tarefa.compartilhada === true),
       kanbanColumns: carregarColunasKanban(),
@@ -203,6 +254,11 @@ export function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload) {
     .filter((evento) => !tombstones.calendarEvents[evento.id]);
   const colunas = payload.data.kanbanColumns?.length ? payload.data.kanbanColumns : colunasAtuais;
 
+  registrarMembroSincronizacao({
+    ...payload.profile,
+    updatedAt: payload.generatedAt,
+  });
+  (payload.profiles ?? []).forEach(registrarMembroSincronizacao);
   localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
   localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
   localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));

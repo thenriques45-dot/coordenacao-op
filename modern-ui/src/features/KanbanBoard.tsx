@@ -50,7 +50,14 @@ import {
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp, tauriDisponivel } from "./appBridge";
-import { iniciaisPerfil, registrarExclusaoSincronizacao, WORKGROUP_SYNC_APPLIED_EVENT, type WorkgroupSyncProfile } from "./workgroupSync";
+import {
+  carregarMembrosSincronizacao,
+  iniciaisPerfil,
+  registrarExclusaoSincronizacao,
+  WORKGROUP_SYNC_APPLIED_EVENT,
+  type WorkgroupSyncMember,
+  type WorkgroupSyncProfile,
+} from "./workgroupSync";
 
 type TurmaKanban = {
   codigo: string;
@@ -175,6 +182,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   const [previewArraste, setPreviewArraste] = useState<KanbanDragPreview | null>(null);
   const [mensagemQuadro, setMensagemQuadro] = useState("");
   const [erroQuadro, setErroQuadro] = useState("");
+  const [membrosSync, setMembrosSync] = useState<WorkgroupSyncMember[]>(() => carregarMembrosSincronizacao());
   const eventosCalendario = useMemo(() => carregarEventosCalendario(), [modalNovaTarefa]);
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: "",
@@ -205,6 +213,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   useEffect(() => {
     function recarregarEstadoCompartilhado() {
       setTarefas(carregarTarefasKanban());
+      setMembrosSync(carregarMembrosSincronizacao());
       try {
         const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
         setColunas(salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao);
@@ -212,9 +221,31 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         setColunas(colunasKanbanPadrao);
       }
     }
+    function recarregarMembros() {
+      setMembrosSync(carregarMembrosSincronizacao());
+    }
     window.addEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
-    return () => window.removeEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+    window.addEventListener("coordenacaoop:workgroup-sync-profile-updated", recarregarMembros);
+    return () => {
+      window.removeEventListener(WORKGROUP_SYNC_APPLIED_EVENT, recarregarEstadoCompartilhado);
+      window.removeEventListener("coordenacaoop:workgroup-sync-profile-updated", recarregarMembros);
+    };
   }, []);
+
+  const membrosParaCards = useMemo(() => {
+    const membros = [...membrosSync];
+    if (perfil?.displayName) {
+      membros.push({
+        userId: perfil.userId,
+        displayName: perfil.displayName,
+        role: perfil.role,
+        deviceName: perfil.deviceName,
+        avatarDataUrl: perfil.avatarDataUrl,
+        updatedAt: perfil.updatedAt,
+      });
+    }
+    return membros;
+  }, [membrosSync, perfil]);
 
   useEffect(() => {
     if (!modalNovaTarefa) return;
@@ -622,7 +653,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                     key={tarefa.id}
                     tarefa={tarefa}
                     evento={eventosCalendario.find((evento) => evento.id === tarefa.eventId)}
-                    perfil={perfil}
+                    membros={membrosParaCards}
                     sugestoesEtiquetas={sugestoesEtiquetas}
                     menuAberto={menuTarefaAberto === tarefa.id}
                     editandoEtiquetas={etiquetasEditando === tarefa.id}
@@ -984,7 +1015,7 @@ function origemImagemAnexo(anexo: KanbanAnexo) {
 function KanbanTaskCard({
   tarefa,
   evento,
-  perfil,
+  membros,
   sugestoesEtiquetas,
   menuAberto,
   editandoEtiquetas,
@@ -1004,7 +1035,7 @@ function KanbanTaskCard({
 }: {
   tarefa: KanbanTarefa;
   evento?: CalendarEvent;
-  perfil?: WorkgroupSyncProfile;
+  membros: WorkgroupSyncMember[];
   sugestoesEtiquetas: string[];
   menuAberto: boolean;
   editandoEtiquetas: boolean;
@@ -1027,7 +1058,8 @@ function KanbanTaskCard({
   const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
   const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
-  const usarAvatarPerfil = Boolean(perfil?.avatarDataUrl && normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(perfil.displayName));
+  const membroResponsavel = membros.find((membro) => normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(membro.displayName));
+  const usarAvatarPerfil = Boolean(membroResponsavel?.avatarDataUrl);
   const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
   const termoEtiquetaAtual = ultimoItemDigitado(textoEtiquetas);
@@ -1176,10 +1208,10 @@ function KanbanTaskCard({
       <footer>
         <span>
           {usarAvatarPerfil ? (
-            <img className="kanban-assignee-avatar" src={perfil?.avatarDataUrl} alt="" />
+            <img className="kanban-assignee-avatar" src={membroResponsavel?.avatarDataUrl} alt="" />
           ) : (
-            perfil?.displayName && normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(perfil.displayName)
-              ? <span className="kanban-assignee-initials">{iniciaisPerfil(perfil.displayName)}</span>
+            membroResponsavel
+              ? <span className="kanban-assignee-initials">{iniciaisPerfil(membroResponsavel.displayName)}</span>
               : <UserRound size={14} />
           )}
           {tarefa.responsavel}

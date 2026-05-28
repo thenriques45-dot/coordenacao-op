@@ -204,6 +204,10 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.4.5": [
+    "Fotos de perfil dos coordenadores agora são sincronizadas entre os membros do grupo de trabalho.",
+    "Cards do Kanban passam a exibir o avatar do responsável mesmo quando a tarefa veio de outro coordenador.",
+  ],
   "2.4.4": [
     "Assistente Pedagógico simplificado com foco em Gemini, prompt manual e Ollama local.",
     "Configurações do Gemini ganharam atalho para gerar chave no Google AI Studio.",
