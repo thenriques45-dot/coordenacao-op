@@ -707,9 +707,10 @@ fn carregar_dados_institucionais_sincronizacao(
         .caminho;
 
     let destino = data_dir().map_err(|err| err.to_string())?;
-    let temporario = app_base_dir()
-        .map_err(|err| err.to_string())?
-        .join(format!("dados_sync_tmp_{}", Local::now().timestamp_millis()));
+    let base = app_base_dir().map_err(|err| err.to_string())?;
+    let ts = Local::now().timestamp_millis();
+    let temporario = base.join(format!("dados_sync_tmp_{ts}"));
+    let backup_destino = base.join(format!("dados_sync_old_{ts}"));
     if temporario.exists() {
         fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
     }
@@ -717,10 +718,19 @@ fn carregar_dados_institucionais_sincronizacao(
     let mut total = 0;
     copiar_recursivamente_contando(&origem_dados, &temporario, &mut total)
         .map_err(|err| err.to_string())?;
+
+    // Renomeia o diretório atual para backup antes de colocar o novo no lugar.
+    // Se o segundo rename falhar, o original é restaurado — sem perda de dados.
     if destino.exists() {
-        fs::remove_dir_all(&destino).map_err(|err| err.to_string())?;
+        fs::rename(&destino, &backup_destino).map_err(|err| err.to_string())?;
     }
-    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
+    if let Err(err) = fs::rename(&temporario, &destino) {
+        if backup_destino.exists() {
+            let _ = fs::rename(&backup_destino, &destino);
+        }
+        return Err(err.to_string());
+    }
+    let _ = fs::remove_dir_all(&backup_destino);
     preparar_base_portatil(&app_base_dir().map_err(|err| err.to_string())?)
         .map_err(|err| err.to_string())?;
     salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
@@ -974,7 +984,7 @@ fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     });
 
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(resumir_turma(turma, caminho))
 }
@@ -1081,7 +1091,7 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
     validar_conflito_sala(input.ano, &periodo, input.sala.trim(), Some(&caminho_atual))?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&novo_caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&novo_caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     if caminhos_diferentes(&caminho_atual, &novo_caminho) && caminho_atual.exists() {
         fs::remove_file(&caminho_atual).map_err(|err| err.to_string())?;
     }
@@ -1229,7 +1239,7 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
     for (caminho, turma) in &turmas {
         if turmas_alteradas.contains(&caminho.to_string_lossy().to_string()) {
             let texto = serde_json::to_string_pretty(turma).map_err(|err| err.to_string())?;
-            fs::write(caminho, texto).map_err(|err| err.to_string())?;
+            escrever_json_atomicamente(caminho, &texto).map_err(|err| err.to_string())?;
         }
     }
 
@@ -1307,7 +1317,7 @@ fn aplicar_diagnostico_aprendizagem(
     for (caminho, turma) in &turmas {
         if turmas_alteradas.contains(&caminho.to_string_lossy().to_string()) {
             let texto = serde_json::to_string_pretty(turma).map_err(|err| err.to_string())?;
-            fs::write(caminho, texto).map_err(|err| err.to_string())?;
+            escrever_json_atomicamente(caminho, &texto).map_err(|err| err.to_string())?;
         }
     }
 
@@ -1353,7 +1363,7 @@ fn salvar_ajustes_media(
     aplicar_ajustes_media(&mut dados, &matricula, &bimestre, ajustes)?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
 
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
@@ -1373,7 +1383,7 @@ fn salvar_encaminhamentos(
     aplicar_encaminhamentos(&mut dados, &matricula, &bimestre, encaminhamentos)?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
 
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
@@ -1392,7 +1402,7 @@ fn salvar_tempo_conselho(
     aplicar_tempo_conselho(&mut dados, &bimestre, tempo_segundos)?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
 
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
@@ -1417,7 +1427,7 @@ fn salvar_coordenador_turma(
     }
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, "1"))
 }
@@ -1443,7 +1453,7 @@ fn salvar_elegibilidade_aluno(
     aluno_obj.insert("elegivel_manual".to_string(), Value::from(input.elegivel));
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
 }
@@ -1498,7 +1508,7 @@ fn salvar_lideranca_aluno(
     }
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
 }
@@ -1539,7 +1549,7 @@ fn salvar_educacao_especial_aluno(
     }
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
 }
@@ -1785,7 +1795,7 @@ fn salvar_finalizacao_conselho(
     aplicar_finalizacao_conselho(&mut dados, &bimestre, finalizacao)?;
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
 
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
     Ok(FinalizacaoResultado {
@@ -3665,6 +3675,23 @@ fn limpar_ajustes_vazios(aluno: &mut Value, bimestre: &str) {
     }
 }
 
+fn escrever_json_atomicamente(caminho: &Path, conteudo: &str) -> io::Result<()> {
+    let dir = caminho.parent().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidInput, "caminho sem diretório pai")
+    })?;
+    let nome_base = caminho
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("arquivo");
+    let tmp_nome = format!(".{}.{}.tmp", nome_base, Local::now().timestamp_millis());
+    let temporario = dir.join(tmp_nome);
+    fs::write(&temporario, conteudo)?;
+    fs::rename(&temporario, caminho).map_err(|err| {
+        let _ = fs::remove_file(&temporario);
+        err
+    })
+}
+
 fn app_base_dir() -> io::Result<PathBuf> {
     if let Ok(base) = env::var("COORDENACAOOP_HOME") {
         let base = PathBuf::from(base);
@@ -3814,7 +3841,7 @@ fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String>
         "cabecalho_ata": config.cabecalho_ata,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-    fs::write(caminho, texto).map_err(|err| err.to_string())
+    escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())
 }
 
 fn exportar_backup_interno() -> io::Result<BackupResultado> {
@@ -4155,7 +4182,7 @@ fn importar_alunos_elegiveis_interno(
         if alterou_turma {
             let texto_atualizado =
                 serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
-            fs::write(&caminho, texto_atualizado).map_err(|err| err.to_string())?;
+            escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
             resumo.turmas_atualizadas += 1;
         }
     }

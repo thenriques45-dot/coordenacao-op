@@ -153,7 +153,9 @@ function salvarMembrosSincronizacao(membros: WorkgroupSyncMember[]) {
   membros.forEach((membro) => {
     if (!membro.userId || !membro.displayName) return;
     const anterior = porId.get(membro.userId);
-    if (!anterior || Date.parse(membro.updatedAt ?? "") >= Date.parse(anterior.updatedAt ?? "")) {
+    const tsNovo = Date.parse(membro.updatedAt ?? "") || 0;
+    const tsAnterior = Date.parse(anterior?.updatedAt ?? "") || 0;
+    if (!anterior || tsNovo >= tsAnterior) {
       porId.set(membro.userId, membro);
     }
   });
@@ -248,7 +250,7 @@ export function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload) {
     calendarEvents: { ...tombstonesAtuais.calendarEvents, ...(payload.data.deletedCalendarEvents ?? {}) },
   };
 
-  const tarefas = mesclarPorAtualizacao(tarefasAtuais, payload.data.kanbanTasks ?? [])
+  const tarefas = mesclarPorAtualizacao(tarefasAtuais, (payload.data.kanbanTasks ?? []).filter((t) => t.compartilhada === true))
     .filter((tarefa) => !tombstones.kanbanTasks[tarefa.id]);
   const eventos = mesclarPorAtualizacao(eventosAtuais, payload.data.calendarEvents ?? [])
     .filter((evento) => !tombstones.calendarEvents[evento.id]);

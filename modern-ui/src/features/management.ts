@@ -217,7 +217,7 @@ export function proximaOcorrencia(baseData: string, regra?: RecurrenceRule, limi
   let atual = inicio;
   let tentativas = 0;
 
-  while (atual < hoje && atual <= limite && tentativas < 400) {
+  while (atual < hoje && atual <= limite && tentativas < 1500) {
     if (regra.frequency === "daily") {
       atual = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + regra.interval);
     } else if (regra.frequency === "weekly") {
@@ -230,6 +230,7 @@ export function proximaOcorrencia(baseData: string, regra?: RecurrenceRule, limi
     tentativas += 1;
   }
 
+  if (atual < hoje) return baseData;
   if (regra.until && atual > parseDataLocal(regra.until)) return baseData;
   return chaveData(atual);
 }
@@ -284,7 +285,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
       titulo: tarefa.titulo,
       descricao: tarefa.responsavel,
       data,
-      cor: tarefa.status === "fazer" ? "#2f78ff" : tarefa.status === "progresso" ? "#f2aa00" : tarefa.status === "revisao" ? "#a844f5" : "#13c65c",
+      cor: colunasKanbanPadrao.find((c) => c.id === tarefa.status)?.cor ?? "#2f78ff",
       prioridade: tarefa.prioridade,
       status: tarefa.status,
       eventId: tarefa.eventId,
@@ -293,7 +294,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
   ];
 
   return itens
-    .filter((item) => diferencaDias(item.data) >= 0)
+    .filter((item) => item.recorrente ? diferencaDias(item.data) >= 0 : diferencaDias(item.data) >= -30)
     .sort((a, b) => `${a.data}${a.hora ?? ""}`.localeCompare(`${b.data}${b.hora ?? ""}`))
     .slice(0, limite);
 }
@@ -307,9 +308,12 @@ export function normalizarTextoGestao(valor: string) {
 }
 
 export function separarVinculos(valor: string) {
+  return deduplicarVinculos(valor.split(/[,;\n]/));
+}
+
+function deduplicarVinculos(valores: string[]) {
   const vistos = new Set<string>();
-  return valor
-    .split(/[,;\n]/)
+  return valores
     .map((item) => item.trim())
     .filter(Boolean)
     .filter((item) => {
@@ -321,20 +325,10 @@ export function separarVinculos(valor: string) {
 }
 
 export function obterVinculosTarefa(tarefa: KanbanTarefa) {
-  const valores = [
+  return deduplicarVinculos([
     ...(Array.isArray(tarefa.vinculos) ? tarefa.vinculos : []),
     tarefa.vinculo ?? "",
-  ];
-  const vistos = new Set<string>();
-  return valores
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .filter((item) => {
-      const chave = normalizarTextoGestao(item);
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-    });
+  ]);
 }
 
 export function formatarVinculosTarefa(tarefa: KanbanTarefa) {
@@ -342,20 +336,10 @@ export function formatarVinculosTarefa(tarefa: KanbanTarefa) {
 }
 
 export function obterVinculosEvento(evento: CalendarEvent) {
-  const valores = [
+  return deduplicarVinculos([
     ...(Array.isArray(evento.vinculos) ? evento.vinculos : []),
     evento.vinculo ?? "",
-  ];
-  const vistos = new Set<string>();
-  return valores
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .filter((item) => {
-      const chave = normalizarTextoGestao(item);
-      if (vistos.has(chave)) return false;
-      vistos.add(chave);
-      return true;
-    });
+  ]);
 }
 
 export function formatarVinculosEvento(evento: CalendarEvent) {

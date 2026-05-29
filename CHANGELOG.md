@@ -1,5 +1,25 @@
 # Changelog
 
+## v2.5.0 - Correções de integridade de dados e sincronização
+
+### Correções críticas
+- **Perda de dados no sync institucional:** a substituição do diretório de dados agora usa renomeação dupla (swap seguro). Se a operação falhar no meio, o diretório original é restaurado automaticamente em vez de ser apagado sem recuperação.
+- **Escrita atômica nos arquivos de turma:** todos os comandos que salvam dados de turma (ajustes de média, encaminhamentos, liderança, educação especial, finalização de conselho, importação de mapões etc.) agora gravam em arquivo temporário e fazem rename atômico, evitando corrupção por queda de energia ou crash.
+
+### Correções de comportamento
+- **Linha do tempo do dashboard:** tarefas ativas com prazo vencido há até 30 dias voltam a aparecer na linha do tempo; antes eram silenciosamente omitidas.
+- **Próxima ocorrência de tarefas recorrentes antigas:** tarefas recorrentes com mais de 400 dias de existência não retornam mais uma data passada como "próxima ocorrência".
+- **Alertas de prazo:** a marcação de alerta como disparado agora respeita o campo `ativo` e o estado `disparadoEm` individualmente, evitando silenciar alertas inativos que compartilham o mesmo intervalo.
+
+### Correções de sincronização em grupo
+- **Membros com timestamp ausente:** a comparação de timestamps ao mesclar membros do grupo de trabalho usava `NaN >= N`, que é sempre `false`; corrigido para que registros com timestamp válido sempre prevaleçam sobre registros sem timestamp.
+- **Tarefas privadas no payload remoto:** a aplicação de payloads de sincronização agora rejeita tarefas sem `compartilhada: true`, impedindo que arquivos corrompidos ou de versões antigas injetem tarefas privadas remotas sobre tarefas locais.
+
+### Melhorias de qualidade
+- System prompt do assistente pedagógico extraído para constante única, eliminando divergência entre o caminho automático (Gemini/Ollama) e o manual.
+- Lógica de deduplicação de vínculos (`obterVinculosTarefa` / `obterVinculosEvento`) consolidada em helper compartilhado.
+- Cor de status das tarefas na linha do tempo passa a usar `colunasKanbanPadrao` como fonte única.
+
 ## v2.3.6 - Ícone Linux e alerta do Kanban
 
 - Corrigido o banner de alta prioridade do Kanban para ignorar tarefas em `Concluído`.

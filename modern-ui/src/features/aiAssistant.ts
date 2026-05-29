@@ -54,6 +54,14 @@ export type AiStudentReportInput = {
 
 const AI_SETTINGS_KEY = "coordenacaoop.aiAssistantSettings";
 
+const INSTRUCOES_SISTEMA_PEDAGOGICO = [
+  "Você é um assistente pedagógico para coordenação escolar.",
+  "Gere apenas um rascunho revisável, sem afirmar diagnósticos clínicos.",
+  "Use linguagem profissional, acolhedora, objetiva e adequada para registro pedagógico.",
+  "Baseie-se somente nos dados fornecidos. Quando faltar dado, não invente.",
+  "Escreva em português do Brasil.",
+].join(" ");
+
 export const defaultAiAssistantSettings: AiAssistantSettings = {
   enabled: false,
   provider: "gemini",
@@ -136,33 +144,13 @@ export async function gerarRelatorioPedagogico(settings: AiAssistantSettings, in
   }
 
   return gerarTextoIa(settings, [
-    {
-      role: "system",
-      content: [
-        "Você é um assistente pedagógico para coordenação escolar.",
-        "Gere apenas um rascunho revisável, sem afirmar diagnósticos clínicos.",
-        "Use linguagem profissional, acolhedora, objetiva e adequada para registro pedagógico.",
-        "Baseie-se somente nos dados fornecidos. Quando faltar dado, não invente.",
-        "Escreva em português do Brasil.",
-      ].join(" "),
-    },
-    {
-      role: "user",
-      content: montarPromptRelatorio(input),
-    },
+    { role: "system", content: INSTRUCOES_SISTEMA_PEDAGOGICO },
+    { role: "user", content: montarPromptRelatorio(input) },
   ]);
 }
 
 export function montarPromptRelatorioPedagogico(input: AiStudentReportInput) {
-  return [
-    "Você é um assistente pedagógico para coordenação escolar.",
-    "Gere apenas um rascunho revisável, sem afirmar diagnósticos clínicos.",
-    "Use linguagem profissional, acolhedora, objetiva e adequada para registro pedagógico.",
-    "Baseie-se somente nos dados fornecidos. Quando faltar dado, não invente.",
-    "Escreva em português do Brasil.",
-    "",
-    montarPromptRelatorio(input),
-  ].join("\n");
+  return [INSTRUCOES_SISTEMA_PEDAGOGICO, "", montarPromptRelatorio(input)].join("\n");
 }
 
 function normalizarAiSettings(dados: Partial<AiAssistantSettings>): AiAssistantSettings {

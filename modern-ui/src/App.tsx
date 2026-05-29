@@ -204,6 +204,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.5.0": [
+    "Tarefas com prazo vencido voltam a aparecer no dashboard, facilitando o acompanhamento de pendências em atraso.",
+    "Salvamento de dados de turma, conselho e importações agora usa escrita segura: em caso de queda de energia, o arquivo anterior é preservado.",
+    "Sincronização institucional corrigida para não apagar os dados locais se a operação for interrompida.",
+    "Sincronização de grupo de trabalho corrigida: coordenadores sem data de cadastro passam a ser atualizados normalmente.",
+    "Alertas de prazo do Kanban não marcam mais como disparados alertas que ainda não foram enviados.",
+  ],
   "2.4.5": [
     "Fotos de perfil dos coordenadores agora são sincronizadas entre os membros do grupo de trabalho.",
     "Cards do Kanban passam a exibir o avatar do responsável mesmo quando a tarefa veio de outro coordenador.",

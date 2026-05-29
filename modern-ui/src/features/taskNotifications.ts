@@ -69,7 +69,9 @@ export async function verificarAlertasTarefas() {
       return {
         ...tarefa,
         alertas: (tarefa.alertas ?? []).map((alerta) =>
-          alertasDisparados.has(alerta.diasAntes) ? { ...alerta, disparadoEm: hojeChave } : alerta
+          alertasDisparados.has(alerta.diasAntes) && alerta.ativo && !alerta.disparadoEm
+            ? { ...alerta, disparadoEm: hojeChave }
+            : alerta
         ),
       };
     });
