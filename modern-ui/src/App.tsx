@@ -39,6 +39,7 @@ import { Dashboard } from "./features/Dashboard";
 import { ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarNotas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
+import { TelaPEI } from "./features/PEI";
 import { Configuracoes } from "./features/SettingsPage";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -52,7 +53,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "pei" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
@@ -204,6 +205,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.6.0": [
+    "Nova tela PEI na Central de Relatórios para acompanhar os Planos Educacionais Individualizados enviados pelos professores.",
+    "Os documentos PEI são gerados automaticamente ao abrir a tela, organizados por aluno e disciplina.",
+    "Indicador de entrega por aluno: verde quando todos os PEIs do bimestre atual estão completos, amarelo quando parcial e vermelho quando nenhum foi recebido.",
+    "Clique no ícone de folha para abrir o DOCX de cada PEI diretamente.",
+    "URL da planilha de respostas sincronizada entre dispositivos junto com os dados institucionais.",
+  ],
   "2.5.0": [
     "Tarefas com prazo vencido voltam a aparecer no dashboard, facilitando o acompanhamento de pendências em atraso.",
     "Salvamento de dados de turma, conselho e importações agora usa escrita segura: em caso de queda de energia, o arquivo anterior é preservado.",
@@ -802,7 +810,7 @@ export function App() {
               </div>
             )}
           </div>
-          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas" || tela === "pei"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -948,11 +956,13 @@ export function App() {
           <RelatoriosMenu
             onAbrirCriticos={() => navegarPara("relatorio-criticos")}
             onAbrirAlteracoesNotas={() => navegarPara("relatorio-alteracoes-notas")}
+            onAbrirPei={() => navegarPara("pei")}
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && <Placeholder tela={tela} />}
+        {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1171,6 +1181,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     relatorios: "Relatórios",
     "relatorio-criticos": "Relatório de Alunos Críticos",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
+    pei: "PEI — Plano Educacional Individualizado",
     configuracoes: "Configurações",
   };
 

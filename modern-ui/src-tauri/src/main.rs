@@ -490,6 +490,64 @@ struct DadosMapao {
     disciplinas: BTreeSet<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct RegistroPei {
+    timestamp: String,
+    email: String,
+    professor: String,
+    nome_estudante_completo: String,
+    nome_aluno: String,
+    turma_aluno: String,
+    disciplina: String,
+    bimestre: String,
+    conteudos: String,
+    estrategias: String,
+    instrumentos: String,
+    recursos: String,
+}
+
+#[derive(Serialize)]
+struct AlunoElegiveisComDisciplinas {
+    matricula: String,
+    nome: String,
+    turma: String,
+    disciplinas: Vec<String>,
+    disciplinas_por_bimestre: BTreeMap<String, Vec<String>>,
+    bimestres_com_medias: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct RegistroPeiInput {
+    professor: String,
+    disciplina: String,
+    bimestre: String,
+    conteudos: String,
+    estrategias: String,
+    instrumentos: String,
+    recursos: String,
+    timestamp: String,
+}
+
+#[derive(Deserialize)]
+struct GerarPeiAlunoInput {
+    nome_aluno: String,
+    turma_aluno: String,
+    registros: Vec<RegistroPeiInput>,
+}
+
+#[derive(Serialize)]
+struct GerarPeiResultado {
+    caminho: String,
+    pasta: String,
+}
+
+#[derive(Serialize)]
+struct GerarPeisLoteResultado {
+    pasta: String,
+    arquivos: usize,
+    erros: Vec<String>,
+}
+
 #[tauri::command]
 fn app_info() -> AppInfo {
     let data_dir = data_dir()
@@ -3327,6 +3385,182 @@ impl DocumentoDocx {
 
     fn salvar(self, caminho: &Path) -> Result<(), String> {
         escrever_docx(caminho, &self.corpo)
+    }
+
+    // ── Métodos específicos para o PEI ──────────────────────────────────────
+
+    fn titulo_pei(&mut self, texto: &str) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="0" w:after="60" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr>{fonte}<w:b/><w:u w:val="single"/><w:sz w:val="24"/></w:rPr><w:t>{t}</w:t></w:r></w:p>"#,
+            fonte = fonte,
+            t = escape_xml(texto)
+        ));
+    }
+
+    fn intro_pei(&mut self) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        let sz = r#"<w:sz w:val="24"/>"#;
+        // "PEI: Plano Educacional Individualizado – documento que estabelece a "
+        // "acessibilidade" (sublinhado)
+        // " curricular, adaptações e estratégias para o acesso ao currículo comum.
+        //  (Resolução SEDUC Nº 129, de 30 de setembro de 2025)"
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="0" w:after="80"/><w:jc w:val="both"/></w:pPr>"#
+        ));
+        for (txt, negrito, sublinhado) in [
+            ("PEI: Plano Educacional Individualizado \u{2013} documento que estabelece a ", false, false),
+            ("acessibilidade", false, true),
+            (" curricular, adapta\u{00e7}\u{00f5}es e estrat\u{00e9}gias para o acesso ao curr\u{00ed}culo comum. (Resolu\u{00e7}\u{00e3}o SEDUC N\u{00ba} 129, de 30 de setembro de 2025)", false, false),
+        ] {
+            let b = if negrito { "<w:b/>" } else { "" };
+            let u = if sublinhado { r#"<w:u w:val="single"/>"# } else { "" };
+            self.corpo.push_str(&format!(
+                r#"<w:r><w:rPr>{fonte}{sz}{b}{u}</w:rPr><w:t xml:space="preserve">{t}</w:t></w:r>"#,
+                fonte = fonte, sz = sz, b = b, u = u,
+                t = escape_xml(txt)
+            ));
+        }
+        self.corpo.push_str("</w:p>");
+    }
+
+    fn campo_pei(&mut self, rotulo: &str, valor: &str) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        let sz = r#"<w:sz w:val="24"/>"#;
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="60" w:after="0"/></w:pPr>"#
+        ));
+        self.corpo.push_str(&format!(
+            r#"<w:r><w:rPr>{fonte}{sz}<w:b/></w:rPr><w:t xml:space="preserve">{r} </w:t></w:r>"#,
+            fonte = fonte, sz = sz, r = escape_xml(rotulo)
+        ));
+        if !valor.trim().is_empty() {
+            self.corpo.push_str(&format!(
+                r#"<w:r><w:rPr>{fonte}{sz}</w:rPr><w:t xml:space="preserve">{v}</w:t></w:r>"#,
+                fonte = fonte, sz = sz, v = escape_xml(valor)
+            ));
+        }
+        self.corpo.push_str("</w:p>");
+    }
+
+    fn periodo_pei(&mut self, bimestre: &str) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        let sz = r#"<w:sz w:val="24"/>"#;
+        let mut caixas = String::new();
+        for (b, label) in [("1", "1\u{00b0} Bimestre"), ("2", "2\u{00ba} Bimestre"),
+                            ("3", "3\u{00ba} Bimestre"), ("4", "4\u{00ba} Bimestre")] {
+            let marca = if b == bimestre { "X" } else { "  " };
+            caixas.push_str(&format!("( {marca} ) {label}  "));
+        }
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>"#
+        ));
+        self.corpo.push_str(&format!(
+            "<w:r><w:rPr>{fonte}{sz}<w:b/></w:rPr><w:t xml:space=\"preserve\">Per\u{00ed}odo: </w:t></w:r>",
+            fonte = fonte, sz = sz
+        ));
+        self.corpo.push_str(&format!(
+            r#"<w:r><w:rPr>{fonte}{sz}</w:rPr><w:t xml:space="preserve">{c}</w:t></w:r>"#,
+            fonte = fonte, sz = sz, c = escape_xml(caixas.trim())
+        ));
+        self.corpo.push_str("</w:p>");
+    }
+
+    fn questao_pei(&mut self, pergunta: &str, resposta: &str) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        let sz = r#"<w:sz w:val="24"/>"#;
+        // Pergunta: negrito, justificado
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="160" w:after="0"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr>{fonte}{sz}<w:b/></w:rPr><w:t xml:space="preserve">{q}</w:t></w:r></w:p>"#,
+            fonte = fonte, sz = sz, q = escape_xml(pergunta)
+        ));
+        // Resposta linha a linha
+        if resposta.trim().is_empty() {
+            // Espaço em branco para preenchimento manual
+            for _ in 0..3 {
+                self.corpo.push_str(&format!(
+                    r#"<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz}</w:rPr><w:t></w:t></w:r></w:p>"#,
+                    fonte = fonte, sz = sz
+                ));
+            }
+        } else {
+            for linha in resposta.lines() {
+                self.corpo.push_str(&format!(
+                    r#"<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz}</w:rPr><w:t xml:space="preserve">{l}</w:t></w:r></w:p>"#,
+                    fonte = fonte, sz = sz, l = escape_xml(linha)
+                ));
+            }
+        }
+        // Espaço após resposta
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="0" w:after="160"/></w:pPr><w:r><w:rPr>{fonte}{sz}</w:rPr><w:t></w:t></w:r></w:p>"#,
+            fonte = fonte, sz = sz
+        ));
+    }
+
+    /// Quatro blocos de assinatura em tabela 2×2, centralizados, ao final da página.
+    /// Cada bloco tem espaço para assinar/carimbar, linha de sublinhar e rótulo.
+    fn assinaturas_pei_final(&mut self) {
+        let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+        let sz_label = r#"<w:sz w:val="20"/>"#; // 10pt para os rótulos de assinatura
+
+        // Espaçador entre conteúdo e bloco de assinaturas (aprox. 2 cm)
+        self.corpo.push_str(&format!(
+            r#"<w:p><w:pPr><w:spacing w:before="1120" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}</w:rPr><w:t></w:t></w:r></w:p>"#,
+            fonte = fonte
+        ));
+
+        // Tabela 2 colunas × 2 linhas, sem bordas
+        self.corpo.push_str(concat!(
+            r#"<w:tbl><w:tblPr>"#,
+            r#"<w:tblStyle w:val="TableGrid"/>"#,
+            r#"<w:tblW w:w="5000" w:type="pct"/>"#,
+            r#"<w:jc w:val="center"/>"#,
+            r#"<w:tblLayout w:type="fixed"/>"#,
+            r#"<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar>"#,
+            r#"<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>"#,
+            r#"</w:tblPr>"#,
+            r#"<w:tblGrid><w:gridCol w:w="5550"/><w:gridCol w:w="5550"/></w:tblGrid>"#
+        ));
+
+        let pares = [
+            (
+                "Nome e Assinatura do Coordenador(a) de Gestão Pedagógica:",
+                "Nome e Assinatura do Professor(a) Especializado(a) da Educação Especial:",
+            ),
+            (
+                "Nome e Assinatura do Professor(a) Especializado(a) do Projeto Ensino Colaborativo:",
+                "Nome e Assinatura do Professor(a) Regente de classes, turmas ou componentes curriculares:",
+            ),
+        ];
+
+        for (esq, dir) in pares {
+            self.corpo.push_str("<w:tr>");
+            for rotulo in [esq, dir] {
+                self.corpo.push_str("<w:tc><w:tcPr><w:vAlign w:val=\"top\"/></w:tcPr>");
+                // Linhas em branco para espaço de assinatura e carimbo
+                for _ in 0..5 {
+                    self.corpo.push_str(&format!(
+                        r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t></w:t></w:r></w:p>"#,
+                        fonte = fonte, sz_label = sz_label
+                    ));
+                }
+                // Linha de sublinhar
+                self.corpo.push_str(&format!(
+                    r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t>______________________________</w:t></w:r></w:p>"#,
+                    fonte = fonte, sz_label = sz_label
+                ));
+                // Rótulo
+                self.corpo.push_str(&format!(
+                    r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="20" w:after="480"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t xml:space="preserve">{r}</w:t></w:r></w:p>"#,
+                    fonte = fonte, sz_label = sz_label, r = escape_xml(rotulo)
+                ));
+                self.corpo.push_str("</w:tc>");
+            }
+            self.corpo.push_str("</w:tr>");
+        }
+
+        self.corpo.push_str("</w:tbl>");
     }
 }
 
@@ -6549,6 +6783,465 @@ fn objeto_bimestre<'a>(
         .and_then(Value::as_object)
 }
 
+// ── PEI ──────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+fn buscar_pei_planilha(url: String) -> Result<Vec<RegistroPei>, String> {
+    let id = extrair_id_google_sheet(&url).ok_or_else(|| {
+        "URL não reconhecida. Cole o link de compartilhamento do Google Sheets.".to_string()
+    })?;
+    let csv_url = format!(
+        "https://docs.google.com/spreadsheets/d/{id}/gviz/tq?tqx=out:csv"
+    );
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Mozilla/5.0 (compatible; CoordenacaoOP)")
+        .build()
+        .map_err(|err| format!("Erro ao criar cliente HTTP: {err}"))?;
+    let resposta = client
+        .get(&csv_url)
+        .send()
+        .map_err(|err| format!("Não foi possível acessar a planilha: {err}"))?;
+    if !resposta.status().is_success() {
+        return Err(format!(
+            "A planilha respondeu com erro {}. Verifique se ela está compartilhada como 'qualquer pessoa com o link'.",
+            resposta.status().as_u16()
+        ));
+    }
+    let texto = resposta
+        .text()
+        .map_err(|err| format!("Erro ao ler o conteúdo da planilha: {err}"))?;
+    parsear_csv_pei(&texto)
+}
+
+#[tauri::command]
+fn salvar_url_pei(url: String) -> Result<(), String> {
+    let pasta = data_dir().map_err(|e| e.to_string())?.join("pei");
+    fs::create_dir_all(&pasta).map_err(|e| e.to_string())?;
+    escrever_json_atomicamente(&pasta.join("config.json"), &url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn carregar_url_pei() -> Result<String, String> {
+    let caminho = data_dir()
+        .map_err(|e| e.to_string())?
+        .join("pei")
+        .join("config.json");
+    if !caminho.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(caminho).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn abrir_pei_docx(nome_aluno: String, disciplina: String, bimestre: String) -> Result<(), String> {
+    let caminho = data_dir()
+        .map_err(|e| e.to_string())?
+        .join("relatorios")
+        .join("pei")
+        .join(sanitizar_segmento(&nome_aluno))
+        .join(format!(
+            "{}_{}_bimestre.docx",
+            sanitizar_segmento(&disciplina),
+            sanitizar_segmento(&bimestre)
+        ));
+    if !caminho.exists() {
+        return Err(
+            "Documento não gerado ainda. Aguarde a geração automática ou verifique a planilha."
+                .to_string(),
+        );
+    }
+    abrir_arquivo(&caminho)
+}
+
+#[tauri::command]
+fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLoteResultado, String> {
+    let pasta_base = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("pei");
+    fs::create_dir_all(&pasta_base).map_err(|err| err.to_string())?;
+
+    let mut arquivos = 0usize;
+    let mut erros: Vec<String> = Vec::new();
+
+    for r in &registros {
+        let pasta_aluno = pasta_base.join(sanitizar_segmento(&r.nome_aluno));
+        if let Err(e) = fs::create_dir_all(&pasta_aluno) {
+            erros.push(format!("{} — pasta: {e}", r.nome_aluno));
+            continue;
+        }
+        let nome_arquivo = format!(
+            "{}_{}_bimestre.docx",
+            sanitizar_segmento(&r.disciplina),
+            sanitizar_segmento(&r.bimestre)
+        );
+        let caminho = pasta_aluno.join(&nome_arquivo);
+        match escrever_pei_docx_individual(&caminho, r) {
+            Ok(_) => arquivos += 1,
+            Err(e) => erros.push(format!("{} — {}: {e}", r.nome_aluno, r.disciplina)),
+        }
+    }
+
+    Ok(GerarPeisLoteResultado {
+        pasta: pasta_base.to_string_lossy().to_string(),
+        arquivos,
+        erros,
+    })
+}
+
+#[tauri::command]
+fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegiveisComDisciplinas>, String> {
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut resultado = Vec::new();
+
+    for (_, turma) in &turmas {
+        let alunos = match &turma.alunos {
+            Some(a) => a,
+            None => continue,
+        };
+
+        // Coleta disciplinas por bimestre a partir da carga horária.
+        let mut disciplinas_por_bimestre: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for bim in ["1", "2", "3", "4"] {
+            let disc: Vec<String> = turma
+                .carga_horaria
+                .as_ref()
+                .and_then(|c| c.get(bim))
+                .and_then(Value::as_object)
+                .map(|obj| obj.keys().cloned().collect())
+                .unwrap_or_default();
+            if !disc.is_empty() {
+                disciplinas_por_bimestre.insert(bim.to_string(), disc);
+            }
+        }
+
+        // União de todas as disciplinas conhecidas.
+        let mut todas: BTreeMap<String, String> = BTreeMap::new();
+        for disc in disciplinas_por_bimestre.values().flatten() {
+            todas.insert(disc.to_uppercase(), disc.clone());
+        }
+        let disciplinas: Vec<String> = todas.into_values().collect();
+
+        for (matricula, info) in alunos {
+            if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                continue;
+            }
+            let elegivel_manual = info
+                .get("elegivel_manual")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
+            let tem_deficiencia = info
+                .get("deficiencias")
+                .and_then(Value::as_array)
+                .map(|d| !d.is_empty())
+                .unwrap_or(false);
+            if !elegivel_manual && !tem_deficiencia {
+                continue;
+            }
+
+            // Detecta bimestres que já têm pelo menos uma média importada.
+            let bimestres_com_medias: Vec<String> = ["1", "2", "3", "4"]
+                .iter()
+                .filter(|&&bim| {
+                    info.get("medias")
+                        .and_then(Value::as_object)
+                        .and_then(|m| m.get(bim))
+                        .and_then(Value::as_object)
+                        .map(|obj| !obj.is_empty())
+                        .unwrap_or(false)
+                })
+                .map(|b| b.to_string())
+                .collect();
+
+            let nome = info
+                .get("nome")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+
+            resultado.push(AlunoElegiveisComDisciplinas {
+                matricula: matricula.clone(),
+                nome,
+                turma: rotulo_turma(turma),
+                disciplinas: disciplinas.clone(),
+                disciplinas_por_bimestre: disciplinas_por_bimestre.clone(),
+                bimestres_com_medias,
+            });
+        }
+    }
+
+    resultado.sort_by(|a, b| a.turma.cmp(&b.turma).then(a.nome.cmp(&b.nome)));
+    Ok(resultado)
+}
+
+fn extrair_id_google_sheet(url: &str) -> Option<String> {
+    let pos = url.find("/d/")?;
+    let depois = &url[pos + 3..];
+    let fim = depois.find(['/', '?']).unwrap_or(depois.len());
+    if fim == 0 {
+        None
+    } else {
+        Some(depois[..fim].to_string())
+    }
+}
+
+fn parsear_csv_pei(texto: &str) -> Result<Vec<RegistroPei>, String> {
+    let linhas = parsear_csv_completo(texto);
+    if linhas.len() < 2 {
+        return Err(
+            "A planilha está vazia ou não contém registros de PEI.".to_string(),
+        );
+    }
+    let cabecalho = &linhas[0];
+    // normalizar_nome_busca produz MAIÚSCULAS — keywords devem ser maiúsculas.
+    let col_idx = |palavras: &[&str]| -> Option<usize> {
+        cabecalho.iter().position(|c| {
+            let c_norm = normalizar_nome_busca(c);
+            palavras.iter().any(|kw| c_norm.contains(kw))
+        })
+    };
+    let idx_timestamp  = col_idx(&["CARIMBO", "TIMESTAMP"]);
+    let idx_email      = col_idx(&["ENDERECO", "EMAIL"]);
+    let idx_professor  = col_idx(&["PROFESSOR"]);
+    let idx_estudante  = col_idx(&["ESTUDANTE"]);
+    let idx_disciplina = col_idx(&["COMPONENTE", "CURRICULAR"]);
+    // Bimestre: a coluna exata vem antes das questões longas que também contêm "BIMESTRE".
+    let idx_bimestre   = col_idx(&["BIMESTRE"]);
+    // Conteúdos: busca antes de estratégias para evitar colisão com "HABILIDADE".
+    let idx_conteudos    = col_idx(&["CONTEUDO", "HABILIDADE"]);
+    let idx_estrategias  = col_idx(&["ESTRATEG", "INTERVEN"]);
+    let idx_instrumentos = col_idx(&["INSTRUMENTO"]);
+    let idx_recursos     = col_idx(&["VIDEO", "LIVRO", "JOGO", "RECURSO", "APLICAT"]);
+
+    let col = |row: &Vec<String>, idx: Option<usize>| -> String {
+        idx.and_then(|i| row.get(i))
+            .cloned()
+            .unwrap_or_default()
+            .trim()
+            .to_string()
+    };
+
+    let mut registros = Vec::new();
+    for linha in linhas.iter().skip(1) {
+        if linha.iter().all(|c| c.trim().is_empty()) {
+            continue;
+        }
+        let nome_estudante_completo = col(linha, idx_estudante);
+        let (nome_aluno, turma_aluno) = separar_nome_turma_pei(&nome_estudante_completo);
+        let bimestre_raw = col(linha, idx_bimestre);
+        let bimestre = bimestre_raw
+            .chars()
+            .filter(|c| c.is_ascii_digit())
+            .collect::<String>();
+        let bimestre = if bimestre.is_empty() {
+            bimestre_raw
+        } else {
+            bimestre
+        };
+
+        registros.push(RegistroPei {
+            timestamp: col(linha, idx_timestamp),
+            email: col(linha, idx_email),
+            professor: col(linha, idx_professor),
+            nome_estudante_completo,
+            nome_aluno,
+            turma_aluno,
+            disciplina: col(linha, idx_disciplina),
+            bimestre,
+            conteudos: col(linha, idx_conteudos),
+            estrategias: col(linha, idx_estrategias),
+            instrumentos: col(linha, idx_instrumentos),
+            recursos: col(linha, idx_recursos),
+        });
+    }
+
+    if registros.is_empty() {
+        return Err("Nenhum registro de PEI encontrado na planilha.".to_string());
+    }
+
+    Ok(registros)
+}
+
+fn parsear_csv_completo(texto: &str) -> Vec<Vec<String>> {
+    let mut linhas: Vec<Vec<String>> = Vec::new();
+    let mut linha_atual: Vec<String> = Vec::new();
+    let mut campo = String::new();
+    let mut dentro_aspas = false;
+    let chars: Vec<char> = texto.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '"' {
+            if dentro_aspas && i + 1 < chars.len() && chars[i + 1] == '"' {
+                campo.push('"');
+                i += 2;
+                continue;
+            }
+            dentro_aspas = !dentro_aspas;
+        } else if ch == ',' && !dentro_aspas {
+            linha_atual.push(campo.trim().to_string());
+            campo = String::new();
+        } else if ch == '\n' && !dentro_aspas {
+            linha_atual.push(campo.trim().to_string());
+            campo = String::new();
+            if !linha_atual.is_empty() {
+                linhas.push(linha_atual);
+                linha_atual = Vec::new();
+            }
+        } else if ch == '\r' {
+            // ignorar CR
+        } else {
+            campo.push(ch);
+        }
+        i += 1;
+    }
+    if !campo.is_empty() || !linha_atual.is_empty() {
+        linha_atual.push(campo.trim().to_string());
+        if !linha_atual.iter().all(|c| c.is_empty()) {
+            linhas.push(linha_atual);
+        }
+    }
+    linhas
+}
+
+fn separar_nome_turma_pei(texto: &str) -> (String, String) {
+    if let Some(pos) = texto.rfind(" - ") {
+        (
+            texto[..pos].trim().to_string(),
+            texto[pos + 3..].trim().to_string(),
+        )
+    } else {
+        (texto.trim().to_string(), String::new())
+    }
+}
+
+fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> Result<(), String> {
+    let mut doc = DocumentoDocx::new();
+
+    // Título conforme modelo oficial
+    doc.paragrafo("");
+    doc.titulo_pei("ANEXO IV \u{2013} PLANO EDUCACIONAL INDIVIDUALIZADO \u{2013} PEI");
+    doc.paragrafo("");
+
+    // Parágrafo introdutório com "acessibilidade" sublinhado
+    doc.intro_pei();
+    doc.paragrafo("");
+
+    // Campos de identificação
+    doc.campo_pei("Nome do Estudante:", &nome_titulo(&r.nome_aluno));
+    doc.campo_pei("Nome do Professor Regente:", &r.professor);
+    doc.campo_pei("Nome do Professor Especializado da Educação Especial:", "");
+    doc.campo_pei("Componente Curricular:", &r.disciplina.to_uppercase());
+    doc.periodo_pei(&r.bimestre);
+    doc.paragrafo("");
+
+    // Quatro perguntas com respostas
+    doc.questao_pei(
+        "Quais conteúdos e habilidades do Currículo da Rede Estadual Paulista serão desenvolvidos no bimestre?",
+        &r.conteudos,
+    );
+    doc.questao_pei(
+        "Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados para favorecer o acesso, a participação e a aprendizagem do estudante?",
+        &r.estrategias,
+    );
+    doc.questao_pei(
+        "Quais instrumentos serão utilizados para acompanhar o aprendizado do estudante de forma inclusiva e individualizada?",
+        &r.instrumentos,
+    );
+    doc.questao_pei(
+        "Quais vídeos, livros, jogos, exercícios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?",
+        &r.recursos,
+    );
+
+    // Quatro assinaturas centralizadas ao final da página, duas de cada lado
+    doc.assinaturas_pei_final();
+
+    doc.salvar(caminho)
+}
+
+fn escrever_pei_aluno_docx(caminho: &Path, input: &GerarPeiAlunoInput) -> Result<(), String> {
+    let mut documento = DocumentoDocx::new();
+
+    for (indice, registro) in input.registros.iter().enumerate() {
+        if indice > 0 {
+            documento.quebra_pagina();
+        }
+
+        documento.titulo_ata("PLANO EDUCACIONAL INDIVIDUALIZADO");
+        documento.paragrafo("");
+
+        documento.tabela_celulas_com_larguras(
+            vec![
+                vec![
+                    CelulaDocx::texto("Estudante:").negrito().alinhada("left"),
+                    CelulaDocx::texto(&nome_titulo(&input.nome_aluno)).alinhada("left"),
+                    CelulaDocx::texto("Turma:").negrito().alinhada("left"),
+                    CelulaDocx::texto(&input.turma_aluno).alinhada("left"),
+                ],
+                vec![
+                    CelulaDocx::texto("Professor(a):").negrito().alinhada("left"),
+                    CelulaDocx::texto(&registro.professor).alinhada("left"),
+                    CelulaDocx::texto("Bimestre:").negrito().alinhada("left"),
+                    CelulaDocx::texto(&format!("{}º", registro.bimestre)).alinhada("left"),
+                ],
+                vec![
+                    CelulaDocx::texto("Componente:").negrito().alinhada("left"),
+                    CelulaDocx::texto(&registro.disciplina).alinhada("left"),
+                    CelulaDocx::texto("Data:").negrito().alinhada("left"),
+                    CelulaDocx::texto(&registro.timestamp).alinhada("left"),
+                ],
+            ],
+            &[2000, 3550, 1500, 3050],
+            false,
+        );
+
+        documento.paragrafo("");
+
+        for (titulo, conteudo) in [
+            ("1. Conteúdos e habilidades a serem desenvolvidos", &registro.conteudos),
+            ("2. Estratégias, intervenções e metodologias de ensino", &registro.estrategias),
+            ("3. Instrumentos de avaliação", &registro.instrumentos),
+            ("4. Recursos (vídeos, livros, jogos, sites e aplicativos)", &registro.recursos),
+        ] {
+            documento.tabela_celulas_com_larguras(
+                vec![
+                    vec![CelulaDocx::texto(titulo)
+                        .negrito()
+                        .alinhada("left")
+                        .com_fundo("E6E6E6")
+                        .tamanho(18)],
+                    vec![CelulaDocx::texto(conteudo).alinhada("left").tamanho(18)],
+                ],
+                &[11_100],
+                false,
+            );
+            documento.paragrafo("");
+        }
+
+        documento.tabela_celulas_com_larguras(
+            vec![vec![
+                CelulaDocx::texto(
+                    "________________________________\nAssinatura do(a) Professor(a)",
+                )
+                .centralizada()
+                .tamanho(20)
+                .sem_borda(),
+                CelulaDocx::texto("________________________________\nCoordenação Pedagógica")
+                    .centralizada()
+                    .tamanho(20)
+                    .sem_borda(),
+            ]],
+            &[5550, 5550],
+            false,
+        );
+    }
+
+    documento.salvar(caminho)
+}
+
+// ── fim PEI ──────────────────────────────────────────────────────────────────
+
 fn valor_para_f64(valor: &Value) -> Option<f64> {
     match valor {
         Value::Number(numero) => numero.as_f64(),
@@ -6608,7 +7301,13 @@ fn main() {
             abrir_documento_conselho,
             gerar_relatorio_alunos_criticos,
             gerar_relatorio_alteracoes_notas,
-            salvar_finalizacao_conselho
+            salvar_finalizacao_conselho,
+            buscar_pei_planilha,
+            salvar_url_pei,
+            carregar_url_pei,
+            abrir_pei_docx,
+            gerar_peis_lote,
+            listar_alunos_elegiveis_com_disciplinas
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar a nova interface do CoordenacaoOP");
@@ -6842,5 +7541,36 @@ mod tests {
         assert!(xml_relatorio.contains("Ajustar no diario"));
         assert!(xml_relatorio.contains("NÃO HÁ AJUSTES DE NOTA NA SALA DO FUTURO"));
         assert!(xml_relatorio.matches("Relatório Pedagógico").count() >= 2);
+    }
+
+    #[test]
+    fn parse_csv_pei_detecta_colunas_e_bimestre() {
+        // Cabeçalhos reais da planilha de PEI do Google Forms
+        let csv = "\"Carimbo de data/hora\",\"Endereço de e-mail\",\"Nome do Professor\",\"Nome do Estudante\",\"Componente Curricular\",\"Bimestre\",\"Quais conteúdos e habilidades do Currículo da Rede Estadual Paulista serão desenvolvidos no bimestre?\",\"Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados?\",\"Quais instrumentos serão utilizados para acompanhar o aprendizado?\",\"Quais vídeos, livros, jogos ou outras atividades podem ser indicados?\"\n\"26/05/2026 08:23:34\",\"prof@edu.sp.gov.br\",\"Ana Silva\",\"JOAO PEDRO SANTOS - 7° ANO A TARDE\",\"História\",\"1º Bimestre\",\"Modernidade e suas implicações\",\"Comparações visuais e debates\",\"Mapas mentais e textos adaptados\",\"Vídeos do YouTube e HQs\"\n";
+
+        let registros = parsear_csv_pei(csv).expect("parse deve funcionar");
+        assert_eq!(registros.len(), 1, "deve ter 1 registro");
+
+        let r = &registros[0];
+        assert_eq!(r.professor, "Ana Silva");
+        assert_eq!(r.nome_aluno, "JOAO PEDRO SANTOS");
+        assert_eq!(r.turma_aluno, "7° ANO A TARDE");
+        assert_eq!(r.disciplina, "História");
+        assert_eq!(r.bimestre, "1", "bimestre deve ser '1', não '1º Bimestre'");
+        assert!(!r.conteudos.is_empty(), "conteúdos não deve ser vazio");
+        assert!(!r.estrategias.is_empty(), "estratégias não deve ser vazio");
+        assert!(!r.instrumentos.is_empty(), "instrumentos não deve ser vazio");
+        assert!(!r.recursos.is_empty(), "recursos não deve ser vazio");
+    }
+
+    #[test]
+    fn separar_nome_turma_pei_funciona() {
+        let (nome, turma) = separar_nome_turma_pei("JOAO PEDRO SANTOS - 7° ANO A TARDE");
+        assert_eq!(nome, "JOAO PEDRO SANTOS");
+        assert_eq!(turma, "7° ANO A TARDE");
+
+        let (nome2, turma2) = separar_nome_turma_pei("ANA CLARA");
+        assert_eq!(nome2, "ANA CLARA");
+        assert_eq!(turma2, "");
     }
 }

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.6.0 - PEI — Plano Educacional Individualizado
+
+- Nova tela **PEI** na Central de Relatórios para acompanhar os Planos Educacionais Individualizados enviados pelos professores via Google Forms.
+- A URL da planilha de respostas é configurada uma vez e sincronizada automaticamente entre dispositivos junto com os dados institucionais.
+- Ao abrir a tela, os documentos PEI são gerados automaticamente a partir dos dados da última planilha carregada.
+- Cada PEI é salvo como um arquivo DOCX individual (`DISCIPLINA_Xbimestre.docx`) dentro de uma pasta com o nome do aluno.
+- Clicar no ícone de folha na tabela disciplinas × bimestres abre o DOCX correspondente.
+- Indicador de status por aluno: verde (todos os PEIs do bimestre atual entregues), amarelo (entrega parcial) ou vermelho (nenhum PEI recebido).
+- O bimestre atual é detectado automaticamente pelas médias já importadas no mapão.
+- Relatório PEI gerado no formato oficial (Anexo IV – Resolução SEDUC Nº 129/2025): cabeçalho da escola, campos de identificação, período com checkbox do bimestre, quatro perguntas do currículo paulista, e bloco de assinaturas centralizado em duas colunas ao final da página.
+
 ## v2.5.0 - Correções de integridade de dados e sincronização
 
 ### Correções críticas

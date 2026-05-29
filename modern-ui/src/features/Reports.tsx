@@ -1,4 +1,4 @@
-import { ClipboardList, FileText } from "lucide-react";
+import { BookMarked, ClipboardList, FileText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -42,9 +42,11 @@ function rotuloSerie(valor?: string | null) {
 export function RelatoriosMenu({
   onAbrirCriticos,
   onAbrirAlteracoesNotas,
+  onAbrirPei,
 }: {
   onAbrirCriticos: () => void;
   onAbrirAlteracoesNotas: () => void;
+  onAbrirPei: () => void;
 }) {
   return (
     <section className="reports-page">
@@ -69,6 +71,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Alterações de Notas Pós-Conselho</strong>
             <span>Compara as notas decididas no conselho com o último mapão importado.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirPei}>
+          <BookMarked size={26} />
+          <div>
+            <strong>PEI — Plano Educacional Individualizado</strong>
+            <span>Acompanhe os planos enviados pelos professores e gere documentos por aluno elegível.</span>
           </div>
         </button>
       </section>
