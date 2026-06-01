@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.7.0 - Eventos com período, sync confiável e abertura de documentos no Linux
+
+- Eventos do calendário agora aceitam **data de início e data de fim**, sendo replicados em todos os dias do período.
+- **Correção de sincronização:** cada dispositivo passa a gravar seu próprio arquivo de estado (`state/peers/`), eliminando a corrida em que um coordenador sobrescrevia eventos/tarefas recém-criados por outro. Eventos criados por outros coordenadores agora aparecem de forma confiável.
+- **Correção no Linux/AppImage:** ao abrir documentos PEI, atas ou pastas, o programa limpa as variáveis de ambiente injetadas pelo AppImage (GTK/GLib) que faziam o sistema abrir o navegador em vez do aplicativo correto.
+- Geração de PEI confirmada: os documentos são salvos em `dados/relatorios/pei/<aluno>/`, um arquivo por disciplina e bimestre.
+
 ## v2.6.1 - Ajustes de UX e tema escuro
 
 - Tela PEI: diálogo de configuração da planilha expandido com tutorial passo a passo sobre como criar o formulário no Google Forms, vincular à planilha e compartilhar o link.

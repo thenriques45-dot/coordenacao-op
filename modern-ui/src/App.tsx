@@ -205,6 +205,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.7.0": [
+    "Eventos do calendário agora podem ter data de início e data de fim, aparecendo em todos os dias do período.",
+    "Sincronização do grupo corrigida: eventos e tarefas criados por outros coordenadores não se perdem mais e aparecem de forma confiável.",
+    "No Linux, abrir documentos PEI, atas e pastas passa a usar o aplicativo correto em vez de abrir o navegador.",
+  ],
   "2.6.1": [
     "A tela do PEI agora traz um tutorial passo a passo de como criar o formulário no Google Forms e compartilhar a planilha.",
     "No painel de próximas datas, tarefas e eventos atrasados ficam reunidos em um contador que você pode expandir e marcar como concluídos.",
@@ -453,10 +458,15 @@ export function App() {
       if (sincronizando || cancelado) return;
       sincronizando = true;
       try {
-        const remoto = await invokeApp<WorkgroupSyncPayload | null>("carregar_estado_sincronizacao", { pasta: perfilSync.syncFolder });
-        const recebeu = Boolean(remoto);
-        if (remoto) {
-          aplicarPayloadSincronizacao(remoto);
+        const remotos = await invokeApp<WorkgroupSyncPayload[]>("carregar_estados_sincronizacao", {
+          pasta: perfilSync.syncFolder,
+          deviceId: perfilSync.userId,
+        });
+        const recebeu = remotos.length > 0;
+        // Aplica o estado de cada dispositivo; a mesclagem é cumulativa e
+        // converge mesmo que outro coordenador esteja offline.
+        for (const remoto of remotos) {
+          if (remoto) aplicarPayloadSincronizacao(remoto);
         }
         const payload = montarPayloadSincronizacao(perfilSync);
         const resultado = await invokeApp<SyncStateResultado>("publicar_estado_sincronizacao", {

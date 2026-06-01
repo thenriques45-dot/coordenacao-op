@@ -516,31 +516,6 @@ struct AlunoElegiveisComDisciplinas {
     bimestres_com_medias: Vec<String>,
 }
 
-#[derive(Deserialize)]
-struct RegistroPeiInput {
-    professor: String,
-    disciplina: String,
-    bimestre: String,
-    conteudos: String,
-    estrategias: String,
-    instrumentos: String,
-    recursos: String,
-    timestamp: String,
-}
-
-#[derive(Deserialize)]
-struct GerarPeiAlunoInput {
-    nome_aluno: String,
-    turma_aluno: String,
-    registros: Vec<RegistroPeiInput>,
-}
-
-#[derive(Serialize)]
-struct GerarPeiResultado {
-    caminho: String,
-    pasta: String,
-}
-
 #[derive(Serialize)]
 struct GerarPeisLoteResultado {
     pasta: String,
@@ -615,10 +590,26 @@ fn publicar_estado_sincronizacao(input: SyncStateInput) -> Result<SyncStateResul
     fs::create_dir_all(&estado).map_err(|err| err.to_string())?;
     fs::create_dir_all(&dispositivos).map_err(|err| err.to_string())?;
 
+    let conteudo = serde_json::to_vec_pretty(&input.payload).map_err(|err| err.to_string())?;
+
+    // Arquivo por dispositivo: cada instalação escreve apenas o SEU próprio estado.
+    // Isso evita a corrida de leitura-modificação-escrita do arquivo único, em que
+    // um dispositivo sobrescrevia eventos/tarefas recém-criados por outro.
+    let peers = estado.join("peers");
+    fs::create_dir_all(&peers).map_err(|err| err.to_string())?;
+    let peer_destino = peers.join(format!("{}.json", nome_arquivo_seguro(&input.device_id)));
+    let peer_tmp = peers.join(format!(
+        "{}.{}.tmp",
+        nome_arquivo_seguro(&input.device_id),
+        Local::now().timestamp_millis()
+    ));
+    fs::write(&peer_tmp, &conteudo).map_err(|err| err.to_string())?;
+    fs::rename(&peer_tmp, &peer_destino).map_err(|err| err.to_string())?;
+
+    // Mantém o arquivo único para compatibilidade com versões antigas do app.
     let destino = estado.join("workspace-state.json");
     let temporario = estado.join(format!("workspace-state.{}.tmp", Local::now().timestamp_millis()));
-    let conteudo = serde_json::to_vec_pretty(&input.payload).map_err(|err| err.to_string())?;
-    fs::write(&temporario, conteudo).map_err(|err| err.to_string())?;
+    fs::write(&temporario, &conteudo).map_err(|err| err.to_string())?;
     fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
 
     if let Some(profile) = input.payload.get("profile") {
@@ -628,7 +619,7 @@ fn publicar_estado_sincronizacao(input: SyncStateInput) -> Result<SyncStateResul
     }
 
     Ok(SyncStateResultado {
-        caminho: destino.to_string_lossy().to_string(),
+        caminho: peer_destino.to_string_lossy().to_string(),
         atualizado_em: Local::now().to_rfc3339(),
     })
 }
@@ -642,6 +633,55 @@ fn carregar_estado_sincronizacao(pasta: String) -> Result<Option<Value>, String>
     }
     let texto = fs::read_to_string(arquivo).map_err(|err| err.to_string())?;
     serde_json::from_str(&texto).map(Some).map_err(|err| err.to_string())
+}
+
+/// Lê o estado de TODOS os dispositivos (arquivos em state/peers/) além do
+/// arquivo único legado. Retorna a lista de payloads, ignorando o próprio
+/// dispositivo. A mesclagem é feita no frontend (último a atualizar vence).
+#[tauri::command]
+fn carregar_estados_sincronizacao(
+    pasta: String,
+    device_id: String,
+) -> Result<Vec<Value>, String> {
+    let raiz = validar_pasta_sincronizacao(&pasta)?;
+    let estado = raiz.join("state");
+    let peers = estado.join("peers");
+    let proprio = format!("{}.json", nome_arquivo_seguro(&device_id));
+    let mut payloads = Vec::new();
+
+    if peers.is_dir() {
+        let mut entradas: Vec<PathBuf> = fs::read_dir(&peers)
+            .map_err(|err| err.to_string())?
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| {
+                p.extension().and_then(|e| e.to_str()) == Some("json")
+                    && p.file_name().and_then(|n| n.to_str()) != Some(proprio.as_str())
+            })
+            .collect();
+        entradas.sort();
+        for caminho in entradas {
+            if let Ok(texto) = fs::read_to_string(&caminho) {
+                if let Ok(valor) = serde_json::from_str::<Value>(&texto) {
+                    payloads.push(valor);
+                }
+            }
+        }
+    }
+
+    // Compatibilidade: inclui também o arquivo único legado, para não perder
+    // alterações de coordenadores que ainda usam versões antigas do app (que
+    // só escrevem workspace-state.json). A mesclagem por updatedAt no frontend
+    // ignora dados mais antigos, então incluí-lo sempre é seguro.
+    let arquivo = estado.join("workspace-state.json");
+    if arquivo.exists() {
+        if let Ok(texto) = fs::read_to_string(&arquivo) {
+            if let Ok(valor) = serde_json::from_str::<Value>(&texto) {
+                payloads.push(valor);
+            }
+        }
+    }
+
+    Ok(payloads)
 }
 
 #[tauri::command]
@@ -844,7 +884,7 @@ fn abrir_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
     let script = format!("Start-Process {}", aspas_powershell(&url));
-    Command::new("powershell")
+    comando_externo("powershell")
         .args([
             "-NoProfile",
             "-ExecutionPolicy",
@@ -858,7 +898,7 @@ fn abrir_url(url: String) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
+        comando_externo("open")
             .arg(&url)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
@@ -866,7 +906,7 @@ fn abrir_url(url: String) -> Result<(), String> {
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        Command::new("xdg-open")
+        comando_externo("xdg-open")
             .arg(&url)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
@@ -889,21 +929,21 @@ fn abrir_pasta(caminho: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        Command::new("explorer")
+        comando_externo("explorer")
             .arg(&alvo)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
     }
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
+        comando_externo("open")
             .arg(&alvo)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
     }
     #[cfg(target_os = "linux")]
     {
-        Command::new("xdg-open")
+        comando_externo("xdg-open")
             .arg(&alvo)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir a pasta: {err}"))?;
@@ -2039,12 +2079,65 @@ fn nome_documento_finalizacao(prefixo: &str, codigo: &str, bimestre: &str) -> St
     }
 }
 
+/// Cria um `Command` para lançar um programa externo (abrir arquivo, pasta ou link).
+///
+/// Quando o app roda como AppImage, o runtime injeta variáveis de ambiente
+/// (XDG_DATA_DIRS, GTK_PATH, GIO_EXTRA_MODULES, GDK_PIXBUF_MODULE_FILE,
+/// GSETTINGS_SCHEMA_DIR, etc.) que são herdadas pelos processos-filho. Isso
+/// faz o `xdg-open`/`gio` e o aplicativo lançado usarem os recursos empacotados
+/// no AppImage em vez dos do sistema, quebrando a abertura do programa padrão e
+/// caindo no navegador. Removemos essas variáveis para que o programa externo
+/// rode como se tivesse sido lançado diretamente pelo sistema.
+#[allow(unused_mut)]
+fn comando_externo(programa: &str) -> Command {
+    let mut cmd = Command::new(programa);
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(appdir) = env::var_os("APPDIR").map(|v| v.to_string_lossy().to_string()) {
+            // Remove as variáveis que apontam para dentro do AppImage e fazem o
+            // aplicativo externo usar bibliotecas/recursos empacotados.
+            for var in [
+                "GTK_DATA_PREFIX",
+                "GTK_EXE_PREFIX",
+                "GTK_PATH",
+                "GTK_IM_MODULE_FILE",
+                "GTK_THEME",
+                "GDK_BACKEND",
+                "GDK_PIXBUF_MODULE_FILE",
+                "GDK_PIXBUF_MODULEDIR",
+                "GSETTINGS_SCHEMA_DIR",
+                "GIO_EXTRA_MODULES",
+                "GIO_MODULE_DIR",
+                "LD_LIBRARY_PATH",
+                "LD_PRELOAD",
+            ] {
+                cmd.env_remove(var);
+            }
+            // Para XDG_DATA_DIRS preservamos as entradas do sistema/usuário
+            // (inclusive Flatpak) e removemos apenas as que apontam para o AppImage,
+            // para não perder as associações de aplicativo padrão.
+            if let Ok(atual) = env::var("XDG_DATA_DIRS") {
+                let limpo: Vec<&str> = atual
+                    .split(':')
+                    .filter(|p| !p.is_empty() && !p.starts_with(&appdir))
+                    .collect();
+                if limpo.is_empty() {
+                    cmd.env("XDG_DATA_DIRS", "/usr/local/share:/usr/share");
+                } else {
+                    cmd.env("XDG_DATA_DIRS", limpo.join(":"));
+                }
+            }
+        }
+    }
+    cmd
+}
+
 fn abrir_arquivo(arquivo: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let caminho = arquivo.to_string_lossy();
         let script = format!("Start-Process -FilePath {}", aspas_powershell(&caminho));
-        Command::new("powershell")
+        comando_externo("powershell")
             .args([
                 "-NoProfile",
                 "-ExecutionPolicy",
@@ -2057,14 +2150,14 @@ fn abrir_arquivo(arquivo: &Path) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
+        comando_externo("open")
             .arg(arquivo)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
     }
     #[cfg(target_os = "linux")]
     {
-        Command::new("xdg-open")
+        comando_externo("xdg-open")
             .arg(arquivo)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
@@ -7160,86 +7253,6 @@ fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> Result<(), S
     doc.salvar(caminho)
 }
 
-fn escrever_pei_aluno_docx(caminho: &Path, input: &GerarPeiAlunoInput) -> Result<(), String> {
-    let mut documento = DocumentoDocx::new();
-
-    for (indice, registro) in input.registros.iter().enumerate() {
-        if indice > 0 {
-            documento.quebra_pagina();
-        }
-
-        documento.titulo_ata("PLANO EDUCACIONAL INDIVIDUALIZADO");
-        documento.paragrafo("");
-
-        documento.tabela_celulas_com_larguras(
-            vec![
-                vec![
-                    CelulaDocx::texto("Estudante:").negrito().alinhada("left"),
-                    CelulaDocx::texto(&nome_titulo(&input.nome_aluno)).alinhada("left"),
-                    CelulaDocx::texto("Turma:").negrito().alinhada("left"),
-                    CelulaDocx::texto(&input.turma_aluno).alinhada("left"),
-                ],
-                vec![
-                    CelulaDocx::texto("Professor(a):").negrito().alinhada("left"),
-                    CelulaDocx::texto(&registro.professor).alinhada("left"),
-                    CelulaDocx::texto("Bimestre:").negrito().alinhada("left"),
-                    CelulaDocx::texto(&format!("{}º", registro.bimestre)).alinhada("left"),
-                ],
-                vec![
-                    CelulaDocx::texto("Componente:").negrito().alinhada("left"),
-                    CelulaDocx::texto(&registro.disciplina).alinhada("left"),
-                    CelulaDocx::texto("Data:").negrito().alinhada("left"),
-                    CelulaDocx::texto(&registro.timestamp).alinhada("left"),
-                ],
-            ],
-            &[2000, 3550, 1500, 3050],
-            false,
-        );
-
-        documento.paragrafo("");
-
-        for (titulo, conteudo) in [
-            ("1. Conteúdos e habilidades a serem desenvolvidos", &registro.conteudos),
-            ("2. Estratégias, intervenções e metodologias de ensino", &registro.estrategias),
-            ("3. Instrumentos de avaliação", &registro.instrumentos),
-            ("4. Recursos (vídeos, livros, jogos, sites e aplicativos)", &registro.recursos),
-        ] {
-            documento.tabela_celulas_com_larguras(
-                vec![
-                    vec![CelulaDocx::texto(titulo)
-                        .negrito()
-                        .alinhada("left")
-                        .com_fundo("E6E6E6")
-                        .tamanho(18)],
-                    vec![CelulaDocx::texto(conteudo).alinhada("left").tamanho(18)],
-                ],
-                &[11_100],
-                false,
-            );
-            documento.paragrafo("");
-        }
-
-        documento.tabela_celulas_com_larguras(
-            vec![vec![
-                CelulaDocx::texto(
-                    "________________________________\nAssinatura do(a) Professor(a)",
-                )
-                .centralizada()
-                .tamanho(20)
-                .sem_borda(),
-                CelulaDocx::texto("________________________________\nCoordenação Pedagógica")
-                    .centralizada()
-                    .tamanho(20)
-                    .sem_borda(),
-            ]],
-            &[5550, 5550],
-            false,
-        );
-    }
-
-    documento.salvar(caminho)
-}
-
 // ── fim PEI ──────────────────────────────────────────────────────────────────
 
 fn valor_para_f64(valor: &Value) -> Option<f64> {
@@ -7263,6 +7276,7 @@ fn main() {
             salvar_cabecalho_ata,
             publicar_estado_sincronizacao,
             carregar_estado_sincronizacao,
+            carregar_estados_sincronizacao,
             publicar_dados_institucionais_sincronizacao,
             carregar_dados_institucionais_sincronizacao,
             exportar_backup,

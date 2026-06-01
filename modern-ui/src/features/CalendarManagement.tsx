@@ -114,6 +114,7 @@ export function CalendarioGestao({
     titulo: "",
     descricao: "",
     data: chaveData(new Date()),
+    dataFim: "",
     horaInicio: "",
     horaFim: "",
     categoria: "Geral",
@@ -234,6 +235,7 @@ export function CalendarioGestao({
       titulo: "",
       descricao: "",
       data,
+      dataFim: "",
       horaInicio: "",
       horaFim: "",
       categoria: "Geral",
@@ -254,6 +256,7 @@ export function CalendarioGestao({
       titulo: evento.titulo,
       descricao: evento.descricao,
       data: evento.data,
+      dataFim: evento.dataFim ?? "",
       horaInicio: evento.horaInicio,
       horaFim: evento.horaFim,
       categoria: evento.categoria,
@@ -278,11 +281,15 @@ export function CalendarioGestao({
     };
     const agora = new Date().toISOString();
     const vinculos = separarVinculos(formEvento.vinculo);
+    const dataInicio = formEvento.data || chaveData(new Date());
+    // Só guarda dataFim se for posterior à data de início.
+    const dataFim = formEvento.dataFim && formEvento.dataFim > dataInicio ? formEvento.dataFim : undefined;
     const payload: CalendarEvent = {
       id: eventoEditando?.id ?? `evento-${Date.now()}`,
       titulo,
       descricao: formEvento.descricao.trim(),
-      data: formEvento.data || chaveData(new Date()),
+      data: dataInicio,
+      dataFim,
       horaInicio: formEvento.horaInicio,
       horaFim: formEvento.horaFim,
       categoria: formEvento.categoria.trim() || "Geral",
@@ -518,9 +525,23 @@ export function CalendarioGestao({
                   </label>
                   <div className="kanban-form-grid">
                     <label>
-                      Data
+                      Data de início
                       <input type="date" value={formEvento.data} onChange={(event) => setFormEvento((atual) => ({ ...atual, data: event.target.value }))} />
                     </label>
+                    <label>
+                      Data de fim (opcional)
+                      <input
+                        type="date"
+                        value={formEvento.dataFim}
+                        min={formEvento.data}
+                        onChange={(event) => setFormEvento((atual) => ({ ...atual, dataFim: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  {formEvento.dataFim && formEvento.dataFim > formEvento.data && (
+                    <p className="kanban-form-hint">O evento será exibido em todos os dias entre o início e o fim.</p>
+                  )}
+                  <div className="kanban-form-grid">
                     <label>
                       Prioridade
                       <select value={formEvento.prioridade} onChange={(event) => setFormEvento((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>

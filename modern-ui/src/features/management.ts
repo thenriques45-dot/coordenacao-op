@@ -65,6 +65,7 @@ export type CalendarEvent = {
   titulo: string;
   descricao: string;
   data: string;
+  dataFim?: string;
   horaInicio: string;
   horaFim: string;
   categoria: string;
@@ -264,20 +265,42 @@ export function expandirOcorrencias(baseData: string, regra?: RecurrenceRule, li
   return ocorrencias;
 }
 
+export function duracaoEventoDias(evento: CalendarEvent) {
+  if (!evento.dataFim) return 0;
+  const inicio = parseDataLocal(evento.data);
+  const fim = parseDataLocal(evento.dataFim);
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return 0;
+  const dias = Math.round((fim.getTime() - inicio.getTime()) / 86400000);
+  return dias > 0 ? Math.min(dias, 366) : 0;
+}
+
+function diasDoIntervalo(inicio: string, duracaoDias: number) {
+  if (duracaoDias <= 0) return [inicio];
+  const base = parseDataLocal(inicio);
+  return Array.from({ length: duracaoDias + 1 }, (_, deslocamento) =>
+    chaveData(new Date(base.getFullYear(), base.getMonth(), base.getDate() + deslocamento)),
+  );
+}
+
 export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], limite = 8) {
   const itens: TimelineItem[] = [
-    ...eventos.flatMap((evento) => expandirOcorrencias(evento.data, evento.recorrencia).map((data) => ({
-      id: `${evento.id}-${data}`,
-      origemId: evento.id,
-      tipo: "evento" as const,
-      titulo: evento.titulo,
-      descricao: formatarVinculosEvento(evento) || evento.descricao,
-      data,
-      hora: evento.horaInicio,
-      cor: evento.cor,
-      prioridade: evento.prioridade,
-      recorrente: Boolean(evento.recorrencia),
-    }))),
+    ...eventos.flatMap((evento) => {
+      const duracao = duracaoEventoDias(evento);
+      return expandirOcorrencias(evento.data, evento.recorrencia).flatMap((inicio) =>
+        diasDoIntervalo(inicio, duracao).map((data) => ({
+          id: `${evento.id}-${data}`,
+          origemId: evento.id,
+          tipo: "evento" as const,
+          titulo: evento.titulo,
+          descricao: formatarVinculosEvento(evento) || evento.descricao,
+          data,
+          hora: evento.horaInicio,
+          cor: evento.cor,
+          prioridade: evento.prioridade,
+          recorrente: Boolean(evento.recorrencia),
+        })),
+      );
+    }),
     ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prazo).flatMap((tarefa) => expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).map((data) => ({
       id: `${tarefa.id}-${data}`,
       origemId: tarefa.id,
