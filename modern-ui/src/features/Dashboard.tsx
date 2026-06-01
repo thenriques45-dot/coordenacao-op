@@ -1,18 +1,33 @@
-import { BookOpen, CalendarClock, GraduationCap, TrendingUp, Users } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { BookOpen, CalendarClock, Check, GraduationCap, TrendingUp, Users } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
   carregarTarefasKanbanDashboard,
+  diferencaDias,
   formatarDataCurta,
   formatarDataLonga,
   formatarVinculosTarefa,
+  KANBAN_UPDATED_EVENT,
   montarLinhaDoTempo,
   rotuloDiasAte,
   rotuloPrioridade,
+  salvarTarefasKanban,
   type CalendarEvent,
   type KanbanTarefa,
+  type TimelineItem,
 } from "./management";
+
+const EVENTOS_REALIZADOS_KEY = "coordenacaoop:eventos-realizados";
+
+function carregarEventosRealizados(): Set<string> {
+  try {
+    const salvo = localStorage.getItem(EVENTOS_REALIZADOS_KEY);
+    return new Set(salvo ? (JSON.parse(salvo) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
 
 type TurmaDashboard = {
   alunos_ativos: number;
@@ -37,9 +52,44 @@ export function Dashboard({
   const totalAlunos = turmas.reduce((total, turma) => total + turma.alunos_ativos, 0);
   const totalElegiveis = turmas.reduce((total, turma) => total + turma.alunos_elegiveis, 0);
   const ajustes = turmas.reduce((total, turma) => total + turma.conselhos_com_ajustes, 0);
-  const proximasTarefas = useMemo(() => carregarTarefasKanbanDashboard(), []);
-  const proximasDatas = useMemo(() => montarLinhaDoTempo(carregarTarefasKanban(), carregarEventosCalendario(), 4), []);
-  const proximaData = proximasDatas[0];
+
+  const [versao, setVersao] = useState(0);
+  const [atrasadosExpandidos, setAtrasadosExpandidos] = useState(false);
+
+  useEffect(() => {
+    const atualizar = () => setVersao((v) => v + 1);
+    window.addEventListener(KANBAN_UPDATED_EVENT, atualizar);
+    return () => window.removeEventListener(KANBAN_UPDATED_EVENT, atualizar);
+  }, []);
+
+  const proximasTarefas = useMemo(() => carregarTarefasKanbanDashboard(), [versao]);
+
+  const todasDatas = useMemo(() => {
+    const realizados = carregarEventosRealizados();
+    return montarLinhaDoTempo(carregarTarefasKanban(), carregarEventosCalendario(), 20).filter(
+      (item) => !realizados.has(`${item.origemId}:${item.data}`)
+    );
+  }, [versao]);
+
+  const atrasados = useMemo(() => todasDatas.filter((item) => diferencaDias(item.data) < 0), [todasDatas]);
+  const proximos = useMemo(() => todasDatas.filter((item) => diferencaDias(item.data) >= 0).slice(0, 4), [todasDatas]);
+  const proximaData = proximos[0];
+
+  const marcarConcluido = useCallback((item: TimelineItem) => {
+    if (item.tipo === "tarefa") {
+      const tarefas = carregarTarefasKanban().map((t) =>
+        t.id === item.origemId
+          ? { ...t, status: "concluido" as const, updatedAt: new Date().toISOString() }
+          : t
+      );
+      salvarTarefasKanban(tarefas);
+    } else {
+      const realizados = carregarEventosRealizados();
+      realizados.add(`${item.origemId}:${item.data}`);
+      localStorage.setItem(EVENTOS_REALIZADOS_KEY, JSON.stringify([...realizados]));
+      setVersao((v) => v + 1);
+    }
+  }, []);
 
   return (
     <>
@@ -70,6 +120,55 @@ export function Dashboard({
             <h3>Próximas datas</h3>
             <button onClick={onOpenCalendario}>Ver calendário</button>
           </div>
+          <div style={{ height: "16px" }} />
+          {/* Contador de atrasados */}
+          {atrasados.length > 0 && (
+            <button
+              className="activity-row timeline-row"
+              onClick={() => setAtrasadosExpandidos((a) => !a)}
+              style={{ borderLeft: "3px solid #f04438", background: "var(--surface)" }}
+            >
+              <span className="timeline-dot" style={{ background: "#f04438" }} />
+              <div>
+                <strong style={{ color: "#f04438" }}>
+                  {atrasados.length} {atrasados.length === 1 ? "item atrasado" : "itens atrasados"}
+                </strong>
+                <span>Clique para {atrasadosExpandidos ? "ocultar" : "ver e concluir"}</span>
+              </div>
+              <time style={{ color: "#f04438" }}>{atrasadosExpandidos ? "▲" : "▼"}</time>
+            </button>
+          )}
+
+          {/* Lista de itens atrasados (expansível) */}
+          {atrasadosExpandidos && atrasados.map((item) => (
+            <div key={item.id} style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+              <button
+                className="activity-row timeline-row"
+                style={{ flex: 1, opacity: 0.75 }}
+                onClick={item.tipo === "tarefa" ? onOpenKanban : onOpenCalendario}
+              >
+                <span className="timeline-dot" style={{ background: item.cor }} />
+                <div>
+                  <strong>{item.titulo}</strong>
+                  <span>{item.tipo === "tarefa" ? "Tarefa" : "Evento"}{item.recorrente ? " recorrente" : ""} · {item.descricao}</span>
+                </div>
+                <time style={{ color: "#f04438" }}>{rotuloDiasAte(item.data)}</time>
+              </button>
+              <button
+                title={item.tipo === "tarefa" ? "Marcar como concluída" : "Marcar como realizado"}
+                onClick={() => marcarConcluido(item)}
+                style={{
+                  border: "none", background: "transparent", cursor: "pointer",
+                  padding: "0 0.75rem", color: "#13c65c", flexShrink: 0,
+                  display: "flex", alignItems: "center",
+                }}
+              >
+                <Check size={16} />
+              </button>
+            </div>
+          ))}
+
+          {/* Próximos itens */}
           {proximaData && (
             <button className="next-date-card" type="button" onClick={onOpenCalendario}>
               <div>
@@ -80,7 +179,7 @@ export function Dashboard({
               <em>{rotuloDiasAte(proximaData.data)}</em>
             </button>
           )}
-          {proximasDatas.slice(proximaData ? 1 : 0).map((item) => (
+          {proximos.slice(proximaData ? 1 : 0).map((item) => (
             <button className="activity-row timeline-row" key={item.id} onClick={item.tipo === "tarefa" ? onOpenKanban : onOpenCalendario}>
               <span className="timeline-dot" style={{ background: item.cor }} />
               <div>
@@ -90,7 +189,7 @@ export function Dashboard({
               <time>{formatarDataCurta(item.data)}</time>
             </button>
           ))}
-          {!proximasDatas.length && (
+          {!proximos.length && !atrasados.length && (
             <button className="activity-row timeline-row" onClick={onOpenCalendario}>
               <span className="timeline-dot" style={{ background: "#64748b" }} />
               <div>

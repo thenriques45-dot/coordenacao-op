@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.6.1 - Ajustes de UX e tema escuro
+
+- Tela PEI: diálogo de configuração da planilha expandido com tutorial passo a passo sobre como criar o formulário no Google Forms, vincular à planilha e compartilhar o link.
+- Dashboard: itens com prazo vencido agora aparecem em um contador expansível "X atrasados" com botão ✓ para marcar cada item como concluído (tarefas vão para Concluído no Kanban; eventos são descartados localmente).
+- Dashboard: ajuste de espaçamento entre o cabeçalho "Ver calendário" e o primeiro card, alinhando com o painel de tarefas.
+- Tema escuro revisado: substituição do preto puro por cinza-azulado escuro (`#1a1a1f`), texto principal suavizado de branco puro para `#dde4f0`, melhor hierarquia de superfícies e bordas. Adicionadas variáveis CSS (`--accent`, `--border`, `--surface`, `--text-secondary`) usadas pelos componentes PEI.
+
 ## v2.6.0 - PEI — Plano Educacional Individualizado
 
 - Nova tela **PEI** na Central de Relatórios para acompanhar os Planos Educacionais Individualizados enviados pelos professores via Google Forms.

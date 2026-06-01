@@ -205,6 +205,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.6.1": [
+    "A tela do PEI agora traz um tutorial passo a passo de como criar o formulário no Google Forms e compartilhar a planilha.",
+    "No painel de próximas datas, tarefas e eventos atrasados ficam reunidos em um contador que você pode expandir e marcar como concluídos.",
+    "Tema escuro reformulado, com cores mais suaves e confortáveis para os olhos.",
+  ],
   "2.6.0": [
     "Nova tela PEI na Central de Relatórios para acompanhar os Planos Educacionais Individualizados enviados pelos professores.",
     "Os documentos PEI são gerados automaticamente ao abrir a tela, organizados por aluno e disciplina.",

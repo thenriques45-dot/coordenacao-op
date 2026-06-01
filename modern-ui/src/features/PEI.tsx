@@ -1,5 +1,5 @@
 import { BookMarked, FileText, FolderOpen, RefreshCw, Settings, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
 type RegistroPei = {
@@ -104,6 +104,21 @@ function carregarRegistrosCachedados(): RegistroPei[] {
     return [];
   }
 }
+
+// Estilos reutilizados no diálogo de tutorial
+const estiloPassoPEI: React.CSSProperties = {
+  display: "flex", gap: "0.9rem", marginBottom: "1rem", alignItems: "flex-start",
+};
+const estiloNumPassoPEI: React.CSSProperties = {
+  minWidth: "26px", height: "26px", borderRadius: "50%",
+  background: "var(--accent)", color: "#fff",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  fontWeight: 700, fontSize: "0.82rem", flexShrink: 0, marginTop: "2px",
+};
+const estiloTextoPassoPEI: React.CSSProperties = {
+  fontSize: "0.84rem", margin: "0.3rem 0 0", lineHeight: 1.5,
+  color: "var(--text-secondary)",
+};
 
 export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
   const [url, setUrl] = useState("");
@@ -278,44 +293,126 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
         </div>
       </header>
 
-      {/* Painel de configuração da planilha */}
+      {/* Diálogo modal de configuração e tutorial */}
       {configAberta && (
-        <section className="panel council-documents-panel">
-          <div className="panel-heading">
-            <div>
-              <h3>Planilha de respostas do formulário PEI</h3>
-              <p>Cole o link de compartilhamento do Google Sheets com as respostas.</p>
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget && url) setConfigAberta(false); }}>
+          <section
+            className="whats-new-modal"
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "860px", width: "92vw", maxHeight: "88vh", overflowY: "auto", textAlign: "left" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+              <div>
+                <span className="eyebrow">PEI</span>
+                <h2 style={{ margin: "0.15rem 0 0" }}>Configurar planilha de respostas</h2>
+              </div>
+              {url && (
+                <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)} style={{ marginTop: "0.25rem" }}>
+                  <X size={16} />
+                </button>
+              )}
             </div>
-            {url && (
-              <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)}>
-                <X size={16} /> Fechar
-              </button>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ flex: 1, minWidth: "280px" }}>
-              Link da planilha
-              <input
-                type="url"
-                value={urlEditando}
-                onChange={(e) => setUrlEditando(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && buscarPlanilha()}
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                style={{ width: "100%", marginTop: "0.25rem" }}
-              />
-            </label>
-            <button className="primary-action" onClick={buscarPlanilha} disabled={carregando}>
-              <RefreshCw size={15} />
-              {carregando ? "Buscando..." : "Atualizar"}
-            </button>
-          </div>
-          {ultimaBusca && (
-            <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "0.5rem" }}>
-              Última atualização: {ultimaBusca} · {registros.length} PEI(s) carregado(s)
+
+            <p style={{ marginBottom: "1rem" }}>
+              O programa lê as respostas de um formulário Google Forms vinculado a uma planilha compartilhada.
+              Se já tiver o link, cole abaixo. Se ainda precisar criar o formulário, siga os três passos.
             </p>
-          )}
-          {erro && <div className="notice error" style={{ marginTop: "0.5rem" }}>{erro}</div>}
-        </section>
+
+            {/* Campo de URL — no topo */}
+            <div style={{ background: "var(--surface-elevated, var(--surface))", border: "1px solid var(--border)", borderRadius: "8px", padding: "0.85rem 1rem", marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", fontSize: "0.9rem" }}>
+                Link da planilha de respostas
+              </label>
+              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                <input
+                  type="url"
+                  value={urlEditando}
+                  onChange={(e) => setUrlEditando(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && buscarPlanilha()}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  style={{ flex: 1 }}
+                />
+                <button className="primary-action" onClick={buscarPlanilha} disabled={carregando} style={{ whiteSpace: "nowrap" }}>
+                  <RefreshCw size={14} />
+                  {carregando ? "Buscando…" : "Carregar"}
+                </button>
+              </div>
+              {ultimaBusca && (
+                <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "0.4rem" }}>
+                  Última atualização: {ultimaBusca} · {registros.length} PEI(s) carregado(s)
+                </p>
+              )}
+              {erro && <div className="notice error" style={{ marginTop: "0.5rem" }}>{erro}</div>}
+            </div>
+
+            {/* Passo 1 */}
+            <div style={estiloPassoPEI}>
+              <div style={estiloNumPassoPEI}>1</div>
+              <div style={{ flex: 1 }}>
+                <strong>Criar o formulário no Google Forms</strong>
+                <p style={estiloTextoPassoPEI}>
+                  Acesse <em>forms.google.com</em> e crie um novo formulário. Ative a coleta de e-mail
+                  (ícone de engrenagem → <em>Coletar endereço de e-mail</em>). Adicione as perguntas
+                  abaixo <strong>nesta ordem e com estes títulos</strong> (o programa os detecta pelo conteúdo):
+                </p>
+                <ol style={{ margin: "0.5rem 0 0", padding: "0 0 0 1.2rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                  {[
+                    ["Nome do Professor", "resposta curta"],
+                    ["Nome do Estudante", "resposta curta — formato: NOME COMPLETO - TURMA PERÍODO  (ex: JOÃO SILVA - 7° ANO A TARDE)"],
+                    ["Componente Curricular", "resposta curta"],
+                    ["Bimestre", "múltipla escolha: 1º Bimestre · 2º Bimestre · 3º Bimestre · 4º Bimestre"],
+                    ["Quais conteúdos e habilidades do Currículo da Rede Estadual Paulista serão desenvolvidos no bimestre?", "parágrafo"],
+                    ["Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados para favorecer o acesso, a participação e a aprendizagem do estudante?", "parágrafo"],
+                    ["Quais instrumentos serão utilizados para acompanhar o aprendizado do estudante de forma inclusiva e individualizada?", "parágrafo"],
+                    ["Quais vídeos, livros, jogos, exercícios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?", "parágrafo"],
+                  ].map(([titulo, tipo], i) => (
+                    <li key={i} style={{ fontSize: "0.84rem", lineHeight: 1.45 }}>
+                      <span>{titulo}</span>
+                      <span style={{ marginLeft: "0.4rem", fontSize: "0.74rem", color: "var(--text-secondary)", background: "var(--border)", borderRadius: "4px", padding: "0.05rem 0.35rem", whiteSpace: "nowrap" }}>
+                        {tipo}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+
+            {/* Passo 2 */}
+            <div style={estiloPassoPEI}>
+              <div style={estiloNumPassoPEI}>2</div>
+              <div style={{ flex: 1 }}>
+                <strong>Vincular o formulário a uma planilha</strong>
+                <ol style={estiloTextoPassoPEI}>
+                  <li>No formulário, clique na aba <em>Respostas</em>.</li>
+                  <li>Clique no ícone de planilha do Google Sheets (ou em <em>Vincular planilhas</em>).</li>
+                  <li>Escolha <em>Criar uma nova planilha</em> e confirme.</li>
+                  <li>A planilha de respostas será criada automaticamente e atualizada a cada envio.</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Passo 3 */}
+            <div style={{ ...estiloPassoPEI, marginBottom: "1.25rem" }}>
+              <div style={estiloNumPassoPEI}>3</div>
+              <div style={{ flex: 1 }}>
+                <strong>Compartilhar a planilha e colar o link aqui</strong>
+                <ol style={estiloTextoPassoPEI}>
+                  <li>Abra a planilha de respostas no Google Sheets.</li>
+                  <li>Clique em <em>Compartilhar</em> (canto superior direito).</li>
+                  <li>Em <em>Acesso geral</em>, selecione <em>Qualquer pessoa com o link</em> como <em>Leitor</em>.</li>
+                  <li>Copie o link e cole no campo abaixo.</li>
+                </ol>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: "0.5rem" }}>
+              {url && (
+                <button onClick={() => setConfigAberta(false)}>Fechar</button>
+              )}
+            </div>
+          </section>
+        </div>
       )}
 
 
