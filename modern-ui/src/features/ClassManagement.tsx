@@ -24,6 +24,11 @@ type NotaBimestre = {
   media: number;
 };
 
+type AtribuicaoNota = {
+  por: string;
+  em: string;
+};
+
 type Disciplina = {
   nome: string;
   mediaOriginal: number | null;
@@ -36,6 +41,7 @@ type Disciplina = {
   totalAulasAcumuladas?: number | null;
   historicoBimestres?: NotaBimestre[];
   situacao: "adequada" | "abaixo" | "cuidado" | "sem-nota" | "ajustada";
+  atribuicaoMedia?: AtribuicaoNota | null;
 };
 
 type Aluno = {
@@ -171,6 +177,12 @@ function classeNota(nota: number | null | undefined) {
 
 function classeTextoNota(nota: number | null | undefined) {
   return `grade-value ${classeNota(nota)}`;
+}
+
+function formatarAtribuicao(atribuicao: AtribuicaoNota | null | undefined) {
+  if (!atribuicao) return null;
+  const data = new Date(atribuicao.em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return `Importado por ${atribuicao.por} em ${data}`;
 }
 
 function rotuloClassificacao(aluno: Aluno) {
@@ -969,11 +981,15 @@ function AlunoDetalheGestao({
                         </span>
                       )}
                     </td>
-                    {[1, 2, 3, 4].map((indice) => (
-                      <td key={indice} className={classeTextoNota(indice === bimestreAtual ? nota : null)}>
-                        {indice === bimestreAtual ? formatarNota(nota) : "-"}
-                      </td>
-                    ))}
+                    {[1, 2, 3, 4].map((indice) => {
+                      const eAtual = indice === bimestreAtual;
+                      const tooltip = eAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
+                      return (
+                        <td key={indice} className={classeTextoNota(eAtual ? nota : null)} title={tooltip ?? undefined}>
+                          {eAtual ? formatarNota(nota) : "-"}
+                        </td>
+                      );
+                    })}
                     <td className={classeTextoNota(disciplina.quintoConceito)}>{formatarNota(disciplina.quintoConceito)}</td>
                     <td className={classeTextoNota(nota)}>{formatarNota(nota)}</td>
                     <td className={frequencia !== null && frequencia >= 75 ? "success-text" : "danger-text"}>{formatarPercentual(frequencia)}</td>

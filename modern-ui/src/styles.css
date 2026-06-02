@@ -4747,7 +4747,7 @@ th:nth-child(3) {
 .kanban-task-modal label {
   color: #344054;
   display: grid;
-  font-weight: 800;
+  font-weight: 500;
   gap: 8px;
 }
 
@@ -4758,6 +4758,7 @@ th:nth-child(3) {
   border: 1px solid #cfd6e3;
   border-radius: 8px;
   color: #101828;
+  font-weight: 400;
   min-height: 42px;
   padding: 0 12px;
 }
@@ -4778,6 +4779,7 @@ th:nth-child(3) {
 }
 
 .kanban-form-grid {
+  align-items: start;
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4787,6 +4789,72 @@ th:nth-child(3) {
   color: #667085;
   font-size: 12px;
   margin: 6px 0 0;
+}
+
+.vinculos-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.vinculos-picker-dropdown {
+  background: #ffffff;
+  border: 1px solid #cfd6e3;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.vinculos-picker-dropdown button {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 400;
+  min-height: 36px;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.vinculos-picker-dropdown button:hover {
+  background: #f5f7fb;
+}
+
+.vinculos-picker-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vinculos-picker-tag {
+  align-items: center;
+  background: #eef4ff;
+  border: 1px solid #c3d4fc;
+  border-radius: 999px;
+  color: #1a4fd6;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 400;
+  gap: 4px;
+  padding: 3px 8px 3px 10px;
+}
+
+.vinculos-picker-tag button {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: #6b8af4;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
 }
 
 .kanban-alert-options {
@@ -5258,11 +5326,39 @@ th:nth-child(3) {
   color: #dde4f0;
 }
 
+.theme-dark .vinculos-picker-dropdown {
+  background: #1e1e24;
+  border-color: #3c3c46;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .vinculos-picker-dropdown button {
+  color: #dde4f0;
+}
+
+.theme-dark .vinculos-picker-dropdown button:hover {
+  background: #2e2e36;
+}
+
+.theme-dark .vinculos-picker-tag {
+  background: #1e2a4a;
+  border-color: #2d4a8a;
+  color: #7da8f8;
+}
+
+.theme-dark .vinculos-picker-tag button {
+  color: #5580d4;
+}
+
 .theme-dark .primary-action,
 .theme-dark .kanban-new-task {
   background: #3794ff;
   border-color: #3794ff;
   color: #ffffff;
+}
+
+.theme-dark .kanban-task-modal label {
+  color: #a8b4c8;
 }
 
 .theme-dark input,
@@ -5924,6 +6020,21 @@ th:nth-child(3) {
 .theme-dark .diagnostic-year-tag {
   background: #2e2e38;
   color: #c8d0e2;
+}
+
+.theme-dark .import-diagnostics {
+  background: #2a2310;
+  border-color: #5a4a10;
+  color: #d4b060;
+}
+
+.theme-dark .import-diagnostics strong {
+  color: #e8c878;
+}
+
+.theme-dark .import-error-row td {
+  background: #2a1616;
+  color: #e87878;
 }
 
 .theme-dark .students-table th,

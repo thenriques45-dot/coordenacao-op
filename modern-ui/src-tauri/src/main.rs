@@ -265,6 +265,12 @@ struct DiagnosticoComponente {
 }
 
 #[derive(Serialize)]
+struct AtribuicaoNota {
+    por: String,
+    em: String,
+}
+
+#[derive(Serialize)]
 struct DisciplinaDetalhe {
     nome: String,
     media_original: Option<f64>,
@@ -277,6 +283,7 @@ struct DisciplinaDetalhe {
     total_aulas_acumuladas: Option<f64>,
     historico_bimestres: Vec<NotaBimestre>,
     situacao: String,
+    atribuicao_media: Option<AtribuicaoNota>,
 }
 
 #[derive(Serialize)]
@@ -397,6 +404,7 @@ struct ArquivoMapaoInput {
 struct ImportacaoMapoesInput {
     bimestre: String,
     arquivos: Vec<ArquivoMapaoInput>,
+    device_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -805,11 +813,11 @@ fn carregar_dados_institucionais_sincronizacao(
         });
     }
 
+    let destino = data_dir().map_err(|err| err.to_string())?;
+
     let seguranca = exportar_backup_interno()
         .map_err(|err| format!("Não foi possível criar backup de segurança antes da sincronização: {err}"))?
         .caminho;
-
-    let destino = data_dir().map_err(|err| err.to_string())?;
     let base = app_base_dir().map_err(|err| err.to_string())?;
     let ts = Local::now().timestamp_millis();
     let temporario = base.join(format!("dados_sync_tmp_{ts}"));
@@ -818,9 +826,17 @@ fn carregar_dados_institucionais_sincronizacao(
         fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
     }
 
+    // Copia dados do peer para o temporário
     let mut total = 0;
     copiar_recursivamente_contando(&origem_dados, &temporario, &mut total)
         .map_err(|err| err.to_string())?;
+
+    // Merge: preserva turmas criadas localmente e mescla campos por timestamp
+    mesclar_diretorio_persistidos(
+        &destino.join("persistidos"),
+        &temporario.join("persistidos"),
+    )
+    .map_err(|err| err.to_string())?;
 
     // Renomeia o diretório atual para backup antes de colocar o novo no lugar.
     // Se o segundo rename falhar, o original é restaurado — sem perda de dados.
@@ -1277,6 +1293,7 @@ fn analisar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<PreviaImportacao
 #[tauri::command]
 fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportacaoMapoes, String> {
     let bimestre = normalizar_bimestre(&input.bimestre);
+    let device_id = input.device_id.as_deref();
     let mut turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
     let mut arquivos = Vec::new();
@@ -1336,10 +1353,10 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
 
             for (disciplina, media, faltas, compensacao) in aluno_mapao.disciplinas {
                 if let Some(valor) = media {
-                    inserir_valor_bimestre(info, "medias", &bimestre, &disciplina.nome, valor);
+                    inserir_valor_bimestre(info, "medias", &bimestre, &disciplina.nome, valor, device_id);
                 }
                 if let Some(valor) = faltas {
-                    inserir_valor_bimestre(info, "frequencia", &bimestre, &disciplina.nome, valor);
+                    inserir_valor_bimestre(info, "frequencia", &bimestre, &disciplina.nome, valor, None);
                 }
                 if let Some(valor) = compensacao {
                     inserir_valor_bimestre(
@@ -1348,6 +1365,7 @@ fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportac
                         &bimestre,
                         &disciplina.nome,
                         valor,
+                        None,
                     );
                 }
                 if let Some(aulas) = disciplina.aulas {
@@ -1586,6 +1604,7 @@ fn salvar_elegibilidade_aluno(
         return Err("Registro do aluno esta invalido.".to_string());
     };
     aluno_obj.insert("elegivel_manual".to_string(), Value::from(input.elegivel));
+    aluno_obj.insert("elegivel_manual_em".to_string(), Value::from(Local::now().to_rfc3339()));
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
@@ -6073,6 +6092,7 @@ fn inserir_valor_bimestre(
     bimestre: &str,
     disciplina: &str,
     valor: f64,
+    device_id: Option<&str>,
 ) {
     let raiz = info
         .entry(campo.to_string())
@@ -6086,12 +6106,18 @@ fn inserir_valor_bimestre(
     let Some(por_bimestre) = por_bimestre.as_object_mut() else {
         return;
     };
-    por_bimestre.insert(
-        disciplina.to_string(),
+    let entrada = if let Some(por) = device_id {
+        serde_json::json!({
+            "v": valor,
+            "por": por,
+            "em": Local::now().to_rfc3339(),
+        })
+    } else {
         serde_json::Number::from_f64(valor)
             .map(Value::Number)
-            .unwrap_or(Value::Null),
-    );
+            .unwrap_or(Value::Null)
+    };
+    por_bimestre.insert(disciplina.to_string(), entrada);
 }
 
 fn texto_celula(celula: Option<&Data>) -> String {
@@ -6223,6 +6249,132 @@ fn copiar_recursivamente_contando(
     }
     Ok(())
 }
+
+fn mesclar_medias(local: &mut serde_json::Map<String, Value>, incoming: &serde_json::Map<String, Value>) {
+    for (bimestre, notas_inc) in incoming {
+        let Some(notas_inc_obj) = notas_inc.as_object() else { continue; };
+        let notas_local = local
+            .entry(bimestre.clone())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let Some(notas_local_obj) = notas_local.as_object_mut() else { continue; };
+        for (disciplina, nota_inc) in notas_inc_obj {
+            let em_inc = nota_inc.get("em").and_then(Value::as_str).unwrap_or("");
+            let em_local = notas_local_obj
+                .get(disciplina)
+                .and_then(|n| n.get("em"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            // Incoming wins if: newer timestamp, has timestamp but local doesn't, or neither has timestamp
+            if em_inc > em_local || (!em_inc.is_empty() && em_local.is_empty()) || (em_inc.is_empty() && em_local.is_empty()) {
+                notas_local_obj.insert(disciplina.clone(), nota_inc.clone());
+            }
+        }
+    }
+}
+
+fn mesclar_aluno(local: &mut Value, incoming: &Value) {
+    let Some(local_obj) = local.as_object_mut() else { return; };
+    let Some(inc_obj) = incoming.as_object() else { return; };
+
+    // Dados vindos de importação de mapão: incoming sempre vence
+    for campo in &["frequencia", "frequencia_percentual", "compensacao_ausencias"] {
+        if let Some(valor) = inc_obj.get(*campo) {
+            local_obj.insert(campo.to_string(), valor.clone());
+        }
+    }
+
+    // elegivel_manual: vence o mais recente (por elegivel_manual_em)
+    let em_local = local_obj.get("elegivel_manual_em").and_then(Value::as_str).unwrap_or("");
+    let em_inc = inc_obj.get("elegivel_manual_em").and_then(Value::as_str).unwrap_or("");
+    if em_inc > em_local {
+        for campo in &["elegivel_manual", "elegivel_manual_em"] {
+            if let Some(valor) = inc_obj.get(*campo) {
+                local_obj.insert(campo.to_string(), valor.clone());
+            }
+        }
+    }
+
+    // medias: por disciplina/bimestre, vence o mais recente (por "em" do envelope)
+    if let Some(medias_inc) = inc_obj.get("medias").and_then(Value::as_object) {
+        let medias_local = local_obj
+            .entry("medias".to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Some(medias_local_obj) = medias_local.as_object_mut() {
+            mesclar_medias(medias_local_obj, medias_inc);
+        }
+    }
+
+    // Campos de conselho e encaminhamentos: local sempre vence (edições intencionais)
+    // ajustes_medias_conselho, encaminhamentos, lideranca_sala, deficiencias,
+    // comentario_educacao_especial — não tocamos
+}
+
+fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
+    let mut resultado = local.clone();
+    let Some(res_obj) = resultado.as_object_mut() else { return incoming.clone(); };
+
+    // Campos de configuração da turma: incoming vence
+    for campo in &["codigo", "ano", "serie", "sala", "periodo", "ciclo", "carga_horaria"] {
+        if let Some(valor) = incoming.get(*campo) {
+            res_obj.insert(campo.to_string(), valor.clone());
+        }
+    }
+
+    // Merge de alunos
+    if let (Some(alunos_local), Some(alunos_inc)) = (
+        res_obj.get_mut("alunos").and_then(Value::as_object_mut),
+        incoming.get("alunos").and_then(Value::as_object),
+    ) {
+        for (matricula, aluno_inc) in alunos_inc {
+            if let Some(aluno_local) = alunos_local.get_mut(matricula) {
+                mesclar_aluno(aluno_local, aluno_inc);
+            } else {
+                alunos_local.insert(matricula.clone(), aluno_inc.clone());
+            }
+        }
+    }
+
+    resultado
+}
+
+fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -> io::Result<()> {
+    if !local_dir.is_dir() {
+        return Ok(());
+    }
+    fs::create_dir_all(temp_dir)?;
+
+    for entrada in fs::read_dir(local_dir)? {
+        let entrada = entrada?;
+        let nome = entrada.file_name();
+        let local_path = entrada.path();
+        let temp_path = temp_dir.join(&nome);
+
+        if local_path.is_dir() {
+            mesclar_diretorio_persistidos(&local_path, &temp_path)?;
+        } else if local_path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if temp_path.exists() {
+                // Arquivo em ambos: merge, mantendo o mais recente por campo
+                let texto_local = fs::read_to_string(&local_path)?;
+                let texto_temp = fs::read_to_string(&temp_path)?;
+                if let (Ok(val_local), Ok(val_temp)) = (
+                    serde_json::from_str::<Value>(&texto_local),
+                    serde_json::from_str::<Value>(&texto_temp),
+                ) {
+                    let merged = mesclar_arquivo_turma(&val_local, &val_temp);
+                    let texto_merged = serde_json::to_string_pretty(&merged)
+                        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                    fs::write(&temp_path, texto_merged)?;
+                }
+                // Se parse falhar, mantém o incoming (já está em temp_path)
+            } else {
+                // Arquivo só no local (turma criada após último sync): preservar
+                fs::copy(&local_path, &temp_path)?;
+            }
+        }
+    }
+    Ok(())
+}
+
 
 fn contar_arquivos_recursivamente(pasta: &Path) -> io::Result<usize> {
     if pasta.is_file() {
@@ -6809,9 +6961,9 @@ fn extrair_disciplinas(
     let mut disciplinas = nomes
         .into_iter()
         .map(|nome| {
-            let media_original = medias
-                .and_then(|mapa| mapa.get(&nome))
-                .and_then(valor_para_f64);
+            let entrada_media = medias.and_then(|mapa| mapa.get(&nome));
+            let media_original = entrada_media.and_then(valor_para_f64);
+            let atribuicao_media = entrada_media.and_then(extrair_atribuicao);
             let faltas = frequencia
                 .and_then(|mapa| mapa.get(&nome))
                 .and_then(valor_para_f64);
@@ -6894,6 +7046,7 @@ fn extrair_disciplinas(
                     .then_some(total_aulas_acumuladas),
                 historico_bimestres,
                 situacao,
+                atribuicao_media,
             }
         })
         .collect::<Vec<_>>();
@@ -7296,8 +7449,16 @@ fn valor_para_f64(valor: &Value) -> Option<f64> {
     match valor {
         Value::Number(numero) => numero.as_f64(),
         Value::String(texto) => texto.replace(',', ".").parse::<f64>().ok(),
+        Value::Object(objeto) => objeto.get("v").and_then(valor_para_f64),
         _ => None,
     }
+}
+
+fn extrair_atribuicao(valor: &Value) -> Option<AtribuicaoNota> {
+    let objeto = valor.as_object()?;
+    let por = objeto.get("por")?.as_str()?.to_string();
+    let em = objeto.get("em")?.as_str()?.to_string();
+    Some(AtribuicaoNota { por, em })
 }
 
 fn main() {

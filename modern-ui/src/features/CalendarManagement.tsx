@@ -26,6 +26,7 @@ import {
   type TimelineItem,
 } from "./management";
 import { registrarExclusaoSincronizacao, WORKGROUP_SYNC_APPLIED_EVENT } from "./workgroupSync";
+import { VinculosPicker } from "./KanbanBoard";
 
 type TurmaCalendario = {
   codigo: string;
@@ -568,20 +569,12 @@ export function CalendarioGestao({
                 <div className="kanban-task-tab-panel">
                   <label>
                     Vínculos
-                    <input list="calendar-vinculos" placeholder="Geral, turma, aluno ou conselho" value={formEvento.vinculo} onChange={(event) => setFormEvento((atual) => ({ ...atual, vinculo: event.target.value }))} />
-                    {sugestoesEvento.length > 0 && (
-                      <span className="calendar-link-suggestions">
-                        {sugestoesEvento.map((item) => (
-                          <button
-                            type="button"
-                            key={item}
-                            onClick={() => setFormEvento((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </span>
-                    )}
+                    <VinculosPicker
+                      valor={formEvento.vinculo}
+                      sugestoes={sugestoesVinculo}
+                      onChange={(v) => setFormEvento((atual) => ({ ...atual, vinculo: v }))}
+                      placeholder="Aluno, turma ou geral"
+                    />
                   </label>
                 </div>
               )}
@@ -714,20 +707,12 @@ export function CalendarioGestao({
                 <div className="kanban-task-tab-panel">
                   <label>
                     Vínculos
-                    <input list="calendar-vinculos-task" value={formTarefa.vinculo} onChange={(event) => setFormTarefa((atual) => ({ ...atual, vinculo: event.target.value }))} />
-                    {sugestoesTarefa.length > 0 && (
-                      <span className="calendar-link-suggestions">
-                        {sugestoesTarefa.map((item) => (
-                          <button
-                            type="button"
-                            key={item}
-                            onClick={() => setFormTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </span>
-                    )}
+                    <VinculosPicker
+                      valor={formTarefa.vinculo}
+                      sugestoes={sugestoesVinculo}
+                      onChange={(v) => setFormTarefa((atual) => ({ ...atual, vinculo: v }))}
+                      placeholder="Aluno, turma ou geral"
+                    />
                   </label>
                 </div>
               )}

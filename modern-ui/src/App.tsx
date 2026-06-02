@@ -374,6 +374,7 @@ export function App() {
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
+  const [turmaRefreshKey, setTurmaRefreshKey] = useState(0);
   const [erroTurmas, setErroTurmas] = useState("");
   const [erroConselho, setErroConselho] = useState("");
   const [atualizacao, setAtualizacao] = useState<Update | null>(null);
@@ -602,7 +603,7 @@ export function App() {
         setTurmaDetalhe(null);
         setErroConselho(String(erro));
       });
-  }, [turmaSelecionada, bimestreSelecionado]);
+  }, [turmaSelecionada, bimestreSelecionado, turmaRefreshKey]);
 
   const resumo = useMemo(() => {
     const abaixo = aluno.disciplinas.filter((disciplina) => disciplina.situacao === "abaixo").length;
@@ -928,6 +929,7 @@ export function App() {
         {tela === "importar-notas" && (
           <ImportarNotas
             turmas={turmas}
+            onAplicado={() => setTurmaRefreshKey((k) => k + 1)}
             onSubstituirCsvTurma={(turma, alunos) => {
               const turmaCompleta = turmas.find((item) => item.caminho === turma.caminho);
               if (!turmaCompleta) {

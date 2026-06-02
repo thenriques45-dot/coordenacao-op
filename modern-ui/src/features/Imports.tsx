@@ -2,6 +2,7 @@ import { BarChart3, Check, Upload } from "lucide-react";
 import { Fragment, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
+import { carregarPerfilSincronizacao } from "./workgroupSync";
 
 type TurmaResumoImportacao = {
   codigo: string;
@@ -152,9 +153,11 @@ export function ImportarDados({
 export function ImportarNotas({
   turmas,
   onSubstituirCsvTurma,
+  onAplicado,
 }: {
   turmas: TurmaResumoImportacao[];
   onSubstituirCsvTurma: (turma: TurmaResumoImportacao, alunos: NovoAlunoPayload[]) => Promise<void>;
+  onAplicado?: () => void;
 }) {
   const [bimestre, setBimestre] = useState("1");
   const [arquivos, setArquivos] = useState<ArquivoMapaoPayload[]>([]);
@@ -204,10 +207,12 @@ export function ImportarNotas({
     setProcessando(true);
     setErro("");
     setMensagem("");
+    const perfil = carregarPerfilSincronizacao();
+    const device_id = perfil.displayName?.trim() || perfil.deviceName || undefined;
     invokeApp<ResultadoImportacaoMapoes>("aplicar_mapoes_lote", {
-      input: { bimestre, arquivos },
+      input: { bimestre, arquivos, device_id },
     })
-      .then(setResultado)
+      .then((res) => { setResultado(res); onAplicado?.(); })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
       .finally(() => setProcessando(false));
   }

@@ -153,6 +153,67 @@ function ultimoItemDigitado(valor: string) {
   return partes[partes.length - 1]?.trim() ?? "";
 }
 
+export function VinculosPicker({
+  valor,
+  sugestoes,
+  onChange,
+  placeholder = "Filtrar...",
+}: {
+  valor: string;
+  sugestoes: string[];
+  onChange: (novoValor: string) => void;
+  placeholder?: string;
+}) {
+  const [filtro, setFiltro] = useState("");
+  const [aberto, setAberto] = useState(false);
+  const selecionados = separarVinculos(valor);
+  const opcoesFiltradas = sugestoes
+    .filter((s) => !selecionados.some((sel) => normalizarTextoGestao(sel) === normalizarTextoGestao(s)))
+    .filter((s) => !filtro || normalizarTextoGestao(s).includes(normalizarTextoGestao(filtro)));
+
+  function adicionar(item: string) {
+    onChange([...selecionados, item].join(", "));
+    setFiltro("");
+  }
+
+  function remover(item: string) {
+    const chave = normalizarTextoGestao(item);
+    onChange(selecionados.filter((s) => normalizarTextoGestao(s) !== chave).join(", "));
+  }
+
+  return (
+    <div className="vinculos-picker">
+      <input
+        type="text"
+        value={filtro}
+        onChange={(e) => { setFiltro(e.target.value); setAberto(true); }}
+        onFocus={() => setAberto(true)}
+        onBlur={() => setTimeout(() => setAberto(false), 150)}
+        placeholder={placeholder}
+      />
+      {aberto && opcoesFiltradas.length > 0 && (
+        <div className="vinculos-picker-dropdown">
+          {opcoesFiltradas.map((item) => (
+            <button type="button" key={item} onMouseDown={(e) => { e.preventDefault(); adicionar(item); }}>
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
+      {selecionados.length > 0 && (
+        <div className="vinculos-picker-tags">
+          {selecionados.map((item) => (
+            <span key={item} className="vinculos-picker-tag">
+              {item}
+              <button type="button" onClick={() => remover(item)} aria-label={`Remover ${item}`}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; perfil?: WorkgroupSyncProfile }) {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
     try {
@@ -300,14 +361,6 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     });
     return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [turmas, eventosCalendario, tarefas]);
-
-  const termoVinculoAtual = ultimoItemDigitado(novaTarefa.vinculo);
-  const vinculosSelecionados = separarVinculos(novaTarefa.vinculo);
-  const sugestoesVinculoTarefa = filtrarSugestoesFuzzy(
-    sugestoesVinculo.filter((item) => !vinculosSelecionados.some((vinculo) => normalizarTextoGestao(vinculo) === normalizarTextoGestao(item))),
-    termoVinculoAtual,
-    6,
-  );
 
   const totalAltaPrioridade = tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prioridade === "alta").length;
 
@@ -836,25 +889,12 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                     </label>
                     <label>
                       Vínculos
-                      <input
-                        list="kanban-vinculos-sugeridos"
+                      <VinculosPicker
+                        valor={novaTarefa.vinculo}
+                        sugestoes={sugestoesVinculo}
+                        onChange={(v) => setNovaTarefa((atual) => ({ ...atual, vinculo: v }))}
                         placeholder="Aluno, turma ou geral"
-                        value={novaTarefa.vinculo}
-                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, vinculo: event.target.value }))}
                       />
-                      {sugestoesVinculoTarefa.length > 0 && (
-                        <span className="calendar-link-suggestions">
-                          {sugestoesVinculoTarefa.map((item) => (
-                            <button
-                              type="button"
-                              key={item}
-                              onClick={() => setNovaTarefa((atual) => ({ ...atual, vinculo: adicionarSugestaoEmLista(atual.vinculo, item) }))}
-                            >
-                              {item}
-                            </button>
-                          ))}
-                        </span>
-                      )}
                     </label>
                   </div>
                 </div>
@@ -951,11 +991,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                 <option key={etiqueta} value={etiqueta} />
               ))}
             </datalist>
-            <datalist id="kanban-vinculos-sugeridos">
-              {sugestoesVinculo.map((vinculo) => (
-                <option key={vinculo} value={vinculo} />
-              ))}
-            </datalist>
+
             <div className="modal-actions">
               <button type="button" onClick={() => {
                 setModalNovaTarefa(false);
