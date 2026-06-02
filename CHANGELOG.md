@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.8.0 - Tarefas com período, formulário mais enxuto e correção das notificações
+
+- Tarefas do Kanban agora aceitam **data de início e prazo**, sendo exibidas em todos os dias do período no calendário.
+- Formulário de tarefa reorganizado: datas de início e prazo na mesma linha, campo Responsável movido para a aba Vínculos e já preenchido com o nome do criador, e a opção de compartilhar virou um botão compacto.
+- **Correção das notificações de prazo:** os alertas agora são enviados nativamente pelo backend, em vez da API web do navegador (instável no Linux e no Windows). Também foi corrigida a identidade usada no envio, que no Linux colidia com a integração do AppImage e fazia o sistema descartar as notificações.
+- Novo botão **"Testar notificação"** em Configurações → Atualização.
+- Observação: os alertas continuam dependendo do aplicativo estar aberto. A execução em segundo plano (autostart + bandeja do sistema) está planejada para uma próxima versão.
+
 ## v2.7.0 - Eventos com período, sync confiável e abertura de documentos no Linux
 
 - Eventos do calendário agora aceitam **data de início e data de fim**, sendo replicados em todos os dias do período.

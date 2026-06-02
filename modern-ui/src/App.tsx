@@ -205,6 +205,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.8.0": [
+    "Tarefas do Kanban agora podem ter data de início e prazo, aparecendo em todos os dias do período no calendário.",
+    "Formulário de tarefa mais enxuto: datas na mesma linha, responsável na aba Vínculos já preenchido, e compartilhar virou um botão.",
+    "Notificações de prazo corrigidas — agora são enviadas de forma nativa e confiável no Windows e no Linux.",
+    "Novo botão para testar notificações em Configurações → Atualização.",
+  ],
   "2.7.0": [
     "Eventos do calendário agora podem ter data de início e data de fim, aparecendo em todos os dias do período.",
     "Sincronização do grupo corrigida: eventos e tarefas criados por outros coordenadores não se perdem mais e aparecem de forma confiável.",

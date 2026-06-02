@@ -37,6 +37,7 @@ export type KanbanTarefa = {
   descricao: string;
   etiquetas: string[];
   responsavel: string;
+  dataInicio?: string;
   prazo: string;
   prioridade: KanbanPrioridade;
   status: KanbanStatus;
@@ -265,13 +266,21 @@ export function expandirOcorrencias(baseData: string, regra?: RecurrenceRule, li
   return ocorrencias;
 }
 
-export function duracaoEventoDias(evento: CalendarEvent) {
-  if (!evento.dataFim) return 0;
-  const inicio = parseDataLocal(evento.data);
-  const fim = parseDataLocal(evento.dataFim);
+function duracaoEmDias(inicioISO?: string, fimISO?: string) {
+  if (!inicioISO || !fimISO) return 0;
+  const inicio = parseDataLocal(inicioISO);
+  const fim = parseDataLocal(fimISO);
   if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return 0;
   const dias = Math.round((fim.getTime() - inicio.getTime()) / 86400000);
   return dias > 0 ? Math.min(dias, 366) : 0;
+}
+
+export function duracaoEventoDias(evento: CalendarEvent) {
+  return duracaoEmDias(evento.data, evento.dataFim);
+}
+
+export function duracaoTarefaDias(tarefa: KanbanTarefa) {
+  return duracaoEmDias(tarefa.dataInicio, tarefa.prazo);
 }
 
 function diasDoIntervalo(inicio: string, duracaoDias: number) {
@@ -301,19 +310,28 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
         })),
       );
     }),
-    ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prazo).flatMap((tarefa) => expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).map((data) => ({
-      id: `${tarefa.id}-${data}`,
-      origemId: tarefa.id,
-      tipo: "tarefa" as const,
-      titulo: tarefa.titulo,
-      descricao: tarefa.responsavel,
-      data,
-      cor: colunasKanbanPadrao.find((c) => c.id === tarefa.status)?.cor ?? "#2f78ff",
-      prioridade: tarefa.prioridade,
-      status: tarefa.status,
-      eventId: tarefa.eventId,
-      recorrente: Boolean(tarefa.recorrencia),
-    }))),
+    ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prazo).flatMap((tarefa) => {
+      const duracao = duracaoTarefaDias(tarefa);
+      // Cada ocorrência é ancorada no prazo (fim); o período cobre os dias
+      // de (prazo - duração) até o prazo.
+      return expandirOcorrencias(tarefa.prazo, tarefa.recorrencia).flatMap((fim) => {
+        const base = parseDataLocal(fim);
+        const inicio = chaveData(new Date(base.getFullYear(), base.getMonth(), base.getDate() - duracao));
+        return diasDoIntervalo(inicio, duracao).map((data) => ({
+          id: `${tarefa.id}-${data}`,
+          origemId: tarefa.id,
+          tipo: "tarefa" as const,
+          titulo: tarefa.titulo,
+          descricao: tarefa.responsavel,
+          data,
+          cor: colunasKanbanPadrao.find((c) => c.id === tarefa.status)?.cor ?? "#2f78ff",
+          prioridade: tarefa.prioridade,
+          status: tarefa.status,
+          eventId: tarefa.eventId,
+          recorrente: Boolean(tarefa.recorrencia),
+        }));
+      });
+    }),
   ];
 
   return itens

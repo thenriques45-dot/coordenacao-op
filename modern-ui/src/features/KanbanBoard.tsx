@@ -189,6 +189,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     descricao: "",
     etiquetas: "",
     responsavel: "",
+    dataInicio: "",
     prazo: "",
     prioridade: "media" as KanbanPrioridade,
     status: "fazer" as KanbanStatus,
@@ -370,7 +371,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
 
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
     setTarefaEditando(null);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: perfil?.displayName?.trim() || "Coordenação", dataInicio: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
     setAbaFormulario("detalhes");
     setModalNovaTarefa(true);
   }
@@ -385,6 +386,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       descricao: tarefa.descricao,
       etiquetas: tarefa.etiquetas.join(", "),
       responsavel: tarefa.responsavel,
+      dataInicio: tarefa.dataInicio ?? "",
       prazo: tarefa.prazo,
       prioridade: tarefa.prioridade,
       status: tarefa.status,
@@ -511,6 +513,8 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
     const vinculos = separarVinculos(novaTarefa.vinculo);
     const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
+    // Só guarda dataInicio se for anterior ao prazo.
+    const dataInicio = novaTarefa.dataInicio && novaTarefa.dataInicio < prazo ? novaTarefa.dataInicio : undefined;
     const agora = new Date().toISOString();
     const recorrencia = novaTarefa.repetir === "none" ? undefined : {
       frequency: novaTarefa.repetir,
@@ -525,6 +529,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
         etiquetas,
         responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+        dataInicio,
         prazo,
         prioridade: novaTarefa.prioridade,
         status: novaTarefa.status,
@@ -549,6 +554,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
       etiquetas,
       responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+      dataInicio,
       prazo,
       prioridade: novaTarefa.prioridade,
       status: novaTarefa.status,
@@ -564,7 +570,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     };
 
     setTarefas((atuais) => [tarefa, ...atuais]);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
+    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", dataInicio: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
     setDestacarAnexos(false);
     setModalNovaTarefa(false);
   }
@@ -740,14 +746,27 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                   </label>
                   <div className="kanban-form-grid">
                     <label>
-                      Responsável
-                      <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+                      Data de início (opcional)
+                      <input
+                        type="date"
+                        value={novaTarefa.dataInicio}
+                        max={novaTarefa.prazo || undefined}
+                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, dataInicio: event.target.value }))}
+                      />
                     </label>
                     <label>
-                      Prazo
-                      <input type="date" value={novaTarefa.prazo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))} />
+                      Prazo (conclusão)
+                      <input
+                        type="date"
+                        value={novaTarefa.prazo}
+                        min={novaTarefa.dataInicio || undefined}
+                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))}
+                      />
                     </label>
                   </div>
+                  {novaTarefa.dataInicio && novaTarefa.prazo && novaTarefa.dataInicio < novaTarefa.prazo && (
+                    <p className="kanban-form-hint">A tarefa aparecerá no calendário em todos os dias entre o início e o prazo.</p>
+                  )}
                   <div className="kanban-form-grid">
                     <label>
                       Status
@@ -788,22 +807,23 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                       ))}
                     </div>
                   </div>
-                  <label className="kanban-share-toggle">
-                    <input
-                      type="checkbox"
-                      checked={novaTarefa.compartilhada}
-                      onChange={(event) => setNovaTarefa((atual) => ({ ...atual, compartilhada: event.target.checked }))}
-                    />
-                    <span>
-                      <strong>Compartilhar com o grupo de trabalho</strong>
-                      <small>Quando desativado, esta tarefa fica somente nesta instalação.</small>
-                    </span>
-                  </label>
+                  <button
+                    type="button"
+                    className={`kanban-share-toggle ${novaTarefa.compartilhada ? "selected" : ""}`}
+                    onClick={() => setNovaTarefa((atual) => ({ ...atual, compartilhada: !atual.compartilhada }))}
+                  >
+                    <strong>{novaTarefa.compartilhada ? "✓ Compartilhada com o grupo de trabalho" : "Compartilhar com o grupo de trabalho"}</strong>
+                    <small>Quando desativado, a tarefa fica somente nesta instalação.</small>
+                  </button>
                 </div>
               )}
 
               {abaFormulario === "vinculos" && (
                 <div className="kanban-task-tab-panel">
+                  <label>
+                    Responsável
+                    <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+                  </label>
                   <div className="kanban-form-grid">
                     <label>
                       Evento associado

@@ -4839,22 +4839,21 @@ th:nth-child(3) {
   border: 1px solid #cfd6e3;
   border-radius: 8px;
   color: #344054;
-  display: flex;
-  gap: 10px;
-  padding: 12px;
-}
-
-.kanban-share-toggle input {
-  margin-top: 3px;
-}
-
-.kanban-share-toggle span {
+  cursor: pointer;
   display: grid;
   gap: 3px;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.kanban-share-toggle.selected {
+  background: #dff3e5;
+  border-color: #94d3aa;
+  color: #276749;
 }
 
 .kanban-share-toggle strong {
-  color: #101828;
   font-size: 13px;
 }
 
@@ -4862,6 +4861,10 @@ th:nth-child(3) {
   color: #667085;
   font-size: 12px;
   font-weight: 700;
+}
+
+.kanban-share-toggle.selected small {
+  color: #276749;
 }
 
 .kanban-file-picker {
@@ -5304,6 +5307,7 @@ th:nth-child(3) {
 
 .theme-dark .kanban-file-picker.highlight,
 .theme-dark .kanban-alert-options button.selected,
+.theme-dark .kanban-share-toggle.selected,
 .theme-dark .kanban-top-actions .secondary-action.selected,
 .theme-dark .next-date-card,
 .theme-dark .calendar-linked-tasks span,
@@ -5326,7 +5330,12 @@ th:nth-child(3) {
   color: #8b96ad;
 }
 
-.theme-dark .kanban-alert-options button.selected small {
+.theme-dark .kanban-alert-options button.selected small,
+.theme-dark .kanban-share-toggle.selected small {
+  color: #cfe7ff;
+}
+
+.theme-dark .kanban-share-toggle.selected strong {
   color: #cfe7ff;
 }
 

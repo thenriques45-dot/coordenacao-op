@@ -576,10 +576,11 @@ dependencies = [
 
 [[package]]
 name = "coordenacaoop"
-version = "2.7.0"
+version = "2.8.0"
 dependencies = [
  "calamine",
  "chrono",
+ "notify-rust",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

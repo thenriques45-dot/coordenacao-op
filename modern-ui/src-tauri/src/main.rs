@@ -879,6 +879,38 @@ fn verificar_atualizacao() -> Result<AtualizacaoInfo, String> {
     verificar_atualizacao_interno().map_err(|err| err.to_string())
 }
 
+/// Envia uma notificação nativa do sistema diretamente pelo backend.
+///
+/// Evita a API web `window.Notification` (instável no WebKitGTK do Linux e no
+/// WebView2 do Windows). Também não usa o `.show()` do plugin, que dispara a
+/// notificação dentro do runtime async e descarta o erro — no Linux o
+/// `zbus::blocking` (usado pelo notify-rust) falha de forma intermitente quando
+/// chamado de dentro do Tokio. Aqui rodamos o `show()` numa thread OS dedicada,
+/// sem runtime async no caminho, e propagamos o erro real.
+#[tauri::command]
+fn enviar_notificacao(titulo: String, corpo: String) -> Result<(), String> {
+    std::thread::spawn(move || {
+        let mut notificacao = notify_rust::Notification::new();
+        notificacao.summary(&titulo).body(&corpo);
+        // O appname padrão do notify-rust é o nome do binário ("coordenacaoop").
+        // Em algumas versões do GNOME esse nome casa com um .desktop quebrado da
+        // integração do AppImage e as notificações são silenciosamente descartadas.
+        // Usar o nome de exibição evita essa colisão.
+        notificacao.appname("CoordenacaoOP");
+        #[cfg(target_os = "windows")]
+        {
+            // AppUserModelID registrado pelo instalador, necessário para o toast.
+            notificacao.app_id("br.gov.sp.educacao.coordenacaoop");
+        }
+        notificacao
+            .show()
+            .map(|_| ())
+            .map_err(|err| err.to_string())
+    })
+    .join()
+    .map_err(|_| "Falha ao executar a thread de notificação.".to_string())?
+}
+
 #[tauri::command]
 fn abrir_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
@@ -7286,6 +7318,7 @@ fn main() {
             analisar_diagnostico_aprendizagem,
             aplicar_diagnostico_aprendizagem,
             verificar_atualizacao,
+            enviar_notificacao,
             diagnosticar_ia_local,
             iniciar_ollama_local,
             baixar_modelo_ia_local,

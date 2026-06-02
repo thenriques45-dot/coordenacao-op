@@ -1,4 +1,4 @@
-import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
+import { invokeApp, tauriDisponivel } from "./appBridge";
 import { carregarTarefasKanban, chaveData, KANBAN_UPDATED_EVENT, parseDataLocal, salvarTarefasKanban, type KanbanTarefa } from "./management";
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
@@ -19,13 +19,9 @@ function rotuloAlerta(diasAntes: number) {
   return `vence em ${diasAntes} dias`;
 }
 
-async function garantirPermissaoNotificacao() {
-  let permissao = await isPermissionGranted();
-  if (!permissao) {
-    const resposta = await requestPermission();
-    permissao = resposta === "granted";
-  }
-  return permissao;
+async function enviarNotificacao(titulo: string, corpo: string) {
+  if (!tauriDisponivel) return;
+  await invokeApp("enviar_notificacao", { titulo, corpo });
 }
 
 function alertasPendentes(tarefa: KanbanTarefa, hoje: Date) {
@@ -47,29 +43,35 @@ export async function verificarAlertasTarefas() {
       .filter((item) => item.alertas.length > 0);
 
     if (!tarefasComAlertas.length) return;
-    const podeNotificar = await garantirPermissaoNotificacao();
-    if (!podeNotificar) return;
 
     const hojeChave = chaveData(hoje);
-    const atualizadas = tarefas.map((tarefa) => {
-      const item = tarefasComAlertas.find((entrada) => entrada.tarefa.id === tarefa.id);
-      if (!item) return tarefa;
 
-      const alertasDisparados = new Set(item.alertas.map((alerta) => alerta.diasAntes));
-      const menorPrazo = Math.min(...item.alertas.map((alerta) => alerta.diasAntes));
+    // Envia as notificações nativas (via backend) e registra quais foram entregues.
+    const notificadas = new Set<string>();
+    for (const { tarefa, alertas } of tarefasComAlertas) {
+      const menorPrazo = Math.min(...alertas.map((alerta) => alerta.diasAntes));
       try {
-        sendNotification({
-          title: "Prazo de tarefa",
-          body: `${tarefa.titulo} ${rotuloAlerta(menorPrazo)}.`,
-        });
+        await enviarNotificacao("Prazo de tarefa", `${tarefa.titulo} ${rotuloAlerta(menorPrazo)}.`);
+        notificadas.add(tarefa.id);
       } catch {
-        return tarefa;
+        // Se falhar, não marca como disparado; tenta de novo no próximo ciclo.
       }
+    }
 
+    if (notificadas.size === 0) return;
+
+    const disparadosPorTarefa = new Map(
+      tarefasComAlertas
+        .filter((item) => notificadas.has(item.tarefa.id))
+        .map((item) => [item.tarefa.id, new Set(item.alertas.map((alerta) => alerta.diasAntes))]),
+    );
+    const atualizadas = tarefas.map((tarefa) => {
+      const disparados = disparadosPorTarefa.get(tarefa.id);
+      if (!disparados) return tarefa;
       return {
         ...tarefa,
         alertas: (tarefa.alertas ?? []).map((alerta) =>
-          alertasDisparados.has(alerta.diasAntes) && alerta.ativo && !alerta.disparadoEm
+          disparados.has(alerta.diasAntes) && alerta.ativo && !alerta.disparadoEm
             ? { ...alerta, disparadoEm: hojeChave }
             : alerta
         ),
