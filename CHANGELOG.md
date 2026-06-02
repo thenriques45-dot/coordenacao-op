@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.9.0 - Bandeja do sistema e início automático com o Windows
+
+- O aplicativo agora vai para a **bandeja do sistema** ao fechar a janela, em vez de encerrar. As notificações de prazo das tarefas continuam funcionando mesmo com a janela fechada.
+- Ícone na bandeja com menu de contexto: **Abrir** (restaura a janela) e **Sair** (encerra o aplicativo).
+- Clique com o botão esquerdo no ícone da bandeja também reabre a janela.
+- Nova opção em **Configurações → Atualização**: ativar ou desativar o **início automático com o Windows**, gravado no registro do sistema.
+
 ## v2.8.0 - Tarefas com período, formulário mais enxuto e correção das notificações
 
 - Tarefas do Kanban agora aceitam **data de início e prazo**, sendo exibidas em todos os dias do período no calendário.

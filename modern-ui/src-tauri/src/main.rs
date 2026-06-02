@@ -13,6 +13,11 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    Manager,
+};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 #[derive(Serialize)]
@@ -7301,6 +7306,53 @@ fn main() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .setup(|app| {
+            let abrir = MenuItem::with_id(app, "abrir", "Abrir", true, None::<&str>)?;
+            let sair = MenuItem::with_id(app, "sair", "Sair", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&abrir, &sair])?;
+
+            TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .tooltip("CoordenacaoOP")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(janela) = app.get_webview_window("main") {
+                            let _ = janela.show();
+                            let _ = janela.set_focus();
+                        }
+                    }
+                })
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "abrir" => {
+                        if let Some(janela) = app.get_webview_window("main") {
+                            let _ = janela.show();
+                            let _ = janela.set_focus();
+                        }
+                    }
+                    "sair" => app.exit(0),
+                    _ => {}
+                })
+                .build(app)?;
+
+            Ok(())
+        })
+        .on_window_event(|janela, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                janela.hide().unwrap();
+                api.prevent_close();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             app_info,
             carregar_configuracoes,

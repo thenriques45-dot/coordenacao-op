@@ -1,3 +1,4 @@
+import { enable as autostartEnable, disable as autostartDisable, isEnabled as autostartIsEnabled } from "@tauri-apps/plugin-autostart";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
@@ -118,6 +119,7 @@ export function Configuracoes({
   const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
   const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
+  const [autostartAtivo, setAutostartAtivo] = useState(false);
   const ciclosExistentes = useMemo(() => {
     const ciclos = Array.from(new Set(turmas.map((turma) => turma.ciclo || "Sem ciclo").filter(Boolean)));
     return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
@@ -130,6 +132,9 @@ export function Configuracoes({
     invokeApp<AppInfo>("app_info")
       .then(setAppInfo)
       .catch(() => setAppInfo(null));
+    if (tauriDisponivel) {
+      autostartIsEnabled().then(setAutostartAtivo).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -269,6 +274,22 @@ export function Configuracoes({
       setMensagem("Notificação enviada (pode levar alguns segundos para aparecer). Se não surgir, verifique nas configurações do sistema se as notificações estão ativadas para o aplicativo.");
     } catch (err) {
       setErro(`Não foi possível enviar a notificação: ${String(err)}`);
+    }
+  }
+
+  async function alternarAutostart() {
+    setErro("");
+    try {
+      if (autostartAtivo) {
+        await autostartDisable();
+      } else {
+        await autostartEnable();
+      }
+      const ativo = await autostartIsEnabled();
+      setAutostartAtivo(ativo);
+      setMensagem(ativo ? "Aplicativo configurado para iniciar com o Windows." : "Início automático desativado.");
+    } catch (err) {
+      setErro(`Não foi possível alterar o início automático: ${String(err)}`);
     }
   }
 
@@ -860,6 +881,17 @@ export function Configuracoes({
           {atualizacao && <span className="settings-version">Disponível: {atualizacao.version}</span>}
           <p style={{ marginTop: "1rem" }}>Notificações de prazo das tarefas do Kanban.</p>
           <button onClick={testarNotificacao} disabled={!tauriDisponivel}>Testar notificação</button>
+          <p style={{ marginTop: "1rem" }}>Inicialização e bandeja do sistema.</p>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={autostartAtivo}
+              onChange={alternarAutostart}
+              disabled={!tauriDisponivel}
+            />
+            Iniciar com o Windows e minimizar para a bandeja ao fechar
+          </label>
+          <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo na bandeja para continuar enviando notificações.</span>
         </article>
         )}
         </div>
