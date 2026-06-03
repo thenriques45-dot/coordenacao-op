@@ -332,6 +332,61 @@ h3 {
   margin-top: 32px;
 }
 
+.foto-aluno {
+  align-items: center;
+  background: #eef1f6;
+  border: 1px solid #dde3ec;
+  border-radius: 10px;
+  display: inline-flex;
+  flex-shrink: 0;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+}
+
+.foto-aluno img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.foto-aluno-vazia {
+  color: #98a2b3;
+}
+
+.foto-aluno-add {
+  border-style: dashed;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.foto-aluno-add:hover:not(:disabled) {
+  background: #e6ecf6;
+  border-color: #9db4d8;
+  color: #5b7bb0;
+}
+
+.foto-aluno-add:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.theme-dark .foto-aluno {
+  background: #2e2e38;
+  border-color: #3c3c46;
+}
+
+.theme-dark .foto-aluno-vazia {
+  color: #5c6678;
+}
+
+.theme-dark .foto-aluno-add:hover:not(:disabled) {
+  background: #353541;
+  border-color: #51617e;
+  color: #8aa3cc;
+}
+
 .metric-card {
   background: #ffffff;
   border: 1px solid #dde3ec;
@@ -723,6 +778,10 @@ h3 {
 .council-summary-panel {
   margin-top: 28px;
   padding-bottom: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
 }
 
 .council-documents-panel {
@@ -773,8 +832,7 @@ h3 {
 }
 
 .summary-selector {
-  border-bottom: 1px solid #e5ebef;
-  padding-bottom: 24px;
+  flex: 0 0 240px;
 }
 
 .summary-selector label {
@@ -809,7 +867,9 @@ h3 {
 .council-metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-top: 24px;
+  flex: 1;
+  min-width: 360px;
+  margin-top: 0;
 }
 
 .council-metric {

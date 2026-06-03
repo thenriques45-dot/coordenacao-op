@@ -1,5 +1,6 @@
-import { BarChart3, Check, Upload } from "lucide-react";
+import { BarChart3, Check, ImagePlus, Upload } from "lucide-react";
 import { Fragment, useState } from "react";
+import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
 import { normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
 import { carregarPerfilSincronizacao } from "./workgroupSync";
@@ -108,10 +109,12 @@ export function ImportarDados({
   onImportarNotas,
   onImportarElegiveis,
   onImportarDiagnostico,
+  onImportarFotos,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
   onImportarDiagnostico: () => void;
+  onImportarFotos: () => void;
 }) {
   return (
     <>
@@ -145,6 +148,124 @@ export function ImportarDados({
             <span>Leia a planilha de Português e Matemática com aprendizagem equivalente e status.</span>
           </div>
         </button>
+        <button type="button" className="import-menu-card" onClick={onImportarFotos}>
+          <ImagePlus size={24} />
+          <div>
+            <strong>Importar fotos dos alunos</strong>
+            <span>Carregue um arquivo .zip ou .7z por turma (nomeado pela turma) com as fotos dos alunos.</span>
+          </div>
+        </button>
+      </section>
+    </>
+  );
+}
+
+type ResultadoImportacaoFotos = {
+  turma: string;
+  turma_encontrada: boolean;
+  total: number;
+  casados: number;
+  nao_encontrados: string[];
+  ambiguos: string[];
+  arquivos_no_pacote: string[];
+};
+
+type ResultadoArquivoFotos = { nome: string; resultado: ResultadoImportacaoFotos | null; erro?: string };
+
+export function ImportarFotos() {
+  const [resultados, setResultados] = useState<ResultadoArquivoFotos[]>([]);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function selecionarArquivos() {
+    setErro("");
+    let selecao: string | string[] | null = null;
+    try {
+      selecao = await abrirDialogoArquivo({
+        multiple: true,
+        filters: [{ name: "Arquivos compactados", extensions: ["zip", "7z"] }],
+      });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    if (!selecao) return;
+    const caminhos = Array.isArray(selecao) ? selecao : [selecao];
+    if (caminhos.length === 0) return;
+
+    setProcessando(true);
+    const saida: ResultadoArquivoFotos[] = [];
+    for (const caminho of caminhos) {
+      const nome = caminho.split(/[\\/]/).pop() ?? caminho;
+      try {
+        const resultado = await invokeApp<ResultadoImportacaoFotos>("importar_fotos_turma", {
+          input: { caminho },
+        });
+        saida.push({ nome, resultado });
+      } catch (e) {
+        saida.push({ nome, resultado: null, erro: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    setResultados(saida);
+    setProcessando(false);
+  }
+
+  const totalCasados = resultados.reduce((acc, r) => acc + (r.resultado?.casados ?? 0), 0);
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Importar fotos dos alunos</h1>
+          <p>Um arquivo <strong>.zip</strong> ou <strong>.7z</strong> por turma. O nome do arquivo identifica a turma (ex.: <em>6B.zip</em>); dentro, as fotos têm o nome dos alunos (primeiro nome, ou nome e sobrenome quando há repetição).</p>
+        </div>
+      </header>
+
+      <section className="import-notes-panel">
+        <div className="import-notes-controls">
+          <button type="button" className="file-picker-button" disabled={processando} onClick={selecionarArquivos}>
+            <Upload size={16} /> {processando ? "Importando..." : "Selecionar arquivos (.zip / .7z)"}
+          </button>
+          {resultados.length > 0 && (
+            <span className="import-file-summary">{totalCasados} foto(s) vinculada(s) em {resultados.length} arquivo(s).</span>
+          )}
+        </div>
+
+        {erro && <div className="notice error">{erro}</div>}
+
+        {resultados.map(({ nome, resultado, erro: erroArq }, i) => (
+          <div key={i} className="import-diagnostics" style={{ background: "transparent", border: "1px solid var(--border)", color: "inherit" }}>
+            <strong>{nome}</strong>
+            {erroArq ? (
+              <span style={{ color: "var(--danger, #ef4444)" }}>{erroArq}</span>
+            ) : !resultado?.turma_encontrada ? (
+              <span>Turma não encontrada no programa (verifique se o nome do arquivo corresponde a uma turma, ex.: 6B).</span>
+            ) : (
+              <>
+                <span>Turma <strong>{resultado.turma}</strong>: {resultado.casados} de {resultado.total} foto(s) vinculada(s).</span>
+                {resultado.nao_encontrados.length > 0 && (
+                  <span>Sem aluno correspondente: {resultado.nao_encontrados.join(", ")}</span>
+                )}
+                {resultado.ambiguos.length > 0 && (
+                  <span>Nome ambíguo (use nome e sobrenome): {resultado.ambiguos.join(", ")}</span>
+                )}
+                {resultado.total === 0 && (
+                  resultado.arquivos_no_pacote.length > 0 ? (
+                    <span style={{ color: "var(--danger, #ef4444)" }}>
+                      Nenhuma imagem reconhecida. Arquivos no pacote: {resultado.arquivos_no_pacote.slice(0, 15).join(", ")}
+                      {resultado.arquivos_no_pacote.length > 15 ? ` e mais ${resultado.arquivos_no_pacote.length - 15}` : ""}
+                    </span>
+                  ) : (
+                    <span style={{ color: "var(--danger, #ef4444)" }}>
+                      O pacote foi aberto, mas nenhum arquivo foi encontrado dentro dele.
+                    </span>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        ))}
       </section>
     </>
   );

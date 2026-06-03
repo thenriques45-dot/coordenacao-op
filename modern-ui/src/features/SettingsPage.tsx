@@ -262,21 +262,6 @@ export function Configuracoes({
     }
   }
 
-  async function testarNotificacao() {
-    setMensagem("");
-    setErro("");
-    try {
-      const horario = new Date().toLocaleTimeString("pt-BR");
-      await invokeApp("enviar_notificacao", {
-        titulo: `Teste de notificação · ${horario}`,
-        corpo: "Os alertas de prazo das tarefas estão funcionando.",
-      });
-      setMensagem("Notificação enviada (pode levar alguns segundos para aparecer). Se não surgir, verifique nas configurações do sistema se as notificações estão ativadas para o aplicativo.");
-    } catch (err) {
-      setErro(`Não foi possível enviar a notificação: ${String(err)}`);
-    }
-  }
-
   async function alternarAutostart() {
     setErro("");
     try {
@@ -879,8 +864,6 @@ export function Configuracoes({
             <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
           )}
           {atualizacao && <span className="settings-version">Disponível: {atualizacao.version}</span>}
-          <p style={{ marginTop: "1rem" }}>Notificações de prazo das tarefas do Kanban.</p>
-          <button onClick={testarNotificacao} disabled={!tauriDisponivel}>Testar notificação</button>
           <p style={{ marginTop: "1rem" }}>Inicialização e bandeja do sistema.</p>
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
             <input

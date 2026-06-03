@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.10.1 - Fotos dos alunos
+
+### Importador de fotos dos alunos (nova função)
+- Nova tela **Importar Fotos dos Alunos**: um arquivo **.zip** ou **.7z** por turma (o nome do arquivo identifica a turma, ex.: `6B.zip`), com as fotos nomeadas pelo primeiro nome do aluno (ou nome e sobrenome quando há repetição).
+- As fotos são exibidas **quadradas** (corte central) com opção de **reposicionar** o enquadramento. Aparecem **acima do nome** na tela de conselho e **ao lado do nome** na tela do aluno.
+- Suporte amplo de formatos: **JPG, PNG, WEBP, GIF, BMP** e **RAW da câmera (CR2/NEF/ARW)**, do qual é extraído o preview JPEG embutido. Fotos **HEIC/HEIF** (iPhone) são detectadas com aviso para converter para JPG.
+- **Seleção manual:** alunos sem foto podem receber uma imagem do computador com um clique; fotos já vinculadas podem ser trocadas pelo modal de reposicionamento — útil quando o nome do arquivo difere do cadastro.
+- As fotos ficam dentro de `dados/` e são **sincronizáveis com o grupo de trabalho**: a sincronização une as fotos de cada aparelho sem sobrescrever as que só existem localmente.
+
+### Correções e ajustes de interface
+- Telas de **PEI** e **Planejamento**: a janela de configuração agora sempre pode ser fechada (X, botão Fechar e clique fora), evitando travamento quando ainda não há links configurados.
+- Tela de **conselho**: seletor de bimestre e métricas reorganizados na mesma linha; foto do aluno ampliada.
+- Removidos itens provisórios: a área temporária da tela de fotos e o botão "Testar notificação" das Configurações.
+
 ## v2.10.0 - Planejamento dos Professores, relatórios de pendências e melhorias
 
 ### Planejamento dos Professores (nova função)

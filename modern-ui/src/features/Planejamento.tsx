@@ -292,16 +292,14 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
       </header>
 
       {configAberta && (
-        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget && urlsDaConfig(config).length) setConfigAberta(false); }}>
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setConfigAberta(false); }}>
           <section className="whats-new-modal" role="dialog" aria-modal="true" style={{ maxWidth: "820px", width: "92vw", maxHeight: "88vh", overflowY: "auto", textAlign: "left" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
               <div>
                 <span className="eyebrow">Planejamento</span>
                 <h2 style={{ margin: "0.15rem 0 0" }}>Configurar planilhas de respostas</h2>
               </div>
-              {urlsDaConfig(config).length > 0 && (
-                <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)} style={{ marginTop: "0.25rem" }}><X size={16} /></button>
-              )}
+              <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)} style={{ marginTop: "0.25rem" }} title="Fechar"><X size={16} /></button>
             </div>
 
             <p style={{ marginBottom: "1rem" }}>
@@ -376,6 +374,7 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
             {erro && <div className="notice error" style={{ marginBottom: "0.5rem" }}>{erro}</div>}
 
             <div className="modal-actions" style={{ marginTop: "0.5rem", gap: "0.6rem" }}>
+              <button onClick={() => setConfigAberta(false)}>Fechar</button>
               <button onClick={() => salvarConfig().then(() => setStatusScript("Configuração salva.")).catch((e) => setErro(String(e)))}>Salvar</button>
               <button className="primary-action" onClick={carregarPlanejamentos} disabled={carregando}>
                 <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar planejamentos"}

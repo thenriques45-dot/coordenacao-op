@@ -10,6 +10,7 @@ import {
 } from "./aiAssistant";
 import { TaskLinkList } from "./Dashboard";
 import { invokeApp, tauriDisponivel } from "./appBridge";
+import { FotoAluno } from "./StudentPhoto";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -868,9 +869,12 @@ function AlunoDetalheGestao({
     <section className="panel student-profile-panel">
       <button className="back-link student-profile-back" onClick={onVoltar}>← Voltar para alunos</button>
       <header className="student-profile-header">
-        <div>
-          <h2>{aluno.nome}</h2>
-          <p>RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem" }}>
+          <FotoAluno matricula={aluno.matricula} tamanho={64} />
+          <div>
+            <h2>{aluno.nome}</h2>
+            <p>RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}</p>
+          </div>
         </div>
         <div className="student-profile-actions">
           {(podeGerarRelatorioIa || podeUsarPromptManual) && (

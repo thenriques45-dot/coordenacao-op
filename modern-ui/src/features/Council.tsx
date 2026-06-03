@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
+import { FotoAluno } from "./StudentPhoto";
 
 type NotaBimestre = {
   bimestre: string;
@@ -606,7 +607,8 @@ export function Council({
         <section className="panel council-detail-panel">
           <div className="student-detail-header">
             <div>
-              <div className="student-name">
+              <FotoAluno matricula={aluno.matricula} tamanho={114} />
+              <div className="student-name" style={{ marginTop: "0.6rem" }}>
                 {aluno.elegivel && <span className="eligible-badge">ALUNO ELEGÍVEL</span>}
                 <h2>{aluno.nome}</h2>
               </div>

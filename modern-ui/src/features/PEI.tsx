@@ -353,7 +353,7 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
 
       {/* Diálogo modal de configuração e tutorial */}
       {configAberta && (
-        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget && url) setConfigAberta(false); }}>
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setConfigAberta(false); }}>
           <section
             className="whats-new-modal"
             role="dialog"
@@ -365,11 +365,9 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
                 <span className="eyebrow">PEI</span>
                 <h2 style={{ margin: "0.15rem 0 0" }}>Configurar planilha de respostas</h2>
               </div>
-              {url && (
-                <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)} style={{ marginTop: "0.25rem" }}>
-                  <X size={16} />
-                </button>
-              )}
+              <button type="button" className="ghost-action" onClick={() => setConfigAberta(false)} style={{ marginTop: "0.25rem" }} title="Fechar">
+                <X size={16} />
+              </button>
             </div>
 
             <p style={{ marginBottom: "1rem" }}>
@@ -465,9 +463,7 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
             </div>
 
             <div className="modal-actions" style={{ marginTop: "0.5rem" }}>
-              {url && (
-                <button onClick={() => setConfigAberta(false)}>Fechar</button>
-              )}
+              <button onClick={() => setConfigAberta(false)}>Fechar</button>
             </div>
           </section>
         </div>
