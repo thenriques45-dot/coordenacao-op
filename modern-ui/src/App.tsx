@@ -40,6 +40,7 @@ import { ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarNotas } 
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
+import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes } from "./features/SettingsPage";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -53,7 +54,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "pei" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
@@ -832,7 +833,7 @@ export function App() {
               </div>
             )}
           </div>
-          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas" || tela === "pei"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas" || tela === "pei" || tela === "planejamento"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -980,12 +981,14 @@ export function App() {
             onAbrirCriticos={() => navegarPara("relatorio-criticos")}
             onAbrirAlteracoesNotas={() => navegarPara("relatorio-alteracoes-notas")}
             onAbrirPei={() => navegarPara("pei")}
+            onAbrirPlanejamento={() => navegarPara("planejamento")}
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && <Placeholder tela={tela} />}
+        {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1205,6 +1208,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     "relatorio-criticos": "Relatório de Alunos Críticos",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
     pei: "PEI — Plano Educacional Individualizado",
+    planejamento: "Planejamento dos Professores",
     configuracoes: "Configurações",
   };
 

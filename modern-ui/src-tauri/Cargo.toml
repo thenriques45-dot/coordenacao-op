@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "2.9.0"
+version = "2.10.0"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
@@ -22,4 +22,5 @@ tauri-plugin-process = "2.3.1"
 tauri-plugin-notification = "2.3.1"
 tauri-plugin-dialog = "2.4.1"
 tauri-plugin-autostart = "2"
+tauri-plugin-single-instance = "2"
 notify-rust = "4"

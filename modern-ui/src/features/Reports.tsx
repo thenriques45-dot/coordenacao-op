@@ -43,10 +43,12 @@ export function RelatoriosMenu({
   onAbrirCriticos,
   onAbrirAlteracoesNotas,
   onAbrirPei,
+  onAbrirPlanejamento,
 }: {
   onAbrirCriticos: () => void;
   onAbrirAlteracoesNotas: () => void;
   onAbrirPei: () => void;
+  onAbrirPlanejamento: () => void;
 }) {
   return (
     <section className="reports-page">
@@ -78,6 +80,13 @@ export function RelatoriosMenu({
           <div>
             <strong>PEI — Plano Educacional Individualizado</strong>
             <span>Acompanhe os planos enviados pelos professores e gere documentos por aluno elegível.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirPlanejamento}>
+          <FileText size={26} />
+          <div>
+            <strong>Planejamento dos Professores</strong>
+            <span>Acompanhe os planos de ensino enviados pelos professores por turma, disciplina e bimestre.</span>
           </div>
         </button>
       </section>

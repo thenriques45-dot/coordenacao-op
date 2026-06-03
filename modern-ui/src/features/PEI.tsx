@@ -1,4 +1,4 @@
-import { BookMarked, FileText, FolderOpen, RefreshCw, Settings, X } from "lucide-react";
+import { BookMarked, ClipboardList, FileText, FolderOpen, RefreshCw, Settings, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -136,6 +136,7 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
   const [gerando, setGerando] = useState(false);
   const [statusGeracao, setStatusGeracao] = useState("");
   const [pastaGeral, setPastaGeral] = useState("");
+  const [gerandoPend, setGerandoPend] = useState(false);
 
   // Carrega URL salva em disco (inclusa no sync institucional) com fallback para localStorage.
   useEffect(() => {
@@ -245,6 +246,57 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
       .finally(() => setGerando(false));
   }
 
+  // Relatório de pendências: por aluno elegível, disciplinas sem PEI até o
+  // bimestre atual (mesmo critério do indicador da lista).
+  async function gerarRelatorioPendencias() {
+    if (alunosElegiveis.length === 0) {
+      setErroPeiAbrir("Importe o mapão e os elegíveis antes de gerar o relatório.");
+      return;
+    }
+    setGerandoPend(true);
+    setErroPeiAbrir("");
+    try {
+      const secoes = alunosElegiveis
+        .map((aluno) => {
+          const peis = registrosPorAluno.get(normalizarNome(aluno.nome)) ?? [];
+          const bimAtual = bimestreAtualDoAluno(aluno);
+          const aVerificar = BIMESTRES_ORDEM.slice(0, BIMESTRES_ORDEM.indexOf(bimAtual) + 1);
+          const porDisc = new Map<string, { nome: string; faltam: string[] }>();
+          for (const b of aVerificar) {
+            for (const disc of aluno.disciplinas_por_bimestre[b] ?? []) {
+              const chave = normalizarDisciplina(disc);
+              const temPei = peis.some((r) => r.bimestre === b && normalizarDisciplina(r.disciplina) === chave);
+              if (!temPei) {
+                const reg = porDisc.get(chave) ?? { nome: disc, faltam: [] };
+                reg.faltam.push(b);
+                porDisc.set(chave, reg);
+              }
+            }
+          }
+          const linhas = Array.from(porDisc.values())
+            .map((d) => ({ item: d.nome, faltam: d.faltam.map((b) => `${b}º`).join(", ") }))
+            .sort((a, b) => a.item.localeCompare(b.item, "pt-BR"));
+          return { titulo: `${aluno.turma} — ${aluno.nome}`, linhas };
+        })
+        .filter((s) => s.linhas.length > 0);
+
+      const res = await invokeApp<{ caminho: string }>("gerar_relatorio_pendencias", {
+        input: {
+          titulo: "PENDÊNCIAS — PEI",
+          criterio: "Lista, por aluno elegível, as disciplinas sem PEI recebido até o bimestre atual (o primeiro sem médias importadas no mapão).",
+          coluna_item: "Disciplina",
+          escopo: "pei",
+          secoes,
+        },
+      });
+      await invokeApp("abrir_documento_conselho", { input: { caminho: res.caminho } }).catch(() => {});
+    } catch (err) {
+      setErroPeiAbrir(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGerandoPend(false);
+    }
+  }
+
   const totalPeis = useMemo(() => {
     return alunosElegiveis.reduce((total, aluno) => {
       const n = (registrosPorAluno.get(normalizarNome(aluno.nome)) ?? []).length;
@@ -276,6 +328,12 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
             <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>
               {statusGeracao}
             </span>
+          )}
+          {alunosElegiveis.length > 0 && (
+            <button onClick={gerarRelatorioPendencias} disabled={gerandoPend} title="Gerar relatório dos PEIs que faltam">
+              <ClipboardList size={18} />
+              {gerandoPend ? "Gerando…" : "Pendências"}
+            </button>
           )}
           {pastaGeral && (
             <button

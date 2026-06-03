@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.10.0 - Planejamento dos Professores, relatórios de pendências e melhorias
+
+### Planejamento dos Professores (nova função)
+- Nova tela **Planejamento dos Professores** na Central de Relatórios, ao lado do PEI. Acompanha, por turma, quais professores entregaram o Plano de Ensino em cada disciplina e bimestre.
+- A lista de **turmas** vem do próprio programa e a lista de **disciplinas** vem dos mapões importados — assim fica fácil ver quem entregou (ícone de documento) e quem não entregou (—).
+- Os planejamentos são coletados por um **formulário Google Forms padronizado**, gerado por um script oficial embutido no aplicativo (Fundamental e Médio). A tela de configuração traz o passo a passo e botões para copiar cada script.
+- Suporta **duas planilhas por segmento** (1º e 2º semestre) e os dois segmentos (Fundamental e Médio); cada escola preenche apenas os links que utiliza.
+- O **Plano de Ensino** é gerado em DOCX com o cabeçalho institucional configurado, turmas atendidas, ano letivo e os campos do Currículo Priorizado (unidade temática, objetos de conhecimento, habilidades, estratégias, recursos, avaliação, adaptação curricular).
+
+### Relatório de pendências (PEI e Planejamento)
+- Botão **Pendências** nas telas de PEI e Planejamento gera um relatório DOCX organizado indicando o que falta entregar — por aluno (PEI) ou por turma (Planejamento), com as disciplinas e bimestres pendentes.
+
+### Sincronização e rastreabilidade de notas
+- **Sincronização inteligente:** a sincronização institucional agora faz mesclagem por campo em vez de substituição total. Notas e elegibilidade obedecem sempre à edição mais recente, e turmas criadas localmente não se perdem mais ao sincronizar com um dispositivo desatualizado.
+- **Rastreabilidade de notas:** a importação de mapão registra quem importou e quando; ao passar o mouse sobre a nota, o app mostra o autor e a data da importação.
+
+### Correções e ajustes de interface
+- Instância única: ao relançar o app pelo ícone com ele na bandeja, a janela existente é focada em vez de abrir uma nova instância.
+- Formulários de tarefa e evento: corrigido o negrito excessivo dos campos e a legibilidade dos rótulos no tema escuro.
+- Campo **Vínculos** reformulado com seleção por tags e lista filtrável.
+- Tema escuro da tela de importação corrigido (avisos e linhas de erro).
+- Após importar notas, a tela da turma aberta é atualizada automaticamente.
+
 ## v2.9.0 - Bandeja do sistema e início automático com o Windows
 
 - O aplicativo agora vai para a **bandeja do sistema** ao fechar a janela, em vez de encerrar. As notificações de prazo das tarefas continuam funcionando mesmo com a janela fechada.
