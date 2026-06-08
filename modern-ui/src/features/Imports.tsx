@@ -1,4 +1,4 @@
-import { BarChart3, Check, ImagePlus, Upload } from "lucide-react";
+import { BarChart3, Check, ImagePlus, Upload, Users } from "lucide-react";
 import { Fragment, useState } from "react";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
@@ -110,11 +110,13 @@ export function ImportarDados({
   onImportarElegiveis,
   onImportarDiagnostico,
   onImportarFotos,
+  onImportarAlunosLote,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
   onImportarDiagnostico: () => void;
   onImportarFotos: () => void;
+  onImportarAlunosLote: () => void;
 }) {
   return (
     <>
@@ -153,6 +155,13 @@ export function ImportarDados({
           <div>
             <strong>Importar fotos dos alunos</strong>
             <span>Carregue um arquivo .zip ou .7z por turma (nomeado pela turma) com as fotos dos alunos.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarAlunosLote}>
+          <Users size={24} />
+          <div>
+            <strong>Atualizar turmas em lote</strong>
+            <span>Carregue vários CSVs de alunos da SED de uma vez; o app identifica a turma pelos RAs e atualiza status e novos alunos.</span>
           </div>
         </button>
       </section>
@@ -266,6 +275,183 @@ export function ImportarFotos() {
             )}
           </div>
         ))}
+      </section>
+    </>
+  );
+}
+
+type PreviaLoteArquivo = {
+  nome_arquivo: string;
+  turma_codigo: string | null;
+  turma_caminho: string | null;
+  confianca: number;
+  total: number;
+  correspondencias: number;
+  novos: number;
+  atualizados: number;
+  inativados: number;
+  identificada: boolean;
+};
+
+type ResultadoLoteArquivo = {
+  turma_caminho: string;
+  turma_codigo: string;
+  novos: number;
+  atualizados: number;
+  inativados: number;
+};
+
+type ItemLote = { previa: PreviaLoteArquivo; alunos: NovoAlunoPayload[] };
+
+export function ImportarAlunosLote({ onAplicado }: { onAplicado: () => void }) {
+  const [itens, setItens] = useState<ItemLote[]>([]);
+  const [resultados, setResultados] = useState<ResultadoLoteArquivo[] | null>(null);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function selecionarArquivos(lista: FileList | null) {
+    if (!lista || lista.length === 0) return;
+    setErro("");
+    setResultados(null);
+    setProcessando(true);
+    try {
+      const arquivos: { nome_arquivo: string; alunos: NovoAlunoPayload[] }[] = [];
+      for (const arquivo of Array.from(lista)) {
+        const texto = await arquivo.text();
+        const alunos = parseCsvAlunos(texto);
+        if (alunos.length) arquivos.push({ nome_arquivo: arquivo.name, alunos });
+      }
+      if (!arquivos.length) {
+        throw new Error("Nenhum aluno válido encontrado nos arquivos selecionados.");
+      }
+      const previas = await invokeApp<PreviaLoteArquivo[]>("analisar_lote_alunos", { arquivos });
+      setItens(previas.map((previa, indice) => ({ previa, alunos: arquivos[indice].alunos })));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setItens([]);
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function aplicar() {
+    const aplicaveis = itens.filter((item) => item.previa.identificada && item.previa.turma_caminho);
+    if (!aplicaveis.length) return;
+    setProcessando(true);
+    setErro("");
+    try {
+      const lote = aplicaveis.map((item) => ({
+        turma_caminho: item.previa.turma_caminho as string,
+        alunos: item.alunos,
+      }));
+      const res = await invokeApp<ResultadoLoteArquivo[]>("aplicar_lote_alunos", { itens: lote });
+      setResultados(res);
+      setItens([]);
+      onAplicado();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  const identificadas = itens.filter((item) => item.previa.identificada).length;
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Atualizar turmas em lote</h1>
+          <p>
+            Selecione vários CSVs de alunos da SED. O app identifica a turma de cada arquivo
+            pelos RAs, atualiza a situação (ativo/inativo) e adiciona alunos novos. Notas já
+            lançadas são preservadas.
+          </p>
+        </div>
+      </header>
+
+      <section className="panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <label className="file-picker-button" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
+          <Upload size={18} />
+          <span>Selecionar CSVs</span>
+          <input
+            type="file"
+            accept=".csv"
+            multiple
+            style={{ display: "none" }}
+            disabled={processando}
+            onChange={(event) => {
+              void selecionarArquivos(event.target.files);
+              event.target.value = "";
+            }}
+          />
+        </label>
+
+        {erro && <div className="notice error">{erro}</div>}
+
+        {itens.length > 0 && (
+          <>
+            <div className="students-table-wrap">
+              <table className="students-table">
+                <thead>
+                  <tr>
+                    <th>Arquivo</th>
+                    <th>Turma detectada</th>
+                    <th>Confiança</th>
+                    <th>Atualizados</th>
+                    <th>Novos</th>
+                    <th>Inativados</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((item, indice) => (
+                    <tr key={indice} className={item.previa.identificada ? "" : "student-table-row inactive"}>
+                      <td><strong>{item.previa.nome_arquivo}</strong></td>
+                      <td>
+                        {item.previa.identificada
+                          ? item.previa.turma_codigo
+                          : <span className="inactive-badge">não identificada</span>}
+                      </td>
+                      <td>{item.previa.total ? `${item.previa.confianca}% (${item.previa.correspondencias}/${item.previa.total})` : "-"}</td>
+                      <td>{item.previa.identificada ? item.previa.atualizados : "-"}</td>
+                      <td>{item.previa.identificada ? item.previa.novos : "-"}</td>
+                      <td>{item.previa.identificada ? item.previa.inativados : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button
+              type="button"
+              className="primary-action"
+              style={{ alignSelf: "flex-start" }}
+              disabled={processando || identificadas === 0}
+              onClick={() => void aplicar()}
+            >
+              Aplicar {identificadas} turma(s)
+            </button>
+            {identificadas < itens.length && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Arquivos "não identificados" não serão alterados. Verifique se a turma já existe no
+                programa e se o CSV corresponde a ela.
+              </p>
+            )}
+          </>
+        )}
+
+        {resultados && (
+          <div className="notice success">
+            <strong>Atualização concluída:</strong>
+            <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.1rem" }}>
+              {resultados.map((r, indice) => (
+                <li key={indice}>
+                  {r.turma_codigo}: {r.atualizados} atualizado(s), {r.novos} novo(s), {r.inativados} inativado(s)
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
     </>
   );

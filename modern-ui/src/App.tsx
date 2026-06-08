@@ -36,7 +36,7 @@ import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
-import { ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas } from "./features/Imports";
+import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
@@ -54,7 +54,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
@@ -822,7 +822,7 @@ export function App() {
         <nav className="nav-list">
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
-          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos"} onClick={() => navegarPara("importar-dados")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
@@ -934,9 +934,13 @@ export function App() {
             onImportarElegiveis={() => navegarPara("importar-elegiveis")}
             onImportarDiagnostico={() => navegarPara("importar-diagnostico")}
             onImportarFotos={() => navegarPara("importar-fotos")}
+            onImportarAlunosLote={() => navegarPara("importar-alunos-lote")}
           />
         )}
         {tela === "importar-fotos" && <ImportarFotos />}
+        {tela === "importar-alunos-lote" && (
+          <ImportarAlunosLote onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+        )}
         {tela === "importar-notas" && (
           <ImportarNotas
             turmas={turmas}
@@ -998,7 +1002,7 @@ export function App() {
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {atualizacao && (
         <div className="modal-backdrop">
@@ -1211,6 +1215,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     "importar-elegiveis": "Importar Elegíveis",
     "importar-diagnostico": "Importar Diagnóstico SARESP",
     "importar-fotos": "Importar Fotos dos Alunos",
+    "importar-alunos-lote": "Atualizar Turmas em Lote",
     conselhos: "Conselhos",
     conselho: "Conselho",
     kanban: "Quadro de Gestão",

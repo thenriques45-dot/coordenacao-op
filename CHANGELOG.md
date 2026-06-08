@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.10.3 - Atualização de turmas em lote e situação do aluno
+
+### Atualizar turmas em lote (nova função)
+- Nova tela **Importar Dados → Atualizar turmas em lote**: selecione **vários CSVs de alunos da SED de uma vez**. O app identifica a turma de cada arquivo **pelos RAs dos alunos** (ignorando o nome genérico do arquivo) e mostra uma **prévia** antes de gravar — turma detectada, % de confiança, e quantos seriam atualizados, novos e inativados.
+- Só aplica em turmas com confiança suficiente (RAs casados); arquivos sem correspondência clara ficam como "não identificada" e não são alterados. Notas e dados já lançados são preservados.
+- Alunos novos entram automaticamente na turma identificada pelos colegas — útil para quem chega de transferência.
+
+### Correção da situação do aluno
+- Ao reimportar uma turma, a **situação lida da planilha** (coluna "Situação do Aluno": Remanejamento, Transferido, BAIXA - Transferência, Não Comparecimento etc.) agora é respeitada também para alunos que já existiam. Antes, reimportar reativava todos. Agora, reimportar a lista atualizada marca corretamente os inativos (e o toggle "Mostrar inativos" passa a aparecer).
+
 ## v2.10.2 - Alunos inativos
 
 - **Tela de turmas:** novo toggle **"Mostrar inativos"** (aparece quando há alunos inativos na turma). Por padrão, os inativos ficam ocultos; ao exibi-los, recebem um selo "Inativo" e a linha fica esmaecida.

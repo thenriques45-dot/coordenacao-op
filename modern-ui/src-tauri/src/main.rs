@@ -1199,6 +1199,235 @@ fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     Ok(resumir_turma(turma, caminho))
 }
 
+struct ContagemImport {
+    novos: usize,
+    atualizados: usize,
+    inativados: usize,
+}
+
+// Aplica uma lista de alunos a uma turma: atualiza existentes (respeitando a situação
+// lida da planilha), adiciona novos e — quando não é substituição — marca como inativo
+// quem sumiu da lista. Preserva notas e demais dados já lançados.
+fn aplicar_lista_alunos(
+    alunos_existentes: &mut serde_json::Map<String, Value>,
+    alunos: &[NovoAlunoInput],
+    substituir: bool,
+) -> ContagemImport {
+    if substituir {
+        alunos_existentes.clear();
+    }
+    let mut matriculas_csv = BTreeSet::new();
+    let mut novos = 0usize;
+    let mut atualizados = 0usize;
+
+    for aluno in alunos {
+        let matricula = aluno.matricula.trim();
+        let nome = aluno.nome.trim();
+        if matricula.is_empty() || nome.is_empty() {
+            continue;
+        }
+        matriculas_csv.insert(matricula.to_string());
+
+        if let Some(existente) = alunos_existentes
+            .get_mut(matricula)
+            .and_then(Value::as_object_mut)
+        {
+            existente.insert("nome".to_string(), Value::String(nome.to_string()));
+            existente.insert(
+                "numero_chamada".to_string(),
+                aluno.numero_chamada.map(Value::from).unwrap_or(Value::Null),
+            );
+            existente.insert("ativo".to_string(), Value::Bool(aluno.ativo));
+            if !aluno.deficiencias.is_empty() {
+                existente.insert(
+                    "deficiencias".to_string(),
+                    serde_json::json!(aluno.deficiencias),
+                );
+            }
+            atualizados += 1;
+        } else {
+            alunos_existentes.insert(
+                matricula.to_string(),
+                serde_json::json!({
+                    "nome": nome,
+                    "ativo": aluno.ativo,
+                    "numero_chamada": aluno.numero_chamada,
+                    "notas": {},
+                    "frequencia": {},
+                    "compensacao_ausencias": {},
+                    "defasagens": {},
+                    "medias": {},
+                    "defasagem_frequencia": {},
+                    "frequencia_percentual": "",
+                    "encaminhamentos_conselho": {},
+                    "ajustes_medias_conselho": {},
+                    "deficiencias": aluno.deficiencias,
+                }),
+            );
+            novos += 1;
+        }
+    }
+
+    let mut inativados = 0usize;
+    if !substituir {
+        for (matricula, aluno) in alunos_existentes.iter_mut() {
+            if !matriculas_csv.contains(matricula) {
+                if let Some(objeto) = aluno.as_object_mut() {
+                    let estava_ativo =
+                        objeto.get("ativo").and_then(Value::as_bool).unwrap_or(true);
+                    objeto.insert("ativo".to_string(), Value::Bool(false));
+                    if estava_ativo {
+                        inativados += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    ContagemImport {
+        novos,
+        atualizados,
+        inativados,
+    }
+}
+
+#[derive(Deserialize)]
+struct ArquivoAlunosLoteInput {
+    nome_arquivo: String,
+    alunos: Vec<NovoAlunoInput>,
+}
+
+#[derive(Serialize)]
+struct PreviaLoteArquivo {
+    nome_arquivo: String,
+    turma_codigo: Option<String>,
+    turma_caminho: Option<String>,
+    confianca: u32,
+    total: usize,
+    correspondencias: usize,
+    novos: usize,
+    atualizados: usize,
+    inativados: usize,
+    identificada: bool,
+}
+
+// Detecta, por sobreposição de RAs, a qual turma cada CSV pertence e simula a atualização
+// (sem gravar nada) para mostrar uma prévia.
+#[tauri::command]
+fn analisar_lote_alunos(
+    arquivos: Vec<ArquivoAlunosLoteInput>,
+) -> Result<Vec<PreviaLoteArquivo>, String> {
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut saida = Vec::new();
+
+    for arq in &arquivos {
+        let ras: BTreeSet<String> = arq
+            .alunos
+            .iter()
+            .map(|a| a.matricula.trim().to_string())
+            .filter(|m| !m.is_empty())
+            .collect();
+        let total = ras.len();
+
+        let mut melhor: Option<(usize, &PathBuf, &TurmaArquivo)> = None;
+        for (caminho, turma) in &turmas {
+            if let Some(mapa) = &turma.alunos {
+                let overlap = ras.iter().filter(|m| mapa.contains_key(*m)).count();
+                if overlap > 0 && melhor.map_or(true, |(o, _, _)| overlap > o) {
+                    melhor = Some((overlap, caminho, turma));
+                }
+            }
+        }
+
+        match melhor {
+            Some((overlap, caminho, turma)) if total > 0 => {
+                let confianca = ((overlap as f64 / total as f64) * 100.0).round() as u32;
+                let identificada = confianca >= 60 && overlap >= 3;
+                let mut clone = turma.alunos.clone().unwrap_or_default();
+                let cont = aplicar_lista_alunos(&mut clone, &arq.alunos, false);
+                saida.push(PreviaLoteArquivo {
+                    nome_arquivo: arq.nome_arquivo.clone(),
+                    turma_codigo: identificada.then(|| turma.codigo.clone()),
+                    turma_caminho: identificada
+                        .then(|| caminho.to_string_lossy().to_string()),
+                    confianca,
+                    total,
+                    correspondencias: overlap,
+                    novos: cont.novos,
+                    atualizados: cont.atualizados,
+                    inativados: cont.inativados,
+                    identificada,
+                });
+            }
+            _ => saida.push(PreviaLoteArquivo {
+                nome_arquivo: arq.nome_arquivo.clone(),
+                turma_codigo: None,
+                turma_caminho: None,
+                confianca: 0,
+                total,
+                correspondencias: 0,
+                novos: 0,
+                atualizados: 0,
+                inativados: 0,
+                identificada: false,
+            }),
+        }
+    }
+
+    Ok(saida)
+}
+
+#[derive(Deserialize)]
+struct AplicarLoteAlunosItem {
+    turma_caminho: String,
+    alunos: Vec<NovoAlunoInput>,
+}
+
+#[derive(Serialize)]
+struct ResultadoLoteArquivo {
+    turma_caminho: String,
+    turma_codigo: String,
+    novos: usize,
+    atualizados: usize,
+    inativados: usize,
+}
+
+// Aplica de fato (grava) as atualizações em lote já confirmadas na prévia.
+#[tauri::command]
+fn aplicar_lote_alunos(
+    itens: Vec<AplicarLoteAlunosItem>,
+) -> Result<Vec<ResultadoLoteArquivo>, String> {
+    let mut saida = Vec::new();
+    for item in itens {
+        let caminho = PathBuf::from(&item.turma_caminho);
+        let texto = fs::read_to_string(&caminho)
+            .map_err(|err| format!("Não consegui ler a turma: {err}"))?;
+        let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+        let codigo = dados
+            .get("codigo")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        let cont = {
+            let alunos_existentes = dados
+                .get_mut("alunos")
+                .and_then(Value::as_object_mut)
+                .ok_or_else(|| "Arquivo da turma sem lista de alunos valida.".to_string())?;
+            aplicar_lista_alunos(alunos_existentes, &item.alunos, false)
+        };
+        let novo_texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+        escrever_json_atomicamente(&caminho, &novo_texto).map_err(|err| err.to_string())?;
+        saida.push(ResultadoLoteArquivo {
+            turma_caminho: item.turma_caminho,
+            turma_codigo: codigo,
+            novos: cont.novos,
+            atualizados: cont.atualizados,
+            inativados: cont.inativados,
+        });
+    }
+    Ok(saida)
+}
+
 #[tauri::command]
 fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     let caminho_atual = PathBuf::from(caminho);
@@ -1228,64 +1457,11 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
             .get_mut("alunos")
             .and_then(Value::as_object_mut)
             .ok_or_else(|| "Arquivo da turma sem lista de alunos valida.".to_string())?;
-        if input.substituir_alunos.unwrap_or(false) {
-            alunos_existentes.clear();
-        }
-        let mut matriculas_csv = BTreeSet::new();
-
-        for aluno in input.alunos {
-            let matricula = aluno.matricula.trim();
-            let nome = aluno.nome.trim();
-            if matricula.is_empty() || nome.is_empty() {
-                continue;
-            }
-            matriculas_csv.insert(matricula.to_string());
-
-            if let Some(existente) = alunos_existentes
-                .get_mut(matricula)
-                .and_then(Value::as_object_mut)
-            {
-                existente.insert("nome".to_string(), Value::String(nome.to_string()));
-                existente.insert(
-                    "numero_chamada".to_string(),
-                    aluno.numero_chamada.map(Value::from).unwrap_or(Value::Null),
-                );
-                existente.insert("ativo".to_string(), Value::Bool(true));
-                if !aluno.deficiencias.is_empty() {
-                    existente.insert(
-                        "deficiencias".to_string(),
-                        serde_json::json!(aluno.deficiencias),
-                    );
-                }
-            } else {
-                alunos_existentes.insert(
-                    matricula.to_string(),
-                    serde_json::json!({
-                        "nome": nome,
-                        "ativo": aluno.ativo,
-                        "numero_chamada": aluno.numero_chamada,
-                        "notas": {},
-                        "frequencia": {},
-                        "compensacao_ausencias": {},
-                        "defasagens": {},
-                        "medias": {},
-                        "defasagem_frequencia": {},
-                        "frequencia_percentual": "",
-                        "encaminhamentos_conselho": {},
-                        "ajustes_medias_conselho": {},
-                        "deficiencias": aluno.deficiencias,
-                    }),
-                );
-            }
-        }
-
-        for (matricula, aluno) in alunos_existentes.iter_mut() {
-            if !matriculas_csv.contains(matricula) && !input.substituir_alunos.unwrap_or(false) {
-                if let Some(objeto) = aluno.as_object_mut() {
-                    objeto.insert("ativo".to_string(), Value::Bool(false));
-                }
-            }
-        }
+        aplicar_lista_alunos(
+            alunos_existentes,
+            &input.alunos,
+            input.substituir_alunos.unwrap_or(false),
+        );
     }
 
     let pasta = data_dir()
@@ -8902,6 +9078,8 @@ fn main() {
             salvar_posicao_foto,
             definir_foto_aluno,
             remover_foto_aluno,
+            analisar_lote_alunos,
+            aplicar_lote_alunos,
             buscar_planejamentos,
             salvar_config_planejamento,
             carregar_config_planejamento,
