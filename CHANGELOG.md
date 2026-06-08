@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.10.2 - Alunos inativos
+
+- **Tela de turmas:** novo toggle **"Mostrar inativos"** (aparece quando há alunos inativos na turma). Por padrão, os inativos ficam ocultos; ao exibi-los, recebem um selo "Inativo" e a linha fica esmaecida.
+- **Tela de conselho:** alunos inativos não são mais exibidos nem entram na navegação.
+- A **ata de conselho** continua incluindo os alunos inativos normalmente.
+- As **métricas e percentuais** da turma passam a considerar apenas os alunos ativos.
+
 ## v2.10.1 - Fotos dos alunos
 
 ### Importador de fotos dos alunos (nova função)

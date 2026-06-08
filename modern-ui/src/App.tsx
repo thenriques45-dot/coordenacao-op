@@ -81,6 +81,7 @@ type Aluno = {
   matricula?: string;
   chamada: number;
   nome: string;
+  ativo?: boolean;
   elegivel: boolean;
   liderancaSala?: "lider" | "vice" | null;
   deficiencias: string[];
@@ -131,6 +132,7 @@ type AtualizacaoInfo = {
 type AlunoApi = {
   matricula: string;
   nome: string;
+  ativo: boolean;
   numero_chamada: number | null;
   elegivel: boolean;
   lideranca_sala: "lider" | "vice" | null;
@@ -395,6 +397,7 @@ export function App() {
       matricula: aluno.matricula,
       chamada: aluno.numero_chamada ?? 0,
       nome: aluno.nome,
+      ativo: aluno.ativo,
       elegivel: aluno.elegivel,
       liderancaSala: aluno.lideranca_sala,
       deficiencias: aluno.deficiencias ?? [],
@@ -417,7 +420,12 @@ export function App() {
       })),
     }));
   }, [turmaDetalhe]);
-  const aluno = alunosConselho[Math.min(indiceAluno, alunosConselho.length - 1)] ?? alunosDemo[0];
+  // O conselho nunca exibe alunos inativos.
+  const alunosConselhoAtivos = useMemo(
+    () => alunosConselho.filter((aluno) => aluno.ativo !== false),
+    [alunosConselho],
+  );
+  const aluno = alunosConselhoAtivos[Math.min(indiceAluno, alunosConselhoAtivos.length - 1)] ?? alunosDemo[0];
   const novidadesVersao = appInfo?.version ? NOVIDADES_POR_VERSAO[appInfo.version] ?? [] : [];
 
   useEffect(() => {
@@ -740,8 +748,8 @@ export function App() {
   function navegarAluno(delta: number) {
     setIndiceAluno((atual) => {
       const proximo = atual + delta;
-      if (proximo < 0) return alunosConselho.length - 1;
-      if (proximo >= alunosConselho.length) return 0;
+      if (proximo < 0) return alunosConselhoAtivos.length - 1;
+      if (proximo >= alunosConselhoAtivos.length) return 0;
       return proximo;
     });
   }
@@ -769,7 +777,7 @@ export function App() {
 
     window.addEventListener("keydown", aoPressionarTecla);
     return () => window.removeEventListener("keydown", aoPressionarTecla);
-  }, [tela, alunosConselho.length]);
+  }, [tela, alunosConselhoAtivos.length]);
 
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
@@ -879,8 +887,8 @@ export function App() {
         {tela === "conselho" && (
           <Council
             aluno={aluno}
-            alunos={alunosConselho}
-            totalAlunos={alunosConselho.length}
+            alunos={alunosConselhoAtivos}
+            totalAlunos={alunosConselhoAtivos.length}
             indiceAluno={indiceAluno}
             resumo={resumo}
             turmaSelecionada={turmaSelecionada}

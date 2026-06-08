@@ -38,6 +38,7 @@ type Aluno = {
   matricula?: string;
   chamada: number;
   nome: string;
+  ativo?: boolean;
   elegivel: boolean;
   liderancaSala?: "lider" | "vice" | null;
   deficiencias: string[];

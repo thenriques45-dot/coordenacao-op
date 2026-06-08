@@ -239,6 +239,7 @@ struct AbrirDocumentoConselhoInput {
 struct AlunoDetalhe {
     matricula: String,
     nome: String,
+    ativo: bool,
     numero_chamada: Option<i64>,
     elegivel: bool,
     lideranca_sala: Option<String>,
@@ -6768,10 +6769,8 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
     let mut alunos_detalhe = Vec::new();
 
     for (matricula, info) in alunos {
+        // Mantemos os inativos na lista (marcados), e o frontend decide exibi-los ou não.
         let ativo = info.get("ativo").and_then(Value::as_bool).unwrap_or(true);
-        if !ativo {
-            continue;
-        }
 
         let nome = info
             .get("nome")
@@ -6806,6 +6805,7 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
         alunos_detalhe.push(AlunoDetalhe {
             matricula,
             nome,
+            ativo,
             numero_chamada,
             elegivel,
             lideranca_sala,

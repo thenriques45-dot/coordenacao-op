@@ -49,6 +49,7 @@ type Aluno = {
   matricula?: string;
   chamada: number;
   nome: string;
+  ativo?: boolean;
   elegivel: boolean;
   liderancaSala?: "lider" | "vice" | null;
   deficiencias: string[];
@@ -337,6 +338,7 @@ export function GestaoTurma({
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
   const [busca, setBusca] = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editandoCoordenador, setEditandoCoordenador] = useState(false);
   const [coordenador, setCoordenador] = useState(turma?.coordenador_turma ?? "");
   const [salvandoElegivel, setSalvandoElegivel] = useState<string | null>(null);
@@ -357,24 +359,29 @@ export function GestaoTurma({
     setAlunoAberto(null);
   }, [turma?.coordenador_turma, turma?.caminho]);
 
+  const alunosAtivos = useMemo(() => alunos.filter((aluno) => aluno.ativo !== false), [alunos]);
+  const totalInativos = alunos.length - alunosAtivos.length;
+  const alunosVisiveis = mostrarInativos ? alunos : alunosAtivos;
+
   const alunosFiltrados = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase("pt-BR");
-    if (!termo) return alunos;
-    return alunos.filter((aluno) => [aluno.nome, aluno.matricula ?? ""].some((campo) => campo.toLocaleLowerCase("pt-BR").includes(termo)));
-  }, [alunos, busca]);
+    if (!termo) return alunosVisiveis;
+    return alunosVisiveis.filter((aluno) => [aluno.nome, aluno.matricula ?? ""].some((campo) => campo.toLocaleLowerCase("pt-BR").includes(termo)));
+  }, [alunosVisiveis, busca]);
 
-  const disciplinas = useMemo(() => Array.from(new Set(alunos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunos]);
-  const mediaGeral = calcularMetricasTurma(alunos).mediaGeral;
-  const metricas = calcularMetricasTurma(alunos);
-  const total = alunos.length || 1;
+  // Métricas e desempenho consideram apenas os alunos ativos.
+  const disciplinas = useMemo(() => Array.from(new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunosAtivos]);
+  const mediaGeral = calcularMetricasTurma(alunosAtivos).mediaGeral;
+  const metricas = calcularMetricasTurma(alunosAtivos);
+  const total = alunosAtivos.length || 1;
   const desempenhoDisciplinas = useMemo(() => disciplinas.map((disciplina) => {
-    const notas = alunos.flatMap((aluno) => {
+    const notas = alunosAtivos.flatMap((aluno) => {
       const nota = aluno.disciplinas.find((item) => item.nome === disciplina)?.mediaOriginal;
       return typeof nota === "number" && Number.isFinite(nota) ? [nota] : [];
     });
     const media = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : 0;
     return { disciplina, media };
-  }), [alunos, disciplinas]);
+  }), [alunosAtivos, disciplinas]);
   const bimestreLabel = `${turmaDetalhe?.bimestre ?? "1"}º bim`;
   const percentuaisSituacao = {
     adequados: Math.round(metricas.adequados / total * 100),
@@ -530,7 +537,7 @@ export function GestaoTurma({
           </div>
         </div>
         <div className="class-metric-row">
-          <CouncilMetric icon={<Users size={21} />} value={`${turma?.alunos_ativos ?? alunos.length}/${turma?.total_alunos ?? alunos.length}`} label="Alunos/Total" />
+          <CouncilMetric icon={<Users size={21} />} value={`${turma?.alunos_ativos ?? alunosAtivos.length}/${turma?.total_alunos ?? alunos.length}`} label="Alunos/Total" />
           <CouncilMetric icon={<TrendingUp size={21} />} value={formatarMediaGlobal(mediaGeral)} label="Média Geral" tone="green" />
           <CouncilMetric icon={<CalendarClock size={21} />} value={formatarPercentual(mediaGeral === null ? null : alunos.reduce((soma, aluno) => soma + (aluno.frequencia ?? 0), 0) / total)} label="Frequência Média" />
           <CouncilMetric icon={<BookOpen size={21} />} value={String(disciplinas.length)} label="Disciplinas" />
@@ -547,10 +554,22 @@ export function GestaoTurma({
 
       {aba === "alunos" && (
         <>
-          <label className="search-box class-search">
-            <Search size={21} />
-            <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar aluno por nome ou matrícula..." />
-          </label>
+          <div className="class-search-row">
+            <label className="search-box class-search">
+              <Search size={21} />
+              <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar aluno por nome ou matrícula..." />
+            </label>
+            {totalInativos > 0 && (
+              <label className="inactive-toggle" title="Exibir também os alunos inativos">
+                <input
+                  type="checkbox"
+                  checked={mostrarInativos}
+                  onChange={(event) => setMostrarInativos(event.target.checked)}
+                />
+                Mostrar inativos ({totalInativos})
+              </label>
+            )}
+          </div>
           <div className="panel students-table-wrap">
             <table className="students-table">
               <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th><th>Elegível</th><th>Líder</th></tr></thead>
@@ -559,7 +578,7 @@ export function GestaoTurma({
                   const status = classificarAluno(aluno);
                   return (
                     <tr
-                      className="student-table-row"
+                      className={`student-table-row${aluno.ativo === false ? " inactive" : ""}`}
                       key={aluno.matricula ?? aluno.nome}
                       onClick={() => setAlunoAberto(aluno)}
                       tabIndex={0}
@@ -567,7 +586,11 @@ export function GestaoTurma({
                         if (event.key === "Enter") setAlunoAberto(aluno);
                       }}
                     >
-                      <td><strong>{aluno.nome}</strong><span>Nº {aluno.chamada || "-"}</span></td>
+                      <td>
+                        <strong>{aluno.nome}</strong>
+                        {aluno.ativo === false && <span className="inactive-badge">Inativo</span>}
+                        <span>Nº {aluno.chamada || "-"}</span>
+                      </td>
                       <td>{aluno.matricula ?? "-"}</td>
                       <td className={status === "critico" ? "danger-text" : "success-text"}>{formatarMediaGlobal(calcularMediaAluno(aluno))}</td>
                       <td>{formatarPercentual(aluno.frequencia)}</td>

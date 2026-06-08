@@ -1698,8 +1698,57 @@ h3 {
 }
 
 .class-search {
-  margin-top: 24px;
+  margin-top: 0;
   max-width: 450px;
+  flex: 1 1 280px;
+}
+
+.class-search-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.inactive-toggle {
+  align-items: center;
+  color: #475467;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.9rem;
+  gap: 8px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.inactive-toggle input {
+  cursor: pointer;
+}
+
+.inactive-badge {
+  background: #fde8e8;
+  border-radius: 999px;
+  color: #b42318;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-right: 8px;
+  padding: 1px 8px;
+  text-transform: uppercase;
+}
+
+.student-table-row.inactive {
+  opacity: 0.6;
+}
+
+.theme-dark .inactive-toggle {
+  color: #aeb6c2;
+}
+
+.theme-dark .inactive-badge {
+  background: #4a2422;
+  color: #fca5a5;
 }
 
 .students-table-wrap {
