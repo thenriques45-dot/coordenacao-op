@@ -138,12 +138,12 @@ export function carregarEventosCalendario() {
 export function carregarTarefasKanbanDashboard() {
   try {
     return carregarTarefasKanban()
-      .filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.status === "fazer")
+      .filter((tarefa) => tarefaEstaAtiva(tarefa))
       .sort((a, b) => a.prazo.localeCompare(b.prazo))
       .slice(0, 3);
   } catch {
     return tarefasKanbanIniciais
-      .filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.status === "fazer")
+      .filter((tarefa) => tarefaEstaAtiva(tarefa))
       .sort((a, b) => a.prazo.localeCompare(b.prazo))
       .slice(0, 3);
   }

@@ -49,10 +49,22 @@ function normalizarBusca(valor: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+// Chave compacta da turma: primeiro n\u00famero + \u00faltima letra. Ex.: "6\u00ba Ano B" -> "6b",
+// "1\u00aa S\u00e9rie F" -> "1f". Permite buscar por "6b" e achar o card do 6\u00ba Ano B.
+function chaveCompactaTurma(valor: string) {
+  const norm = normalizarBusca(valor);
+  const num = norm.match(/\d+/)?.[0] ?? "";
+  const letras = norm.replace(/[^a-z]/g, "");
+  const ultima = letras ? letras[letras.length - 1] : "";
+  return num + ultima;
+}
+
 function filtrarTurmas(turmas: TurmaResumo[], busca: string) {
   const termo = normalizarBusca(busca);
   if (!termo) return turmas;
+  const termoCompacto = chaveCompactaTurma(busca);
   return turmas.filter((turma) => {
+    if (termoCompacto && chaveCompactaTurma(turma.codigo) === termoCompacto) return true;
     const campos = [
       turma.codigo,
       turma.serie ?? "",

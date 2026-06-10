@@ -185,16 +185,16 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
   }, [alunoSelecionado, registrosPorAluno]);
 
   const disciplinasDoAluno = useMemo(() => {
-    const doMapao = alunoSelecionado?.disciplinas ?? [];
-    const doPei = registrosDoAluno.map((r) => r.disciplina);
+    // Apenas as disciplinas do mapão, em MAIÚSCULAS e sem duplicatas (matérias que
+    // se repetem em FGB/IF aparecem uma vez). Os PEIs recebidos são casados a essas
+    // linhas — o texto livre digitado pelo professor não cria uma linha nova.
     const todas = new Map<string, string>();
-    for (const d of [...doMapao, ...doPei]) {
-      todas.set(normalizarDisciplina(d), d);
+    for (const d of alunoSelecionado?.disciplinas ?? []) {
+      const norm = normalizarDisciplina(d);
+      if (norm) todas.set(norm, norm);
     }
-    return Array.from(todas.values()).sort((a, b) =>
-      a.localeCompare(b, "pt-BR")
-    );
-  }, [alunoSelecionado, registrosDoAluno]);
+    return Array.from(todas.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [alunoSelecionado]);
 
   const matrizPei = useMemo(() => {
     const indice = new Map<string, RegistroPei>();
@@ -256,34 +256,35 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
     setGerandoPend(true);
     setErroPeiAbrir("");
     try {
+      // Bimestres coletados = os que aparecem em algum PEI recebido (ex.: 1º, 2º).
+      const bimestresColetados = Array.from(
+        new Set(registros.map((r) => r.bimestre).filter(Boolean))
+      ).sort();
+      const bims = bimestresColetados.length ? bimestresColetados : ["1"];
+
       const secoes = alunosElegiveis
         .map((aluno) => {
           const peis = registrosPorAluno.get(normalizarNome(aluno.nome)) ?? [];
-          const bimAtual = bimestreAtualDoAluno(aluno);
-          const aVerificar = BIMESTRES_ORDEM.slice(0, BIMESTRES_ORDEM.indexOf(bimAtual) + 1);
-          const porDisc = new Map<string, { nome: string; faltam: string[] }>();
-          for (const b of aVerificar) {
-            for (const disc of aluno.disciplinas_por_bimestre[b] ?? []) {
-              const chave = normalizarDisciplina(disc);
-              const temPei = peis.some((r) => r.bimestre === b && normalizarDisciplina(r.disciplina) === chave);
-              if (!temPei) {
-                const reg = porDisc.get(chave) ?? { nome: disc, faltam: [] };
-                reg.faltam.push(b);
-                porDisc.set(chave, reg);
-              }
-            }
-          }
-          const linhas = Array.from(porDisc.values())
-            .map((d) => ({ item: d.nome, faltam: d.faltam.map((b) => `${b}º`).join(", ") }))
-            .sort((a, b) => a.item.localeCompare(b.item, "pt-BR"));
+          const disciplinas = Array.from(
+            new Set((aluno.disciplinas ?? []).map(normalizarDisciplina).filter(Boolean))
+          ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+          const linhas = disciplinas
+            .map((disc) => {
+              const faltam = bims.filter(
+                (b) => !peis.some((r) => r.bimestre === b && normalizarDisciplina(r.disciplina) === disc)
+              );
+              return { item: disc, faltam: faltam.map((b) => `${b}º`).join(", ") };
+            })
+            .filter((l) => l.faltam.length > 0);
           return { titulo: `${aluno.turma} — ${aluno.nome}`, linhas };
         })
         .filter((s) => s.linhas.length > 0);
 
+      const periodo = bims.map((b) => `${b}º`).join(", ");
       const res = await invokeApp<{ caminho: string }>("gerar_relatorio_pendencias", {
         input: {
           titulo: "PENDÊNCIAS — PEI",
-          criterio: "Lista, por aluno elegível, as disciplinas sem PEI recebido até o bimestre atual (o primeiro sem médias importadas no mapão).",
+          criterio: `Lista, por aluno elegível, as disciplinas (do mapão) sem PEI recebido nos bimestres coletados: ${periodo}.`,
           coluna_item: "Disciplina",
           escopo: "pei",
           secoes,

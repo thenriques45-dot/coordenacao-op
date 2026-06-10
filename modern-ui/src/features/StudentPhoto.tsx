@@ -167,7 +167,7 @@ function PosicionadorFoto({
 
   return (
     <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <section className="whats-new-modal" role="dialog" aria-modal="true" style={{ maxWidth: "340px", width: "90vw", textAlign: "center" }}>
+      <section className="whats-new-modal" role="dialog" aria-modal="true" style={{ maxWidth: "380px", width: "90vw", textAlign: "center" }}>
         <h2 style={{ marginTop: 0 }}>Reposicionar foto</h2>
         <div className="foto-aluno" style={{ width: "220px", height: "220px", margin: "0.5rem auto 1rem" }}>
           <img src={foto.data_url} alt="" style={{ objectPosition: pos }} />
@@ -180,13 +180,11 @@ function PosicionadorFoto({
           Vertical
           <input type="range" min={0} max={100} value={y} onChange={(e) => setY(Number(e.target.value))} style={{ width: "100%" }} />
         </label>
-        <div className="modal-actions" style={{ marginTop: "1rem", justifyContent: "space-between", alignItems: "center" }}>
-          <button type="button" className="danger-action" onClick={remover}>Remover</button>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <button type="button" onClick={trocar} disabled={ocupado}>Trocar foto</button>
-            <button type="button" onClick={onClose}>Cancelar</button>
-            <button type="button" className="primary-action" onClick={salvar}>Salvar</button>
-          </div>
+        <div className="modal-actions" style={{ marginTop: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem", justifyContent: "flex-end", alignItems: "center" }}>
+          <button type="button" className="danger-action" style={{ marginRight: "auto" }} onClick={remover}>Remover</button>
+          <button type="button" onClick={trocar} disabled={ocupado}>Trocar foto</button>
+          <button type="button" onClick={onClose}>Cancelar</button>
+          <button type="button" className="primary-action" onClick={salvar}>Salvar</button>
         </div>
       </section>
     </div>

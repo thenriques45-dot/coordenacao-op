@@ -202,8 +202,6 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
     setErroAbrir("");
     try {
       const bimestresAtivos = Array.from(new Set(registros.map((r) => r.bimestre).filter(Boolean))).sort();
-      // Disciplinas que participam do planejamento (apareceram em alguma resposta).
-      const discComForm = new Set(registros.map((r) => normalizarDisciplina(r.disciplina)));
       // Disciplinas do mapão de cada turma (busca em lote, com cache).
       const cache = { ...disciplinasMapao };
       await Promise.all(
@@ -223,11 +221,14 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
       const secoes = turmas
         .map((turma) => {
           const tn = normalizarTurma(turma.codigo);
-          const linhas = (cache[turma.caminho] ?? [])
-            .filter((d) => discComForm.has(normalizarDisciplina(d)))
-            .map((disc) => {
-              const faltam = bimestresAtivos.filter((b) => !indice.has(`${tn}|${normalizarDisciplina(disc)}|${b}`));
-              return { item: disc, faltam: faltam.map((b) => `${b}º`).join(", ") };
+          // Todas as disciplinas do mapão da turma, em MAIÚSCULAS e sem duplicatas.
+          const disciplinas = Array.from(
+            new Set((cache[turma.caminho] ?? []).map(normalizarDisciplina).filter(Boolean))
+          );
+          const linhas = disciplinas
+            .map((dn) => {
+              const faltam = bimestresAtivos.filter((b) => !indice.has(`${tn}|${dn}|${b}`));
+              return { item: dn, faltam: faltam.map((b) => `${b}º`).join(", ") };
             })
             .filter((l) => l.faltam.length > 0)
             .sort((a, b) => a.item.localeCompare(b.item, "pt-BR"));
@@ -239,7 +240,7 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
       const res = await invokeApp<{ caminho: string }>("gerar_relatorio_pendencias", {
         input: {
           titulo: "PENDÊNCIAS — PLANEJAMENTO DOS PROFESSORES",
-          criterio: `Lista, por turma, as disciplinas (que participam do planejamento) sem plano de ensino nos bimestres coletados: ${periodo}. Disciplinas sem formulário não são listadas.`,
+          criterio: `Lista, por turma, as disciplinas do mapão sem plano de ensino nos bimestres coletados: ${periodo}.`,
           coluna_item: "Disciplina",
           escopo: "planejamento",
           secoes,

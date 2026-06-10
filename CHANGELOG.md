@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.10.4 - Ajustes de relatórios, PEI e usabilidade
+
+- **Painel inicial:** "Próximas tarefas" passa a mostrar todas as tarefas não concluídas (A Fazer, Em Andamento e Revisão), não apenas as de "A Fazer".
+- **Relatório de pendências do PEI:** deixa de depender das médias importadas e passa a considerar os bimestres realmente coletados (os que aparecem em algum PEI recebido). Antes só listava o 1º bimestre.
+- **Relatório de pendências do Planejamento:** lista todas as disciplinas do mapão pendentes em cada turma, em vez de apenas as que já tinham alguma resposta.
+- **Tela de PEI:** as disciplinas passam a vir apenas do mapão, padronizadas em MAIÚSCULAS e sem duplicatas (matérias repetidas em FGB/IF aparecem uma única vez). Os PEIs recebidos são casados a essas linhas.
+- **Busca de turmas:** agora é possível buscar por código compacto (ex.: "6b" encontra o 6º Ano B; "1f" encontra a 1ª Série F).
+- **Foto do aluno:** corrigido o transbordo dos botões na janela de reposicionar foto.
+
 ## v2.10.3 - Atualização de turmas em lote e situação do aluno
 
 ### Atualizar turmas em lote (nova função)

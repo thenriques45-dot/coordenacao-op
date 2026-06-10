@@ -220,7 +220,7 @@ export function Dashboard({
             <button className="council-card kanban-dashboard-task baixa" onClick={onOpenKanban}>
               <div>
                 <strong>Nenhuma tarefa em aberto</strong>
-                <span>Adicione cards em A Fazer no Quadro de Gestão.</span>
+                <span>Adicione cards no Quadro de Gestão.</span>
               </div>
               <em>Kanban</em>
             </button>
