@@ -229,7 +229,7 @@ function DiagnosticSubjectCard({
 }
 
 function classeStatusDiagnostico(status: string) {
-  const texto = status.toLocaleLowerCase("pt-BR");
+  const texto = status.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
   if (texto.includes("abaixo")) return "below-basic";
   if (texto.includes("profic")) return "proficient";
   if (texto.includes("bas")) return "basic";

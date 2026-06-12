@@ -991,9 +991,16 @@ h3 {
   color: #d8d9e8;
 }
 
+.student-list-item > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
 .student-list-status {
   display: grid;
   justify-items: end;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .student-list-status i {

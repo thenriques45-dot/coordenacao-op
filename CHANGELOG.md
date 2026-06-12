@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.10.5 - Pendência de lançamento, diagnóstico no conselho e ajustes
+
+- **Novo relatório "Pendência de Lançamento de Notas"** na Central de Relatórios: lista, por turma, as disciplinas com notas ainda não lançadas no mapão — indicando "(todos)" quando nenhum aluno teve nota lançada ou "(N de T)" quando faltam apenas alguns. Considera apenas alunos ativos e os bimestres da carga horária.
+- **Tela de conselho:** o diagnóstico SARESP (nível e ano equivalente de aprendizagem) passa a aparecer nas linhas de Matemática e Língua Portuguesa, como já acontece na tela do aluno.
+- **Diagnóstico:** corrigida a classificação por nível — o status "Básico" agora aparece corretamente em amarelo (antes ficava sem cor por causa do acento).
+- **Lista de alunos do conselho:** corrigido o desalinhamento do indicador de média/situação quando o nome do aluno ocupa duas linhas.
+
 ## v2.10.4 - Ajustes de relatórios, PEI e usabilidade
 
 - **Painel inicial:** "Próximas tarefas" passa a mostrar todas as tarefas não concluídas (A Fazer, Em Andamento e Revisão), não apenas as de "A Fazer".

@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "2.10.4"
+version = "2.10.5"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"

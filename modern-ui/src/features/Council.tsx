@@ -34,6 +34,18 @@ type Disciplina = {
   situacao: "adequada" | "abaixo" | "cuidado" | "sem-nota" | "ajustada";
 };
 
+type DiagnosticoComponente = {
+  aprendizagem_equivalente: string | null;
+  status: string | null;
+};
+
+type DiagnosticoAprendizagem = {
+  turma_origem: string | null;
+  portugues: DiagnosticoComponente;
+  matematica: DiagnosticoComponente;
+  atualizado_em: string | null;
+};
+
 type Aluno = {
   matricula?: string;
   chamada: number;
@@ -45,8 +57,32 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
 };
+
+function classeStatusDiagnostico(status: string) {
+  const texto = status.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (texto.includes("abaixo")) return "below-basic";
+  if (texto.includes("profic")) return "proficient";
+  if (texto.includes("bas")) return "basic";
+  return "unknown";
+}
+
+function diagnosticoSarespPorDisciplina(
+  diagnostico: DiagnosticoAprendizagem | null | undefined,
+  disciplina: string,
+) {
+  if (!diagnostico) return null;
+  const nome = disciplina.trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (nome === "portugues" || nome === "portuguesa" || nome === "lingua portuguesa") {
+    return diagnostico.portugues;
+  }
+  if (nome === "matematica") {
+    return diagnostico.matematica;
+  }
+  return null;
+}
 
 type TurmaResumo = {
   codigo: string;
@@ -671,9 +707,18 @@ export function Council({
                     const evolucao = calcularEvolucaoDisciplina(disciplina, bimestreSelecionado);
                     const historicoAberto = disciplinaHistoricoAberta === disciplina.nome;
                     const historico = disciplina.historicoBimestres ?? [];
+                    const diagnosticoDisciplina = diagnosticoSarespPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
                     return (
                     <tr key={disciplina.nome}>
-                      <td>{disciplina.nome}</td>
+                      <td>
+                        <strong>{disciplina.nome}</strong>
+                        {diagnosticoDisciplina && (
+                          <span className="subject-diagnostic-tags">
+                            <i className={`diagnostic-level-tag ${classeStatusDiagnostico(diagnosticoDisciplina.status ?? "")}`}>{diagnosticoDisciplina.status ?? "-"}</i>
+                            <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente ?? "-"}</i>
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <div className="grade-history-cell">
                           <button

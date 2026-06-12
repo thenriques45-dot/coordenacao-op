@@ -1,4 +1,4 @@
-import { BookMarked, ClipboardList, FileText } from "lucide-react";
+import { BookMarked, ClipboardList, FileText, FileWarning } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -50,6 +50,23 @@ export function RelatoriosMenu({
   onAbrirPei: () => void;
   onAbrirPlanejamento: () => void;
 }) {
+  const [gerandoLancamento, setGerandoLancamento] = useState(false);
+  const [erroLancamento, setErroLancamento] = useState("");
+
+  async function gerarPendenciaLancamento() {
+    if (gerandoLancamento) return;
+    setGerandoLancamento(true);
+    setErroLancamento("");
+    try {
+      const res = await invokeApp<{ caminho: string }>("gerar_relatorio_pendencia_lancamento");
+      await invokeApp("abrir_documento_conselho", { input: { caminho: res.caminho } }).catch(() => {});
+    } catch (err) {
+      setErroLancamento(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGerandoLancamento(false);
+    }
+  }
+
   return (
     <section className="reports-page">
       <header className="topbar">
@@ -73,6 +90,14 @@ export function RelatoriosMenu({
           <div>
             <strong>Alterações de Notas Pós-Conselho</strong>
             <span>Compara as notas decididas no conselho com o último mapão importado.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={gerarPendenciaLancamento} disabled={gerandoLancamento}>
+          <FileWarning size={26} />
+          <div>
+            <strong>Pendência de Lançamento de Notas</strong>
+            <span>{gerandoLancamento ? "Gerando relatório..." : "Lista, por turma, as disciplinas com notas ainda não lançadas no mapão."}</span>
+            {erroLancamento && <span style={{ color: "var(--danger, #ef4444)" }}>{erroLancamento}</span>}
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={onAbrirPei}>
