@@ -2,6 +2,14 @@
 
 Obrigado por contribuir.
 
+## Acordo de Licença de Contribuição (CLA)
+
+O CoordenacaoOP usa **licenciamento duplo** (GPL-3.0-or-later + licença comercial). Ao
+abrir um Pull Request, você concorda com o [CLA](CLA.md): você **mantém os direitos
+autorais** da sua contribuição e concede ao mantenedor uma licença não exclusiva para
+relicenciá-la, inclusive sob termos comerciais. Leia o [CLA.md](CLA.md) antes de
+contribuir.
+
 ## Fluxo recomendado
 
 1. Abra uma issue descrevendo bug ou melhoria

@@ -64,7 +64,17 @@ Se você pretende rodar o projeto a partir do código-fonte:
 
 ## Licença
 
-Este projeto é distribuído sob a licença **GPL-3.0-or-later**. Veja [LICENSE](LICENSE).
+Este projeto é **software livre e gratuito**, distribuído sob a licença **GPL-3.0-or-later**. Veja [LICENSE](LICENSE). Você pode usá-lo, estudá-lo, modificá-lo e redistribuí-lo nos termos dessa licença.
+
+### Licenciamento duplo (uso comercial)
+
+Os direitos autorais do CoordenacaoOP pertencem ao seu autor, **Thiago Henrique Santos**. Além da GPL-3.0, o autor **reserva-se o direito de oferecer o software sob uma licença comercial separada** — por exemplo, para integração em produtos proprietários (de código fechado) que não possam cumprir as obrigações de código aberto da GPL.
+
+A versão pública deste repositório permanece e permanecerá livre sob a GPL-3.0. O licenciamento duplo apenas permite que o autor disponibilize, à parte, versões sob termos comerciais.
+
+Para uma **licença comercial/proprietária**, entre em contato: **thenriques45@gmail.com**.
+
+As contribuições para o projeto seguem o [Acordo de Licença de Contribuição (CLA)](CLA.md).
 
 ## Documentos adicionais
 
