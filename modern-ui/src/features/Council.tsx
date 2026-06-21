@@ -281,6 +281,7 @@ function CouncilMetric({
 
 export function Council({
   aluno,
+  turmaConfig,
   alunos,
   totalAlunos,
   indiceAluno,
@@ -297,6 +298,7 @@ export function Council({
   setModoReuniao,
 }: {
   aluno: Aluno;
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
   alunos: Aluno[];
   totalAlunos: number;
   indiceAluno: number;
@@ -631,7 +633,7 @@ export function Council({
                     <span>{item.matricula ? `RA: ${item.matricula}` : "Sem RA"}</span>
                   </div>
                   <div className="student-list-status">
-                    {item.elegivel && <span className="mini-eligible">Elegível</span>}
+                    {turmaConfig.elegivel_ativo && item.elegivel && <span className="mini-eligible">{turmaConfig.elegivel_rotulo}</span>}
                     <i className={status}></i>
                     <span>Media: {formatarMediaGlobal(media)}</span>
                   </div>
@@ -646,7 +648,7 @@ export function Council({
             <div>
               <FotoAluno matricula={aluno.matricula} tamanho={114} />
               <div className="student-name" style={{ marginTop: "0.6rem" }}>
-                {aluno.elegivel && <span className="eligible-badge">ALUNO ELEGÍVEL</span>}
+                {turmaConfig.elegivel_ativo && aluno.elegivel && <span className="eligible-badge">ALUNO {turmaConfig.elegivel_rotulo.toLocaleUpperCase("pt-BR")}</span>}
                 <h2>{aluno.nome}</h2>
               </div>
               <p>
@@ -839,10 +841,12 @@ export function SelecaoConselho({
   turmas,
   erroTurmas,
   onSelecionar,
+  turmaConfig,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
   onSelecionar: (turma: TurmaResumo) => void;
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
 }) {
   const [busca, setBusca] = useState("");
   const turmasFiltradas = filtrarTurmas(turmas, busca);
@@ -892,14 +896,18 @@ export function SelecaoConselho({
               <span>
                 Coordenador de sala: <strong>{turma.coordenador_turma || "A definir"}</strong>
               </span>
-              <span className="class-leaders-line">
-                Líderes de sala:
-                <strong>{turma.lider_sala || "Líder a definir"}</strong>
-                <strong>{turma.vice_lider_sala || "Vice líder a definir"}</strong>
-              </span>
-              <span>
-                Elegíveis: <strong>{turma.alunos_elegiveis}</strong>
-              </span>
+              {turmaConfig.lider_ativo && (
+                <span className="class-leaders-line">
+                  {turmaConfig.lider_rotulo}:
+                  <strong>{turma.lider_sala || "A definir"}</strong>
+                  <strong>{turma.vice_lider_sala || "Vice a definir"}</strong>
+                </span>
+              )}
+              {turmaConfig.elegivel_ativo && (
+                <span>
+                  {turmaConfig.elegivel_rotulo}: <strong>{turma.alunos_elegiveis}</strong>
+                </span>
+              )}
             </div>
 
             <button className="details-action" onClick={() => onSelecionar(turma)}>

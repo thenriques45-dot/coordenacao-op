@@ -34,6 +34,10 @@ struct ConfiguracoesApp {
     direcao_pronome: String,
     nota_minima: f64,
     cabecalho_ata: Option<String>,
+    lider_ativo: bool,
+    lider_rotulo: String,
+    elegivel_ativo: bool,
+    elegivel_rotulo: String,
 }
 
 #[derive(Deserialize)]
@@ -41,6 +45,10 @@ struct ConfiguracoesInput {
     direcao_nome: String,
     direcao_pronome: String,
     nota_minima: f64,
+    lider_ativo: bool,
+    lider_rotulo: String,
+    elegivel_ativo: bool,
+    elegivel_rotulo: String,
 }
 
 #[derive(Deserialize)]
@@ -620,11 +628,24 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
         return Err("Selecione o pronome da direcao.".to_string());
     }
 
+    let lider_rotulo = {
+        let r = input.lider_rotulo.trim();
+        if r.is_empty() { "Líder de sala".to_string() } else { r.to_string() }
+    };
+    let elegivel_rotulo = {
+        let r = input.elegivel_rotulo.trim();
+        if r.is_empty() { "Elegível".to_string() } else { r.to_string() }
+    };
+
     let config = ConfiguracoesApp {
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
         nota_minima: input.nota_minima,
         cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
+        lider_ativo: input.lider_ativo,
+        lider_rotulo,
+        elegivel_ativo: input.elegivel_ativo,
+        elegivel_rotulo,
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
@@ -4530,6 +4551,20 @@ fn ler_configuracoes() -> ConfiguracoesApp {
             .and_then(valor_para_f64)
             .unwrap_or(5.0),
         cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
+        lider_ativo: dados.get("lider_ativo").and_then(Value::as_bool).unwrap_or(true),
+        lider_rotulo: dados
+            .get("lider_rotulo")
+            .and_then(Value::as_str)
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or("Líder de sala")
+            .to_string(),
+        elegivel_ativo: dados.get("elegivel_ativo").and_then(Value::as_bool).unwrap_or(true),
+        elegivel_rotulo: dados
+            .get("elegivel_rotulo")
+            .and_then(Value::as_str)
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or("Elegível")
+            .to_string(),
     }
 }
 
@@ -4543,6 +4578,10 @@ fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String>
         "direcao_pronome": config.direcao_pronome,
         "nota_minima": config.nota_minima,
         "cabecalho_ata": config.cabecalho_ata,
+        "lider_ativo": config.lider_ativo,
+        "lider_rotulo": config.lider_rotulo,
+        "elegivel_ativo": config.elegivel_ativo,
+        "elegivel_rotulo": config.elegivel_rotulo,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())

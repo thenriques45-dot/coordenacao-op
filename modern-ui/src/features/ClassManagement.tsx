@@ -319,6 +319,7 @@ export function GestaoTurma({
   turma,
   turmaDetalhe,
   alunos,
+  turmaConfig,
   onVoltar,
   onSalvarCoordenador,
   onSalvarElegibilidade,
@@ -329,6 +330,7 @@ export function GestaoTurma({
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
@@ -572,7 +574,7 @@ export function GestaoTurma({
           </div>
           <div className="panel students-table-wrap">
             <table className="students-table">
-              <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th><th>Elegível</th><th>Líder</th></tr></thead>
+              <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th>{turmaConfig.elegivel_ativo && <th>{turmaConfig.elegivel_rotulo}</th>}{turmaConfig.lider_ativo && <th>{turmaConfig.lider_rotulo}</th>}</tr></thead>
               <tbody>
                 {alunosFiltrados.map((aluno) => {
                   const status = classificarAluno(aluno);
@@ -595,30 +597,34 @@ export function GestaoTurma({
                       <td className={status === "critico" ? "danger-text" : "success-text"}>{formatarMediaGlobal(calcularMediaAluno(aluno))}</td>
                       <td>{formatarPercentual(aluno.frequencia)}</td>
                       <td><span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span></td>
-                      <td>
-                        <button
-                          className={`eligible-toggle ${aluno.elegivel ? "yes" : "no"}`}
-                          disabled={salvandoElegivel === aluno.matricula}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            alternarElegivel(aluno);
-                          }}
-                        >
-                          {aluno.elegivel ? "Sim" : "Não"}
-                        </button>
-                      </td>
-                      <td>
-                        <button
-                          className={`leader-toggle ${aluno.liderancaSala ?? "no"}`}
-                          disabled={salvandoLideranca === aluno.matricula}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            alternarLideranca(aluno);
-                          }}
-                        >
-                          {rotuloLideranca(aluno.liderancaSala ?? null)}
-                        </button>
-                      </td>
+                      {turmaConfig.elegivel_ativo && (
+                        <td>
+                          <button
+                            className={`eligible-toggle ${aluno.elegivel ? "yes" : "no"}`}
+                            disabled={salvandoElegivel === aluno.matricula}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              alternarElegivel(aluno);
+                            }}
+                          >
+                            {aluno.elegivel ? "Sim" : "Não"}
+                          </button>
+                        </td>
+                      )}
+                      {turmaConfig.lider_ativo && (
+                        <td>
+                          <button
+                            className={`leader-toggle ${aluno.liderancaSala ?? "no"}`}
+                            disabled={salvandoLideranca === aluno.matricula}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              alternarLideranca(aluno);
+                            }}
+                          >
+                            {rotuloLideranca(aluno.liderancaSala ?? null)}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

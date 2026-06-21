@@ -77,6 +77,13 @@ type NotaBimestre = {
   media: number;
 };
 
+type TurmaConfig = {
+  lider_ativo: boolean;
+  lider_rotulo: string;
+  elegivel_ativo: boolean;
+  elegivel_rotulo: string;
+};
+
 type Aluno = {
   matricula?: string;
   chamada: number;
@@ -374,6 +381,12 @@ export function App() {
   const [modoReuniao, setModoReuniao] = useState(false);
   const [indiceAluno, setIndiceAluno] = useState(0);
   const [turmas, setTurmas] = useState<TurmaResumo[]>([]);
+  const [turmaConfig, setTurmaConfig] = useState<TurmaConfig>({
+    lider_ativo: true,
+    lider_rotulo: "Líder de sala",
+    elegivel_ativo: true,
+    elegivel_rotulo: "Elegível",
+  });
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
@@ -439,6 +452,18 @@ export function App() {
   useEffect(() => {
     if (!tauriDisponivel) return;
     return iniciarMonitorAlertasTarefas();
+  }, []);
+
+  useEffect(() => {
+    if (!tauriDisponivel) return;
+    invokeApp<TurmaConfig>("carregar_configuracoes")
+      .then((c) => setTurmaConfig({
+        lider_ativo: c.lider_ativo,
+        lider_rotulo: c.lider_rotulo,
+        elegivel_ativo: c.elegivel_ativo,
+        elegivel_rotulo: c.elegivel_rotulo,
+      }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -879,7 +904,7 @@ export function App() {
           />
         )}
         {tela === "conselhos" && (
-          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} onSelecionar={(turma) => {
+          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} onSelecionar={(turma) => {
             setTurmaSelecionada(turma);
             navegarPara("conselho");
           }} />
@@ -887,6 +912,7 @@ export function App() {
         {tela === "conselho" && (
           <Council
             aluno={aluno}
+            turmaConfig={turmaConfig}
             alunos={alunosConselhoAtivos}
             totalAlunos={alunosConselhoAtivos.length}
             indiceAluno={indiceAluno}
@@ -920,6 +946,7 @@ export function App() {
             turma={turmaSelecionada}
             turmaDetalhe={turmaDetalhe}
             alunos={alunosConselho}
+            turmaConfig={turmaConfig}
             onVoltar={() => navegarPara("turmas")}
             onSalvarCoordenador={salvarCoordenadorTurma}
             onSalvarElegibilidade={salvarElegibilidadeAluno}
@@ -987,7 +1014,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={(c) => setTurmaConfig({ lider_ativo: c.lider_ativo, lider_rotulo: c.lider_rotulo, elegivel_ativo: c.elegivel_ativo, elegivel_rotulo: c.elegivel_rotulo })} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (

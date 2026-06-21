@@ -29,6 +29,10 @@ type ConfiguracoesApp = {
   direcao_pronome: string;
   nota_minima: number;
   cabecalho_ata: string | null;
+  lider_ativo: boolean;
+  lider_rotulo: string;
+  elegivel_ativo: boolean;
+  elegivel_rotulo: string;
 };
 
 type BackupResultado = {
@@ -66,10 +70,11 @@ type DiagnosticoIaLocal = {
   mensagem: string;
 };
 
-type SettingsSection = "instituicao" | "perfil" | "assistente" | "backup" | "atualizacao";
+type SettingsSection = "instituicao" | "turmas" | "perfil" | "assistente" | "backup" | "atualizacao";
 
 const secoesConfiguracoes: Array<{ id: SettingsSection; titulo: string; descricao: string }> = [
   { id: "instituicao", titulo: "Instituição", descricao: "Direção, critérios e cabeçalho" },
+  { id: "turmas", titulo: "Configuração de turmas", descricao: "Líder de sala e elegível" },
   { id: "perfil", titulo: "Perfil e sincronização", descricao: "Coordenador e grupo de trabalho" },
   { id: "assistente", titulo: "Assistente Pedagógico", descricao: "IA para relatórios" },
   { id: "backup", titulo: "Backup", descricao: "Exportar e restaurar dados" },
@@ -92,18 +97,24 @@ export function Configuracoes({
   onPerfilSyncChange,
   onAbrirAssistenteSync,
   onDadosAlterados,
+  onConfigSalva,
 }: {
   turmas: TurmaConfiguracoes[];
   perfilSync: WorkgroupSyncProfile;
   onPerfilSyncChange: (perfil: WorkgroupSyncProfile) => void;
   onAbrirAssistenteSync: () => void;
   onDadosAlterados: () => void;
+  onConfigSalva: (config: ConfiguracoesApp) => void;
 }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
     direcao_pronome: "F",
     nota_minima: 5,
     cabecalho_ata: null,
+    lider_ativo: true,
+    lider_rotulo: "Líder de sala",
+    elegivel_ativo: true,
+    elegivel_rotulo: "Elegível",
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -159,6 +170,7 @@ export function Configuracoes({
       const salvo = await invokeApp<ConfiguracoesApp>("salvar_configuracoes", { input: config });
       setConfig(salvo);
       setMensagem("Configurações salvas.");
+      onConfigSalva(salvo);
       onDadosAlterados();
     } catch (err) {
       setErro(String(err));
@@ -592,6 +604,33 @@ export function Configuracoes({
             </span>
           </div>
           <button className="primary-action" onClick={salvar} disabled={processando}>Salvar configurações</button>
+        </article>
+        )}
+        {secaoConfig === "turmas" && (
+        <article className="settings-card">
+          <h2>Configuração de turmas</h2>
+          <p>Ative/desative e renomeie campos usados nas turmas e no conselho. Ao desativar, o campo é removido dessas telas.</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input type="checkbox" checked={config.lider_ativo} onChange={(e) => setConfig((a) => ({ ...a, lider_ativo: e.target.checked }))} />
+              Usar líder de sala
+            </label>
+            <label style={{ display: "block", flex: "1 1 220px" }}>
+              Nome do campo
+              <input value={config.lider_rotulo} disabled={!config.lider_ativo} onChange={(e) => setConfig((a) => ({ ...a, lider_rotulo: e.target.value }))} placeholder="Ex.: Líder de sala, Representante" style={{ width: "100%" }} />
+            </label>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end", marginTop: "0.75rem" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <input type="checkbox" checked={config.elegivel_ativo} onChange={(e) => setConfig((a) => ({ ...a, elegivel_ativo: e.target.checked }))} />
+              Usar elegível
+            </label>
+            <label style={{ display: "block", flex: "1 1 220px" }}>
+              Nome do campo
+              <input value={config.elegivel_rotulo} disabled={!config.elegivel_ativo} onChange={(e) => setConfig((a) => ({ ...a, elegivel_rotulo: e.target.value }))} placeholder="Ex.: Elegível" style={{ width: "100%" }} />
+            </label>
+          </div>
+          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1rem" }}>Salvar configurações</button>
         </article>
         )}
 
