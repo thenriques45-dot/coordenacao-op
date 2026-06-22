@@ -270,8 +270,10 @@ function MetricCard({
   return (
     <article className="metric-card">
       <div className={`metric-icon ${tone}`}>{icon}</div>
-      <strong>{value}</strong>
-      <span>{label}</span>
+      <div>
+        <strong>{value}</strong>
+        <span>{label}</span>
+      </div>
     </article>
   );
 }
