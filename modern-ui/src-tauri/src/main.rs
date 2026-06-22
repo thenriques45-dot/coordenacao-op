@@ -1014,9 +1014,14 @@ fn enviar_notificacao(titulo: String, corpo: String) -> Result<(), String> {
 
 #[tauri::command]
 fn abrir_url(url: String) -> Result<(), String> {
+    let url = url.trim();
+    if !url_esquema_permitido(url) {
+        return Err("Link invalido. Apenas enderecos http, https e mailto sao permitidos.".to_string());
+    }
+
     #[cfg(target_os = "windows")]
     {
-    let script = format!("Start-Process {}", aspas_powershell(&url));
+    let script = format!("Start-Process {}", aspas_powershell(url));
     comando_externo("powershell")
         .args([
             "-NoProfile",
@@ -1032,7 +1037,7 @@ fn abrir_url(url: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         comando_externo("open")
-            .arg(&url)
+            .arg(url)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
     }
@@ -1040,12 +1045,22 @@ fn abrir_url(url: String) -> Result<(), String> {
     #[cfg(all(unix, not(target_os = "macos")))]
     {
         comando_externo("xdg-open")
-            .arg(&url)
+            .arg(url)
             .spawn()
             .map_err(|err| format!("Nao foi possivel abrir o link: {err}"))?;
     }
 
     Ok(())
+}
+
+/// Aceita apenas links de navegação seguros (http, https, mailto), evitando que
+/// `Start-Process`/`open`/`xdg-open` sejam usados para executar arquivos locais
+/// a partir de conteúdo importado ou sincronizado.
+fn url_esquema_permitido(url: &str) -> bool {
+    let minusculo = url.to_ascii_lowercase();
+    minusculo.starts_with("http://")
+        || minusculo.starts_with("https://")
+        || minusculo.starts_with("mailto:")
 }
 
 #[tauri::command]
@@ -1452,6 +1467,7 @@ fn aplicar_lote_alunos(
 #[tauri::command]
 fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     let caminho_atual = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho_atual)?;
     let texto = fs::read_to_string(&caminho_atual).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
@@ -1510,10 +1526,7 @@ fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, S
 #[tauri::command]
 fn excluir_turma(caminho: String) -> Result<(), String> {
     let caminho = PathBuf::from(caminho);
-    let raiz = data_dir()
-        .map_err(|err| format!("Nao consegui preparar a pasta de dados: {err}"))?
-        .join("persistidos");
-    garantir_caminho_em_pasta(&caminho, &raiz)?;
+    validar_caminho_turma(&caminho)?;
     if caminho.exists() {
         fs::remove_file(&caminho).map_err(|err| err.to_string())?;
     }
@@ -1753,7 +1766,9 @@ fn listar_turmas() -> Result<Vec<TurmaResumo>, String> {
 // Lista os componentes (disciplinas) de uma turma a partir do mapão importado.
 #[tauri::command]
 fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, String> {
-    let texto = fs::read_to_string(PathBuf::from(&caminho)).map_err(|e| e.to_string())?;
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|e| e.to_string())?;
     let dados: Value = serde_json::from_str(&texto).map_err(|e| e.to_string())?;
     let mut set: BTreeSet<String> = BTreeSet::new();
 
@@ -1783,6 +1798,7 @@ fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, String> {
 #[tauri::command]
 fn carregar_turma(caminho: String, bimestre: String) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
@@ -1796,6 +1812,7 @@ fn salvar_ajustes_media(
     ajustes: Vec<AjusteMediaInput>,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
@@ -1816,6 +1833,7 @@ fn salvar_encaminhamentos(
     encaminhamentos: Vec<i64>,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
@@ -1835,6 +1853,7 @@ fn salvar_tempo_conselho(
     tempo_segundos: i64,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
@@ -1853,6 +1872,7 @@ fn salvar_coordenador_turma(
     input: CoordenadorTurmaInput,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let Some(objeto) = dados.as_object_mut() else {
@@ -1879,6 +1899,7 @@ fn salvar_elegibilidade_aluno(
     bimestre: String,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let aluno = dados
@@ -1906,6 +1927,7 @@ fn salvar_lideranca_aluno(
     bimestre: String,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let lideranca = normalizar_lideranca_sala(input.lideranca.as_deref());
@@ -1961,6 +1983,7 @@ fn salvar_educacao_especial_aluno(
     bimestre: String,
 ) -> Result<TurmaDetalhe, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let alunos = dados
@@ -2002,6 +2025,7 @@ fn definir_fullscreen(window: tauri::Window, ativo: bool) -> Result<(), String> 
 #[tauri::command]
 fn abrir_ata(caminho: String, bimestre: String) -> Result<String, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let arquivo = localizar_documento_finalizacao(
@@ -2019,6 +2043,7 @@ fn abrir_ata(caminho: String, bimestre: String) -> Result<String, String> {
 #[tauri::command]
 fn abrir_relatorio_professores(caminho: String, bimestre: String) -> Result<String, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let arquivo = localizar_documento_finalizacao(
@@ -2035,7 +2060,9 @@ fn abrir_relatorio_professores(caminho: String, bimestre: String) -> Result<Stri
 
 #[tauri::command]
 fn listar_documentos_conselho(caminho: String) -> Result<Vec<DocumentoConselho>, String> {
-    let texto = fs::read_to_string(PathBuf::from(caminho)).map_err(|err| err.to_string())?;
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     let mut documentos = Vec::new();
     for bimestre in ["1", "2", "3", "4"] {
@@ -2069,6 +2096,7 @@ fn abrir_documento_conselho(input: AbrirDocumentoConselhoInput) -> Result<String
     if !caminho.exists() {
         return Err("Documento não encontrado.".to_string());
     }
+    validar_caminho_em_dados(&caminho)?;
     abrir_arquivo(&caminho)?;
     Ok(caminho.to_string_lossy().to_string())
 }
@@ -2206,6 +2234,7 @@ fn salvar_finalizacao_conselho(
     finalizacao: FinalizacaoConselhoInput,
 ) -> Result<FinalizacaoResultado, String> {
     let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
     let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
 
@@ -5491,9 +5520,20 @@ fn modelos_ollama_instalados() -> Result<Vec<String>, String> {
 fn versao_maior(candidata: &str, atual: &str) -> bool {
     let parse = |texto: &str| {
         texto
+            .trim()
             .trim_start_matches('v')
             .split('.')
-            .map(|parte| parte.parse::<u64>().unwrap_or(0))
+            // Considera apenas os dígitos iniciais de cada segmento para tolerar
+            // sufixos de pré-lançamento (ex.: "11-rc1" vira 11 em vez de 0).
+            .map(|parte| {
+                parte
+                    .trim()
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse::<u64>()
+                    .unwrap_or(0)
+            })
             .collect::<Vec<_>>()
     };
     let mut a = parse(candidata);
@@ -5612,6 +5652,29 @@ fn normalizar_chave(valor: &str) -> String {
         .filter(|c| !c.is_whitespace() && *c != '-' && *c != '_')
         .flat_map(char::to_lowercase)
         .collect::<String>()
+}
+
+fn raiz_turmas() -> Result<PathBuf, String> {
+    let raiz = data_dir()
+        .map_err(|err| format!("Nao consegui preparar a pasta de dados: {err}"))?
+        .join("persistidos");
+    fs::create_dir_all(&raiz).map_err(|err| err.to_string())?;
+    Ok(raiz)
+}
+
+/// Garante que um caminho recebido do front-end aponta para dentro da pasta de
+/// turmas (dados/persistidos). Protege os comandos contra leitura/escrita fora
+/// da área de dados caso o caminho seja manipulado.
+fn validar_caminho_turma(caminho: &Path) -> Result<(), String> {
+    garantir_caminho_em_pasta(caminho, &raiz_turmas()?)
+}
+
+/// Garante que um caminho recebido do front-end aponta para dentro da pasta de
+/// dados do aplicativo (atas, relatórios, anexos, etc.).
+fn validar_caminho_em_dados(caminho: &Path) -> Result<(), String> {
+    let base = data_dir().map_err(|err| format!("Nao consegui preparar a pasta de dados: {err}"))?;
+    fs::create_dir_all(&base).map_err(|err| err.to_string())?;
+    garantir_caminho_em_pasta(caminho, &base)
 }
 
 fn garantir_caminho_em_pasta(caminho: &Path, pasta: &Path) -> Result<(), String> {
