@@ -583,7 +583,14 @@ export function Turmas({
                 type="file"
                 accept=".csv,text/csv"
                 multiple={modoCriacao === "lote" && !turmaEditando}
-                onChange={(event) => modoCriacao === "lote" && !turmaEditando ? selecionarCsvsLote(event.target.files) : selecionarCsv(event.target.files?.[0])}
+                onChange={(event) => {
+                if (modoCriacao === "lote" && !turmaEditando) {
+                  selecionarCsvsLote(event.target.files);
+                } else {
+                  selecionarCsv(event.target.files?.[0]);
+                }
+                event.target.value = "";
+              }}
               />
             </label>
             <span>
