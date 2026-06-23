@@ -215,6 +215,57 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.11.0": [
+    "Redesign visual: painel de turma com cards de metrica coloridos por contexto, abas em estilo pilula e periodo exibido como subtitulo.",
+    "Quadro Kanban: cada card exibe borda colorida a esquerda indicando prioridade — vermelho para alta, ambar para media e verde para baixa.",
+    "Tema escuro refinado com as mesmas melhorias visuais: icones de metrica, abas, badges e bordas Kanban seguem a nova paleta.",
+    "Menu lateral: submenu 'Quadro de Gestao' usa guia de recuo em vez de bloco com borda, em ambos os temas.",
+    "Badges de Elegivel e Lider corrigidos — 'Sim' em verde, 'Nao' em cinza; Lider e Vice em azul.",
+    "Nome do coordenador na tela de turma exibido em vermelho da marca.",
+  ],
+  "2.10.6": [
+    "Segurança: o app agora valida o esquema das URLs antes de abri-las — apenas http, https e mailto são permitidos.",
+    "Segurança: proteção contra path traversal em todos os comandos que recebem caminhos de arquivo do front-end.",
+    "Verificador de atualizações tolerante a versões com sufixo de pré-lançamento.",
+  ],
+  "2.10.5": [
+    "Novo relatório 'Pendência de Lançamento de Notas' na Central de Relatórios: lista, por turma, as disciplinas ainda sem notas no mapão.",
+    "Tela de conselho: diagnóstico SARESP (nível e equivalência de aprendizagem) passa a aparecer em Matemática e Língua Portuguesa.",
+    "Corrigida a cor do status 'Básico' no diagnóstico (estava sem cor por causa do acento na sigla).",
+    "Corrigido o desalinhamento do indicador de situação quando o nome do aluno ocupa duas linhas.",
+  ],
+  "2.10.4": [
+    "Dashboard: 'Próximas tarefas' agora lista todas as não concluídas (A Fazer, Em Andamento e Revisão).",
+    "Relatório de pendências do PEI: considera os bimestres realmente coletados, não apenas o primeiro.",
+    "Busca de turmas por código compacto — '6b' encontra o 6º Ano B, '1f' encontra a 1ª Série F.",
+    "Corrigido o transbordo dos botões na janela de reposicionar foto do aluno.",
+  ],
+  "2.10.3": [
+    "Nova tela 'Atualizar turmas em lote': selecione vários CSVs da SED de uma vez — o app identifica cada turma pelos RAs dos alunos e mostra prévia antes de aplicar.",
+    "Reimportar uma turma agora respeita a situação lida da planilha — transferidos e inativados não são mais reativados.",
+  ],
+  "2.10.2": [
+    "Novo toggle 'Mostrar inativos' na tela de turmas — por padrão os inativos ficam ocultos com o selo 'Inativo' e a linha esmaecida.",
+    "Tela de conselho: alunos inativos não aparecem mais na lista nem entram na navegação por teclado.",
+    "Métricas e percentuais da turma passam a considerar apenas os alunos ativos.",
+  ],
+  "2.10.1": [
+    "Nova tela 'Importar Fotos dos Alunos': aceita ZIP ou 7z por turma, com as fotos nomeadas pelo primeiro nome do aluno, prévia de recorte e reposicionamento.",
+    "As fotos aparecem acima do nome no conselho e ao lado do nome na tela individual do aluno.",
+    "Suporte a JPG, PNG, WEBP, GIF, BMP e RAW (CR2/NEF/ARW); fotos HEIC recebem aviso para converter para JPG.",
+    "Fotos sincronizadas com o grupo de trabalho sem sobrescrever as que só existem localmente.",
+  ],
+  "2.10.0": [
+    "Nova tela 'Planejamento dos Professores' na Central de Relatórios: acompanha, por turma e disciplina, quais professores entregaram o Plano de Ensino em cada bimestre.",
+    "Sincronização inteligente: mesclagem por campo em vez de substituição total — notas e elegibilidade respeitam sempre a edição mais recente.",
+    "Rastreabilidade de notas: ao passar o mouse sobre uma nota importada, o app mostra quem importou e quando.",
+    "Instância única: reabrir o app pelo ícone com ele na bandeja foca a janela existente em vez de abrir uma nova.",
+  ],
+  "2.9.0": [
+    "O aplicativo vai para a bandeja do sistema ao fechar a janela — notificações de prazo continuam funcionando em segundo plano.",
+    "Nova opção 'Importar diagnóstico de aprendizagem' — importa dados de leitura e matemática via CSV da SED e os exibe no conselho de classe.",
+    "Nova aba 'Diagnóstico' no perfil individual do aluno no conselho.",
+  ],
   "2.8.0": [
     "Tarefas do Kanban agora podem ter data de início e prazo, aparecendo em todos os dias do período no calendário.",
     "Formulário de tarefa mais enxuto: datas na mesma linha, responsável na aba Vínculos já preenchido, e compartilhar virou um botão.",

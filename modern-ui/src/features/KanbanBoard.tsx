@@ -1132,7 +1132,7 @@ function KanbanTaskCard({
 
   return (
     <article
-      className={`kanban-task-card ${arrastando ? "is-dragging" : ""}`}
+      className={`kanban-task-card ${tarefa.prioridade} ${arrastando ? "is-dragging" : ""}`}
       draggable={false}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

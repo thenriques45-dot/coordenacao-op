@@ -160,13 +160,14 @@ select:disabled {
 }
 
 .nav-submenu {
-  background: #faf9f6;
-  border: 1px solid #eae8e3;
-  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #eef0f3;
+  border-radius: 0;
   display: grid;
   gap: 4px;
-  margin: 0 0 2px;
-  padding: 6px;
+  margin: 2px 0 2px 14px;
+  padding: 4px 0 4px 10px;
 }
 
 .nav-submenu .nav-item {
@@ -1671,9 +1672,10 @@ h3 {
 }
 
 .turma-detail-title {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 0;
 }
 
 .turma-detail-title h1 {
@@ -1682,10 +1684,10 @@ h3 {
 }
 
 .turma-detail-title span {
-  background: #e5e7eb;
-  border-radius: 999px;
+  color: #6b6670;
+  display: block;
   font-size: 14px;
-  padding: 5px 13px;
+  margin-top: 4px;
 }
 
 .turma-info-grid,
@@ -1735,42 +1737,91 @@ h3 {
 
 .class-metric-row .council-metric {
   align-items: center;
-  display: grid;
-  gap: 6px;
-  justify-items: center;
+  background: #faf9f6;
+  border: 1px solid #eef0f3;
+  border-radius: 11px;
+  display: flex;
+  gap: 13px;
+  padding: 14px 16px;
+}
+
+.class-metric-row .council-metric-icon {
+  align-items: center;
+  border-radius: 10px;
+  display: flex;
+  flex-shrink: 0;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.class-metric-row .council-metric:nth-child(1) .council-metric-icon {
+  background: #fdeceb;
+  color: #e8202a;
+}
+
+.class-metric-row .council-metric:nth-child(2) .council-metric-icon {
+  background: #e7f7ee;
+  color: #10a04c;
+}
+
+.class-metric-row .council-metric:nth-child(3) .council-metric-icon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.class-metric-row .council-metric:nth-child(4) .council-metric-icon {
+  background: #f4e9fd;
+  color: #9333c5;
+}
+
+.class-metric-row .council-metric .council-metric-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .class-metric-row .council-metric strong {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .class-metric-row .council-metric span {
+  font-size: 12px;
   margin-top: 0;
 }
 
 .detail-tabs {
-  border-bottom: 1px solid #d9dee7;
+  background: #f0ede8;
+  border: 0;
+  border-radius: 11px;
   display: flex;
-  gap: 24px;
-  margin-top: 24px;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 5px;
+  width: max-content;
 }
 
 .detail-tabs button {
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
-  font-weight: 700;
-  padding: 14px 0 12px;
+  border-radius: 8px;
+  color: #6b6670;
+  font-size: 13px;
+  font-weight: 600;
+  height: 36px;
+  padding: 0 18px;
 }
 
 .detail-tabs button.active {
-  border-bottom-color: #050512;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  color: #15131a;
+  font-weight: 700;
 }
 
 .class-search {
   margin-top: 0;
-  max-width: 450px;
-  flex: 1 1 280px;
+  flex: 1;
 }
 
 .class-search-row {
@@ -1952,29 +2003,25 @@ h3 {
   padding: 6px 12px;
 }
 
-.eligible-toggle.no {
-  background: #dcfce7;
-  color: #166534;
+.eligible-toggle.yes {
+  background: #dcfae6;
+  color: #067647;
 }
 
-.eligible-toggle.yes {
-  background: #fef3c7;
-  color: #92400e;
+.eligible-toggle.no {
+  background: #f0ede8;
+  color: #6b6670;
 }
 
 .leader-toggle.no {
-  background: var(--tag-empty-bg);
-  color: var(--tag-empty-text);
+  background: #f0ede8;
+  color: #6b6670;
 }
 
-.leader-toggle.lider {
-  background: var(--tag-good-bg);
-  color: var(--tag-good-text);
-}
-
+.leader-toggle.lider,
 .leader-toggle.vice {
-  background: var(--tag-warning-bg);
-  color: var(--tag-warning-text);
+  background: #dbeafe;
+  color: #1e4f9a;
 }
 
 .stats-layout {
@@ -6355,4 +6402,153 @@ th:nth-child(3) {
 .theme-dark .status-evolution-placeholder {
   border-color: #2c2935;
   color: #9a96a4;
+}
+
+/* ── turma detail: period as plain subtitle ── */
+.theme-dark .turma-detail-title span {
+  background: transparent;
+  border-radius: 0;
+  color: #9a96a4;
+  padding: 0;
+}
+
+/* ── metric cards (class-metric-row) dark ── */
+.theme-dark .class-metric-row {
+  border-color: #28252f;
+}
+
+.theme-dark .class-metric-row .council-metric {
+  background: #211e28;
+  border-color: #2c2935;
+}
+
+.theme-dark .class-metric-row .council-metric:nth-child(1) .council-metric-icon {
+  background: #33191c;
+  color: #e8202a;
+}
+
+.theme-dark .class-metric-row .council-metric:nth-child(2) .council-metric-icon {
+  background: #15301f;
+  color: #3fc977;
+}
+
+.theme-dark .class-metric-row .council-metric:nth-child(3) .council-metric-icon {
+  background: #16223c;
+  color: #6aa0ff;
+}
+
+.theme-dark .class-metric-row .council-metric:nth-child(4) .council-metric-icon {
+  background: #241634;
+  color: #c47dff;
+}
+
+.theme-dark .class-metric-row .council-metric strong {
+  color: #ececf0;
+}
+
+.theme-dark .class-metric-row .council-metric.green strong {
+  color: #3fc977;
+}
+
+.theme-dark .class-metric-row .council-metric span {
+  color: #9a96a4;
+}
+
+/* ── tabs pill style dark ── */
+.theme-dark .detail-tabs,
+.theme-dark .student-profile-tabs {
+  background: #26232f;
+  border: 0;
+}
+
+.theme-dark .detail-tabs button,
+.theme-dark .student-profile-tabs button {
+  border-bottom: 0;
+  color: #9a96a4;
+}
+
+.theme-dark .detail-tabs button.active,
+.theme-dark .student-profile-tabs button.active {
+  background: #36323e;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color: #f1eff5;
+}
+
+/* ── eligible / leader badge dark ── */
+.theme-dark .eligible-toggle.yes {
+  background: #15301f;
+  color: #56d98a;
+}
+
+.theme-dark .eligible-toggle.no {
+  background: #2b2834;
+  color: #9a96a4;
+}
+
+.theme-dark .leader-toggle.lider,
+.theme-dark .leader-toggle.vice {
+  background: #16223c;
+  color: #7aa8ff;
+}
+
+.theme-dark .leader-toggle.no {
+  background: #2b2834;
+  color: #9a96a4;
+}
+
+/* ── coordinator name red ── */
+.coordinator-field button strong {
+  color: #e8202a;
+}
+
+.theme-dark .coordinator-field button strong {
+  color: #e8202a;
+}
+
+.class-metric-row .council-metric.green strong {
+  color: #10a04c;
+}
+
+/* ── media/frequência table text dark ── */
+.theme-dark .success-text {
+  color: #3fc977;
+}
+
+.theme-dark .danger-text {
+  color: #ff7a80;
+}
+
+/* ── kanban card border-left by priority ── */
+.kanban-task-card.alta {
+  border-left: 3px solid #f04438;
+}
+
+.kanban-task-card.media {
+  border-left: 3px solid #eba400;
+}
+
+.kanban-task-card.baixa {
+  border-left: 3px solid #13c65c;
+}
+
+.theme-dark .kanban-task-card.alta {
+  border-left-color: #ff6b6f;
+}
+
+.theme-dark .kanban-task-card.media {
+  border-left-color: #e3ad3e;
+}
+
+.theme-dark .kanban-task-card.baixa {
+  border-left-color: #34d178;
+}
+
+/* ── nav submenu dark: use border-left guide instead of block bg ── */
+.theme-dark .nav-submenu {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #2c2935;
+  border-radius: 0;
+  margin: 2px 0 2px 14px;
+  padding-left: 10px;
 }

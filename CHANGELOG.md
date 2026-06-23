@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.11.0 - Redesign visual
+
+- **Painel de turma — cards de métrica:** ícone colorido por contexto (vermelho, verde, azul e roxo) em caixa de tom suave; fundo sutil e borda fina separando do card; período exibido como subtítulo discreto em vez de badge.
+- **Painel de turma — abas:** estilo pílula com fundo suave, aba ativa em branco com leve sombra. Mesmo padrão aplicado ao perfil do aluno.
+- **Quadro Kanban:** cards exibem borda colorida à esquerda por prioridade — vermelho (`#f04438`) para alta, âmbar (`#eba400`) para média e verde (`#13c65c`) para baixa.
+- **Menu lateral:** submenu "Quadro de Gestão" passa a usar guia de recuo (borda esquerda fina) em vez de bloco com borda, ficando mais sutil em ambos os temas.
+- **Badges Elegível / Líder:** "Sim" em verde, "Não" em cinza; Líder e Vice em azul — cores corrigidas para refletir a semântica visual do redesign.
+- **Coordenador da turma:** nome exibido em vermelho da marca (`#e8202a`) nos temas claro e escuro.
+- **Tema escuro:** todas as melhorias acima refletidas na paleta dark — ícones de métrica, abas, badges e bordas Kanban com cores ajustadas para contraste sobre fundos escuros.
+
+## v2.10.6 - Hardening de segurança
+
+- **Validação de URL:** `abrir_url` agora rejeita esquemas além de `http`, `https` e `mailto`, impedindo execução de protocolos arbitrários.
+- **Proteção contra path traversal:** todos os comandos que recebem caminhos de arquivo do front-end passam por validação — o app rejeita qualquer caminho que saia dos diretórios autorizados (`dados/` e o diretório de dados do Tauri).
+- **Parsing de versão tolerante:** o verificador de atualizações passa a comparar versões com sufixos de pré-lançamento (ex.: `2.10.6-beta`) sem travar.
+
 ## v2.10.5 - Pendência de lançamento, diagnóstico no conselho e ajustes
 
 - **Novo relatório "Pendência de Lançamento de Notas"** na Central de Relatórios: lista, por turma, as disciplinas com notas ainda não lançadas no mapão — indicando "(todos)" quando nenhum aluno teve nota lançada ou "(N de T)" quando faltam apenas alguns. Considera apenas alunos ativos e os bimestres da carga horária.

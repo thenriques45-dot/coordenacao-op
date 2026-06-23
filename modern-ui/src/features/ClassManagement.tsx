@@ -307,11 +307,11 @@ function CouncilMetric({
 }) {
   return (
     <article className={`council-metric ${tone ?? ""}`}>
+      {icon && <span className="council-metric-icon">{icon}</span>}
       <div className="council-metric-value">
-        {icon}
         <strong>{value}</strong>
+        <span>{label}</span>
       </div>
-      <span>{label}</span>
     </article>
   );
 }
