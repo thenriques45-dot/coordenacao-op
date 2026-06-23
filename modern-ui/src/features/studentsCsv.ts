@@ -83,8 +83,8 @@ export function parseCsvAlunos(texto: string) {
     const digito = obter(linha, "Dig. RA");
     const nome = extrairNomeSocial(obter(linha, "Nome do Aluno"));
     if (!ra || !nome) return [];
-    const chamada = Number.parseInt(obter(linha, "Nº de chamada"), 10);
-    const situacao = normalizarTextoCsv(obter(linha, "Situação do Aluno"));
+    const chamada = Number.parseInt(obter(linha, "Nº de chamada") || obter(linha, "Nº"), 10);
+    const situacao = normalizarTextoCsv(obter(linha, "Situação do Aluno") || obter(linha, "Situação"));
     const deficiencias = cabecalho.flatMap((coluna, indice) => {
       if (!colunasDeficiencia.has(normalizarTextoCsv(coluna))) return [];
       const valor = linha[indice] ?? "";

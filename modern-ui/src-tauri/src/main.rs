@@ -1436,6 +1436,7 @@ fn aplicar_lote_alunos(
     let mut saida = Vec::new();
     for item in itens {
         let caminho = PathBuf::from(&item.turma_caminho);
+        validar_caminho_turma(&caminho)?;
         let texto = fs::read_to_string(&caminho)
             .map_err(|err| format!("Não consegui ler a turma: {err}"))?;
         let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
