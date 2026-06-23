@@ -6552,3 +6552,269 @@ th:nth-child(3) {
   margin: 2px 0 2px 14px;
   padding-left: 10px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   BUSCA GLOBAL (Ctrl+K)
+   ═══════════════════════════════════════════════════════════════ */
+
+.global-search-backdrop {
+  align-items: flex-start;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding-top: 10vh;
+  position: fixed;
+  z-index: 200;
+}
+
+.global-search-panel {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+  overflow: hidden;
+  width: min(620px, calc(100vw - 40px));
+}
+
+.global-search-input-row {
+  align-items: center;
+  border-bottom: 1px solid #eae8e3;
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.global-search-icon {
+  color: #98a2b3;
+  flex-shrink: 0;
+}
+
+.global-search-input {
+  background: none;
+  border: 0;
+  color: #15131a;
+  flex: 1;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  padding: 0;
+}
+
+.global-search-input::placeholder {
+  color: #98a2b3;
+}
+
+.global-search-esc {
+  background: #f4f3f0;
+  border: 0;
+  border-radius: 5px;
+  color: #6b6670;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 7px;
+}
+
+.global-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0 4px;
+}
+
+.global-search-section {
+  padding: 0 8px 2px;
+}
+
+.global-search-group-label {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 8px 8px 4px;
+  text-transform: uppercase;
+}
+
+.global-search-item {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: #15131a;
+  cursor: pointer;
+  display: flex;
+  font-family: inherit;
+  font-size: 14px;
+  gap: 10px;
+  padding: 8px 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.global-search-item.active {
+  background: #eff6ff;
+}
+
+.global-search-item strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.global-search-turma-icon {
+  align-items: center;
+  background: #f4f3f0;
+  border-radius: 8px;
+  color: #6b6670;
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.global-search-turma-icon.active {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.global-search-acao-icon {
+  align-items: center;
+  background: #f4f3f0;
+  border-radius: 8px;
+  color: #6b6670;
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.global-search-acao-icon.acao-conselho { background: #fdf3da; color: #b97f00; }
+.global-search-acao-icon.acao-importar { background: #e7f7ee; color: #10a04c; }
+.global-search-acao-icon.acao-kanban   { background: #dbeafe; color: #2563eb; }
+
+.global-search-aluno-avatar {
+  align-items: center;
+  background: #f4f3f0;
+  border-radius: 999px;
+  color: #6b6670;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.global-search-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.global-search-item-meta {
+  color: #98a2b3;
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  margin-top: 1px;
+}
+
+.global-search-enter-icon {
+  color: #98a2b3;
+  flex-shrink: 0;
+}
+
+.global-search-empty {
+  color: #98a2b3;
+  font-size: 14px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.global-search-hint {
+  font-size: 13px;
+}
+
+.global-search-footer {
+  border-top: 1px solid #eae8e3;
+  color: #98a2b3;
+  display: flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  gap: 16px;
+  padding: 10px 16px;
+}
+
+.global-search-footer kbd {
+  background: #f4f3f0;
+  border: 0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 5px;
+}
+
+/* ── dark theme ── */
+.theme-dark .global-search-panel {
+  background: #1a1820;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .global-search-input-row {
+  border-bottom-color: #2c2935;
+}
+
+.theme-dark .global-search-input {
+  color: #f1eff5;
+}
+
+.theme-dark .global-search-esc {
+  background: #26232f;
+  color: #9a96a4;
+}
+
+.theme-dark .global-search-item {
+  color: #f1eff5;
+}
+
+.theme-dark .global-search-item.active {
+  background: #16223c;
+}
+
+.theme-dark .global-search-turma-icon {
+  background: #26232f;
+  color: #9a96a4;
+}
+
+.theme-dark .global-search-turma-icon.active {
+  background: #16223c;
+  color: #6aa0ff;
+}
+
+.theme-dark .global-search-acao-icon {
+  background: #26232f;
+  color: #9a96a4;
+}
+
+.theme-dark .global-search-acao-icon.acao-conselho { background: #3a3017; color: #e3ad3e; }
+.theme-dark .global-search-acao-icon.acao-importar { background: #15301f; color: #3fc977; }
+.theme-dark .global-search-acao-icon.acao-kanban   { background: #16223c; color: #6aa0ff; }
+
+.theme-dark .global-search-aluno-avatar {
+  background: #26232f;
+  color: #9a96a4;
+}
+
+.theme-dark .global-search-footer {
+  border-top-color: #2c2935;
+}
+
+.theme-dark .global-search-footer kbd {
+  background: #26232f;
+  color: #9a96a4;
+}

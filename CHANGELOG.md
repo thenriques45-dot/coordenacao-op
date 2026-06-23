@@ -1,7 +1,16 @@
 # Changelog
 
-## v2.11.0 - Redesign visual
+## v2.11.0 - Busca global e redesign visual
 
+### Busca global (nova função)
+- **Ctrl+K** (ou ⌘K no Mac) abre o modal de busca unificada em qualquer tela do app.
+- **Turmas:** busca por código, série ou período; exibe alunos ativos e elegíveis.
+- **Ações rápidas:** "Ir para Conselho de Classe", "Importar Mapão" e "Criar Tarefa no Kanban" — a ação de conselho é contextualizada pela primeira turma encontrada.
+- **Alunos:** ativo com ≥ 2 caracteres; varre os nomes de todas as turmas; clicar abre o detalhe da turma do aluno.
+- Navegação inteiramente por teclado: ↑↓ movem o cursor, Enter seleciona, ESC fecha. Clique fora também fecha.
+- Funciona em ambos os temas (claro e escuro).
+
+### Redesign visual
 - **Painel de turma — cards de métrica:** ícone colorido por contexto (vermelho, verde, azul e roxo) em caixa de tom suave; fundo sutil e borda fina separando do card; período exibido como subtítulo discreto em vez de badge.
 - **Painel de turma — abas:** estilo pílula com fundo suave, aba ativa em branco com leve sombra. Mesmo padrão aplicado ao perfil do aluno.
 - **Quadro Kanban:** cards exibem borda colorida à esquerda por prioridade — vermelho (`#f04438`) para alta, âmbar (`#eba400`) para média e verde (`#13c65c`) para baixa.

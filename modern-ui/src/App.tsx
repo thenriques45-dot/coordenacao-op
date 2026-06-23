@@ -31,6 +31,7 @@ import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 import { invokeApp, tauriDisponivel } from "./features/appBridge";
+import { BuscaGlobal } from "./features/GlobalSearch";
 import { CalendarioGestao } from "./features/CalendarManagement";
 import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
@@ -216,6 +217,7 @@ type SyncInstitutionalResultado = {
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
   "2.11.0": [
+    "Busca global (Ctrl+K): modal de busca unificada para turmas, alunos e acoes rapidas navegavel inteiramente pelo teclado.",
     "Redesign visual: painel de turma com cards de metrica coloridos por contexto, abas em estilo pilula e periodo exibido como subtitulo.",
     "Quadro Kanban: cada card exibe borda colorida a esquerda indicando prioridade — vermelho para alta, ambar para media e verde para baixa.",
     "Tema escuro refinado com as mesmas melhorias visuais: icones de metrica, abas, badges e bordas Kanban seguem a nova paleta.",
@@ -429,6 +431,7 @@ const alunosDemo: Aluno[] = [
 export function App() {
   const [tela, setTela] = useState<Tela>("dashboard");
   const [menuAberto, setMenuAberto] = useState(false);
+  const [buscaGlobalAberta, setBuscaGlobalAberta] = useState(false);
   const [modoReuniao, setModoReuniao] = useState(false);
   const [indiceAluno, setIndiceAluno] = useState(0);
   const [turmas, setTurmas] = useState<TurmaResumo[]>([]);
@@ -855,6 +858,17 @@ export function App() {
     return () => window.removeEventListener("keydown", aoPressionarTecla);
   }, [tela, alunosConselhoAtivos.length]);
 
+  useEffect(() => {
+    function abrirBusca(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key === "k") {
+        event.preventDefault();
+        setBuscaGlobalAberta((aberta) => !aberta);
+      }
+    }
+    window.addEventListener("keydown", abrirBusca);
+    return () => window.removeEventListener("keydown", abrirBusca);
+  }, []);
+
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
@@ -1082,6 +1096,26 @@ export function App() {
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
+      {buscaGlobalAberta && (
+        <BuscaGlobal
+          turmas={turmas}
+          onFechar={() => setBuscaGlobalAberta(false)}
+          onAbrirTurma={(turma) => {
+            setTurmaSelecionada(turma);
+            navegarPara("gestao-turma");
+            setBuscaGlobalAberta(false);
+          }}
+          onNavegar={(tela) => {
+            navegarPara(tela as Tela);
+            setBuscaGlobalAberta(false);
+          }}
+          onAbrirConselho={(turma) => {
+            setTurmaSelecionada(turma);
+            navegarPara("conselhos");
+            setBuscaGlobalAberta(false);
+          }}
+        />
+      )}
       {atualizacao && (
         <div className="modal-backdrop">
           <section className="update-modal">
