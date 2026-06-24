@@ -253,6 +253,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.13.1": [
+    "Corrigido: ao importar um CSV em que o mesmo aluno aparece mais de uma vez (ex.: 'Ativo' + 'TROCA ALUNO ENTRE CLASSES'), o app agora mantém a entrada ativa — sem necessidade de recriar a turma, basta reimportar o CSV.",
+  ],
   "2.13.0": [
     "Indicador de sincronizacao animado no rodape da barra lateral: ponto verde pulsante com o tempo da ultima sincronizacao ('agora mesmo', 'ha 1 min' etc.), atualizado a cada 30 segundos.",
     "Colunas do Quadro Kanban animam a entrada ao abrir o quadro, aparecendo em cascata com atraso escalonado.",
