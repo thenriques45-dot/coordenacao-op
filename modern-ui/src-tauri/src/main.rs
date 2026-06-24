@@ -87,7 +87,7 @@ struct SyncInstitutionalResultado {
     backup_seguranca: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct KanbanAnexoResultado {
     id: String,
     nome: String,
