@@ -4910,7 +4910,7 @@ th:nth-child(3) {
 .kanban-task-card:hover {
   border-color: #b9d4ff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
 }
 
 .kanban-task-card:active {
@@ -7217,4 +7217,112 @@ th:nth-child(3) {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(120px, 0.7fr) minmax(120px, 1fr) 42px;
+}
+
+/* ============================================================
+   Keyframes — handoff animations
+   ============================================================ */
+
+@keyframes sync-ring {
+  0%   { transform: scale(1);   opacity: .55; }
+  70%  { transform: scale(2.4); opacity: 0;   }
+  100% { transform: scale(2.4); opacity: 0;   }
+}
+
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes alta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(240,68,56,.35); }
+  50%       { box-shadow: 0 0 0 5px rgba(240,68,56,0);  }
+}
+
+@keyframes alta-pulse-dark {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,106,111,.45); }
+  50%       { box-shadow: 0 0 0 5px rgba(255,106,111,0);  }
+}
+
+/* Stagger helpers — combine with slide-in-up */
+.stagger-1 { animation-delay: 0s;   }
+.stagger-2 { animation-delay: .07s; }
+.stagger-3 { animation-delay: .14s; }
+.stagger-4 { animation-delay: .21s; }
+.stagger-5 { animation-delay: .28s; }
+.stagger-6 { animation-delay: .35s; }
+
+/* Kanban columns — slide in on mount */
+.kanban-column {
+  animation: slide-in-up .3s ease both;
+}
+.kanban-column:nth-child(1) { animation-delay: 0s;   }
+.kanban-column:nth-child(2) { animation-delay: .07s; }
+.kanban-column:nth-child(3) { animation-delay: .14s; }
+.kanban-column:nth-child(4) { animation-delay: .21s; }
+
+/* Alta-priority card — pulsing glow (suppressed while dragging) */
+.kanban-task-card.Alta:not(.is-dragging) {
+  animation: alta-pulse 2.5s ease-in-out infinite;
+}
+.theme-dark .kanban-task-card.Alta:not(.is-dragging) {
+  animation-name: alta-pulse-dark;
+}
+
+/* ============================================================
+   Sync indicator (sidebar footer)
+   ============================================================ */
+
+.sync-indicator {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sync-dot-wrapper {
+  display: inline-flex;
+  flex-shrink: 0;
+  height: 10px;
+  position: relative;
+  width: 10px;
+}
+
+.sync-ring {
+  animation: sync-ring 2s ease-out infinite;
+  background: #10a04c;
+  border-radius: 999px;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.sync-dot {
+  background: #10a04c;
+  border-radius: 999px;
+  display: block;
+  height: 8px;
+  margin: 1px;
+  position: relative;
+  width: 8px;
+}
+
+.sync-indicator small {
+  color: #10a04c;
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-dark .sync-ring,
+.theme-dark .sync-dot {
+  background: #34d178;
+}
+
+.theme-dark .sync-indicator small {
+  color: #34d178;
 }

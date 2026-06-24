@@ -253,6 +253,18 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.13.0": [
+    "Indicador de sincronizacao animado no rodape da barra lateral: ponto verde pulsante com o tempo da ultima sincronizacao ('agora mesmo', 'ha 1 min' etc.), atualizado a cada 30 segundos.",
+    "Colunas do Quadro Kanban animam a entrada ao abrir o quadro, aparecendo em cascata com atraso escalonado.",
+    "Cards de prioridade Alta pulsam suavemente em vermelho para destacar urgencia — a animacao e suprimida durante o arrasto.",
+    "Tema escuro: animacao de pulso usa cor e intensidade adaptadas para o tema escuro.",
+  ],
+  "2.12.0": [
+    "Nova aba 'Atendimentos' no perfil do aluno: registre atendimentos com tipo, data e descricao, adicione seguimentos (follow-ups) e anexe documentos.",
+    "Linha do tempo de seguimentos por atendimento para acompanhar o historico de cada caso.",
+    "Novo Relatorio de Atendimentos na Central de Relatorios: metricas agregadas por tipo, turma e periodo.",
+    "Tipos de atendimento configurados em Configuracoes — padrao inclui Disciplinar, Duvidas, Pedagogico, Financeiro e Educacao Especial; personalizaveis.",
+  ],
   "2.11.0": [
     "Busca global (Ctrl+K): modal de busca unificada para turmas, alunos e acoes rapidas navegavel inteiramente pelo teclado.",
     "Redesign visual: painel de turma com cards de metrica coloridos por contexto, abas em estilo pilula e periodo exibido como subtitulo.",
@@ -493,6 +505,11 @@ export function App() {
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
   const [perfilSync, setPerfilSync] = useState<WorkgroupSyncProfile>(() => carregarPerfilSincronizacao());
   const [mostrarAssistenteSync, setMostrarAssistenteSync] = useState(() => carregarPerfilSincronizacao().onboarding === "pending");
+  const lastSyncTime = useMemo(() => {
+    const pub = perfilSync.lastPublishedAt ? new Date(perfilSync.lastPublishedAt).getTime() : 0;
+    const pull = perfilSync.lastPulledAt ? new Date(perfilSync.lastPulledAt).getTime() : 0;
+    return Math.max(pub, pull) || Date.now();
+  }, [perfilSync.lastPublishedAt, perfilSync.lastPulledAt]);
   const alunosConselho = useMemo(() => {
     if (!turmaDetalhe?.alunos.length) {
       return alunosDemo;
@@ -996,7 +1013,10 @@ export function App() {
           )}
           <div>
             <strong>{perfilSync.displayName || "Coordenacao"}</strong>
-            <small>{perfilSync.syncEnabled ? "Sincronização ativa" : perfilSync.role || "Equipe pedagogica"}</small>
+            {perfilSync.syncEnabled
+              ? <SyncIndicator lastSyncTime={lastSyncTime} />
+              : <small>{perfilSync.role || "Equipe pedagogica"}</small>
+            }
           </div>
           <button
             className="theme-toggle"
@@ -1350,6 +1370,38 @@ function AssistenteSincronizacaoGrupo({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function computeSyncLabel(lastSyncTime: number): string {
+  const mins = Math.floor((Date.now() - lastSyncTime) / 60_000);
+  if (mins < 1) return "agora mesmo";
+  if (mins === 1) return "há 1 min";
+  return `há ${mins} min`;
+}
+
+function useSyncLabel(lastSyncTime: number): string {
+  const [label, setLabel] = useState(() => computeSyncLabel(lastSyncTime));
+
+  useEffect(() => {
+    setLabel(computeSyncLabel(lastSyncTime));
+    const timer = setInterval(() => setLabel(computeSyncLabel(lastSyncTime)), 30_000);
+    return () => clearInterval(timer);
+  }, [lastSyncTime]);
+
+  return label;
+}
+
+function SyncIndicator({ lastSyncTime }: { lastSyncTime: number }) {
+  const label = useSyncLabel(lastSyncTime);
+  return (
+    <div className="sync-indicator">
+      <span className="sync-dot-wrapper">
+        <span className="sync-ring" />
+        <span className="sync-dot" />
+      </span>
+      <small>{`Sincronizado · ${label}`}</small>
     </div>
   );
 }
