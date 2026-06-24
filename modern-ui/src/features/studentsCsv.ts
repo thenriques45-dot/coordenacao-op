@@ -77,7 +77,7 @@ export function parseCsvAlunos(texto: string) {
   const negativos = new Set(["", "NAO", "N", "NAO SE APLICA", "NAO POSSUI", "SEM DEFICIENCIA"]);
   const positivos = new Set(["SIM", "S", "ELEGIVEL", "ALUNO ELEGIVEL"]);
 
-  return linhas.slice(indiceCabecalho + 1).flatMap<NovoAlunoPayload>((linhaTexto) => {
+  const brutos = linhas.slice(indiceCabecalho + 1).flatMap<NovoAlunoPayload>((linhaTexto) => {
     const linha = dividirLinhaCsv(linhaTexto);
     const ra = obter(linha, "RA");
     const digito = obter(linha, "Dig. RA");
@@ -102,4 +102,15 @@ export function parseCsvAlunos(texto: string) {
       deficiencias: Array.from(new Set(deficiencias)),
     }];
   });
+
+  // Quando o mesmo RA aparece mais de uma vez (e.g. "Ativo" + "TROCA ALUNO ENTRE CLASSES"),
+  // mantém a entrada ativa. Se nenhuma for ativa, mantém a última lida.
+  const porMatricula = new Map<string, NovoAlunoPayload>();
+  for (const aluno of brutos) {
+    const existente = porMatricula.get(aluno.matricula);
+    if (!existente || (!existente.ativo && aluno.ativo)) {
+      porMatricula.set(aluno.matricula, aluno);
+    }
+  }
+  return Array.from(porMatricula.values());
 }
