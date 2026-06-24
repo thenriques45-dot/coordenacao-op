@@ -253,6 +253,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.13.2": [
+    "Correcao interna: versao do aplicativo agora e gravada corretamente no binario — o atualizador automatico passa a funcionar de forma confiavel.",
+  ],
   "2.13.1": [
     "Corrigido: ao importar um CSV em que o mesmo aluno aparece mais de uma vez (ex.: 'Ativo' + 'TROCA ALUNO ENTRE CLASSES'), o app agora mantém a entrada ativa — sem necessidade de recriar a turma, basta reimportar o CSV.",
   ],
