@@ -1,5 +1,6 @@
-import { BookOpen, CalendarClock, Copy, Pencil, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
+import { BookOpen, CalendarClock, Copy, FileText, Paperclip, Pencil, Plus, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   assistentePedagogicoDisponivel,
   assistenteManualDisponivel,
@@ -56,9 +57,50 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  atendimentos?: AtendimentoAluno[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
 };
+
+type AtendimentoAnexo = {
+  id: string;
+  nome: string;
+  tipo: string;
+  dados: string;
+  caminho: string | null;
+  origem: string;
+};
+
+type AtendimentoAluno = {
+  id: string;
+  data: string;
+  tipos: string[];
+  atendido: string;
+  tags: string[];
+  descricao: string;
+  anexos: AtendimentoAnexo[];
+  followups?: AtendimentoFollowUp[];
+  criado_em?: string | null;
+  atualizado_em?: string | null;
+};
+
+type AtendimentoFollowUp = {
+  id: string;
+  data: string;
+  tipos: string[];
+  atendido: string;
+  tags: string[];
+  descricao: string;
+  anexos: AtendimentoAnexo[];
+  criado_em?: string | null;
+  atualizado_em?: string | null;
+};
+
+type AtendimentoModalState =
+  | { modo: "novo" }
+  | { modo: "editar"; atendimento: AtendimentoAluno }
+  | { modo: "followup"; atendimento: AtendimentoAluno }
+  | { modo: "editar-followup"; atendimento: AtendimentoAluno; followup: AtendimentoFollowUp };
 
 type DiagnosticoAprendizagem = {
   turma_origem: string | null;
@@ -325,17 +367,19 @@ export function GestaoTurma({
   onSalvarElegibilidade,
   onSalvarLideranca,
   onSalvarEducacaoEspecial,
+  onSalvarAtendimento,
   onOpenKanban,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[] };
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
   onOpenKanban: () => void;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
@@ -495,7 +539,9 @@ export function GestaoTurma({
           turmaLabel={turma ? rotuloTurma(turma) : undefined}
           onVoltar={() => setAlunoAberto(null)}
           catalogoDeficiencias={catalogoDeficiencias}
+          tiposAtendimento={turmaConfig.atendimento_tipos ?? []}
           onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
+          onSalvarAtendimento={onSalvarAtendimento}
           tarefas={tarefasKanban}
           eventos={eventosCalendario}
           onOpenKanban={onOpenKanban}
@@ -707,7 +753,9 @@ function AlunoDetalheGestao({
   turmaLabel,
   onVoltar,
   catalogoDeficiencias,
+  tiposAtendimento,
   onSalvarEducacaoEspecial,
+  onSalvarAtendimento,
   tarefas,
   eventos,
   onOpenKanban,
@@ -717,12 +765,14 @@ function AlunoDetalheGestao({
   turmaLabel?: string;
   onVoltar: () => void;
   catalogoDeficiencias: string[];
+  tiposAtendimento: string[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
   tarefas: KanbanTarefa[];
   eventos: CalendarEvent[];
   onOpenKanban: () => void;
 }) {
-  const [aba, setAba] = useState<"desempenho" | "educacao" | "tarefas">("desempenho");
+  const [aba, setAba] = useState<"desempenho" | "atendimentos" | "educacao" | "tarefas">("desempenho");
   const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
   const [comentario, setComentario] = useState(aluno.comentarioEducacaoEspecial ?? "");
   const [novaCondicao, setNovaCondicao] = useState("");
@@ -736,6 +786,16 @@ function AlunoDetalheGestao({
   const [promptManual, setPromptManual] = useState("");
   const [modalPromptManual, setModalPromptManual] = useState(false);
   const [aiSettings, setAiSettings] = useState<AiAssistantSettings>(() => carregarAiAssistantSettings());
+  const [modalAtendimento, setModalAtendimento] = useState<AtendimentoModalState | null>(null);
+  const [abaFormularioAtendimento, setAbaFormularioAtendimento] = useState<"detalhes" | "anexos">("detalhes");
+  const [dataAtendimento, setDataAtendimento] = useState(new Date().toISOString().slice(0, 10));
+  const [tiposAtendimentoSelecionados, setTiposAtendimentoSelecionados] = useState<string[]>([]);
+  const [atendido, setAtendido] = useState<"aluno" | "responsavel">("aluno");
+  const [tagsAtendimento, setTagsAtendimento] = useState("");
+  const [descricaoAtendimento, setDescricaoAtendimento] = useState("");
+  const [anexosAtendimento, setAnexosAtendimento] = useState<AtendimentoAnexo[]>([]);
+  const [erroAtendimento, setErroAtendimento] = useState("");
+  const [salvandoAtendimento, setSalvandoAtendimento] = useState(false);
   const status = classificarAluno(aluno);
   const mediaAluno = calcularMediaAluno(aluno);
   const bimestreAtual = Math.max(1, Math.min(4, Number.parseInt(bimestre, 10) || 1));
@@ -782,6 +842,15 @@ function AlunoDetalheGestao({
     setErroRelatorio("");
     setRelatorioIa("");
     setAiSettings(carregarAiAssistantSettings());
+    setModalAtendimento(null);
+    setAbaFormularioAtendimento("detalhes");
+    setDataAtendimento(new Date().toISOString().slice(0, 10));
+    setTiposAtendimentoSelecionados([]);
+    setAtendido("aluno");
+    setTagsAtendimento("");
+    setDescricaoAtendimento("");
+    setAnexosAtendimento([]);
+    setErroAtendimento("");
   }, [aluno.matricula]);
 
   useEffect(() => {
@@ -810,6 +879,147 @@ function AlunoDetalheGestao({
       .then(() => setMensagem("Informações de educação especial salvas."))
       .catch((err) => setErro(String(err)))
       .finally(() => setSalvando(false));
+  }
+
+  function resetarFormularioAtendimento() {
+    setDataAtendimento(new Date().toISOString().slice(0, 10));
+    setTiposAtendimentoSelecionados([]);
+    setAtendido("aluno");
+    setTagsAtendimento("");
+    setDescricaoAtendimento("");
+    setAnexosAtendimento([]);
+    setErroAtendimento("");
+    setAbaFormularioAtendimento("detalhes");
+  }
+
+  function preencherFormularioAtendimento(registro: AtendimentoAluno | AtendimentoFollowUp) {
+    setDataAtendimento(registro.data || new Date().toISOString().slice(0, 10));
+    setTiposAtendimentoSelecionados(registro.tipos ?? []);
+    setAtendido(registro.atendido === "responsavel" ? "responsavel" : "aluno");
+    setTagsAtendimento((registro.tags ?? []).join(", "));
+    setDescricaoAtendimento(registro.descricao ?? "");
+    setAnexosAtendimento(registro.anexos ?? []);
+    setErroAtendimento("");
+    setAbaFormularioAtendimento("detalhes");
+  }
+
+  function abrirNovoAtendimento() {
+    resetarFormularioAtendimento();
+    setModalAtendimento({ modo: "novo" });
+  }
+
+  function abrirEdicaoAtendimento(atendimento: AtendimentoAluno) {
+    preencherFormularioAtendimento(atendimento);
+    setModalAtendimento({ modo: "editar", atendimento });
+  }
+
+  function abrirFollowUpAtendimento(atendimento: AtendimentoAluno) {
+    setDataAtendimento(new Date().toISOString().slice(0, 10));
+    setTiposAtendimentoSelecionados(atendimento.tipos ?? []);
+    setAtendido(atendimento.atendido === "responsavel" ? "responsavel" : "aluno");
+    setTagsAtendimento((atendimento.tags ?? []).join(", "));
+    setDescricaoAtendimento("");
+    setAnexosAtendimento([]);
+    setErroAtendimento("");
+    setAbaFormularioAtendimento("detalhes");
+    setModalAtendimento({ modo: "followup", atendimento });
+  }
+
+  function abrirEdicaoFollowUp(atendimento: AtendimentoAluno, followup: AtendimentoFollowUp) {
+    preencherFormularioAtendimento(followup);
+    setModalAtendimento({ modo: "editar-followup", atendimento, followup });
+  }
+
+  function fecharModalAtendimento() {
+    setModalAtendimento(null);
+    resetarFormularioAtendimento();
+  }
+
+  function alternarTipoAtendimento(tipo: string) {
+    setTiposAtendimentoSelecionados((atuais) => (
+      atuais.includes(tipo) ? atuais.filter((item) => item !== tipo) : [...atuais, tipo]
+    ));
+  }
+
+  async function anexarArquivoAtendimento() {
+    setErroAtendimento("");
+    try {
+      const selecionados = await abrirDialogoArquivo({
+        multiple: true,
+        title: "Selecionar anexos do atendimento",
+      });
+      const caminhos = Array.isArray(selecionados) ? selecionados : selecionados ? [selecionados] : [];
+      if (!caminhos.length) return;
+      const anexos = await Promise.all(
+        caminhos.map((caminho) => invokeApp<AtendimentoAnexo>("preparar_anexo_atendimento", { caminho })),
+      );
+      setAnexosAtendimento((atuais) => [...atuais, ...anexos]);
+    } catch (err) {
+      setErroAtendimento(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function removerAnexoAtendimento(id: string) {
+    setAnexosAtendimento((atuais) => atuais.filter((anexo) => anexo.id !== id));
+  }
+
+  async function abrirAnexoAtendimento(anexo: AtendimentoAnexo) {
+    if (!anexo.caminho) return;
+    try {
+      await invokeApp("abrir_anexo_atendimento", { caminho: anexo.caminho });
+    } catch (err) {
+      setErroAtendimento(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function salvarAtendimento(event?: FormEvent) {
+    event?.preventDefault();
+    if (!aluno.matricula) return;
+    setErroAtendimento("");
+    setMensagem("");
+    if (!dataAtendimento) {
+      setErroAtendimento("Informe a data do atendimento.");
+      return;
+    }
+    if (!tiposAtendimentoSelecionados.length) {
+      setErroAtendimento("Selecione ao menos um tipo de atendimento.");
+      return;
+    }
+    if (!descricaoAtendimento.trim()) {
+      setErroAtendimento("Descreva o atendimento realizado.");
+      return;
+    }
+    const input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] } = {
+      data: dataAtendimento,
+      tipos: tiposAtendimentoSelecionados,
+      atendido,
+      tags: tagsAtendimento.split(",").map((item) => item.trim()).filter(Boolean),
+      descricao: descricaoAtendimento,
+      anexos: anexosAtendimento,
+    };
+    if (modalAtendimento?.modo === "editar") {
+      input.id = modalAtendimento.atendimento.id;
+    }
+    if (modalAtendimento?.modo === "followup") {
+      input.parent_id = modalAtendimento.atendimento.id;
+    }
+    if (modalAtendimento?.modo === "editar-followup") {
+      input.id = modalAtendimento.followup.id;
+      input.parent_id = modalAtendimento.atendimento.id;
+    }
+    setSalvandoAtendimento(true);
+    onSalvarAtendimento(aluno.matricula, input)
+      .then(() => {
+        const mensagemSucesso = modalAtendimento?.modo === "followup"
+          ? "Seguimento registrado."
+          : modalAtendimento?.modo === "editar" || modalAtendimento?.modo === "editar-followup"
+            ? "Atendimento atualizado."
+            : "Atendimento registrado.";
+        setMensagem(mensagemSucesso);
+        fecharModalAtendimento();
+      })
+      .catch((err) => setErroAtendimento(err instanceof Error ? err.message : String(err)))
+      .finally(() => setSalvandoAtendimento(false));
   }
 
   async function gerarRelatorio() {
@@ -894,6 +1104,27 @@ function AlunoDetalheGestao({
     gerarRelatorio();
   }
 
+  const atendimentosAluno = aluno.atendimentos ?? [];
+  const totalFollowUps = atendimentosAluno.reduce((total, atendimento) => total + (atendimento.followups?.length ?? 0), 0);
+  const opcoesTipoAtendimento = Array.from(new Set([...tiposAtendimento, ...tiposAtendimentoSelecionados])).filter(Boolean);
+  const tituloModalAtendimento = modalAtendimento?.modo === "editar"
+    ? "Editar atendimento"
+    : modalAtendimento?.modo === "followup"
+      ? "Seguir atendimento"
+      : modalAtendimento?.modo === "editar-followup"
+        ? "Editar seguimento"
+        : "Registrar atendimento";
+  const descricaoModalAtendimento = modalAtendimento?.modo === "followup" || modalAtendimento?.modo === "editar-followup"
+      ? "Inclua uma nova etapa na timeline deste caso."
+    : "Registre o contato realizado pela coordenação.";
+  const rotuloBotaoSalvarAtendimento = salvandoAtendimento
+    ? "Salvando..."
+    : modalAtendimento?.modo === "editar" || modalAtendimento?.modo === "editar-followup"
+      ? "Salvar alterações"
+      : modalAtendimento?.modo === "followup"
+        ? "Seguir atendimento"
+        : "Registrar atendimento";
+
   return (
     <section className="panel student-profile-panel">
       <button className="back-link student-profile-back" onClick={onVoltar}>← Voltar para alunos</button>
@@ -918,6 +1149,7 @@ function AlunoDetalheGestao({
 
       <div className="student-profile-tabs">
         <button className={aba === "desempenho" ? "active" : ""} onClick={() => setAba("desempenho")}>Desempenho</button>
+        <button className={aba === "atendimentos" ? "active" : ""} onClick={() => setAba("atendimentos")}>Atendimentos ({aluno.atendimentos?.length ?? 0})</button>
         {tarefasDoAluno.length > 0 && (
           <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDoAluno.length})</button>
         )}
@@ -1041,6 +1273,117 @@ function AlunoDetalheGestao({
       </>
       )}
 
+      {aba === "atendimentos" && (
+        <section className="student-attendance-section">
+          <div className="panel-heading attendance-heading">
+            <div>
+              <h3>Atendimentos</h3>
+              <p>Histórico de casos e seguimentos registrados para este aluno.</p>
+            </div>
+            <button type="button" className="primary-action" onClick={abrirNovoAtendimento} disabled={!tiposAtendimento.length}>
+              <Plus size={17} />
+              Registrar atendimento
+            </button>
+          </div>
+          {mensagem && <div className="notice success kanban-notice">{mensagem}</div>}
+          {erroAtendimento && !modalAtendimento && <div className="notice error kanban-notice">{erroAtendimento}</div>}
+          {!tiposAtendimento.length && (
+            <div className="empty-special-list">Configure os tipos de atendimento em Configurações antes de registrar novos casos.</div>
+          )}
+
+          <div className="attendance-summary-row">
+            <article>
+              <span>Casos</span>
+              <strong>{atendimentosAluno.length}</strong>
+            </article>
+            <article>
+              <span>Seguimentos</span>
+              <strong>{totalFollowUps}</strong>
+            </article>
+            <article>
+              <span>Tipos configurados</span>
+              <strong>{tiposAtendimento.length}</strong>
+            </article>
+          </div>
+
+          <div className="attendance-history-list">
+            {atendimentosAluno.length ? atendimentosAluno.map((atendimento) => (
+              <article className="attendance-history-card" key={atendimento.id}>
+                <header>
+                  <div>
+                    <strong>{formatarDataAtendimento(atendimento.data)}</strong>
+                    <span>{atendimento.tipos.join(", ")} · {rotuloAtendidoAtendimento(atendimento.atendido)}</span>
+                  </div>
+                  <div className="attendance-card-actions">
+                    <button type="button" onClick={() => abrirFollowUpAtendimento(atendimento)}>
+                      <Plus size={14} />
+                      Seguir atendimento
+                    </button>
+                    <button type="button" onClick={() => abrirEdicaoAtendimento(atendimento)} aria-label="Editar atendimento">
+                      <Pencil size={14} />
+                    </button>
+                  </div>
+                </header>
+                {atendimento.tags.length > 0 && (
+                  <div className="attendance-tags">
+                    {atendimento.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                  </div>
+                )}
+                <p className="attendance-card-description">{atendimento.descricao}</p>
+                <div className="attendance-card-meta">
+                  <span><CalendarClock size={14} />{1 + (atendimento.followups?.length ?? 0)} item(ns) na timeline</span>
+                  {atendimento.anexos.length > 0 && <span><Paperclip size={14} />{atendimento.anexos.length} anexo(s)</span>}
+                </div>
+                {atendimento.anexos.length > 0 && (
+                  <div className="attendance-attachments saved compact">
+                    {atendimento.anexos.map((anexo) => (
+                      <button key={anexo.id} type="button" onClick={() => abrirAnexoAtendimento(anexo)}>
+                        <FileText size={14} />
+                        {anexo.nome}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {(atendimento.followups?.length ?? 0) > 0 && (
+                  <div className="attendance-timeline">
+                    {atendimento.followups?.map((followup) => (
+                      <div className="attendance-timeline-item" key={followup.id}>
+                        <div>
+                          <strong>{formatarDataAtendimento(followup.data)}</strong>
+                          <span>{followup.tipos.join(", ")} · {rotuloAtendidoAtendimento(followup.atendido)}</span>
+                        </div>
+                        <p>{followup.descricao}</p>
+                        {followup.tags.length > 0 && (
+                          <div className="attendance-tags">
+                            {followup.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                          </div>
+                        )}
+                        {followup.anexos.length > 0 && (
+                          <div className="attendance-attachments saved compact">
+                            {followup.anexos.map((anexo) => (
+                              <button key={anexo.id} type="button" onClick={() => abrirAnexoAtendimento(anexo)}>
+                                <FileText size={14} />
+                                {anexo.nome}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button type="button" className="attendance-timeline-edit" onClick={() => abrirEdicaoFollowUp(atendimento, followup)}>
+                          <Pencil size={13} />
+                          Editar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+            )) : (
+              <div className="empty-special-list">Nenhum atendimento registrado para este aluno.</div>
+            )}
+          </div>
+        </section>
+      )}
+
       {aba === "educacao" && aluno.elegivel && (
         <section className="special-education-panel">
           <div>
@@ -1102,6 +1445,136 @@ function AlunoDetalheGestao({
         </section>
       )}
 
+      {modalAtendimento && (
+        <div className="modal-backdrop">
+          <form className="kanban-task-modal attendance-modal" onSubmit={salvarAtendimento}>
+            <div className="modal-title-row">
+              <div>
+                <h2>{tituloModalAtendimento}</h2>
+                <p>{descricaoModalAtendimento}</p>
+              </div>
+              <button type="button" onClick={fecharModalAtendimento} aria-label="Fechar atendimento">
+                <X size={18} />
+              </button>
+            </div>
+            {(modalAtendimento.modo === "followup" || modalAtendimento.modo === "editar-followup") && (
+              <div className="attendance-parent-case">
+                <span>Caso principal</span>
+                <strong>{formatarDataAtendimento(modalAtendimento.atendimento.data)} · {modalAtendimento.atendimento.tipos.join(", ")}</strong>
+              </div>
+            )}
+            <div className="kanban-task-tabs" role="tablist" aria-label="Seções do atendimento">
+              {[
+                { id: "detalhes", label: "Detalhes" },
+                { id: "anexos", label: "Anexos" },
+              ].map((abaFormulario) => (
+                <button
+                  key={abaFormulario.id}
+                  type="button"
+                  className={abaFormularioAtendimento === abaFormulario.id ? "active" : ""}
+                  onClick={() => setAbaFormularioAtendimento(abaFormulario.id as "detalhes" | "anexos")}
+                  role="tab"
+                  aria-selected={abaFormularioAtendimento === abaFormulario.id}
+                >
+                  {abaFormulario.label}
+                </button>
+              ))}
+            </div>
+            <div className="kanban-task-modal-body">
+              {abaFormularioAtendimento === "detalhes" && (
+                <div className="kanban-task-tab-panel">
+                  <div className="kanban-form-grid">
+                    <label>
+                      Data
+                      <input type="date" value={dataAtendimento} onChange={(event) => setDataAtendimento(event.target.value)} autoFocus />
+                    </label>
+                    <label>
+                      Atendido
+                      <select value={atendido} onChange={(event) => setAtendido(event.target.value as "aluno" | "responsavel")}>
+                        <option value="aluno">Aluno</option>
+                        <option value="responsavel">Responsável</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="attendance-type-picker">
+                    <span>Tipos de atendimento</span>
+                    <div>
+                      {opcoesTipoAtendimento.length ? opcoesTipoAtendimento.map((tipo) => (
+                        <button
+                          key={tipo}
+                          type="button"
+                          className={tiposAtendimentoSelecionados.includes(tipo) ? "selected" : ""}
+                          onClick={() => alternarTipoAtendimento(tipo)}
+                        >
+                          {tipo}
+                        </button>
+                      )) : (
+                        <em>Configure os tipos de atendimento em Configurações.</em>
+                      )}
+                    </div>
+                  </div>
+                  <label>
+                    Tags
+                    <input
+                      value={tagsAtendimento}
+                      onChange={(event) => setTagsAtendimento(event.target.value)}
+                      placeholder="Ex.: agressão, desrespeito, orientação familiar"
+                    />
+                    <span className="kanban-form-hint">Separe as tags por vírgula.</span>
+                  </label>
+                  <label>
+                    Descrição do ocorrido
+                    <textarea
+                      value={descricaoAtendimento}
+                      onChange={(event) => setDescricaoAtendimento(event.target.value)}
+                      placeholder="Registre o contexto, encaminhamentos combinados e próximos passos."
+                    />
+                  </label>
+                </div>
+              )}
+
+              {abaFormularioAtendimento === "anexos" && (
+                <div className="kanban-task-tab-panel">
+                  <label>
+                    Anexos
+                    <button type="button" className="kanban-file-picker" onClick={anexarArquivoAtendimento} disabled={!tauriDisponivel}>
+                      <Paperclip size={16} />
+                      <strong>Selecionar arquivos</strong>
+                      <small>{anexosAtendimento.length ? `${anexosAtendimento.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
+                    </button>
+                  </label>
+                  {anexosAtendimento.length > 0 && (
+                    <div className="kanban-attachment-list">
+                      {anexosAtendimento.map((anexo) => (
+                        <span key={anexo.id}>
+                          <Paperclip size={14} />
+                          {anexo.nome}
+                          {anexo.caminho && (
+                            <button type="button" onClick={() => abrirAnexoAtendimento(anexo)} aria-label={`Abrir ${anexo.nome}`}>
+                              <FileText size={13} />
+                            </button>
+                          )}
+                          <button type="button" onClick={() => removerAnexoAtendimento(anexo.id)} aria-label={`Remover ${anexo.nome}`}>
+                            <X size={13} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {erroAtendimento && <div className="attendance-modal-error">{erroAtendimento}</div>}
+            <div className="modal-actions">
+              <button type="button" onClick={fecharModalAtendimento}>Cancelar</button>
+              <button type="submit" className="primary-action" disabled={salvandoAtendimento || !opcoesTipoAtendimento.length}>
+                {rotuloBotaoSalvarAtendimento}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {assistenteAberto && (
         <AssistenteRelatorioModal
           settings={aiSettings}
@@ -1126,6 +1599,15 @@ function AlunoDetalheGestao({
       )}
     </section>
   );
+}
+
+function formatarDataAtendimento(data: string) {
+  if (!data) return "-";
+  return new Date(`${data}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
+function rotuloAtendidoAtendimento(atendido: string) {
+  return atendido === "responsavel" ? "Responsável" : "Aluno";
 }
 
 function AssistenteRelatorioModal({

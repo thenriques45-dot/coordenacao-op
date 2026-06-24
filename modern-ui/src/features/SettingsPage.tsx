@@ -33,6 +33,7 @@ type ConfiguracoesApp = {
   lider_rotulo: string;
   elegivel_ativo: boolean;
   elegivel_rotulo: string;
+  atendimento_tipos: string[];
 };
 
 type BackupResultado = {
@@ -115,6 +116,7 @@ export function Configuracoes({
     lider_rotulo: "Líder de sala",
     elegivel_ativo: true,
     elegivel_rotulo: "Elegível",
+    atendimento_tipos: ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"],
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -161,6 +163,27 @@ export function Configuracoes({
       verificarIaLocal(false);
     }
   }, [secaoConfig, aiSettings.provider]);
+
+  function adicionarTipoAtendimento() {
+    setConfig((atual) => ({
+      ...atual,
+      atendimento_tipos: [...atual.atendimento_tipos, ""],
+    }));
+  }
+
+  function atualizarTipoAtendimento(indice: number, valor: string) {
+    setConfig((atual) => ({
+      ...atual,
+      atendimento_tipos: atual.atendimento_tipos.map((item, i) => i === indice ? valor : item),
+    }));
+  }
+
+  function removerTipoAtendimento(indice: number) {
+    setConfig((atual) => ({
+      ...atual,
+      atendimento_tipos: atual.atendimento_tipos.filter((_, i) => i !== indice),
+    }));
+  }
 
   async function salvar() {
     setProcessando(true);
@@ -629,6 +652,29 @@ export function Configuracoes({
               Nome do campo
               <input value={config.elegivel_rotulo} disabled={!config.elegivel_ativo} onChange={(e) => setConfig((a) => ({ ...a, elegivel_rotulo: e.target.value }))} placeholder="Ex.: Elegível" style={{ width: "100%" }} />
             </label>
+          </div>
+          <div style={{ marginTop: "1.25rem" }}>
+            <h3 style={{ marginBottom: "0.25rem" }}>Tipos de atendimento</h3>
+            <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>Defina as opções disponíveis na aba Atendimentos da ficha do aluno.</p>
+            <div style={{ display: "grid", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              {config.atendimento_tipos.map((tipo, indice) => (
+                <div key={indice} style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    value={tipo}
+                    onChange={(event) => atualizarTipoAtendimento(indice, event.target.value)}
+                    placeholder="Ex.: Disciplinar, Pedagógico, Financeiro"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button" className="danger-action" onClick={() => removerTipoAtendimento(indice)}>
+                    Remover
+                  </button>
+                </div>
+              ))}
+              {!config.atendimento_tipos.length && (
+                <span style={{ color: "#667085", fontSize: "0.85rem" }}>Nenhum tipo configurado. Adicione ao menos um para registrar atendimentos.</span>
+              )}
+            </div>
+            <button type="button" className="secondary-action" onClick={adicionarTipoAtendimento}>Adicionar tipo</button>
           </div>
           <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1rem" }}>Salvar configurações</button>
         </article>

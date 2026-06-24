@@ -38,6 +38,7 @@ struct ConfiguracoesApp {
     lider_rotulo: String,
     elegivel_ativo: bool,
     elegivel_rotulo: String,
+    atendimento_tipos: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -49,6 +50,8 @@ struct ConfiguracoesInput {
     lider_rotulo: String,
     elegivel_ativo: bool,
     elegivel_rotulo: String,
+    #[serde(default)]
+    atendimento_tipos: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -243,6 +246,40 @@ struct AbrirDocumentoConselhoInput {
     caminho: String,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
+struct AtendimentoAluno {
+    id: String,
+    data: String,
+    #[serde(default)]
+    tipos: Vec<String>,
+    atendido: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    descricao: String,
+    #[serde(default)]
+    anexos: Vec<KanbanAnexoResultado>,
+    #[serde(default)]
+    followups: Vec<AtendimentoFollowUp>,
+    criado_em: Option<String>,
+    atualizado_em: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+struct AtendimentoFollowUp {
+    id: String,
+    data: String,
+    #[serde(default)]
+    tipos: Vec<String>,
+    atendido: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    descricao: String,
+    #[serde(default)]
+    anexos: Vec<KanbanAnexoResultado>,
+    criado_em: Option<String>,
+    atualizado_em: Option<String>,
+}
+
 #[derive(Serialize)]
 struct AlunoDetalhe {
     matricula: String,
@@ -255,6 +292,7 @@ struct AlunoDetalhe {
     comentario_educacao_especial: Option<String>,
     frequencia_percentual: Option<f64>,
     encaminhamentos: Vec<i64>,
+    atendimentos: Vec<AtendimentoAluno>,
     diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     disciplinas: Vec<DisciplinaDetalhe>,
 }
@@ -380,6 +418,63 @@ struct RelatorioAlteracoesNotasResultado {
     turmas: usize,
     pendentes: usize,
     alteradas: usize,
+}
+
+#[derive(Deserialize)]
+struct AtendimentoAlunoInput {
+    id: Option<String>,
+    parent_id: Option<String>,
+    data: String,
+    tipos: Vec<String>,
+    atendido: String,
+    tags: Vec<String>,
+    descricao: String,
+    anexos: Vec<KanbanAnexoResultado>,
+}
+
+#[derive(Serialize)]
+struct RelatorioAtendimentosResultado {
+    alunos_atendidos: Vec<RelatorioAtendimentoAluno>,
+    alunos_nao_atendidos: Vec<RelatorioAtendimentoAlunoBasico>,
+    eventos: Vec<RelatorioAtendimentoEvento>,
+    total_turmas: usize,
+    total_alunos_ativos: usize,
+    total_atendimentos: usize,
+}
+
+#[derive(Serialize)]
+struct RelatorioAtendimentoAluno {
+    turma: String,
+    matricula: String,
+    nome: String,
+    atendimentos: usize,
+    casos: usize,
+    seguimentos: usize,
+    tipos: Vec<RelatorioAtendimentoContagem>,
+}
+
+#[derive(Serialize)]
+struct RelatorioAtendimentoAlunoBasico {
+    turma: String,
+    matricula: String,
+    nome: String,
+}
+
+#[derive(Serialize)]
+struct RelatorioAtendimentoContagem {
+    nome: String,
+    total: usize,
+}
+
+#[derive(Serialize)]
+struct RelatorioAtendimentoEvento {
+    turma: String,
+    matricula: String,
+    aluno: String,
+    data: String,
+    mes: String,
+    tipos: Vec<String>,
+    tags: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -637,6 +732,13 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
         if r.is_empty() { "Elegível".to_string() } else { r.to_string() }
     };
 
+    let atendimento_tipos = normalizar_lista_texto(&input.atendimento_tipos);
+    let atendimento_tipos = if atendimento_tipos.is_empty() {
+        atendimento_tipos_padrao()
+    } else {
+        atendimento_tipos
+    };
+
     let config = ConfiguracoesApp {
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
@@ -646,6 +748,7 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
         lider_rotulo,
         elegivel_ativo: input.elegivel_ativo,
         elegivel_rotulo,
+        atendimento_tipos,
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
@@ -1149,6 +1252,61 @@ fn preparar_anexo_kanban(caminho: String) -> Result<KanbanAnexoResultado, String
 
 #[tauri::command]
 fn abrir_anexo_kanban(caminho: String) -> Result<(), String> {
+    let arquivo = PathBuf::from(caminho);
+    if !arquivo.exists() || !arquivo.is_file() {
+        return Err("Arquivo nao encontrado. Ele pode ter sido movido, renomeado ou apagado.".to_string());
+    }
+    abrir_arquivo(&arquivo)
+}
+
+#[tauri::command]
+fn preparar_anexo_atendimento(caminho: String) -> Result<KanbanAnexoResultado, String> {
+    let origem = PathBuf::from(&caminho)
+        .canonicalize()
+        .map_err(|_| "Arquivo nao encontrado.".to_string())?;
+    if !origem.is_file() {
+        return Err("Arquivo nao encontrado.".to_string());
+    }
+    let dados_c = data_dir()
+        .map_err(|err| err.to_string())?
+        .canonicalize()
+        .map_err(|err| err.to_string())?;
+    if origem.starts_with(&dados_c) {
+        return Err("Nao e permitido anexar arquivos internos do aplicativo.".to_string());
+    }
+
+    let nome = origem
+        .file_name()
+        .and_then(|valor| valor.to_str())
+        .unwrap_or("anexo")
+        .to_string();
+    let tipo = tipo_mime_por_caminho(&origem);
+    let id = format!(
+        "atendimento-anexo-{}-{}",
+        Local::now().timestamp_millis(),
+        sanitizar_segmento(&nome)
+    );
+    let pasta = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("atendimentos")
+        .join("anexos");
+    fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+    let destino = pasta.join(format!("{}_{}", id, sanitizar_segmento(&nome)));
+    fs::copy(&origem, &destino)
+        .map_err(|err| format!("Nao foi possivel copiar o anexo para os dados do programa: {err}"))?;
+
+    Ok(KanbanAnexoResultado {
+        id,
+        nome,
+        tipo,
+        dados: String::new(),
+        caminho: Some(destino.to_string_lossy().to_string()),
+        origem: "interno".to_string(),
+    })
+}
+
+#[tauri::command]
+fn abrir_anexo_atendimento(caminho: String) -> Result<(), String> {
     let arquivo = PathBuf::from(caminho);
     if !arquivo.exists() || !arquivo.is_file() {
         return Err("Arquivo nao encontrado. Ele pode ter sido movido, renomeado ou apagado.".to_string());
@@ -2226,6 +2384,303 @@ fn gerar_relatorio_alteracoes_notas(
         pendentes: total_pendentes,
         alteradas: total_alteradas,
     })
+}
+
+#[tauri::command]
+fn salvar_atendimento_aluno(
+    caminho: String,
+    matricula: String,
+    input: AtendimentoAlunoInput,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let data = input.data.trim();
+    if data.is_empty() {
+        return Err("Informe a data do atendimento.".to_string());
+    }
+    let tipos = normalizar_lista_texto(&input.tipos);
+    if tipos.is_empty() {
+        return Err("Selecione ao menos um tipo de atendimento.".to_string());
+    }
+    let atendido = input.atendido.trim();
+    if atendido.is_empty() {
+        return Err("Informe quem foi atendido.".to_string());
+    }
+    if atendido != "aluno" && atendido != "responsavel" {
+        return Err("Tipo de atendido invalido.".to_string());
+    }
+    let descricao = input.descricao.trim();
+    if descricao.is_empty() {
+        return Err("Descreva o atendimento realizado.".to_string());
+    }
+    let id_informado = input
+        .id
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string);
+    let parent_id = input
+        .parent_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string);
+    let tags = normalizar_lista_texto(&input.tags);
+    let anexos = serde_json::to_value(input.anexos).map_err(|err| err.to_string())?;
+    let agora = Local::now().to_rfc3339();
+
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+
+    if !matches!(aluno.get("atendimentos"), Some(Value::Array(_))) {
+        aluno.insert("atendimentos".to_string(), Value::Array(Vec::new()));
+    }
+    let atendimentos = aluno
+        .get_mut("atendimentos")
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "Lista de atendimentos invalida.".to_string())?;
+
+    let montar_registro = |id: String, criado_em: String, followups: Option<Value>| {
+        let mut objeto = serde_json::Map::new();
+        objeto.insert("id".to_string(), Value::String(id));
+        objeto.insert("data".to_string(), Value::String(data.to_string()));
+        objeto.insert("tipos".to_string(), serde_json::to_value(&tipos).unwrap_or(Value::Array(Vec::new())));
+        objeto.insert("atendido".to_string(), Value::String(atendido.to_string()));
+        objeto.insert("tags".to_string(), serde_json::to_value(&tags).unwrap_or(Value::Array(Vec::new())));
+        objeto.insert("descricao".to_string(), Value::String(descricao.to_string()));
+        objeto.insert("anexos".to_string(), anexos.clone());
+        if let Some(followups) = followups {
+            objeto.insert("followups".to_string(), followups);
+        }
+        objeto.insert("criado_em".to_string(), Value::String(criado_em));
+        objeto.insert("atualizado_em".to_string(), Value::String(agora.clone()));
+        Value::Object(objeto)
+    };
+
+    if let Some(parent_id) = parent_id {
+        let atendimento = atendimentos
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(parent_id.as_str()))
+            .ok_or_else(|| "Atendimento principal nao encontrado.".to_string())?;
+        let atendimento_obj = atendimento
+            .as_object_mut()
+            .ok_or_else(|| "Registro de atendimento invalido.".to_string())?;
+        if !matches!(atendimento_obj.get("followups"), Some(Value::Array(_))) {
+            atendimento_obj.insert("followups".to_string(), Value::Array(Vec::new()));
+        }
+        let followups = atendimento_obj
+            .get_mut("followups")
+            .and_then(Value::as_array_mut)
+            .ok_or_else(|| "Timeline de follow-up invalida.".to_string())?;
+
+        if let Some(id) = id_informado {
+            let followup = followups
+                .iter_mut()
+                .find(|item| item.get("id").and_then(Value::as_str) == Some(id.as_str()))
+                .ok_or_else(|| "Follow-up nao encontrado.".to_string())?;
+            let criado_em = followup
+                .get("criado_em")
+                .and_then(Value::as_str)
+                .unwrap_or(&agora)
+                .to_string();
+            *followup = montar_registro(id, criado_em, None);
+        } else {
+            followups.push(montar_registro(
+                format!("followup-{}", Local::now().timestamp_millis()),
+                agora.clone(),
+                None,
+            ));
+        }
+        atendimento_obj.insert("atualizado_em".to_string(), Value::String(agora.clone()));
+    } else if let Some(id) = id_informado {
+        let atendimento = atendimentos
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(id.as_str()))
+            .ok_or_else(|| "Atendimento nao encontrado.".to_string())?;
+        let criado_em = atendimento
+            .get("criado_em")
+            .and_then(Value::as_str)
+            .unwrap_or(&agora)
+            .to_string();
+        let followups = atendimento
+            .get("followups")
+            .cloned()
+            .or_else(|| Some(Value::Array(Vec::new())));
+        *atendimento = montar_registro(id, criado_em, followups);
+    } else {
+        atendimentos.push(montar_registro(
+            format!("atendimento-{}", Local::now().timestamp_millis()),
+            agora.clone(),
+            Some(Value::Array(Vec::new())),
+        ));
+    }
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+#[tauri::command]
+fn carregar_relatorio_atendimentos() -> Result<RelatorioAtendimentosResultado, String> {
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut alunos_atendidos = Vec::new();
+    let mut alunos_nao_atendidos = Vec::new();
+    let mut eventos = Vec::new();
+    let mut total_alunos_ativos = 0usize;
+    let total_turmas = turmas.len();
+
+    for (_, turma) in turmas {
+        let turma_rotulo = rotulo_turma(&turma);
+        let Some(alunos) = &turma.alunos else {
+            continue;
+        };
+
+        for (matricula, info) in alunos {
+            if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                continue;
+            }
+            total_alunos_ativos += 1;
+            let nome = info
+                .get("nome")
+                .and_then(Value::as_str)
+                .unwrap_or("Aluno sem nome")
+                .to_string();
+            let atendimentos = extrair_atendimentos_aluno(info);
+
+            if atendimentos.is_empty() {
+                alunos_nao_atendidos.push(RelatorioAtendimentoAlunoBasico {
+                    turma: turma_rotulo.clone(),
+                    matricula: matricula.clone(),
+                    nome,
+                });
+                continue;
+            }
+
+            let mut tipos_aluno: BTreeMap<String, usize> = BTreeMap::new();
+            let mut total_atendimentos_aluno = 0usize;
+            let mut total_seguimentos = 0usize;
+
+            for atendimento in &atendimentos {
+                total_atendimentos_aluno += 1;
+                registrar_evento_relatorio_atendimento(
+                    &mut eventos,
+                    &mut tipos_aluno,
+                    &turma_rotulo,
+                    matricula,
+                    &nome,
+                    &atendimento.data,
+                    &atendimento.tipos,
+                    &atendimento.tags,
+                );
+
+                for followup in &atendimento.followups {
+                    total_atendimentos_aluno += 1;
+                    total_seguimentos += 1;
+                    registrar_evento_relatorio_atendimento(
+                        &mut eventos,
+                        &mut tipos_aluno,
+                        &turma_rotulo,
+                        matricula,
+                        &nome,
+                        &followup.data,
+                        &followup.tipos,
+                        &followup.tags,
+                    );
+                }
+            }
+
+            let mut tipos = tipos_aluno
+                .into_iter()
+                .map(|(nome, total)| RelatorioAtendimentoContagem { nome, total })
+                .collect::<Vec<_>>();
+            tipos.sort_by(|a, b| b.total.cmp(&a.total).then_with(|| a.nome.cmp(&b.nome)));
+
+            alunos_atendidos.push(RelatorioAtendimentoAluno {
+                turma: turma_rotulo.clone(),
+                matricula: matricula.clone(),
+                nome,
+                atendimentos: total_atendimentos_aluno,
+                casos: atendimentos.len(),
+                seguimentos: total_seguimentos,
+                tipos,
+            });
+        }
+    }
+
+    alunos_atendidos.sort_by(|a, b| {
+        a.turma
+            .cmp(&b.turma)
+            .then_with(|| a.nome.cmp(&b.nome))
+            .then_with(|| a.matricula.cmp(&b.matricula))
+    });
+    alunos_nao_atendidos.sort_by(|a, b| {
+        a.turma
+            .cmp(&b.turma)
+            .then_with(|| a.nome.cmp(&b.nome))
+            .then_with(|| a.matricula.cmp(&b.matricula))
+    });
+    eventos.sort_by(|a, b| {
+        a.data
+            .cmp(&b.data)
+            .then_with(|| a.turma.cmp(&b.turma))
+            .then_with(|| a.aluno.cmp(&b.aluno))
+    });
+
+    let total_atendimentos = eventos.len();
+    Ok(RelatorioAtendimentosResultado {
+        alunos_atendidos,
+        alunos_nao_atendidos,
+        eventos,
+        total_turmas,
+        total_alunos_ativos,
+        total_atendimentos,
+    })
+}
+
+fn registrar_evento_relatorio_atendimento(
+    eventos: &mut Vec<RelatorioAtendimentoEvento>,
+    tipos_aluno: &mut BTreeMap<String, usize>,
+    turma: &str,
+    matricula: &str,
+    aluno: &str,
+    data: &str,
+    tipos: &[String],
+    tags: &[String],
+) {
+    let tipos_normalizados = if tipos.is_empty() {
+        vec!["Sem tipo".to_string()]
+    } else {
+        normalizar_lista_texto(tipos)
+    };
+    let tags_normalizadas = normalizar_lista_texto(tags);
+    for tipo in &tipos_normalizados {
+        *tipos_aluno.entry(tipo.clone()).or_insert(0) += 1;
+    }
+    eventos.push(RelatorioAtendimentoEvento {
+        turma: turma.to_string(),
+        matricula: matricula.to_string(),
+        aluno: aluno.to_string(),
+        data: data.to_string(),
+        mes: mes_relatorio_atendimento(data),
+        tipos: tipos_normalizados,
+        tags: tags_normalizadas,
+    });
+}
+
+fn mes_relatorio_atendimento(data: &str) -> String {
+    if data.len() >= 7 {
+        data[..7].to_string()
+    } else {
+        "Sem data".to_string()
+    }
 }
 
 #[tauri::command]
@@ -4564,6 +5019,18 @@ fn ler_configuracoes() -> ConfiguracoesApp {
         .and_then(|caminho| fs::read_to_string(caminho).ok())
         .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
         .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+    let atendimento_tipos = dados
+        .get("atendimento_tipos")
+        .and_then(Value::as_array)
+        .map(|lista| {
+            lista
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .map(|lista| normalizar_lista_texto(&lista))
+        .unwrap_or_else(atendimento_tipos_padrao);
 
     ConfiguracoesApp {
         direcao_nome: dados
@@ -4595,7 +5062,18 @@ fn ler_configuracoes() -> ConfiguracoesApp {
             .filter(|s| !s.trim().is_empty())
             .unwrap_or("Elegível")
             .to_string(),
+        atendimento_tipos,
     }
+}
+
+fn atendimento_tipos_padrao() -> Vec<String> {
+    vec![
+        "Disciplinar".to_string(),
+        "Dúvidas".to_string(),
+        "Pedagógico".to_string(),
+        "Financeiro".to_string(),
+        "Educação especial".to_string(),
+    ]
 }
 
 fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String> {
@@ -4612,6 +5090,7 @@ fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String>
         "lider_rotulo": config.lider_rotulo,
         "elegivel_ativo": config.elegivel_ativo,
         "elegivel_rotulo": config.elegivel_rotulo,
+        "atendimento_tipos": config.atendimento_tipos,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())
@@ -5159,6 +5638,22 @@ fn extrair_deficiencias_elegiveis(cabecalho: &[String], valores: &[String]) -> V
         );
     }
     normalizar_lista_deficiencias(&deficiencias)
+}
+
+fn normalizar_lista_texto(opcoes: &[String]) -> Vec<String> {
+    let mut vistos = BTreeSet::new();
+    let mut saida = Vec::new();
+    for opcao in opcoes {
+        let texto = opcao.trim();
+        if texto.is_empty() {
+            continue;
+        }
+        let chave = normalizar_nome_busca(texto);
+        if vistos.insert(chave) {
+            saida.push(texto.to_string());
+        }
+    }
+    saida
 }
 
 fn normalizar_lista_deficiencias(lista: &[String]) -> Vec<String> {
@@ -7092,6 +7587,7 @@ fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalhe {
             comentario_educacao_especial,
             frequencia_percentual,
             encaminhamentos: extrair_encaminhamentos(&info, &bimestre),
+            atendimentos: extrair_atendimentos_aluno(&info),
             diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
         });
@@ -7349,6 +7845,42 @@ fn rotulo_turma(turma: &TurmaArquivo) -> String {
     } else {
         serie.to_string()
     }
+}
+
+fn extrair_atendimentos_aluno(info: &Value) -> Vec<AtendimentoAluno> {
+    let mut atendimentos = info
+        .get("atendimentos")
+        .and_then(Value::as_array)
+        .map(|lista| {
+            lista
+                .iter()
+                .filter_map(|item| serde_json::from_value::<AtendimentoAluno>(item.clone()).ok())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    for atendimento in &mut atendimentos {
+        atendimento.followups.sort_by(|a, b| {
+            (
+                a.data.clone(),
+                a.criado_em.clone().unwrap_or_default(),
+            )
+                .cmp(&(
+                    b.data.clone(),
+                    b.criado_em.clone().unwrap_or_default(),
+                ))
+        });
+    }
+    atendimentos.sort_by(|a, b| {
+        (
+            std::cmp::Reverse(a.data.clone()),
+            std::cmp::Reverse(a.criado_em.clone().unwrap_or_default()),
+        )
+            .cmp(&(
+                std::cmp::Reverse(b.data.clone()),
+                std::cmp::Reverse(b.criado_em.clone().unwrap_or_default()),
+            ))
+    });
+    atendimentos
 }
 
 fn extrair_encaminhamentos(info: &Value, bimestre: &str) -> Vec<i64> {
@@ -9281,6 +9813,8 @@ fn main() {
             abrir_pasta,
             preparar_anexo_kanban,
             abrir_anexo_kanban,
+            preparar_anexo_atendimento,
+            abrir_anexo_atendimento,
             listar_turmas,
             criar_turma,
             editar_turma,
@@ -9302,6 +9836,8 @@ fn main() {
             abrir_documento_conselho,
             gerar_relatorio_alunos_criticos,
             gerar_relatorio_alteracoes_notas,
+            carregar_relatorio_atendimentos,
+            salvar_atendimento_aluno,
             salvar_finalizacao_conselho,
             buscar_pei_planilha,
             salvar_url_pei,

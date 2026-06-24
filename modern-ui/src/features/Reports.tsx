@@ -1,4 +1,4 @@
-import { BookMarked, ClipboardList, FileText, FileWarning } from "lucide-react";
+import { BarChart3, BookMarked, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -22,6 +22,54 @@ type RelatorioAlteracoesNotasResultado = {
   alteradas: number;
 };
 
+type RelatorioAtendimentoContagem = {
+  nome: string;
+  total: number;
+};
+
+type RelatorioAtendimentoAluno = {
+  turma: string;
+  matricula: string;
+  nome: string;
+  atendimentos: number;
+  casos: number;
+  seguimentos: number;
+  tipos: RelatorioAtendimentoContagem[];
+};
+
+type RelatorioAtendimentoAlunoBasico = {
+  turma: string;
+  matricula: string;
+  nome: string;
+};
+
+type RelatorioAtendimentoEvento = {
+  turma: string;
+  matricula: string;
+  aluno: string;
+  data: string;
+  mes: string;
+  tipos: string[];
+  tags: string[];
+};
+
+type RelatorioAtendimentosResultado = {
+  alunos_atendidos: RelatorioAtendimentoAluno[];
+  alunos_nao_atendidos: RelatorioAtendimentoAlunoBasico[];
+  eventos: RelatorioAtendimentoEvento[];
+  total_turmas: number;
+  total_alunos_ativos: number;
+  total_atendimentos: number;
+};
+
+type SerieMensal = {
+  nome: string;
+  total: number;
+  valores: number[];
+};
+
+const coresRelatorio = ["#2563eb", "#16a34a", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
+
 const opcoesBimestre = [
   { valor: "1", rotulo: "1º bimestre" },
   { valor: "2", rotulo: "2º bimestre" },
@@ -42,11 +90,13 @@ function rotuloSerie(valor?: string | null) {
 export function RelatoriosMenu({
   onAbrirCriticos,
   onAbrirAlteracoesNotas,
+  onAbrirAtendimentos,
   onAbrirPei,
   onAbrirPlanejamento,
 }: {
   onAbrirCriticos: () => void;
   onAbrirAlteracoesNotas: () => void;
+  onAbrirAtendimentos: () => void;
   onAbrirPei: () => void;
   onAbrirPlanejamento: () => void;
 }) {
@@ -90,6 +140,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Alterações de Notas Pós-Conselho</strong>
             <span>Compara as notas decididas no conselho com o último mapão importado.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirAtendimentos}>
+          <Users size={26} />
+          <div>
+            <strong>Relatórios de Atendimento</strong>
+            <span>Acompanhe alunos atendidos, alunos nunca atendidos, tipos recorrentes e evolução mensal das tags.</span>
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={gerarPendenciaLancamento} disabled={gerandoLancamento}>
@@ -352,5 +409,301 @@ export function RelatorioAlteracoesNotas({ turmas, onVoltar }: { turmas: TurmaRe
         {erro && <div className="notice error">{erro}</div>}
       </section>
     </section>
+  );
+}
+
+export function RelatorioAtendimentos({ onVoltar }: { onVoltar: () => void }) {
+  const [dados, setDados] = useState<RelatorioAtendimentosResultado | null>(null);
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [aba, setAba] = useState<"alunos" | "geral">("alunos");
+
+  function carregarDados() {
+    setCarregando(true);
+    setErro("");
+    invokeApp<RelatorioAtendimentosResultado>("carregar_relatorio_atendimentos")
+      .then(setDados)
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setCarregando(false));
+  }
+
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  const meses = useMemo(() => mesesRelatorioAtendimentos(dados?.eventos ?? []), [dados]);
+  const tiposResumo = useMemo(() => contarItensRelatorio(dados?.eventos ?? [], "tipos"), [dados]);
+  const tagsResumo = useMemo(() => contarItensRelatorio(dados?.eventos ?? [], "tags"), [dados]);
+  const seriesTipos = useMemo(() => seriesMensaisRelatorio(dados?.eventos ?? [], meses, "tipos", 6), [dados, meses]);
+  const seriesTags = useMemo(() => seriesMensaisRelatorio(dados?.eventos ?? [], meses, "tags", 6), [dados, meses]);
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Relatórios de Atendimento</h1>
+          <p>Visualize cobertura dos atendimentos e recorrências por tipo, tag e mês.</p>
+        </div>
+        <button className="secondary-action" onClick={carregarDados} disabled={carregando}>
+          <RefreshCw size={17} />
+          {carregando ? "Atualizando..." : "Atualizar"}
+        </button>
+      </header>
+
+      {erro && <div className="notice error">{erro}</div>}
+
+      <section className="attendance-report-metrics">
+        <article>
+          <span>Alunos ativos</span>
+          <strong>{dados?.total_alunos_ativos ?? 0}</strong>
+        </article>
+        <article>
+          <span>Alunos atendidos</span>
+          <strong>{dados?.alunos_atendidos.length ?? 0}</strong>
+        </article>
+        <article>
+          <span>Nunca atendidos</span>
+          <strong>{dados?.alunos_nao_atendidos.length ?? 0}</strong>
+        </article>
+        <article>
+          <span>Atendimentos</span>
+          <strong>{dados?.total_atendimentos ?? 0}</strong>
+        </article>
+      </section>
+
+      <div className="student-profile-tabs report-tabs">
+        <button className={aba === "alunos" ? "active" : ""} onClick={() => setAba("alunos")}>Alunos atendidos e não atendidos</button>
+        <button className={aba === "geral" ? "active" : ""} onClick={() => setAba("geral")}>Relatório geral de atendimentos</button>
+      </div>
+
+      {aba === "alunos" && (
+        <section className="attendance-report-grid">
+          <article className="panel report-table-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Alunos atendidos</h2>
+                <p>Quantidade de atendimentos e tipos registrados por aluno.</p>
+              </div>
+              <Users size={24} />
+            </div>
+            <div className="report-table-scroll">
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th>Turma</th>
+                    <th>Aluno</th>
+                    <th>RA</th>
+                    <th>Atend.</th>
+                    <th>Tipos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados?.alunos_atendidos.length ? dados.alunos_atendidos.map((aluno) => (
+                    <tr key={`${aluno.turma}-${aluno.matricula}`}>
+                      <td>{aluno.turma}</td>
+                      <td>{aluno.nome}</td>
+                      <td>{aluno.matricula}</td>
+                      <td>{aluno.atendimentos} <small>({aluno.casos} caso(s), {aluno.seguimentos} seg.)</small></td>
+                      <td>{aluno.tipos.map((tipo) => `${tipo.nome} (${tipo.total})`).join(", ")}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={5}>Nenhum aluno atendido ainda.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article className="panel report-table-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Alunos nunca atendidos</h2>
+                <p>Alunos ativos sem histórico de atendimento registrado.</p>
+              </div>
+              <FileWarning size={24} />
+            </div>
+            <div className="report-table-scroll">
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th>Turma</th>
+                    <th>Aluno</th>
+                    <th>RA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados?.alunos_nao_atendidos.length ? dados.alunos_nao_atendidos.map((aluno) => (
+                    <tr key={`${aluno.turma}-${aluno.matricula}`}>
+                      <td>{aluno.turma}</td>
+                      <td>{aluno.nome}</td>
+                      <td>{aluno.matricula}</td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan={3}>Todos os alunos ativos têm ao menos um atendimento registrado.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      )}
+
+      {aba === "geral" && (
+        <section className="attendance-report-general">
+          <article className="panel report-chart-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Tipos mais comuns</h2>
+                <p>Frequência dos tipos de atendimento registrados.</p>
+              </div>
+              <BarChart3 size={24} />
+            </div>
+            <HorizontalBars dados={tiposResumo.slice(0, 10)} />
+          </article>
+
+          <article className="panel report-chart-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Evolução por tipo e mês</h2>
+                <p>Linhas mensais dos tipos mais recorrentes.</p>
+              </div>
+              <BarChart3 size={24} />
+            </div>
+            <MonthlyLineChart meses={meses} series={seriesTipos} emptyText="Sem atendimentos por tipo para exibir." />
+          </article>
+
+          <article className="panel report-chart-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Tags mais recorrentes</h2>
+                <p>Classificações que aparecem com maior frequência nos atendimentos.</p>
+              </div>
+              <BarChart3 size={24} />
+            </div>
+            <HorizontalBars dados={tagsResumo.slice(0, 10)} emptyText="Nenhuma tag registrada ainda." />
+          </article>
+
+          <article className="panel report-chart-panel">
+            <div className="report-generator-heading">
+              <div>
+                <h2>Evolução das tags por mês</h2>
+                <p>Linhas mensais das tags mais recorrentes.</p>
+              </div>
+              <BarChart3 size={24} />
+            </div>
+            <MonthlyLineChart meses={meses} series={seriesTags} emptyText="Sem tags por mês para exibir." />
+          </article>
+        </section>
+      )}
+    </section>
+  );
+}
+
+function mesesRelatorioAtendimentos(eventos: RelatorioAtendimentoEvento[]) {
+  const meses = Array.from(new Set(eventos.map((evento) => evento.mes).filter((mes) => mes && mes !== "Sem data")));
+  return meses.sort((a, b) => a.localeCompare(b));
+}
+
+function contarItensRelatorio(eventos: RelatorioAtendimentoEvento[], campo: "tipos" | "tags") {
+  const contagem = new Map<string, number>();
+  eventos.forEach((evento) => {
+    evento[campo].forEach((item) => {
+      const nome = item.trim();
+      if (!nome) return;
+      contagem.set(nome, (contagem.get(nome) ?? 0) + 1);
+    });
+  });
+  return Array.from(contagem.entries())
+    .map(([nome, total]) => ({ nome, total }))
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+function seriesMensaisRelatorio(eventos: RelatorioAtendimentoEvento[], meses: string[], campo: "tipos" | "tags", limite: number) {
+  const principais = contarItensRelatorio(eventos, campo).slice(0, limite).map((item) => item.nome);
+  return principais.map((nome) => {
+    const valores = meses.map((mes) => eventos.reduce((total, evento) => {
+      if (evento.mes !== mes) return total;
+      return total + evento[campo].filter((item) => item === nome).length;
+    }, 0));
+    return {
+      nome,
+      total: valores.reduce((soma, valor) => soma + valor, 0),
+      valores,
+    };
+  }).filter((serie) => serie.total > 0);
+}
+
+function rotuloMesRelatorio(mes: string) {
+  const [ano, numeroMes] = mes.split("-");
+  if (!ano || !numeroMes) return mes;
+  const data = new Date(Number(ano), Number(numeroMes) - 1, 1);
+  return data.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+}
+
+function HorizontalBars({ dados, emptyText = "Sem dados para exibir." }: { dados: RelatorioAtendimentoContagem[]; emptyText?: string }) {
+  const maximo = Math.max(1, ...dados.map((item) => item.total));
+  if (!dados.length) return <div className="empty-special-list">{emptyText}</div>;
+  return (
+    <div className="report-horizontal-bars">
+      {dados.map((item, indice) => (
+        <div className="report-horizontal-bar" key={item.nome}>
+          <span>{item.nome}</span>
+          <div>
+            <i style={{ width: `${Math.max(6, item.total / maximo * 100)}%`, background: coresRelatorio[indice % coresRelatorio.length] }} />
+          </div>
+          <strong>{item.total}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyLineChart({ meses, series, emptyText }: { meses: string[]; series: SerieMensal[]; emptyText: string }) {
+  if (!meses.length || !series.length) return <div className="empty-special-list">{emptyText}</div>;
+  const largura = 760;
+  const altura = 280;
+  const margem = { top: 22, right: 26, bottom: 44, left: 42 };
+  const maximo = Math.max(1, ...series.flatMap((serie) => serie.valores));
+  const x = (indice: number) => {
+    if (meses.length === 1) return (largura - margem.left - margem.right) / 2 + margem.left;
+    return margem.left + indice * ((largura - margem.left - margem.right) / (meses.length - 1));
+  };
+  const y = (valor: number) => margem.top + (maximo - valor) * ((altura - margem.top - margem.bottom) / maximo);
+
+  return (
+    <div className="report-line-chart-wrap">
+      <svg className="report-line-chart" viewBox={`0 0 ${largura} ${altura}`} role="img" aria-label="Evolução mensal">
+        {[0, Math.ceil(maximo / 2), maximo].map((valor) => (
+          <g key={valor}>
+            <line x1={margem.left} x2={largura - margem.right} y1={y(valor)} y2={y(valor)} />
+            <text x={12} y={y(valor) + 4}>{valor}</text>
+          </g>
+        ))}
+        {meses.map((mes, indice) => (
+          <text key={mes} x={x(indice)} y={altura - 14} textAnchor="middle">{rotuloMesRelatorio(mes)}</text>
+        ))}
+        {series.map((serie, serieIndice) => {
+          const pontos = serie.valores.map((valor, indice) => `${x(indice)},${y(valor)}`).join(" ");
+          const cor = coresRelatorio[serieIndice % coresRelatorio.length];
+          return (
+            <g key={serie.nome}>
+              <polyline points={pontos} stroke={cor} />
+              {serie.valores.map((valor, indice) => (
+                <circle key={`${serie.nome}-${meses[indice]}`} cx={x(indice)} cy={y(valor)} r="3.5" fill={cor}>
+                  <title>{`${serie.nome} - ${rotuloMesRelatorio(meses[indice])}: ${valor}`}</title>
+                </circle>
+              ))}
+            </g>
+          );
+        })}
+      </svg>
+      <div className="report-chart-legend">
+        {series.map((serie, indice) => (
+          <span key={serie.nome}><i style={{ background: coresRelatorio[indice % coresRelatorio.length] }} />{serie.nome}</span>
+        ))}
+      </div>
+    </div>
   );
 }
