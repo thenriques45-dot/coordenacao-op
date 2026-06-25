@@ -1,4 +1,4 @@
-import { BookOpen, CalendarClock, Check, GraduationCap, TrendingUp, Users } from "lucide-react";
+import { CalendarClock, Check, GraduationCap, Search, TrendingUp, Users } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
   carregarEventosCalendario,
@@ -34,17 +34,25 @@ type TurmaDashboard = {
   alunos_elegiveis: number;
   conselhos_com_ajustes: number;
 };
+function formatarDataAtual(): string {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date());
+}
+
 export function Dashboard({
   turmas,
   erroTurmas,
-  onOpenCouncil,
+  onAbrirBusca,
   onOpenTurmas,
   onOpenKanban,
   onOpenCalendario,
 }: {
   turmas: TurmaDashboard[];
   erroTurmas: string;
-  onOpenCouncil: () => void;
+  onAbrirBusca: () => void;
   onOpenTurmas: () => void;
   onOpenKanban: () => void;
   onOpenCalendario: () => void;
@@ -99,10 +107,14 @@ export function Dashboard({
           <h1>Dashboard</h1>
           <p>Acompanhe turmas, importacoes e pendencias de conselho.</p>
         </div>
-        <button className="primary-action" onClick={onOpenCouncil}>
-          <BookOpen size={18} />
-          Abrir conselho
-        </button>
+        <div className="dashboard-topbar-actions">
+          <button className="dashboard-search-trigger" onClick={onAbrirBusca}>
+            <Search size={15} />
+            <span>Buscar turmas, alunos...</span>
+            <kbd>Ctrl+K</kbd>
+          </button>
+          <span className="dashboard-date">{formatarDataAtual()}</span>
+        </div>
       </header>
 
       <section className="metric-grid">

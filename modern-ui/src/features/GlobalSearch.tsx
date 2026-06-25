@@ -1,5 +1,5 @@
-import { BookOpen, CornerDownLeft, Plus, Search, Upload, Users } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { BarChart2, BookOpen, Calendar, CornerDownLeft, FileText, Home, LayoutGrid, Search, Settings, Upload, Users } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 type TurmaResumo = {
   codigo: string;
@@ -25,24 +25,31 @@ type AlunoResultado = {
   turma: TurmaResumo;
 };
 
-type AcaoId = "conselho" | "importar" | "kanban";
-
 type AcaoRapida = {
-  id: AcaoId;
+  id: string;
   label: string;
   icone: ReactNode;
   acao: () => void;
 };
 
+type TelaNavegacao = {
+  id: string;
+  label: string;
+  icone: ReactNode;
+  palavras: string[];
+};
+
 type Item =
   | { tipo: "turma"; data: TurmaResumo }
   | { tipo: "acao"; data: AcaoRapida }
+  | { tipo: "tela"; data: TelaNavegacao }
   | { tipo: "aluno"; data: AlunoResultado };
 
 type Props = {
   turmas: TurmaResumo[];
   onFechar: () => void;
   onAbrirTurma: (turma: TurmaResumo) => void;
+  onAbrirAluno: (turma: TurmaResumo, nome: string) => void;
   onNavegar: (tela: string) => void;
   onAbrirConselho: (turma: TurmaResumo) => void;
 };
@@ -82,7 +89,7 @@ function iniciais(nome: string): string {
     .toUpperCase();
 }
 
-export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrirConselho }: Props) {
+export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onAbrirAluno, onNavegar, onAbrirConselho }: Props) {
   const [busca, setBusca] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,30 +109,44 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
 
   const primeiraTurma = turmasFiltradas[0] ?? null;
 
-  const acoes: AcaoRapida[] = [
-    ...(primeiraTurma
-      ? [
-          {
-            id: "conselho" as AcaoId,
-            label: `Ir para Conselho de Classe — ${primeiraTurma.codigo}`,
-            icone: <BookOpen size={16} />,
-            acao: () => onAbrirConselho(primeiraTurma),
-          },
-        ]
-      : []),
-    {
-      id: "importar" as AcaoId,
-      label: "Importar Mapão",
-      icone: <Upload size={16} />,
-      acao: () => onNavegar("importar-notas"),
-    },
-    {
-      id: "kanban" as AcaoId,
-      label: "Criar Tarefa no Kanban",
-      icone: <Plus size={16} />,
-      acao: () => onNavegar("kanban"),
-    },
-  ];
+  const acoes: AcaoRapida[] = primeiraTurma
+    ? [
+        {
+          id: "conselho",
+          label: `Ir para Conselho de Classe — ${primeiraTurma.codigo}`,
+          icone: <BookOpen size={16} />,
+          acao: () => onAbrirConselho(primeiraTurma),
+        },
+      ]
+    : [];
+
+  const telasNavegacao = useMemo((): TelaNavegacao[] => [
+    { id: "dashboard",                    label: "Dashboard",                        icone: <Home size={16} />,       palavras: ["inicio", "visao", "painel", "geral"] },
+    { id: "turmas",                       label: "Turmas",                           icone: <Users size={16} />,      palavras: ["classes", "salas", "turma"] },
+    { id: "conselhos",                    label: "Conselho de Classe",               icone: <BookOpen size={16} />,   palavras: ["conselho", "reuniao", "classe"] },
+    { id: "kanban",                       label: "Quadro de Gestão",                 icone: <LayoutGrid size={16} />, palavras: ["kanban", "tarefas", "quadro", "gestao"] },
+    { id: "calendario",                   label: "Calendário",                       icone: <Calendar size={16} />,   palavras: ["agenda", "datas", "eventos", "calendario"] },
+    { id: "relatorios",                   label: "Relatórios",                       icone: <BarChart2 size={16} />,  palavras: ["relatorio", "relatorios"] },
+    { id: "relatorio-criticos",           label: "Alunos Críticos",                  icone: <BarChart2 size={16} />,  palavras: ["relatorio", "criticos", "risco"] },
+    { id: "relatorio-alteracoes-notas",   label: "Alterações de Notas",              icone: <BarChart2 size={16} />,  palavras: ["relatorio", "notas", "alteracoes", "historico"] },
+    { id: "relatorio-atendimentos",       label: "Relatório de Atendimentos",        icone: <BarChart2 size={16} />,  palavras: ["relatorio", "atendimentos"] },
+    { id: "pei",                          label: "PEI — Plano Educacional",          icone: <FileText size={16} />,   palavras: ["pei", "plano", "educacional", "individualizado"] },
+    { id: "planejamento",                 label: "Plano de Ensino",                  icone: <FileText size={16} />,   palavras: ["planejamento", "plano", "ensino"] },
+    { id: "configuracoes",                label: "Configurações",                    icone: <Settings size={16} />,   palavras: ["config", "configuracoes", "ajustes", "preferencias"] },
+    { id: "importar-dados",               label: "Importar Dados",                   icone: <Upload size={16} />,     palavras: ["importar", "dados", "import"] },
+    { id: "importar-notas",               label: "Importar Mapão",                   icone: <Upload size={16} />,     palavras: ["importar", "notas", "mapao", "mapas"] },
+    { id: "importar-elegiveis",           label: "Importar Elegíveis",               icone: <Upload size={16} />,     palavras: ["importar", "elegiveis", "eligiveis"] },
+    { id: "importar-diagnostico",         label: "Importar Diagnóstico",             icone: <Upload size={16} />,     palavras: ["importar", "diagnostico", "diagnosticos"] },
+    { id: "importar-fotos",               label: "Importar Fotos",                   icone: <Upload size={16} />,     palavras: ["importar", "fotos", "foto", "imagens"] },
+    { id: "importar-alunos-lote",         label: "Importar Alunos em Lote",          icone: <Upload size={16} />,     palavras: ["importar", "alunos", "lote", "batch"] },
+  ], []);
+
+  const telasFiltradas = temQuery
+    ? telasNavegacao.filter((t) => {
+        const texto = normalizar(t.label + " " + t.palavras.join(" "));
+        return texto.includes(q);
+      }).slice(0, 5)
+    : [];
 
   const alunosResultado: AlunoResultado[] = q.length >= 2
     ? turmas
@@ -139,17 +160,20 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
 
   const itens: Item[] = [
     ...turmasFiltradas.map((t): Item => ({ tipo: "turma", data: t })),
-    ...(temQuery ? acoes.map((a): Item => ({ tipo: "acao", data: a })) : []),
+    ...(temQuery && acoes.length > 0 ? acoes.map((a): Item => ({ tipo: "acao", data: a })) : []),
+    ...telasFiltradas.map((t): Item => ({ tipo: "tela", data: t })),
     ...alunosResultado.map((a): Item => ({ tipo: "aluno", data: a })),
   ];
 
   const turmaOffset = 0;
   const acaoOffset = turmasFiltradas.length;
-  const alunoOffset = acaoOffset + (temQuery ? acoes.length : 0);
+  const telaOffset = acaoOffset + (temQuery && acoes.length > 0 ? acoes.length : 0);
+  const alunoOffset = telaOffset + telasFiltradas.length;
 
-  function globalIndex(tipo: "turma" | "acao" | "aluno", localIdx: number): number {
+  function globalIndex(tipo: "turma" | "acao" | "tela" | "aluno", localIdx: number): number {
     if (tipo === "turma") return turmaOffset + localIdx;
     if (tipo === "acao") return acaoOffset + localIdx;
+    if (tipo === "tela") return telaOffset + localIdx;
     return alunoOffset + localIdx;
   }
 
@@ -192,7 +216,8 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
   function activateItem(item: Item) {
     if (item.tipo === "turma") onAbrirTurma(item.data);
     else if (item.tipo === "acao") item.data.acao();
-    else onAbrirTurma(item.data.turma);
+    else if (item.tipo === "tela") onNavegar(item.data.id);
+    else onAbrirAluno(item.data.turma, item.data.nome);
   }
 
   const hasResults = itens.length > 0;
@@ -212,7 +237,7 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
             ref={inputRef}
             className="global-search-input"
             type="text"
-            placeholder="Buscar turmas, alunos, ações..."
+            placeholder="Buscar turmas, alunos, relatórios, telas..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             aria-label="Busca global"
@@ -274,6 +299,32 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
                     >
                       <span className={`global-search-acao-icon acao-${acao.id}`}>{acao.icone}</span>
                       <span>{acao.label}</span>
+                      {ativo && <CornerDownLeft size={14} className="global-search-enter-icon" />}
+                    </button>
+                  );
+                })}
+              </section>
+            )}
+
+            {telasFiltradas.length > 0 && (
+              <section className="global-search-section">
+                <p className="global-search-group-label">Navegar para</p>
+                {telasFiltradas.map((tela, i) => {
+                  const idx = globalIndex("tela", i);
+                  const ativo = cursor === idx;
+                  return (
+                    <button
+                      key={tela.id}
+                      className={`global-search-item${ativo ? " active" : ""}`}
+                      data-active={ativo}
+                      onClick={() => onNavegar(tela.id)}
+                      onMouseEnter={() => setCursor(idx)}
+                    >
+                      <span className="global-search-tela-icon">{tela.icone}</span>
+                      <span className="global-search-item-content">
+                        <strong>{tela.label}</strong>
+                      </span>
+                      {ativo && <CornerDownLeft size={14} className="global-search-enter-icon" />}
                     </button>
                   );
                 })}
@@ -293,7 +344,7 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
                       key={`${aluno.turma.caminho}-${aluno.nome}`}
                       className={`global-search-item${ativo ? " active" : ""}`}
                       data-active={ativo}
-                      onClick={() => onAbrirTurma(aluno.turma)}
+                      onClick={() => onAbrirAluno(aluno.turma, aluno.nome)}
                       onMouseEnter={() => setCursor(idx)}
                     >
                       <span className="global-search-aluno-avatar">{iniciais(aluno.nome)}</span>
@@ -301,6 +352,7 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
                         <strong>{toTitleCase(aluno.nome)}</strong>
                         <span className="global-search-item-meta">Turma {aluno.turma.codigo}</span>
                       </div>
+                      {ativo && <CornerDownLeft size={14} className="global-search-enter-icon" />}
                     </button>
                   );
                 })}
@@ -313,7 +365,7 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onNavegar, onAbrir
           </div>
         ) : (
           <div className="global-search-empty global-search-hint">
-            Digite para buscar turmas, alunos ou use ações como Importar Mapão.
+            Digite para buscar turmas, alunos, relatórios ou telas.
           </div>
         )}
 

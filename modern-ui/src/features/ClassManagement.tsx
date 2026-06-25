@@ -1,6 +1,6 @@
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { BookOpen, CalendarClock, Copy, FileText, Paperclip, Pencil, Plus, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   assistentePedagogicoDisponivel,
   assistenteManualDisponivel,
@@ -362,6 +362,7 @@ export function GestaoTurma({
   turmaDetalhe,
   alunos,
   turmaConfig,
+  nomeAlunoInicial,
   onVoltar,
   onSalvarCoordenador,
   onSalvarElegibilidade,
@@ -374,6 +375,7 @@ export function GestaoTurma({
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[] };
+  nomeAlunoInicial?: string | null;
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
@@ -390,6 +392,7 @@ export function GestaoTurma({
   const [salvandoElegivel, setSalvandoElegivel] = useState<string | null>(null);
   const [salvandoLideranca, setSalvandoLideranca] = useState<string | null>(null);
   const [alunoAberto, setAlunoAberto] = useState<Aluno | null>(null);
+  const nomeAlunoInicialAberto = useRef<string | null>(null);
   const [tarefasKanban, setTarefasKanban] = useState<KanbanTarefa[]>(() => carregarTarefasKanban());
   const eventosCalendario = useMemo(() => carregarEventosCalendario(), []);
   const catalogoDeficiencias = useMemo(() => {
@@ -403,7 +406,19 @@ export function GestaoTurma({
   useEffect(() => {
     setCoordenador(turma?.coordenador_turma ?? "");
     setAlunoAberto(null);
+    nomeAlunoInicialAberto.current = null;
   }, [turma?.coordenador_turma, turma?.caminho]);
+
+  useEffect(() => {
+    if (!nomeAlunoInicial || nomeAlunoInicialAberto.current === nomeAlunoInicial) return;
+    if (alunos.length === 0) return;
+    const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const encontrado = alunos.find((a) => norm(a.nome).includes(norm(nomeAlunoInicial)));
+    if (encontrado) {
+      setAlunoAberto(encontrado);
+      nomeAlunoInicialAberto.current = nomeAlunoInicial;
+    }
+  }, [nomeAlunoInicial, alunos]);
 
   const alunosAtivos = useMemo(() => alunos.filter((aluno) => aluno.ativo !== false), [alunos]);
   const totalInativos = alunos.length - alunosAtivos.length;

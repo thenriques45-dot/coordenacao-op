@@ -487,6 +487,7 @@ export function App() {
   const [tela, setTela] = useState<Tela>("dashboard");
   const [menuAberto, setMenuAberto] = useState(false);
   const [buscaGlobalAberta, setBuscaGlobalAberta] = useState(false);
+  const [nomeAlunoParaAbrir, setNomeAlunoParaAbrir] = useState<string | null>(null);
   const [modoReuniao, setModoReuniao] = useState(false);
   const [indiceAluno, setIndiceAluno] = useState(0);
   const [turmas, setTurmas] = useState<TurmaResumo[]>([]);
@@ -1041,7 +1042,7 @@ export function App() {
           <Dashboard
             turmas={turmas}
             erroTurmas={erroTurmas}
-            onOpenCouncil={() => navegarPara("conselhos")}
+            onAbrirBusca={() => setBuscaGlobalAberta(true)}
             onOpenTurmas={() => navegarPara("turmas")}
             onOpenKanban={() => navegarPara("kanban")}
             onOpenCalendario={() => navegarPara("calendario")}
@@ -1091,6 +1092,7 @@ export function App() {
             turmaDetalhe={turmaDetalhe}
             alunos={alunosConselho}
             turmaConfig={turmaConfig}
+            nomeAlunoInicial={nomeAlunoParaAbrir}
             onVoltar={() => navegarPara("turmas")}
             onSalvarCoordenador={salvarCoordenadorTurma}
             onSalvarElegibilidade={salvarElegibilidadeAluno}
@@ -1183,6 +1185,13 @@ export function App() {
           turmas={turmas}
           onFechar={() => setBuscaGlobalAberta(false)}
           onAbrirTurma={(turma) => {
+            setNomeAlunoParaAbrir(null);
+            setTurmaSelecionada(turma);
+            navegarPara("gestao-turma");
+            setBuscaGlobalAberta(false);
+          }}
+          onAbrirAluno={(turma, nome) => {
+            setNomeAlunoParaAbrir(nome);
             setTurmaSelecionada(turma);
             navegarPara("gestao-turma");
             setBuscaGlobalAberta(false);

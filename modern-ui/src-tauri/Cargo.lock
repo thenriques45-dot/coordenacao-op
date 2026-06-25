@@ -602,7 +602,7 @@ dependencies = [
 
 [[package]]
 name = "coordenacaoop"
-version = "2.11.1"
+version = "2.13.2"
 dependencies = [
  "base64 0.22.1",
  "calamine",
