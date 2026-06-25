@@ -821,7 +821,15 @@ function AlunoDetalheGestao({
   const graficoDisciplinas = aluno.disciplinas.map((disciplina, indice) => {
     const notaAtual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
     const notas = [null, null, null, null] as Array<number | null>;
-    notas[bimestreAtual - 1] = notaAtual;
+    for (const hb of disciplina.historicoBimestres ?? []) {
+      const idx = Number.parseInt(hb.bimestre, 10) - 1;
+      if (idx >= 0 && idx < 4 && typeof hb.media === "number" && Number.isFinite(hb.media)) {
+        notas[idx] = hb.media;
+      }
+    }
+    if (notaAtual !== null && notaAtual !== undefined) {
+      notas[bimestreAtual - 1] = notaAtual;
+    }
     const pontos = notas
       .map((nota, bimestreIndice) => {
         if (nota === null) return null;
@@ -1263,10 +1271,15 @@ function AlunoDetalheGestao({
                     </td>
                     {[1, 2, 3, 4].map((indice) => {
                       const eAtual = indice === bimestreAtual;
+                      const notaBim = eAtual
+                        ? nota
+                        : (disciplina.historicoBimestres ?? []).find(
+                            (hb) => Number.parseInt(hb.bimestre, 10) === indice
+                          )?.media ?? null;
                       const tooltip = eAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
                       return (
-                        <td key={indice} className={classeTextoNota(eAtual ? nota : null)} title={tooltip ?? undefined}>
-                          {eAtual ? formatarNota(nota) : "-"}
+                        <td key={indice} className={classeTextoNota(notaBim)} title={tooltip ?? undefined}>
+                          {formatarNota(notaBim)}
                         </td>
                       );
                     })}

@@ -256,16 +256,18 @@ export function Configuracoes({
     invokeApp("abrir_pasta", { caminho: ultimoBackup }).catch((err) => setErro(String(err)));
   }
 
-  async function importarBackup(arquivo: File | null, modo: "mesclar" | "substituir") {
-    if (!arquivo) return;
+  async function importarBackup(modo: "mesclar" | "substituir") {
+    const selecao = await abrirDialogoArquivo({
+      filters: [{ name: "Backup CoordenacaoOP", extensions: ["zip"] }],
+    }).catch(() => null);
+    if (!selecao) return;
+    const caminho = typeof selecao === "string" ? selecao : null;
+    if (!caminho) return;
     setProcessando(true);
     setMensagem("");
     setErro("");
     try {
-      const bytes = Array.from(new Uint8Array(await arquivo.arrayBuffer()));
-      const resultado = await invokeApp<BackupResultado>("importar_backup", {
-        input: { nome: arquivo.name, bytes, modo },
-      });
+      const resultado = await invokeApp<BackupResultado>("importar_backup_por_caminho", { caminho, modo });
       if (modo === "substituir") {
         setMensagem(`Backup restaurado. Backup de segurança: ${resultado.backup_seguranca ?? "não gerado"}.`);
       } else {
@@ -767,18 +769,16 @@ export function Configuracoes({
               Abrir pasta do último backup
             </button>
           )}
-          <label className="file-action">
+          <button type="button" className="file-action" disabled={processando} onClick={() => void importarBackup("mesclar")}>
             Adicionar dados de backup
-            <input type="file" accept=".zip" onChange={(event) => importarBackup(event.target.files?.[0] ?? null, "mesclar")} />
-          </label>
-          <label className="file-action danger">
+          </button>
+          <button type="button" className="file-action danger" disabled={processando} onClick={() => {
+            if (window.confirm("Esta ação substitui os dados atuais. Um backup de segurança será criado antes da restauração.")) {
+              void importarBackup("substituir");
+            }
+          }}>
             Substituir dados pelo backup
-            <input type="file" accept=".zip" onChange={(event) => {
-              if (window.confirm("Esta ação substitui os dados atuais. Um backup de segurança será criado antes da restauração.")) {
-                importarBackup(event.target.files?.[0] ?? null, "substituir");
-              }
-            }} />
-          </label>
+          </button>
         </article>
         )}
 

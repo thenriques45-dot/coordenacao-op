@@ -1072,6 +1072,17 @@ fn importar_backup(input: BackupImportInput) -> Result<BackupResultado, String> 
 }
 
 #[tauri::command]
+fn importar_backup_por_caminho(caminho: String, modo: String) -> Result<BackupResultado, String> {
+    let bytes = std::fs::read(&caminho).map_err(|err| err.to_string())?;
+    let nome = std::path::Path::new(&caminho)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("backup.zip")
+        .to_string();
+    importar_backup_interno(BackupImportInput { nome, bytes, modo }).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn importar_alunos_elegiveis(
     input: CsvImportInput,
 ) -> Result<ResultadoImportacaoElegiveis, String> {
@@ -9800,6 +9811,7 @@ fn main() {
             exportar_backup,
             exportar_backup_seletivo,
             importar_backup,
+            importar_backup_por_caminho,
             importar_alunos_elegiveis,
             analisar_diagnostico_aprendizagem,
             aplicar_diagnostico_aprendizagem,
