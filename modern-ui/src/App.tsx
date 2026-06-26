@@ -37,9 +37,9 @@ import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
-import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas } from "./features/Imports";
+import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
-import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatoriosMenu } from "./features/Reports";
+import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes } from "./features/SettingsPage";
@@ -55,7 +55,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
@@ -253,6 +253,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.15.0": [
+    "Importador de Tarefas Realizadas: carregue o CSV da SED com o andamento das tarefas dos alunos e registre feitas, total e percentual por bimestre.",
+    "Relatorio de Tarefas: exporte uma planilha (.csv) com Turma, Numero, Nome, Feitas, Total e Nota (0–10) de todos os alunos ativos por bimestre.",
+    "Importador da Prova Paulista: carregue a planilha XLSX de resultados e registre automaticamente as notas por disciplina e bimestre — deteccao automatica das disciplinas disponiveis (varia por serie).",
+    "Relatorio da Prova Paulista: exporte planilha (.csv) com colunas dinamicas por disciplina — so aparecem as disciplinas com dados importados para aquele bimestre.",
+    "Dados da Prova Paulista gravados individualmente em cada aluno, prontos para uso em outras funcoes.",
+  ],
   "2.13.2": [
     "Correcao interna: versao do aplicativo agora e gravada corretamente no binario — o atualizador automatico passa a funcionar de forma confiavel.",
   ],
@@ -1109,11 +1116,19 @@ export function App() {
             onImportarDiagnostico={() => navegarPara("importar-diagnostico")}
             onImportarFotos={() => navegarPara("importar-fotos")}
             onImportarAlunosLote={() => navegarPara("importar-alunos-lote")}
+            onImportarTarefas={() => navegarPara("importar-tarefas")}
+            onImportarProvaPaulista={() => navegarPara("importar-prova-paulista")}
           />
         )}
         {tela === "importar-fotos" && <ImportarFotos />}
         {tela === "importar-alunos-lote" && (
           <ImportarAlunosLote onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+        )}
+        {tela === "importar-tarefas" && (
+          <ImportarTarefas onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+        )}
+        {tela === "importar-prova-paulista" && (
+          <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
         {tela === "importar-notas" && (
           <ImportarNotas
@@ -1171,14 +1186,18 @@ export function App() {
             onAbrirAtendimentos={() => navegarPara("relatorio-atendimentos")}
             onAbrirPei={() => navegarPara("pei")}
             onAbrirPlanejamento={() => navegarPara("planejamento")}
+            onAbrirTarefas={() => navegarPara("relatorio-tarefas")}
+            onAbrirProvaPaulista={() => navegarPara("relatorio-prova-paulista")}
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-tarefas" && <RelatorioTarefas onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {buscaGlobalAberta && (
         <BuscaGlobal
@@ -1451,6 +1470,8 @@ function Placeholder({ tela }: { tela: Tela }) {
     "importar-diagnostico": "Importar Diagnóstico SARESP",
     "importar-fotos": "Importar Fotos dos Alunos",
     "importar-alunos-lote": "Atualizar Turmas em Lote",
+    "importar-tarefas": "Importar Tarefas Realizadas",
+    "importar-prova-paulista": "Importar Prova Paulista",
     conselhos: "Conselhos",
     conselho: "Conselho",
     kanban: "Quadro de Gestão",
@@ -1459,6 +1480,8 @@ function Placeholder({ tela }: { tela: Tela }) {
     "relatorio-criticos": "Relatório de Alunos Críticos",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
     "relatorio-atendimentos": "Relatórios de Atendimento",
+    "relatorio-tarefas": "Relatório de Tarefas Realizadas",
+    "relatorio-prova-paulista": "Relatório da Prova Paulista",
     pei: "PEI — Plano Educacional Individualizado",
     planejamento: "Planejamento dos Professores",
     configuracoes: "Configurações",

@@ -68,6 +68,20 @@ type SerieMensal = {
   valores: number[];
 };
 
+type RelatorioTarefasResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  alunos: number;
+};
+
+type RelatorioProvaPaulistaResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  alunos: number;
+};
+
 const coresRelatorio = ["#2563eb", "#16a34a", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
 
 const opcoesBimestre = [
@@ -93,12 +107,16 @@ export function RelatoriosMenu({
   onAbrirAtendimentos,
   onAbrirPei,
   onAbrirPlanejamento,
+  onAbrirTarefas,
+  onAbrirProvaPaulista,
 }: {
   onAbrirCriticos: () => void;
   onAbrirAlteracoesNotas: () => void;
   onAbrirAtendimentos: () => void;
   onAbrirPei: () => void;
   onAbrirPlanejamento: () => void;
+  onAbrirTarefas: () => void;
+  onAbrirProvaPaulista: () => void;
 }) {
   const [gerandoLancamento, setGerandoLancamento] = useState(false);
   const [erroLancamento, setErroLancamento] = useState("");
@@ -169,6 +187,20 @@ export function RelatoriosMenu({
           <div>
             <strong>Planejamento dos Professores</strong>
             <span>Acompanhe os planos de ensino enviados pelos professores por turma, disciplina e bimestre.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirTarefas}>
+          <BarChart3 size={26} />
+          <div>
+            <strong>Tarefas Realizadas</strong>
+            <span>Exporte em planilha (.csv) o percentual de tarefas concluídas por aluno e sala, por bimestre.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirProvaPaulista}>
+          <BarChart3 size={26} />
+          <div>
+            <strong>Prova Paulista</strong>
+            <span>Exporte em planilha (.csv) as notas da Prova Paulista por disciplina, turma e bimestre.</span>
           </div>
         </button>
       </section>
@@ -705,5 +737,181 @@ function MonthlyLineChart({ meses, series, emptyText }: { meses: string[]; serie
         ))}
       </div>
     </div>
+  );
+}
+
+export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
+  const [bimestre, setBimestre] = useState("1");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioTarefasResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+
+  function gerarRelatorio() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invokeApp<RelatorioTarefasResultado>("gerar_relatorio_tarefas", { bimestre })
+      .then((resposta) => {
+        setResultado(resposta);
+        setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPasta() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Tarefas Realizadas</h1>
+          <p>Exporte uma planilha (.csv) com o percentual de tarefas concluídas por aluno e turma.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Exportar por bimestre</h2>
+            <p>O arquivo .csv gerado abre diretamente no Excel para cópia e colagem em outras planilhas.</p>
+          </div>
+          <BarChart3 size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(e) => setBimestre(e.target.value)}>
+              {opcoesBimestre.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+            {processando ? "Gerando..." : "Gerar planilha"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir arquivo
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
+export function RelatorioProvaPaulista({ onVoltar }: { onVoltar: () => void }) {
+  const [bimestre, setBimestre] = useState("1");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioProvaPaulistaResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+
+  function gerarRelatorio() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invokeApp<RelatorioProvaPaulistaResultado>("gerar_relatorio_prova_paulista", { bimestre })
+      .then((resposta) => {
+        setResultado(resposta);
+        setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPasta() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Prova Paulista</h1>
+          <p>Exporte uma planilha (.csv) com as notas da Prova Paulista por disciplina, turma e bimestre.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Exportar por bimestre</h2>
+            <p>O arquivo .csv gerado abre diretamente no Excel. As colunas de disciplina aparecem apenas para as que tiverem dados importados.</p>
+          </div>
+          <BarChart3 size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(e) => setBimestre(e.target.value)}>
+              {opcoesBimestre.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+            {processando ? "Gerando..." : "Gerar planilha"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir arquivo
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
   );
 }

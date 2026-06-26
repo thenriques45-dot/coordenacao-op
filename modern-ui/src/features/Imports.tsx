@@ -111,12 +111,16 @@ export function ImportarDados({
   onImportarDiagnostico,
   onImportarFotos,
   onImportarAlunosLote,
+  onImportarTarefas,
+  onImportarProvaPaulista,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
   onImportarDiagnostico: () => void;
   onImportarFotos: () => void;
   onImportarAlunosLote: () => void;
+  onImportarTarefas: () => void;
+  onImportarProvaPaulista: () => void;
 }) {
   return (
     <>
@@ -162,6 +166,20 @@ export function ImportarDados({
           <div>
             <strong>Atualizar turmas em lote</strong>
             <span>Carregue vários CSVs de alunos da SED de uma vez; o app identifica a turma pelos RAs e atualiza status e novos alunos.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarTarefas}>
+          <BarChart3 size={24} />
+          <div>
+            <strong>Importar Tarefas Realizadas</strong>
+            <span>Carregue a planilha de tarefas do sistema e registre o andamento por bimestre para cada aluno.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarProvaPaulista}>
+          <BarChart3 size={24} />
+          <div>
+            <strong>Importar Prova Paulista</strong>
+            <span>Carregue a planilha de resultados da Prova Paulista e registre as notas por disciplina e bimestre.</span>
           </div>
         </button>
       </section>
@@ -302,6 +320,84 @@ type ResultadoLoteArquivo = {
 };
 
 type ItemLote = { previa: PreviaLoteArquivo; alunos: NovoAlunoPayload[] };
+
+type AlunoTarefasPayload = {
+  nome: string;
+  feitas: number;
+  total: number;
+  percentual: number;
+  data_coleta: string;
+};
+
+type PreviaTarefasAluno = {
+  nome_csv: string;
+  turma: string | null;
+  feitas: number;
+  total: number;
+  percentual: number;
+  ambiguo: boolean;
+  encontrado: boolean;
+};
+
+type PreviaTarefas = {
+  bimestre: string;
+  total_csv: number;
+  encontrados: number;
+  nao_encontrados: number;
+  ambiguos: number;
+  matches: PreviaTarefasAluno[];
+};
+
+type ResultadoTarefas = {
+  bimestre: string;
+  atualizados: number;
+  turmas_atualizadas: number;
+  nao_encontrados: string[];
+  ambiguos: string[];
+};
+
+function parseCsvTarefas(texto: string): AlunoTarefasPayload[] {
+  const linhas = texto.split(/\r?\n/);
+
+  let dataColeta = "";
+  const primeiraLinha = linhas[0]?.trim() ?? "";
+  if (normalizarTextoCsv(primeiraLinha).startsWith("DADOS;")) {
+    dataColeta = primeiraLinha.split(";")[1]?.trim() ?? "";
+  }
+
+  let headerIdx = -1;
+  for (let i = 0; i < linhas.length; i++) {
+    const norm = normalizarTextoCsv(linhas[i]);
+    if (norm.includes("NOME DO ALUNO") && norm.includes("TAREFAS REALIZADAS")) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx === -1) return [];
+
+  const cab = linhas[headerIdx].split(";").map((c) => normalizarTextoCsv(c));
+  const idxStatus = cab.findIndex((c) => c === "STATUS");
+  const idxNome = cab.findIndex((c) => c === "NOME DO ALUNO");
+  const idxTarefas = cab.findIndex((c) => c === "TAREFAS REALIZADAS");
+  if (idxNome === -1 || idxTarefas === -1) return [];
+
+  const alunos: AlunoTarefasPayload[] = [];
+  for (let i = headerIdx + 1; i < linhas.length; i++) {
+    const linha = linhas[i].trim();
+    if (!linha) continue;
+    const campos = linha.split(";");
+    const nome = campos[idxNome]?.trim() ?? "";
+    if (!nome) continue;
+    const tarefasStr = campos[idxTarefas]?.trim() ?? "0 de 0";
+    const statusStr = idxStatus >= 0 ? (campos[idxStatus]?.trim() ?? "0%") : "0%";
+    const tarefasMatch = tarefasStr.match(/(\d+)\s+de\s+(\d+)/i);
+    const feitas = tarefasMatch ? parseInt(tarefasMatch[1], 10) : 0;
+    const total = tarefasMatch ? parseInt(tarefasMatch[2], 10) : 0;
+    const percentual = parseFloat(statusStr.replace("%", "").replace(",", ".").trim()) || 0;
+    alunos.push({ nome, feitas, total, percentual, data_coleta: dataColeta });
+  }
+  return alunos;
+}
 
 export function ImportarAlunosLote({ onAplicado }: { onAplicado: () => void }) {
   const [itens, setItens] = useState<ItemLote[]>([]);
@@ -981,6 +1077,391 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
           <span>Alunos atualizados: {resultado.alunos_atualizados}</span>
         </section>
       )}
+    </>
+  );
+}
+
+const opcoesBimestreTarefas = [
+  { valor: "1", rotulo: "1º bimestre" },
+  { valor: "2", rotulo: "2º bimestre" },
+  { valor: "3", rotulo: "3º bimestre" },
+  { valor: "4", rotulo: "4º bimestre/conselho final" },
+];
+
+export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
+  const [bimestre, setBimestre] = useState("1");
+  const [alunos, setAlunos] = useState<AlunoTarefasPayload[]>([]);
+  const [nomeArquivo, setNomeArquivo] = useState("");
+  const [previa, setPrevia] = useState<PreviaTarefas | null>(null);
+  const [resultado, setResultado] = useState<ResultadoTarefas | null>(null);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function selecionarArquivo(lista: FileList | null) {
+    const arquivo = lista?.[0];
+    if (!arquivo) return;
+    setErro("");
+    setPrevia(null);
+    setResultado(null);
+    try {
+      const texto = await arquivo.text();
+      const parsed = parseCsvTarefas(texto);
+      if (!parsed.length) throw new Error("Nenhum aluno encontrado. Verifique se o arquivo é a planilha de tarefas correta.");
+      setAlunos(parsed);
+      setNomeArquivo(arquivo.name);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setAlunos([]);
+      setNomeArquivo("");
+    }
+  }
+
+  async function analisar() {
+    if (!alunos.length) return;
+    setProcessando(true);
+    setErro("");
+    setPrevia(null);
+    try {
+      const res = await invokeApp<PreviaTarefas>("analisar_tarefas", { bimestre, alunos });
+      setPrevia(res);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function aplicar() {
+    if (!previa || previa.encontrados === 0) return;
+    setProcessando(true);
+    setErro("");
+    try {
+      const res = await invokeApp<ResultadoTarefas>("aplicar_tarefas", { bimestre, alunos });
+      setResultado(res);
+      setPrevia(null);
+      setAlunos([]);
+      setNomeArquivo("");
+      onAplicado();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Importar Tarefas Realizadas</h1>
+          <p>
+            Carregue a planilha de tarefas exportada pelo sistema. O app localiza cada aluno pelo
+            nome e registra a quantidade de tarefas concluídas por bimestre. Uma nova importação
+            substitui os dados anteriores do mesmo bimestre.
+          </p>
+        </div>
+      </header>
+
+      <section className="panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(e) => setBimestre(e.target.value)} disabled={processando}>
+              {opcoesBimestreTarefas.map((o) => (
+                <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+              ))}
+            </select>
+          </label>
+          <label className="file-picker-button" style={{ cursor: "pointer" }}>
+            <Upload size={18} />
+            <span>{nomeArquivo || "Selecionar planilha CSV"}</span>
+            <input
+              type="file"
+              accept=".csv"
+              style={{ display: "none" }}
+              disabled={processando}
+              onChange={(e) => { void selecionarArquivo(e.target.files); e.target.value = ""; }}
+            />
+          </label>
+          {alunos.length > 0 && !previa && (
+            <button type="button" className="primary-action" onClick={() => void analisar()} disabled={processando}>
+              {processando ? "Analisando..." : `Analisar ${alunos.length} aluno(s)`}
+            </button>
+          )}
+        </div>
+
+        {erro && <div className="notice error">{erro}</div>}
+
+        {previa && (
+          <>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <span className="active-badge">✓ {previa.encontrados} encontrado(s)</span>
+              {previa.nao_encontrados > 0 && (
+                <span className="inactive-badge">⚠ {previa.nao_encontrados} não encontrado(s)</span>
+              )}
+              {previa.ambiguos > 0 && (
+                <span className="inactive-badge">⚠ {previa.ambiguos} ambíguo(s)</span>
+              )}
+            </div>
+            <div className="students-table-wrap">
+              <table className="students-table">
+                <thead>
+                  <tr>
+                    <th>Nome (planilha)</th>
+                    <th>Turma</th>
+                    <th>Feitas</th>
+                    <th>Total</th>
+                    <th>%</th>
+                    <th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previa.matches.map((m, i) => (
+                    <tr key={i} className={m.encontrado ? "" : "student-table-row inactive"}>
+                      <td>{m.nome_csv}</td>
+                      <td>{m.turma ?? "—"}</td>
+                      <td>{m.feitas}</td>
+                      <td>{m.total}</td>
+                      <td>{m.percentual.toFixed(1).replace(".", ",")}%</td>
+                      <td>
+                        {m.encontrado
+                          ? <span className="active-badge">ok</span>
+                          : m.ambiguo
+                            ? <span className="inactive-badge">ambíguo</span>
+                            : <span className="inactive-badge">não encontrado</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(previa.nao_encontrados > 0 || previa.ambiguos > 0) && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.
+              </p>
+            )}
+            <button
+              type="button"
+              className="primary-action"
+              style={{ alignSelf: "flex-start" }}
+              disabled={processando || previa.encontrados === 0}
+              onClick={() => void aplicar()}
+            >
+              {processando ? "Importando..." : `Importar ${previa.encontrados} aluno(s)`}
+            </button>
+          </>
+        )}
+
+        {resultado && (
+          <div className="notice success">
+            <strong>Importação concluída.</strong>
+            <span>{resultado.atualizados} aluno(s) atualizados em {resultado.turmas_atualizadas} turma(s).</span>
+            {resultado.nao_encontrados.length > 0 && (
+              <span>Não encontrados: {resultado.nao_encontrados.join(", ")}</span>
+            )}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+type ArquivoProvaPayload = { nome: string; bytes: number[] };
+
+type PreviaPaulistaAluno = {
+  nome_csv: string;
+  turma: string | null;
+  participou: boolean;
+  geral: number | null;
+  encontrado: boolean;
+  ambiguo: boolean;
+};
+
+type PreviaPaulista = {
+  bimestre: string;
+  total_csv: number;
+  encontrados: number;
+  nao_encontrados: number;
+  ambiguos: number;
+  disciplinas_detectadas: string[];
+  matches: PreviaPaulistaAluno[];
+};
+
+type ResultadoPaulista = {
+  bimestre: string;
+  atualizados: number;
+  turmas_atualizadas: number;
+  nao_encontrados: string[];
+  ambiguos: string[];
+};
+
+export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }) {
+  const [bimestre, setBimestre] = useState("1");
+  const [arquivo, setArquivo] = useState<ArquivoProvaPayload | null>(null);
+  const [previa, setPrevia] = useState<PreviaPaulista | null>(null);
+  const [resultado, setResultado] = useState<ResultadoPaulista | null>(null);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  function selecionarArquivo(file: File | null) {
+    setErro("");
+    setPrevia(null);
+    setResultado(null);
+    if (!file) return;
+    file.arrayBuffer()
+      .then((buf) => setArquivo({ nome: file.name, bytes: Array.from(new Uint8Array(buf)) }))
+      .catch((err) => setErro(err instanceof Error ? err.message : String(err)));
+  }
+
+  async function analisar() {
+    if (!arquivo) return;
+    setProcessando(true);
+    setErro("");
+    setPrevia(null);
+    setResultado(null);
+    try {
+      const res = await invokeApp<PreviaPaulista>("analisar_prova_paulista", {
+        bimestre,
+        arquivo,
+      });
+      setPrevia(res);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function aplicar() {
+    if (!arquivo) return;
+    setProcessando(true);
+    setErro("");
+    try {
+      const res = await invokeApp<ResultadoPaulista>("aplicar_prova_paulista", {
+        bimestre,
+        arquivo,
+      });
+      setResultado(res);
+      onAplicado();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Prova Paulista</h1>
+          <p>Importe os resultados da Prova Paulista por disciplina e bimestre.</p>
+        </div>
+      </header>
+
+      <section className="panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setPrevia(null); setResultado(null); }}>
+              {opcoesBimestreTarefas.map((o) => (
+                <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+          <label className="file-picker-button">
+            Selecionar planilha (.xlsx)
+            <input type="file" accept=".xlsx" onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)} />
+          </label>
+          {arquivo && (
+            <>
+              <span style={{ fontSize: "0.9rem", color: "var(--muted, #667085)" }}>{arquivo.nome}</span>
+              <button
+                type="button"
+                className="primary-action"
+                disabled={processando}
+                onClick={() => void analisar()}
+              >
+                {processando && !previa ? "Analisando..." : "Analisar"}
+              </button>
+            </>
+          )}
+        </div>
+
+        {erro && <div className="notice error">{erro}</div>}
+
+        {previa && !resultado && (
+          <>
+            <div className="notice">
+              <strong>{previa.total_csv} alunos na planilha</strong>
+              <span>Encontrados: {previa.encontrados} · Não encontrados: {previa.nao_encontrados} · Ambíguos: {previa.ambiguos}</span>
+              {previa.disciplinas_detectadas.length > 0 && (
+                <span>Disciplinas detectadas: {previa.disciplinas_detectadas.join(", ")}</span>
+              )}
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table className="data-table" style={{ width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>Nome (planilha)</th>
+                    <th>Turma</th>
+                    <th>Participou</th>
+                    <th>Geral</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previa.matches.map((m, i) => (
+                    <tr key={i}>
+                      <td>{m.nome_csv}</td>
+                      <td>{m.turma ?? "—"}</td>
+                      <td>{m.participou ? "Sim" : "Não"}</td>
+                      <td>{m.geral != null ? m.geral : "—"}</td>
+                      <td>
+                        {m.encontrado
+                          ? <span className="active-badge">ok</span>
+                          : m.ambiguo
+                            ? <span className="inactive-badge">ambíguo</span>
+                            : <span className="inactive-badge">não encontrado</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(previa.nao_encontrados > 0 || previa.ambiguos > 0) && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.
+              </p>
+            )}
+            <button
+              type="button"
+              className="primary-action"
+              style={{ alignSelf: "flex-start" }}
+              disabled={processando || previa.encontrados === 0}
+              onClick={() => void aplicar()}
+            >
+              {processando ? "Importando..." : `Importar ${previa.encontrados} aluno(s)`}
+            </button>
+          </>
+        )}
+
+        {resultado && (
+          <div className="notice success">
+            <strong>Importação concluída.</strong>
+            <span>{resultado.atualizados} aluno(s) atualizados em {resultado.turmas_atualizadas} turma(s).</span>
+            {resultado.nao_encontrados.length > 0 && (
+              <span>Não encontrados: {resultado.nao_encontrados.join(", ")}</span>
+            )}
+          </div>
+        )}
+      </section>
     </>
   );
 }

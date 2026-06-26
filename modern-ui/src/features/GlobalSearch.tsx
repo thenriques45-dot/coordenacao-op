@@ -139,6 +139,10 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onAbrirAluno, onNa
     { id: "importar-diagnostico",         label: "Importar Diagnóstico",             icone: <Upload size={16} />,     palavras: ["importar", "diagnostico", "diagnosticos"] },
     { id: "importar-fotos",               label: "Importar Fotos",                   icone: <Upload size={16} />,     palavras: ["importar", "fotos", "foto", "imagens"] },
     { id: "importar-alunos-lote",         label: "Importar Alunos em Lote",          icone: <Upload size={16} />,     palavras: ["importar", "alunos", "lote", "batch"] },
+    { id: "importar-tarefas",             label: "Importar Tarefas Realizadas",      icone: <Upload size={16} />,     palavras: ["importar", "tarefas", "realizadas", "atividades"] },
+    { id: "relatorio-tarefas",            label: "Relatório de Tarefas",             icone: <BarChart2 size={16} />,  palavras: ["relatorio", "tarefas", "realizadas", "percentual"] },
+    { id: "importar-prova-paulista",      label: "Importar Prova Paulista",          icone: <Upload size={16} />,     palavras: ["importar", "prova", "paulista", "avaliacao", "nota"] },
+    { id: "relatorio-prova-paulista",     label: "Relatório da Prova Paulista",      icone: <BarChart2 size={16} />,  palavras: ["relatorio", "prova", "paulista", "disciplina", "nota"] },
   ], []);
 
   const telasFiltradas = temQuery
