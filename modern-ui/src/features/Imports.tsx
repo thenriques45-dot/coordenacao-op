@@ -337,6 +337,7 @@ type PreviaTarefasAluno = {
   percentual: number;
   ambiguo: boolean;
   encontrado: boolean;
+  resolvido: boolean;
 };
 
 type PreviaTarefas = {
@@ -345,6 +346,7 @@ type PreviaTarefas = {
   encontrados: number;
   nao_encontrados: number;
   ambiguos: number;
+  resolvidos: number;
   matches: PreviaTarefasAluno[];
 };
 
@@ -1197,6 +1199,9 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
           <>
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
               <span className="active-badge">✓ {previa.encontrados} encontrado(s)</span>
+              {previa.resolvidos > 0 && (
+                <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>⟳ {previa.resolvidos} inferido(s) por contexto</span>
+              )}
               {previa.nao_encontrados > 0 && (
                 <span className="inactive-badge">⚠ {previa.nao_encontrados} não encontrado(s)</span>
               )}
@@ -1225,17 +1230,24 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
                       <td>{m.total}</td>
                       <td>{m.percentual.toFixed(1).replace(".", ",")}%</td>
                       <td>
-                        {m.encontrado
-                          ? <span className="active-badge">ok</span>
-                          : m.ambiguo
-                            ? <span className="inactive-badge">ambíguo</span>
-                            : <span className="inactive-badge">não encontrado</span>}
+                        {m.resolvido
+                          ? <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>inferido</span>
+                          : m.encontrado
+                            ? <span className="active-badge">ok</span>
+                            : m.ambiguo
+                              ? <span className="inactive-badge">ambíguo</span>
+                              : <span className="inactive-badge">não encontrado</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {previa.resolvidos > 0 && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos "inferidos" foram identificados pela turma com mais colegas presentes na mesma planilha.
+              </p>
+            )}
             {(previa.nao_encontrados > 0 || previa.ambiguos > 0) && (
               <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
                 Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.
@@ -1276,6 +1288,7 @@ type PreviaPaulistaAluno = {
   geral: number | null;
   encontrado: boolean;
   ambiguo: boolean;
+  resolvido: boolean;
 };
 
 type PreviaPaulista = {
@@ -1284,6 +1297,7 @@ type PreviaPaulista = {
   encontrados: number;
   nao_encontrados: number;
   ambiguos: number;
+  resolvidos: number;
   disciplinas_detectadas: string[];
   matches: PreviaPaulistaAluno[];
 };
@@ -1399,7 +1413,18 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
           <>
             <div className="notice">
               <strong>{previa.total_csv} alunos na planilha</strong>
-              <span>Encontrados: {previa.encontrados} · Não encontrados: {previa.nao_encontrados} · Ambíguos: {previa.ambiguos}</span>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                <span className="active-badge">✓ {previa.encontrados} encontrado(s)</span>
+                {previa.resolvidos > 0 && (
+                  <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>⟳ {previa.resolvidos} inferido(s) por contexto</span>
+                )}
+                {previa.nao_encontrados > 0 && (
+                  <span className="inactive-badge">⚠ {previa.nao_encontrados} não encontrado(s)</span>
+                )}
+                {previa.ambiguos > 0 && (
+                  <span className="inactive-badge">⚠ {previa.ambiguos} ambíguo(s)</span>
+                )}
+              </div>
               {previa.disciplinas_detectadas.length > 0 && (
                 <span>Disciplinas detectadas: {previa.disciplinas_detectadas.join(", ")}</span>
               )}
@@ -1424,17 +1449,24 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
                       <td>{m.participou ? "Sim" : "Não"}</td>
                       <td>{m.geral != null ? m.geral : "—"}</td>
                       <td>
-                        {m.encontrado
-                          ? <span className="active-badge">ok</span>
-                          : m.ambiguo
-                            ? <span className="inactive-badge">ambíguo</span>
-                            : <span className="inactive-badge">não encontrado</span>}
+                        {m.resolvido
+                          ? <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>inferido</span>
+                          : m.encontrado
+                            ? <span className="active-badge">ok</span>
+                            : m.ambiguo
+                              ? <span className="inactive-badge">ambíguo</span>
+                              : <span className="inactive-badge">não encontrado</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            {previa.resolvidos > 0 && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos "inferidos" foram identificados pela turma com mais colegas presentes na mesma planilha.
+              </p>
+            )}
             {(previa.nao_encontrados > 0 || previa.ambiguos > 0) && (
               <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
                 Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.

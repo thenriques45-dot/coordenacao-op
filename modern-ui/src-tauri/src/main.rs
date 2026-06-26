@@ -1645,6 +1645,32 @@ struct AlunoTarefasInput {
     data_coleta: String,
 }
 
+// Resolve ambiguidade pelo contexto: escolhe a turma candidata que tem mais
+// alunos já casados sem ambiguidade no mesmo arquivo. Retorna None em empate
+// ou quando nenhuma candidata tem contexto suficiente.
+fn resolver_ambiguo_por_contexto(
+    candidatas: &[(usize, String)],
+    contagem: &BTreeMap<usize, usize>,
+) -> Option<(usize, String)> {
+    let mut melhor_count = 0usize;
+    let mut melhor: Option<(usize, String)> = None;
+    let mut empate = false;
+    for (turma_idx, matricula) in candidatas {
+        let count = contagem.get(turma_idx).copied().unwrap_or(0);
+        if count == 0 {
+            continue;
+        }
+        if count > melhor_count {
+            melhor_count = count;
+            melhor = Some((*turma_idx, matricula.clone()));
+            empate = false;
+        } else if count == melhor_count {
+            empate = true;
+        }
+    }
+    if empate { None } else { melhor }
+}
+
 #[derive(Serialize)]
 struct PreviaTarefasAluno {
     nome_csv: String,
@@ -1654,6 +1680,7 @@ struct PreviaTarefasAluno {
     percentual: f64,
     ambiguo: bool,
     encontrado: bool,
+    resolvido: bool,
 }
 
 #[derive(Serialize)]
@@ -1663,6 +1690,7 @@ struct PreviaTarefas {
     encontrados: usize,
     nao_encontrados: usize,
     ambiguos: usize,
+    resolvidos: usize,
     matches: Vec<PreviaTarefasAluno>,
 }
 
@@ -1673,14 +1701,29 @@ fn analisar_tarefas(
 ) -> Result<PreviaTarefas, String> {
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
+
+    // 1ª passagem: classifica todos os alunos
+    let candidaturas: Vec<Vec<(usize, String)>> = alunos
+        .iter()
+        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .collect();
+
+    // Contagem de contexto a partir dos exatos (sem ambiguidade)
+    let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
+    for dest in &candidaturas {
+        if dest.len() == 1 {
+            *contagem.entry(dest[0].0).or_insert(0) += 1;
+        }
+    }
+
+    // 2ª passagem: monta a prévia resolvendo ambíguos pelo contexto
     let mut matches = Vec::new();
     let mut encontrados = 0usize;
     let mut nao_encontrados = 0usize;
     let mut ambiguos = 0usize;
-    for aluno in &alunos {
-        let nome_norm = normalizar_nome_busca(&aluno.nome);
-        let destinos = indice.get(&nome_norm).cloned().unwrap_or_default();
-        match destinos.len() {
+    let mut resolvidos = 0usize;
+    for (aluno, dest) in alunos.iter().zip(candidaturas.iter()) {
+        match dest.len() {
             0 => {
                 nao_encontrados += 1;
                 matches.push(PreviaTarefasAluno {
@@ -1691,12 +1734,13 @@ fn analisar_tarefas(
                     percentual: aluno.percentual,
                     ambiguo: false,
                     encontrado: false,
+                    resolvido: false,
                 });
             }
             1 => {
                 encontrados += 1;
                 let turma_codigo = turmas
-                    .get(destinos[0].0)
+                    .get(dest[0].0)
                     .map(|(_, t)| t.codigo.clone())
                     .unwrap_or_default();
                 matches.push(PreviaTarefasAluno {
@@ -1707,24 +1751,45 @@ fn analisar_tarefas(
                     percentual: aluno.percentual,
                     ambiguo: false,
                     encontrado: true,
+                    resolvido: false,
                 });
             }
             _ => {
-                ambiguos += 1;
-                let turmas_str = destinos
-                    .iter()
-                    .filter_map(|(idx, _)| turmas.get(*idx).map(|(_, t)| t.codigo.clone()))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                matches.push(PreviaTarefasAluno {
-                    nome_csv: aluno.nome.clone(),
-                    turma: Some(turmas_str),
-                    feitas: aluno.feitas,
-                    total: aluno.total,
-                    percentual: aluno.percentual,
-                    ambiguo: true,
-                    encontrado: false,
-                });
+                if let Some((ti, _)) = resolver_ambiguo_por_contexto(dest, &contagem) {
+                    resolvidos += 1;
+                    encontrados += 1;
+                    let turma_codigo = turmas
+                        .get(ti)
+                        .map(|(_, t)| t.codigo.clone())
+                        .unwrap_or_default();
+                    matches.push(PreviaTarefasAluno {
+                        nome_csv: aluno.nome.clone(),
+                        turma: Some(turma_codigo),
+                        feitas: aluno.feitas,
+                        total: aluno.total,
+                        percentual: aluno.percentual,
+                        ambiguo: false,
+                        encontrado: true,
+                        resolvido: true,
+                    });
+                } else {
+                    ambiguos += 1;
+                    let turmas_str = dest
+                        .iter()
+                        .filter_map(|(idx, _)| turmas.get(*idx).map(|(_, t)| t.codigo.clone()))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    matches.push(PreviaTarefasAluno {
+                        nome_csv: aluno.nome.clone(),
+                        turma: Some(turmas_str),
+                        feitas: aluno.feitas,
+                        total: aluno.total,
+                        percentual: aluno.percentual,
+                        ambiguo: true,
+                        encontrado: false,
+                        resolvido: false,
+                    });
+                }
             }
         }
     }
@@ -1734,6 +1799,7 @@ fn analisar_tarefas(
         encontrados,
         nao_encontrados,
         ambiguos,
+        resolvidos,
         matches,
     })
 }
@@ -1755,22 +1821,35 @@ fn aplicar_tarefas(
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
     let agora = Local::now().to_rfc3339();
+
+    // Contexto: conta alunos exatos por turma
+    let candidaturas: Vec<Vec<(usize, String)>> = alunos
+        .iter()
+        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .collect();
+    let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
+    for dest in &candidaturas {
+        if dest.len() == 1 {
+            *contagem.entry(dest[0].0).or_insert(0) += 1;
+        }
+    }
+
     let mut por_turma: BTreeMap<usize, Vec<(String, usize)>> = BTreeMap::new();
     let mut nao_encontrados = Vec::new();
     let mut ambiguos = Vec::new();
-    for (aluno_idx, aluno) in alunos.iter().enumerate() {
-        let nome_norm = normalizar_nome_busca(&aluno.nome);
-        let destinos = indice.get(&nome_norm).cloned().unwrap_or_default();
-        match destinos.len() {
+    for (aluno_idx, (aluno, dest)) in alunos.iter().zip(candidaturas.iter()).enumerate() {
+        match dest.len() {
             0 => nao_encontrados.push(aluno.nome.clone()),
             1 => {
-                let (turma_idx, matricula) = destinos[0].clone();
-                por_turma
-                    .entry(turma_idx)
-                    .or_default()
-                    .push((matricula, aluno_idx));
+                por_turma.entry(dest[0].0).or_default().push((dest[0].1.clone(), aluno_idx));
             }
-            _ => ambiguos.push(aluno.nome.clone()),
+            _ => {
+                if let Some((ti, mat)) = resolver_ambiguo_por_contexto(dest, &contagem) {
+                    por_turma.entry(ti).or_default().push((mat, aluno_idx));
+                } else {
+                    ambiguos.push(aluno.nome.clone());
+                }
+            }
         }
     }
     let mut atualizados = 0usize;
@@ -2037,6 +2116,7 @@ struct PreviaPaulistaAluno {
     geral: Option<u32>,
     encontrado: bool,
     ambiguo: bool,
+    resolvido: bool,
 }
 
 #[derive(Serialize)]
@@ -2046,6 +2126,7 @@ struct PreviaPaulista {
     encontrados: usize,
     nao_encontrados: usize,
     ambiguos: usize,
+    resolvidos: usize,
     disciplinas_detectadas: Vec<String>,
     matches: Vec<PreviaPaulistaAluno>,
 }
@@ -2058,14 +2139,26 @@ fn analisar_prova_paulista(
     let (alunos_csv, disciplinas) = extrair_prova_paulista_xlsx(&arquivo.bytes)?;
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
+
+    // 1ª passagem: classifica e acumula contexto
+    let candidaturas: Vec<Vec<(usize, String)>> = alunos_csv
+        .iter()
+        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .collect();
+    let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
+    for dest in &candidaturas {
+        if dest.len() == 1 {
+            *contagem.entry(dest[0].0).or_insert(0) += 1;
+        }
+    }
+
     let mut matches = Vec::new();
     let mut encontrados = 0usize;
     let mut nao_encontrados = 0usize;
     let mut ambiguos = 0usize;
-    for aluno in &alunos_csv {
-        let nome_norm = normalizar_nome_busca(&aluno.nome);
-        let destinos = indice.get(&nome_norm).cloned().unwrap_or_default();
-        match destinos.len() {
+    let mut resolvidos = 0usize;
+    for (aluno, dest) in alunos_csv.iter().zip(candidaturas.iter()) {
+        match dest.len() {
             0 => {
                 nao_encontrados += 1;
                 matches.push(PreviaPaulistaAluno {
@@ -2075,12 +2168,13 @@ fn analisar_prova_paulista(
                     geral: aluno.geral,
                     encontrado: false,
                     ambiguo: false,
+                    resolvido: false,
                 });
             }
             1 => {
                 encontrados += 1;
                 let turma_codigo = turmas
-                    .get(destinos[0].0)
+                    .get(dest[0].0)
                     .map(|(_, t)| t.codigo.clone())
                     .unwrap_or_default();
                 matches.push(PreviaPaulistaAluno {
@@ -2090,23 +2184,43 @@ fn analisar_prova_paulista(
                     geral: aluno.geral,
                     encontrado: true,
                     ambiguo: false,
+                    resolvido: false,
                 });
             }
             _ => {
-                ambiguos += 1;
-                let turmas_str = destinos
-                    .iter()
-                    .filter_map(|(idx, _)| turmas.get(*idx).map(|(_, t)| t.codigo.clone()))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                matches.push(PreviaPaulistaAluno {
-                    nome_csv: aluno.nome.clone(),
-                    turma: Some(turmas_str),
-                    participou: aluno.participou,
-                    geral: aluno.geral,
-                    encontrado: false,
-                    ambiguo: true,
-                });
+                if let Some((ti, _)) = resolver_ambiguo_por_contexto(dest, &contagem) {
+                    resolvidos += 1;
+                    encontrados += 1;
+                    let turma_codigo = turmas
+                        .get(ti)
+                        .map(|(_, t)| t.codigo.clone())
+                        .unwrap_or_default();
+                    matches.push(PreviaPaulistaAluno {
+                        nome_csv: aluno.nome.clone(),
+                        turma: Some(turma_codigo),
+                        participou: aluno.participou,
+                        geral: aluno.geral,
+                        encontrado: true,
+                        ambiguo: false,
+                        resolvido: true,
+                    });
+                } else {
+                    ambiguos += 1;
+                    let turmas_str = dest
+                        .iter()
+                        .filter_map(|(idx, _)| turmas.get(*idx).map(|(_, t)| t.codigo.clone()))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    matches.push(PreviaPaulistaAluno {
+                        nome_csv: aluno.nome.clone(),
+                        turma: Some(turmas_str),
+                        participou: aluno.participou,
+                        geral: aluno.geral,
+                        encontrado: false,
+                        ambiguo: true,
+                        resolvido: false,
+                    });
+                }
             }
         }
     }
@@ -2116,6 +2230,7 @@ fn analisar_prova_paulista(
         encontrados,
         nao_encontrados,
         ambiguos,
+        resolvidos,
         disciplinas_detectadas: disciplinas,
         matches,
     })
@@ -2139,22 +2254,35 @@ fn aplicar_prova_paulista(
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
     let agora = Local::now().to_rfc3339();
+
+    // Contexto: conta alunos exatos por turma para resolver ambíguos
+    let candidaturas: Vec<Vec<(usize, String)>> = alunos_csv
+        .iter()
+        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .collect();
+    let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
+    for dest in &candidaturas {
+        if dest.len() == 1 {
+            *contagem.entry(dest[0].0).or_insert(0) += 1;
+        }
+    }
+
     let mut por_turma: BTreeMap<usize, Vec<(String, usize)>> = BTreeMap::new();
     let mut nao_encontrados = Vec::new();
     let mut ambiguos = Vec::new();
-    for (aluno_idx, aluno) in alunos_csv.iter().enumerate() {
-        let nome_norm = normalizar_nome_busca(&aluno.nome);
-        let destinos = indice.get(&nome_norm).cloned().unwrap_or_default();
-        match destinos.len() {
+    for (aluno_idx, (aluno, dest)) in alunos_csv.iter().zip(candidaturas.iter()).enumerate() {
+        match dest.len() {
             0 => nao_encontrados.push(aluno.nome.clone()),
             1 => {
-                let (turma_idx, matricula) = destinos[0].clone();
-                por_turma
-                    .entry(turma_idx)
-                    .or_default()
-                    .push((matricula, aluno_idx));
+                por_turma.entry(dest[0].0).or_default().push((dest[0].1.clone(), aluno_idx));
             }
-            _ => ambiguos.push(aluno.nome.clone()),
+            _ => {
+                if let Some((ti, mat)) = resolver_ambiguo_por_contexto(dest, &contagem) {
+                    por_turma.entry(ti).or_default().push((mat, aluno_idx));
+                } else {
+                    ambiguos.push(aluno.nome.clone());
+                }
+            }
         }
     }
     let mut atualizados = 0usize;

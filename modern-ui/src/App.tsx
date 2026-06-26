@@ -253,6 +253,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.15.1": [
+    "Resolucao automatica de alunos ambiguos por contexto: quando um mesmo nome existe em mais de uma turma, o app identifica a turma correta contando quantos outros colegas do mesmo arquivo ja foram casados com cada candidata — sem necessidade de intervencao manual na maioria dos casos.",
+    "Previas de importacao mostram badge 'inferido' (laranja) para alunos resolvidos por contexto, com explicacao do criterio.",
+    "Corrigida sincronizacao da versao no binario instalado — o atualizador automatico nao exibe mais falso positivo apos a instalacao.",
+  ],
   "2.15.0": [
     "Importador de Tarefas Realizadas: carregue o CSV da SED com o andamento das tarefas dos alunos e registre feitas, total e percentual por bimestre.",
     "Relatorio de Tarefas: exporte uma planilha (.csv) com Turma, Numero, Nome, Feitas, Total e Nota (0–10) de todos os alunos ativos por bimestre.",
