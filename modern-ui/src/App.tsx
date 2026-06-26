@@ -253,6 +253,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.15.2": [
+    "Relatorio de Tarefas agora exporta planilha Excel (.xlsx) com uma aba por turma — sem misturar turmas diferentes na mesma tabela.",
+    "Seletor de turmas: escolha quais turmas incluir no relatorio com checkboxes individuais e botoes 'Todas' / 'Nenhuma'.",
+    "Turmas ordenadas por codigo na planilha e no seletor.",
+  ],
   "2.15.1": [
     "Resolucao automatica de alunos ambiguos por contexto: quando um mesmo nome existe em mais de uma turma, o app identifica a turma correta contando quantos outros colegas do mesmo arquivo ja foram casados com cada candidata — sem necessidade de intervencao manual na maioria dos casos.",
     "Previas de importacao mostram badge 'inferido' (laranja) para alunos resolvidos por contexto, com explicacao do criterio.",
@@ -1198,7 +1203,7 @@ export function App() {
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
-        {tela === "relatorio-tarefas" && <RelatorioTarefas onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}

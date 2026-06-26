@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "2.15.1"
+version = "2.15.2"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
@@ -26,3 +26,4 @@ tauri-plugin-single-instance = "2"
 notify-rust = "4"
 base64 = "0.22"
 sevenz-rust = "0.6"
+rust_xlsxwriter = "0.79"

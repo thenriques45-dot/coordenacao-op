@@ -1,6 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
+use rust_xlsxwriter::{Format, Workbook};
 use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1904,83 +1905,96 @@ struct RelatorioTarefasResultado {
 }
 
 #[tauri::command]
-fn gerar_relatorio_tarefas(bimestre: String) -> Result<RelatorioTarefasResultado, String> {
+fn gerar_relatorio_tarefas(
+    bimestre: String,
+    turmas_filtro: Vec<String>,
+) -> Result<RelatorioTarefasResultado, String> {
     let turmas = carregar_turmas_com_caminho()?;
     let pasta = data_dir()
         .map_err(|err| format!("Nao consegui preparar a pasta: {err}"))?
         .join("relatorios");
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
     let ts = Local::now().format("%Y%m%d_%H%M%S");
-    let caminho = pasta.join(format!("tarefas_bim{}_{}.csv", bimestre, ts));
-    // (turma_codigo, numero_chamada, nome, feitas, total, percentual)
-    let mut linhas: Vec<(String, i64, String, u32, u32, f64)> = Vec::new();
+    let caminho = pasta.join(format!("tarefas_bim{}_{}.xlsx", bimestre, ts));
+
+    let filtro_ativo = !turmas_filtro.is_empty();
+    let fmt_cabecalho = Format::new().set_bold();
+
+    let mut workbook = Workbook::new();
     let mut turmas_com_dados = 0usize;
-    for (_, turma) in &turmas {
+    let mut total_alunos = 0usize;
+
+    // Turmas na ordem do código, aplicando filtro
+    let mut turmas_sel: Vec<&(PathBuf, TurmaArquivo)> = turmas
+        .iter()
+        .filter(|(_, t)| !filtro_ativo || turmas_filtro.contains(&t.codigo))
+        .collect();
+    turmas_sel.sort_by(|a, b| a.1.codigo.cmp(&b.1.codigo));
+
+    for (_, turma) in &turmas_sel {
         let Some(alunos) = &turma.alunos else {
             continue;
         };
-        let mut tem_aluno = false;
+        // Coleta alunos ativos ordenados por número de chamada
+        let mut linhas: Vec<(i64, String, u32, u32, u32)> = Vec::new();
         for (_, info) in alunos {
             if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
                 continue;
             }
-            let nome = info
-                .get("nome")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string();
-            let numero = info
-                .get("numero_chamada")
-                .and_then(Value::as_i64)
-                .unwrap_or(0);
-            let (feitas, total, percentual) =
+            let nome = info.get("nome").and_then(Value::as_str).unwrap_or("").to_string();
+            let numero = info.get("numero_chamada").and_then(Value::as_i64).unwrap_or(0);
+            let (feitas, total, nota) =
                 match info.get("tarefas").and_then(|t| t.get(bimestre.as_str())) {
                     Some(bim) => {
                         let f = bim.get("feitas").and_then(Value::as_u64).unwrap_or(0) as u32;
                         let t = bim.get("total").and_then(Value::as_u64).unwrap_or(0) as u32;
-                        let p = bim
-                            .get("percentual")
-                            .and_then(Value::as_f64)
-                            .unwrap_or(0.0);
-                        (f, t, p)
+                        let p = bim.get("percentual").and_then(Value::as_f64).unwrap_or(0.0);
+                        (f, t, (p / 10.0).round() as u32)
                     }
-                    None => (0, 0, 0.0),
+                    None => (0, 0, 0),
                 };
-            linhas.push((
-                turma.codigo.clone(),
-                numero,
-                nome,
-                feitas,
-                total,
-                percentual,
-            ));
-            tem_aluno = true;
+            linhas.push((numero, nome, feitas, total, nota));
         }
-        if tem_aluno {
-            turmas_com_dados += 1;
+        if linhas.is_empty() {
+            continue;
         }
+        linhas.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+        let ws = workbook.add_worksheet();
+        // Nome da aba: até 31 caracteres, sem caracteres inválidos do Excel
+        let nome_aba: String = turma
+            .codigo
+            .chars()
+            .filter(|c| !matches!(c, '\\' | '/' | '*' | '?' | ':' | '[' | ']'))
+            .take(31)
+            .collect();
+        ws.set_name(&nome_aba).map_err(|e| e.to_string())?;
+
+        // Cabeçalho
+        ws.write_with_format(0, 0, "Nº", &fmt_cabecalho).map_err(|e| e.to_string())?;
+        ws.write_with_format(0, 1, "Nome", &fmt_cabecalho).map_err(|e| e.to_string())?;
+        ws.write_with_format(0, 2, "Feitas", &fmt_cabecalho).map_err(|e| e.to_string())?;
+        ws.write_with_format(0, 3, "Total", &fmt_cabecalho).map_err(|e| e.to_string())?;
+        ws.write_with_format(0, 4, "Nota", &fmt_cabecalho).map_err(|e| e.to_string())?;
+
+        // Dados
+        for (idx, (numero, nome, feitas, total, nota)) in linhas.iter().enumerate() {
+            let row = (idx + 1) as u32;
+            if *numero > 0 {
+                ws.write_number(row, 0, *numero as f64).map_err(|e| e.to_string())?;
+            }
+            ws.write_string(row, 1, nome).map_err(|e| e.to_string())?;
+            ws.write_number(row, 2, *feitas as f64).map_err(|e| e.to_string())?;
+            ws.write_number(row, 3, *total as f64).map_err(|e| e.to_string())?;
+            ws.write_number(row, 4, *nota as f64).map_err(|e| e.to_string())?;
+        }
+        ws.set_column_width(1, 32.0).map_err(|e| e.to_string())?;
+
+        turmas_com_dados += 1;
+        total_alunos += linhas.len();
     }
-    linhas.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then(a.1.cmp(&b.1))
-            .then(a.2.cmp(&b.2))
-    });
-    let total_alunos = linhas.len();
-    // UTF-8 BOM + cabeçalho
-    let mut conteudo =
-        "\u{FEFF}Turma;N\u{00BA};Nome;Feitas;Total;Nota\n".to_string();
-    for (turma, numero, nome, feitas, total, percentual) in &linhas {
-        let num_str = if *numero > 0 {
-            numero.to_string()
-        } else {
-            String::new()
-        };
-        let nota = (percentual / 10.0).round() as u32;
-        conteudo.push_str(&format!(
-            "{turma};{num_str};{nome};{feitas};{total};{nota}\n"
-        ));
-    }
-    fs::write(&caminho, conteudo.as_bytes()).map_err(|err| err.to_string())?;
+
+    workbook.save(&caminho).map_err(|e| e.to_string())?;
     Ok(RelatorioTarefasResultado {
         caminho: caminho.to_string_lossy().to_string(),
         pasta: pasta.to_string_lossy().to_string(),

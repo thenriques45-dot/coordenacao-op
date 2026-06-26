@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
 type TurmaResumoRelatorio = {
+  codigo: string;
   serie: string | null;
   ciclo: string | null;
 };
@@ -740,19 +741,58 @@ function MonthlyLineChart({ meses, series, emptyText }: { meses: string[]; serie
   );
 }
 
-export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
+export function RelatorioTarefas({
+  turmas,
+  onVoltar,
+}: {
+  turmas: TurmaResumoRelatorio[];
+  onVoltar: () => void;
+}) {
   const [bimestre, setBimestre] = useState("1");
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmas.map((t) => t.codigo)));
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<RelatorioTarefasResultado | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
+  // Sincroniza selecionadas quando a lista de turmas muda
+  useEffect(() => {
+    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
+  }, [turmas]);
+
+  function toggleTurma(codigo: string) {
+    setSelecionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(codigo)) next.delete(codigo);
+      else next.add(codigo);
+      return next;
+    });
+    setResultado(null);
+  }
+
+  function selecionarTodas() {
+    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
+    setResultado(null);
+  }
+
+  function desmarcarTodas() {
+    setSelecionadas(new Set());
+    setResultado(null);
+  }
+
   function gerarRelatorio() {
+    if (selecionadas.size === 0) {
+      setErro("Selecione ao menos uma turma.");
+      return;
+    }
     setProcessando(true);
     setErro("");
     setMensagem("");
     setResultado(null);
-    invokeApp<RelatorioTarefasResultado>("gerar_relatorio_tarefas", { bimestre })
+    invokeApp<RelatorioTarefasResultado>("gerar_relatorio_tarefas", {
+      bimestre,
+      turmasFiltro: Array.from(selecionadas),
+    })
       .then((resposta) => {
         setResultado(resposta);
         setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
@@ -775,6 +815,11 @@ export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
+  const turmasOrdenadas = useMemo(
+    () => [...turmas].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true })),
+    [turmas],
+  );
+
   return (
     <section className="reports-page">
       <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
@@ -782,7 +827,7 @@ export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
         <div>
           <span className="eyebrow">Relatórios</span>
           <h1>Tarefas Realizadas</h1>
-          <p>Exporte uma planilha (.csv) com o percentual de tarefas concluídas por aluno e turma.</p>
+          <p>Exporte uma planilha Excel (.xlsx) com uma aba por turma.</p>
         </div>
       </header>
 
@@ -790,7 +835,7 @@ export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
         <div className="report-generator-heading">
           <div>
             <h2>Exportar por bimestre</h2>
-            <p>O arquivo .csv gerado abre diretamente no Excel para cópia e colagem em outras planilhas.</p>
+            <p>Cada turma selecionada gera uma aba separada na planilha.</p>
           </div>
           <BarChart3 size={28} />
         </div>
@@ -798,7 +843,7 @@ export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
         <div className="report-controls">
           <label>
             Bimestre
-            <select value={bimestre} onChange={(e) => setBimestre(e.target.value)}>
+            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setResultado(null); }}>
               {opcoesBimestre.map((opcao) => (
                 <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
               ))}
@@ -806,8 +851,54 @@ export function RelatorioTarefas({ onVoltar }: { onVoltar: () => void }) {
           </label>
         </div>
 
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Turmas</span>
+            <button type="button" className="secondary-action" style={{ padding: "0.15rem 0.6rem", fontSize: "0.8rem" }} onClick={selecionarTodas}>
+              Todas
+            </button>
+            <button type="button" className="secondary-action" style={{ padding: "0.15rem 0.6rem", fontSize: "0.8rem" }} onClick={desmarcarTodas}>
+              Nenhuma
+            </button>
+            <span style={{ fontSize: "0.8rem", color: "var(--muted, #667085)" }}>
+              {selecionadas.size} de {turmas.length} selecionada(s)
+            </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+            {turmasOrdenadas.map((t) => (
+              <label
+                key={t.codigo}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
+                  padding: "0.2rem 0.6rem",
+                  borderRadius: "0.4rem",
+                  border: "1px solid var(--border, #e2e8f0)",
+                  cursor: "pointer",
+                  background: selecionadas.has(t.codigo) ? "var(--primary-50, #eff6ff)" : "transparent",
+                  fontSize: "0.85rem",
+                  userSelect: "none",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selecionadas.has(t.codigo)}
+                  onChange={() => toggleTurma(t.codigo)}
+                  style={{ accentColor: "var(--primary, #2563eb)" }}
+                />
+                {t.codigo}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+          <button
+            className="primary-action"
+            onClick={gerarRelatorio}
+            disabled={processando || selecionadas.size === 0}
+          >
             {processando ? "Gerando..." : "Gerar planilha"}
           </button>
           {resultado && (

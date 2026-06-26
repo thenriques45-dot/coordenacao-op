@@ -602,13 +602,14 @@ dependencies = [
 
 [[package]]
 name = "coordenacaoop"
-version = "2.14.1"
+version = "2.15.1"
 dependencies = [
  "base64 0.22.1",
  "calamine",
  "chrono",
  "notify-rust",
  "reqwest 0.12.28",
+ "rust_xlsxwriter",
  "serde",
  "serde_json",
  "sevenz-rust",
@@ -3397,6 +3398,15 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "rust_xlsxwriter"
+version = "0.79.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c743cb9f2a4524676020e26ee5f298445a82d882b09956811b1e78ca7e42b440"
+dependencies = [
+ "zip 2.4.2",
 ]
 
 [[package]]
