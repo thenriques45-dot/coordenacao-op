@@ -24,6 +24,23 @@ type TurmaConfiguracoes = {
   ciclo: string | null;
 };
 
+type OpcaoCriterioPerfil = {
+  nivel: string;
+  label: string;
+};
+
+type CriterioPerfil = {
+  id: string;
+  nome: string;
+  opcoes: OpcaoCriterioPerfil[];
+};
+
+type CriterioDestaque = {
+  id: string;
+  titulo: string;
+  icone: string;
+};
+
 type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
@@ -34,6 +51,10 @@ type ConfiguracoesApp = {
   elegivel_ativo: boolean;
   elegivel_rotulo: string;
   atendimento_tipos: string[];
+  perfil_turma_ativo: boolean;
+  perfil_turma_criterios: CriterioPerfil[];
+  aluno_destaque_ativo: boolean;
+  aluno_destaque_criterios: CriterioDestaque[];
 };
 
 type BackupResultado = {
@@ -71,11 +92,12 @@ type DiagnosticoIaLocal = {
   mensagem: string;
 };
 
-type SettingsSection = "instituicao" | "turmas" | "perfil" | "assistente" | "backup" | "atualizacao";
+type SettingsSection = "instituicao" | "turmas" | "conselho" | "perfil" | "assistente" | "backup" | "atualizacao";
 
 const secoesConfiguracoes: Array<{ id: SettingsSection; titulo: string; descricao: string }> = [
   { id: "instituicao", titulo: "Instituição", descricao: "Direção, critérios e cabeçalho" },
   { id: "turmas", titulo: "Configuração de turmas", descricao: "Líder de sala e elegível" },
+  { id: "conselho", titulo: "Configuração de Conselho", descricao: "Perfil da turma e critérios" },
   { id: "perfil", titulo: "Perfil e sincronização", descricao: "Coordenador e grupo de trabalho" },
   { id: "assistente", titulo: "Assistente Pedagógico", descricao: "IA para relatórios" },
   { id: "backup", titulo: "Backup", descricao: "Exportar e restaurar dados" },
@@ -117,6 +139,10 @@ export function Configuracoes({
     elegivel_ativo: true,
     elegivel_rotulo: "Elegível",
     atendimento_tipos: ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"],
+    perfil_turma_ativo: false,
+    perfil_turma_criterios: [],
+    aluno_destaque_ativo: false,
+    aluno_destaque_criterios: [],
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -182,6 +208,76 @@ export function Configuracoes({
     setConfig((atual) => ({
       ...atual,
       atendimento_tipos: atual.atendimento_tipos.filter((_, i) => i !== indice),
+    }));
+  }
+
+  function adicionarCriterioPerfil() {
+    const novoCriterio: CriterioPerfil = {
+      id: `criterio_${Date.now()}`,
+      nome: "",
+      opcoes: [
+        { nivel: "baixo", label: "" },
+        { nivel: "medio", label: "" },
+        { nivel: "alto", label: "" },
+      ],
+    };
+    setConfig((atual) => ({
+      ...atual,
+      perfil_turma_criterios: [...(atual.perfil_turma_criterios ?? []), novoCriterio],
+    }));
+  }
+
+  function atualizarCriterioPerfil(indice: number, campo: "nome", valor: string): void;
+  function atualizarCriterioPerfil(indice: number, campo: "opcao", nivel: string, valor: string): void;
+  function atualizarCriterioPerfil(indice: number, campo: string, valorOuNivel: string, valorOpcao?: string) {
+    setConfig((atual) => ({
+      ...atual,
+      perfil_turma_criterios: (atual.perfil_turma_criterios ?? []).map((criterio, i) => {
+        if (i !== indice) return criterio;
+        if (campo === "nome") {
+          return { ...criterio, nome: valorOuNivel };
+        }
+        if (campo === "opcao") {
+          return {
+            ...criterio,
+            opcoes: criterio.opcoes.map((op) =>
+              op.nivel === valorOuNivel ? { ...op, label: valorOpcao ?? "" } : op
+            ),
+          };
+        }
+        return criterio;
+      }),
+    }));
+  }
+
+  function removerCriterioPerfil(indice: number) {
+    setConfig((atual) => ({
+      ...atual,
+      perfil_turma_criterios: (atual.perfil_turma_criterios ?? []).filter((_, i) => i !== indice),
+    }));
+  }
+
+  function adicionarCriterioDestaque() {
+    const novo: CriterioDestaque = { id: `destaque_${Date.now()}`, titulo: "", icone: "⭐" };
+    setConfig((atual) => ({
+      ...atual,
+      aluno_destaque_criterios: [...(atual.aluno_destaque_criterios ?? []), novo],
+    }));
+  }
+
+  function atualizarCriterioDestaque(indice: number, campo: "titulo" | "icone", valor: string) {
+    setConfig((atual) => ({
+      ...atual,
+      aluno_destaque_criterios: (atual.aluno_destaque_criterios ?? []).map((c, i) =>
+        i === indice ? { ...c, [campo]: valor } : c
+      ),
+    }));
+  }
+
+  function removerCriterioDestaque(indice: number) {
+    setConfig((atual) => ({
+      ...atual,
+      aluno_destaque_criterios: (atual.aluno_destaque_criterios ?? []).filter((_, i) => i !== indice),
     }));
   }
 
@@ -679,6 +775,127 @@ export function Configuracoes({
             <button type="button" className="secondary-action" onClick={adicionarTipoAtendimento}>Adicionar tipo</button>
           </div>
           <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1rem" }}>Salvar configurações</button>
+        </article>
+        )}
+
+        {secaoConfig === "conselho" && (
+        <article className="settings-card">
+          <h2>Configuração de Conselho</h2>
+          <p>Configure o Perfil da Turma que aparece no início da lista de alunos no conselho e na ATA gerada.</p>
+          <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
+            <input
+              type="checkbox"
+              checked={config.perfil_turma_ativo}
+              onChange={(e) => setConfig((a) => ({ ...a, perfil_turma_ativo: e.target.checked }))}
+            />
+            Exibir Perfil da Turma no conselho e na ATA
+          </label>
+
+          {config.perfil_turma_ativo && (
+            <>
+              <h3 style={{ marginBottom: "0.5rem" }}>Critérios de observação</h3>
+              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                Cada critério tem três níveis: baixo (vermelho), médio (amarelo) e alto (verde). O coordenador seleciona um nível por critério no conselho.
+              </p>
+              <div className="perfil-criterios-config">
+                {(config.perfil_turma_criterios ?? []).map((criterio, indice) => (
+                  <div key={criterio.id} className="perfil-criterio-config-item">
+                    <div className="perfil-criterio-config-row">
+                      <input
+                        value={criterio.nome}
+                        onChange={(e) => atualizarCriterioPerfil(indice, "nome", e.target.value)}
+                        placeholder="Nome do critério (ex.: Participação nas aulas)"
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" className="danger-action" onClick={() => removerCriterioPerfil(indice)}>
+                        Remover
+                      </button>
+                    </div>
+                    <div className="perfil-criterio-config-opcoes">
+                      {criterio.opcoes.map((opcao) => (
+                        <label key={opcao.nivel} className={`perfil-opcao-config perfil-opcao-config-${opcao.nivel}`}>
+                          <span>{opcao.nivel === "baixo" ? "Baixo" : opcao.nivel === "medio" ? "Médio" : "Alto"}</span>
+                          <input
+                            value={opcao.label}
+                            onChange={(e) => atualizarCriterioPerfil(indice, "opcao", opcao.nivel, e.target.value)}
+                            placeholder={opcao.nivel === "baixo" ? "Ex.: Raramente" : opcao.nivel === "medio" ? "Ex.: Às vezes" : "Ex.: Sempre"}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="secondary-action" onClick={adicionarCriterioPerfil} style={{ marginTop: "0.75rem" }}>
+                Adicionar critério
+              </button>
+            </>
+          )}
+
+          <hr style={{ margin: "1.25rem 0", borderColor: "var(--border)" }} />
+
+          <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
+            <input
+              type="checkbox"
+              checked={config.aluno_destaque_ativo}
+              onChange={(e) => setConfig((a) => ({ ...a, aluno_destaque_ativo: e.target.checked }))}
+            />
+            Registrar alunos destaque/superação no conselho e na ATA
+          </label>
+
+          {config.aluno_destaque_ativo && (
+            <>
+              <h3 style={{ marginBottom: "0.5rem" }}>Categorias de destaque</h3>
+              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                Cada categoria tem um título e um ícone. No conselho, você digita o nome do aluno que se destaca em cada categoria.
+              </p>
+              <div className="perfil-criterios-config">
+                {(config.aluno_destaque_criterios ?? []).map((criterio, indice) => (
+                  <div key={criterio.id} className="perfil-criterio-config-item">
+                    <div className="perfil-criterio-config-row">
+                      <input
+                        value={criterio.titulo}
+                        onChange={(e) => atualizarCriterioDestaque(indice, "titulo", e.target.value)}
+                        placeholder="Título (ex.: Aluno Destaque, Aluno Superação)"
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" className="danger-action" onClick={() => removerCriterioDestaque(indice)}>
+                        Remover
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+                      {["⭐", "🏆", "📈", "↗", "💪", "🎯", "👑", "🌟", "🔝", "🎖"].map((icone) => (
+                        <button
+                          key={icone}
+                          type="button"
+                          onClick={() => atualizarCriterioDestaque(indice, "icone", icone)}
+                          style={{
+                            fontSize: "1.3rem",
+                            padding: "4px 8px",
+                            borderRadius: "6px",
+                            border: criterio.icone === icone ? "2px solid var(--accent)" : "2px solid var(--border)",
+                            background: criterio.icone === icone ? "var(--accent-subtle)" : "transparent",
+                            cursor: "pointer",
+                            lineHeight: 1,
+                          }}
+                          title={icone}
+                        >
+                          {icone}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="secondary-action" onClick={adicionarCriterioDestaque} style={{ marginTop: "0.75rem" }}>
+                Adicionar categoria
+              </button>
+            </>
+          )}
+
+          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1.25rem" }}>
+            Salvar configurações
+          </button>
         </article>
         )}
 

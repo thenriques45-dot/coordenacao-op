@@ -58,6 +58,12 @@ import {
 type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
+const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
+
+function normalizarTiposAtendimento(tipos?: string[] | null) {
+  const normalizados = (tipos ?? []).map((tipo) => tipo.trim()).filter(Boolean);
+  return normalizados.length ? normalizados : [...TIPOS_ATENDIMENTO_PADRAO];
+}
 
 type Disciplina = {
   nome: string;
@@ -78,12 +84,33 @@ type NotaBimestre = {
   media: number;
 };
 
+type OpcaoCriterioPerfil = {
+  nivel: string;
+  label: string;
+};
+
+type CriterioPerfil = {
+  id: string;
+  nome: string;
+  opcoes: OpcaoCriterioPerfil[];
+};
+
+type CriterioDestaque = {
+  id: string;
+  titulo: string;
+  icone: string;
+};
+
 type TurmaConfig = {
   lider_ativo: boolean;
   lider_rotulo: string;
   elegivel_ativo: boolean;
   elegivel_rotulo: string;
   atendimento_tipos?: string[];
+  perfil_turma_ativo?: boolean;
+  perfil_turma_criterios?: CriterioPerfil[];
+  aluno_destaque_ativo?: boolean;
+  aluno_destaque_criterios?: CriterioDestaque[];
 };
 
 type AtendimentoAnexoApi = {
@@ -253,6 +280,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.15.3": [
+    "Conselho de classe: o Perfil da Turma passa a respeitar a configuração principal e só aparece quando estiver ativado.",
+    "Perfil da Turma e Aluno Destaque agora vêm desativados por padrão nas configurações.",
+    "Atendimentos do aluno já ficam disponíveis com os tipos padrão do app, mesmo antes de o coordenador salvar as configurações.",
+    "Tema escuro refinado nas telas de Perfil da Turma e Atendimentos, com melhor leitura de tabelas, cards e linha do tempo.",
+    "Modal de registro de atendimento ajustado para manter o botão de salvar acessível também na versão instalada.",
+  ],
   "2.15.2": [
     "Relatorio de Tarefas agora exporta planilha Excel (.xlsx) com uma aba por turma — sem misturar turmas diferentes na mesma tabela.",
     "Seletor de turmas: escolha quais turmas incluir no relatorio com checkboxes individuais e botoes 'Todas' / 'Nenhuma'.",
@@ -513,7 +547,11 @@ export function App() {
     lider_rotulo: "Líder de sala",
     elegivel_ativo: true,
     elegivel_rotulo: "Elegível",
-    atendimento_tipos: ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"],
+    atendimento_tipos: TIPOS_ATENDIMENTO_PADRAO,
+    perfil_turma_ativo: false,
+    perfil_turma_criterios: [],
+    aluno_destaque_ativo: false,
+    aluno_destaque_criterios: [],
   });
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
@@ -596,6 +634,11 @@ export function App() {
         lider_rotulo: c.lider_rotulo,
         elegivel_ativo: c.elegivel_ativo,
         elegivel_rotulo: c.elegivel_rotulo,
+        atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos),
+        perfil_turma_ativo: c.perfil_turma_ativo ?? false,
+        perfil_turma_criterios: c.perfil_turma_criterios ?? [],
+        aluno_destaque_ativo: c.aluno_destaque_ativo ?? false,
+        aluno_destaque_criterios: c.aluno_destaque_criterios ?? [],
       }))
       .catch(() => {});
   }, []);
@@ -1186,7 +1229,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={(c) => setTurmaConfig({ lider_ativo: c.lider_ativo, lider_rotulo: c.lider_rotulo, elegivel_ativo: c.elegivel_ativo, elegivel_rotulo: c.elegivel_rotulo, atendimento_tipos: c.atendimento_tipos ?? ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"] })} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={(c) => setTurmaConfig({ lider_ativo: c.lider_ativo, lider_rotulo: c.lider_rotulo, elegivel_ativo: c.elegivel_ativo, elegivel_rotulo: c.elegivel_rotulo, atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos), perfil_turma_ativo: c.perfil_turma_ativo ?? false, perfil_turma_criterios: c.perfil_turma_criterios ?? [], aluno_destaque_ativo: c.aluno_destaque_ativo ?? false, aluno_destaque_criterios: c.aluno_destaque_criterios ?? [] })} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
@@ -1204,7 +1247,7 @@ export function App() {
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}

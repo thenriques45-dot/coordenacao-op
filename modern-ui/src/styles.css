@@ -4,6 +4,7 @@
   --accent: #e8202a;
   --accent-dark: #c01620;
   --accent-soft: #fdeceb;
+  --accent-subtle: rgba(232, 32, 42, 0.1);
   --surface: #ffffff;
   --surface-elevated: #f6f6f4;
   --surface-subtle: #faf9f6;
@@ -13,6 +14,7 @@
   --text-body: #101828;
   --text-secondary: #6b6670;
   --text-tertiary: #98a2b3;
+  --text-muted: #6b6670;
   --text-nav: #475467;
   --tag-bad-bg: #fde2e2;
   --tag-bad-text: #a81c1c;
@@ -2975,12 +2977,20 @@ h3 {
 }
 
 .attendance-modal .kanban-task-modal-body {
-  min-height: 390px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .attendance-modal {
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   max-width: 900px;
   width: min(900px, calc(100vw - 32px));
+}
+
+.attendance-modal .modal-actions {
+  background: #ffffff;
+  flex: 0 0 auto;
 }
 
 .attendance-modal textarea {
@@ -4254,6 +4264,114 @@ th:nth-child(3) {
   font-size: 13px;
   font-weight: 700;
   word-break: break-word;
+}
+
+.turma-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.turma-ciclo-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.turma-ciclo-btn {
+  background: transparent;
+  border: 1px solid #d5dbe6;
+  border-radius: 6px;
+  color: #52616a;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 28px;
+  padding: 0 12px;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.turma-ciclo-btn:hover {
+  background: #f4f3f0;
+  border-color: #b8bfc8;
+}
+
+.turma-ciclo-btn.ativo {
+  background: #101828;
+  border-color: #101828;
+  color: #ffffff;
+}
+
+.turma-selector-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.turma-selector-label {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.turma-selector-count {
+  color: #6b6670;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.turma-selector-btn {
+  background: #ffffff;
+  border: 1px solid #e6e3dd;
+  border-radius: 6px;
+  color: #344054;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+.turma-selector-btn:hover {
+  background: #f4f3f0;
+}
+
+.turma-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.turma-chip {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d5dbe6;
+  border-radius: 20px;
+  color: #52616a;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 32px;
+  padding: 0 14px;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  user-select: none;
+}
+
+.turma-chip:hover {
+  background: #f4f3f0;
+  border-color: #b8bfc8;
+}
+
+.turma-chip.selecionado {
+  background: #fef2f2;
+  border-color: #e8202a;
+  color: #c01620;
+}
+
+.turma-chip.selecionado:hover {
+  background: #fee2e2;
 }
 
 .notice {
@@ -5766,6 +5884,7 @@ th:nth-child(3) {
   --accent: #e8202a;
   --accent-dark: #ff7a80;
   --accent-soft: #33191c;
+  --accent-subtle: rgba(232, 32, 42, 0.18);
   --surface: #1a1820;
   --surface-elevated: #26232f;
   --surface-subtle: #211e28;
@@ -5775,6 +5894,7 @@ th:nth-child(3) {
   --text-body: #ececf0;
   --text-secondary: #9a96a4;
   --text-tertiary: #6f6b7a;
+  --text-muted: #9a96a4;
   --text-nav: #a8a3b3;
   --tag-good-bg: #15301f;
   --tag-good-text: #56d98a;
@@ -6353,6 +6473,62 @@ th:nth-child(3) {
 .theme-dark .report-generator-heading p,
 .theme-dark .report-path {
   color: #9a96a4;
+}
+
+.theme-dark .turma-ciclo-btn {
+  background: transparent;
+  border-color: #2c2935;
+  color: #9a96a4;
+}
+
+.theme-dark .turma-ciclo-btn:hover {
+  background: #2e2b38;
+  border-color: #3d3948;
+}
+
+.theme-dark .turma-ciclo-btn.ativo {
+  background: #ececf0;
+  border-color: #ececf0;
+  color: #101828;
+}
+
+.theme-dark .turma-selector-label {
+  color: #a8a3b3;
+}
+
+.theme-dark .turma-selector-count {
+  color: #9a96a4;
+}
+
+.theme-dark .turma-selector-btn {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #c8c3d3;
+}
+
+.theme-dark .turma-selector-btn:hover {
+  background: #2e2b38;
+}
+
+.theme-dark .turma-chip {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #a8a3b3;
+}
+
+.theme-dark .turma-chip:hover {
+  background: #2e2b38;
+  border-color: #3d3948;
+}
+
+.theme-dark .turma-chip.selecionado {
+  background: #3d1a1c;
+  border-color: #e8202a;
+  color: #f87171;
+}
+
+.theme-dark .turma-chip.selecionado:hover {
+  background: #4a2022;
 }
 
 .theme-dark .settings-file-group {
@@ -7414,4 +7590,460 @@ th:nth-child(3) {
 
 .theme-dark .sync-indicator small {
   color: #34d178;
+}
+
+/* ============================================================
+   Perfil da Turma — lista de alunos
+   ============================================================ */
+
+.student-list-item.perfil-turma-item {
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 4px;
+  background: var(--surface-subtle);
+}
+
+.student-list-item.perfil-turma-item .perfil-icon {
+  color: #b08000;
+  font-style: normal;
+  font-size: 14px;
+}
+
+.student-list-item.perfil-turma-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #5f1218;
+}
+
+.student-list-item.perfil-turma-item.active span {
+  color: #7f1d1d;
+}
+
+.student-list-item.perfil-turma-item.active .perfil-icon {
+  color: #b42318;
+}
+
+/* ============================================================
+   Perfil da Turma — painel de detalhes
+   ============================================================ */
+
+.perfil-turma-panel {
+  padding: 0 0 1rem;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.perfil-turma-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.perfil-turma-table th {
+  background: #e6e6e6;
+  text-align: left;
+  padding: 6px 8px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid #c8c8c8;
+}
+
+.perfil-turma-table td {
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.perfil-criterio-nome {
+  font-weight: 500;
+}
+
+.perfil-escala {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.perfil-opcao {
+  flex: 1;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.3;
+  transition: opacity 0.15s, border-color 0.15s;
+  opacity: 0.88;
+}
+
+.perfil-opcao:hover {
+  opacity: 1;
+}
+
+.perfil-opcao.selecionada {
+  opacity: 1;
+  border-color: rgba(16, 24, 40, 0.45);
+  box-shadow: 0 0 0 2px rgba(16, 24, 40, 0.16);
+}
+
+.perfil-opcao-baixo  { background: #fee2e2; color: #7f1d1d; }
+.perfil-opcao-medio  { background: #fef3c7; color: #78350f; }
+.perfil-opcao-alto   { background: #dcfce7; color: #14532d; }
+
+.perfil-apontamento {
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.82rem;
+  min-width: 100px;
+}
+
+.perfil-nivel-baixo { background: #fee2e2; color: #7f1d1d; }
+.perfil-nivel-medio { background: #fef3c7; color: #78350f; }
+.perfil-nivel-alto  { background: #dcfce7; color: #14532d; }
+
+.theme-dark .student-list-item.perfil-turma-item.active {
+  background: #3a1e22;
+  border-color: #ff7a80;
+  color: #ffe8ea;
+}
+
+.theme-dark .student-list-item.perfil-turma-item.active span,
+.theme-dark .student-list-item.perfil-turma-item.active .perfil-icon {
+  color: #ffc2c6;
+}
+
+.theme-dark .perfil-turma-table th {
+  background: #26232f;
+  border-color: #3d3948;
+  color: #f1eff5;
+}
+
+.theme-dark .perfil-turma-table td {
+  background: #1a1820;
+  border-color: #34313d;
+  color: #ececf0;
+}
+
+.theme-dark .perfil-criterio-nome {
+  color: #f1eff5;
+}
+
+.theme-dark .perfil-opcao.selecionada {
+  border-color: rgba(241, 239, 245, 0.7);
+  box-shadow: 0 0 0 2px rgba(241, 239, 245, 0.18);
+}
+
+.theme-dark .perfil-opcao-baixo,
+.theme-dark .perfil-nivel-baixo {
+  background: #4a2228;
+  color: #fecdd3;
+}
+
+.theme-dark .perfil-opcao-medio,
+.theme-dark .perfil-nivel-medio {
+  background: #4a3b1c;
+  color: #fde68a;
+}
+
+.theme-dark .perfil-opcao-alto,
+.theme-dark .perfil-nivel-alto {
+  background: #1f3a2b;
+  color: #bbf7d0;
+}
+
+.theme-dark .student-attendance-section .panel-heading p,
+.theme-dark .attendance-summary-row span,
+.theme-dark .attendance-history-card header span,
+.theme-dark .attendance-card-meta,
+.theme-dark .attendance-card-meta span,
+.theme-dark .attendance-timeline-item span,
+.theme-dark .attendance-type-picker em {
+  color: #a8a3b3;
+}
+
+.theme-dark .attendance-summary-row article,
+.theme-dark .attendance-history-card,
+.theme-dark .attendance-timeline-item,
+.theme-dark .attendance-parent-case {
+  background: #211e28;
+  border-color: #34313d;
+  color: #ececf0;
+}
+
+.theme-dark .attendance-summary-row strong,
+.theme-dark .attendance-history-card strong,
+.theme-dark .attendance-timeline-item strong,
+.theme-dark .attendance-parent-case strong,
+.theme-dark .attendance-type-picker > span {
+  color: #f1eff5;
+}
+
+.theme-dark .attendance-card-description,
+.theme-dark .attendance-timeline-item p {
+  color: #d7d3df;
+}
+
+.theme-dark .attendance-card-actions button,
+.theme-dark .attendance-timeline-edit,
+.theme-dark .attendance-attachments.saved button,
+.theme-dark .attendance-type-picker button,
+.theme-dark .modal-actions button {
+  background: #26232f;
+  border-color: #3d3948;
+  color: #ececf0;
+}
+
+.theme-dark .attendance-type-picker button.selected {
+  background: #16223c;
+  border-color: #6aa0ff;
+  color: #bfdbfe;
+}
+
+.theme-dark .attendance-tags span {
+  background: #16223c;
+  border: 1px solid #2d4f89;
+  color: #bfdbfe;
+}
+
+.theme-dark .attendance-timeline {
+  border-left-color: #3d4b63;
+}
+
+.theme-dark .attendance-timeline-item::before {
+  background: #7aa8ff;
+  border-color: #211e28;
+}
+
+.theme-dark .attendance-parent-case,
+.theme-dark .attendance-modal .modal-actions {
+  border-color: #34313d;
+}
+
+.theme-dark .attendance-modal .modal-actions,
+.theme-dark .modal-actions {
+  background: #1a1820;
+}
+
+.theme-dark .modal-actions .primary-action {
+  background: #e8202a;
+  border-color: #e8202a;
+  color: #ffffff;
+}
+
+.theme-dark .modal-actions .danger-action {
+  background: #b42318;
+  border-color: #b42318;
+  color: #ffffff;
+}
+
+/* ============================================================
+   Perfil da Turma — configuração de critérios
+   ============================================================ */
+
+.perfil-criterios-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.perfil-criterio-config-item {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.perfil-criterio-config-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.perfil-criterio-config-opcoes {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.perfil-opcao-config {
+  flex: 1 1 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.perfil-opcao-config input {
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  font-size: 0.8rem;
+}
+
+.perfil-opcao-config-baixo span { color: #a00000; }
+.perfil-opcao-config-medio span { color: #806000; }
+.perfil-opcao-config-alto  span { color: #006000; }
+
+.perfil-opcao-config-baixo input { border-color: #FF9999; background: #fff5f5; }
+.perfil-opcao-config-medio input { border-color: #FFDD55; background: #fffde7; }
+.perfil-opcao-config-alto  input { border-color: #88DD88; background: #f0fff0; }
+
+/* ============================================================
+   Alunos Destaque — painel do conselho
+   ============================================================ */
+
+.destaque-section {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.destaque-section-titulo {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.destaque-criterio-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.destaque-criterio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 170px;
+  color: var(--text-primary);
+}
+
+.destaque-icone {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.destaque-nome-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.88rem;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.destaque-nome-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+/* Destaque display (somente-leitura no painel de perfil) */
+.destaque-nome-display {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 30px;
+}
+
+.destaque-nome-valor {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.destaque-nome-vazio {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.destaque-limpar-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.destaque-limpar-btn:hover {
+  background: var(--danger-subtle, #fde8e8);
+  border-color: var(--danger, #c0392b);
+  color: var(--danger, #c0392b);
+}
+
+/* Mini badges na lista de alunos */
+.mini-destaque-row {
+  display: flex;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.mini-destaque {
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+/* Botões de destaque na ficha do aluno */
+.student-destaque-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.student-destaque-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.student-destaque-badge:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.student-destaque-badge.ativo {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
 }

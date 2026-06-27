@@ -29,6 +29,26 @@ struct AppInfo {
     data_dir: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct OpcaoCriterioPerfil {
+    nivel: String,
+    label: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct CriterioPerfil {
+    id: String,
+    nome: String,
+    opcoes: Vec<OpcaoCriterioPerfil>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct CriterioDestaque {
+    id: String,
+    titulo: String,
+    icone: String,
+}
+
 #[derive(Serialize)]
 struct ConfiguracoesApp {
     direcao_nome: String,
@@ -40,6 +60,10 @@ struct ConfiguracoesApp {
     elegivel_ativo: bool,
     elegivel_rotulo: String,
     atendimento_tipos: Vec<String>,
+    perfil_turma_ativo: bool,
+    perfil_turma_criterios: Vec<CriterioPerfil>,
+    aluno_destaque_ativo: bool,
+    aluno_destaque_criterios: Vec<CriterioDestaque>,
 }
 
 #[derive(Deserialize)]
@@ -53,6 +77,14 @@ struct ConfiguracoesInput {
     elegivel_rotulo: String,
     #[serde(default)]
     atendimento_tipos: Vec<String>,
+    #[serde(default)]
+    perfil_turma_ativo: bool,
+    #[serde(default)]
+    perfil_turma_criterios: Vec<CriterioPerfil>,
+    #[serde(default)]
+    aluno_destaque_ativo: bool,
+    #[serde(default)]
+    aluno_destaque_criterios: Vec<CriterioDestaque>,
 }
 
 #[derive(Deserialize)]
@@ -750,9 +782,85 @@ fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, S
         elegivel_ativo: input.elegivel_ativo,
         elegivel_rotulo,
         atendimento_tipos,
+        perfil_turma_ativo: input.perfil_turma_ativo,
+        perfil_turma_criterios: if input.perfil_turma_criterios.is_empty() {
+            criterios_perfil_padrao()
+        } else {
+            input.perfil_turma_criterios
+        },
+        aluno_destaque_ativo: input.aluno_destaque_ativo,
+        aluno_destaque_criterios: input.aluno_destaque_criterios,
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
+}
+
+#[tauri::command]
+fn carregar_perfil_turma(caminho: String, bimestre: String) -> Result<Value, String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let apontamentos = dados
+        .get("perfil_turma")
+        .and_then(|pt| pt.get(&bimestre))
+        .cloned()
+        .unwrap_or(Value::Object(serde_json::Map::new()));
+    Ok(apontamentos)
+}
+
+#[tauri::command]
+fn salvar_perfil_turma(caminho: String, bimestre: String, apontamentos: Value) -> Result<(), String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    {
+        let perfil_turma = dados
+            .as_object_mut()
+            .ok_or_else(|| "Arquivo da turma inválido.".to_string())?
+            .entry("perfil_turma")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Some(obj) = perfil_turma.as_object_mut() {
+            obj.insert(bimestre, apontamentos);
+        }
+    }
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn carregar_alunos_destaque(caminho: String, bimestre: String) -> Result<Value, String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let nomes = dados
+        .get("alunos_destaque")
+        .and_then(|pt| pt.get(&bimestre))
+        .cloned()
+        .unwrap_or(Value::Object(serde_json::Map::new()));
+    Ok(nomes)
+}
+
+#[tauri::command]
+fn salvar_alunos_destaque(caminho: String, bimestre: String, nomes: Value) -> Result<(), String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    {
+        let alunos_destaque = dados
+            .as_object_mut()
+            .ok_or_else(|| "Arquivo da turma inválido.".to_string())?
+            .entry("alunos_destaque")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Some(obj) = alunos_destaque.as_object_mut() {
+            obj.insert(bimestre, nomes);
+        }
+    }
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -2358,7 +2466,10 @@ struct RelatorioProvaPaulistaResultado {
 }
 
 #[tauri::command]
-fn gerar_relatorio_prova_paulista(bimestre: String) -> Result<RelatorioProvaPaulistaResultado, String> {
+fn gerar_relatorio_prova_paulista(
+    bimestre: String,
+    turmas_filtro: Vec<String>,
+) -> Result<RelatorioProvaPaulistaResultado, String> {
     let turmas = carregar_turmas_com_caminho()?;
     let pasta = data_dir()
         .map_err(|err| format!("Nao consegui preparar a pasta: {err}"))?
@@ -2372,8 +2483,12 @@ fn gerar_relatorio_prova_paulista(bimestre: String) -> Result<RelatorioProvaPaul
         Vec::new();
     let mut todas_discs: BTreeSet<String> = BTreeSet::new();
     let mut turmas_com_dados = 0usize;
+    let filtro_ativo = !turmas_filtro.is_empty();
 
     for (_, turma) in &turmas {
+        if filtro_ativo && !turmas_filtro.contains(&turma.codigo) {
+            continue;
+        }
         let Some(alunos) = &turma.alunos else {
             continue;
         };
@@ -3709,7 +3824,8 @@ fn gerar_documento_finalizacao(
 
     let arquivo = pasta.join(nome_documento_finalizacao(prefixo, codigo, bimestre));
     if prefixo == "ata" {
-        escrever_ata_docx(&arquivo, dados, bimestre, finalizacao.texto.as_str())?;
+        let config = ler_configuracoes();
+        escrever_ata_docx(&arquivo, dados, bimestre, finalizacao.texto.as_str(), &config)?;
     } else {
         escrever_relatorio_professores_docx(&arquivo, dados, bimestre)?;
     }
@@ -3946,11 +4062,21 @@ fn formatar_rotulo_turma_texto(valor: &str) -> String {
     texto
 }
 
+fn cor_nivel_perfil(nivel: &str) -> Option<&'static str> {
+    match nivel {
+        "baixo" => Some("FF9999"),
+        "medio" => Some("FFFF99"),
+        "alto" => Some("CCFFCC"),
+        _ => None,
+    }
+}
+
 fn escrever_ata_docx(
     caminho: &Path,
     dados: &Value,
     bimestre: &str,
     texto_ata: &str,
+    config: &ConfiguracoesApp,
 ) -> Result<(), String> {
     let titulo = montar_titulo_ata(dados, bimestre);
     let disciplinas = levantar_disciplinas_ata(dados);
@@ -3961,6 +4087,123 @@ fn escrever_ata_docx(
     documento.titulo_ata(&titulo);
     documento.paragrafo("");
     documento.paragrafo_justificado(texto_ata, false, Some(20));
+
+    if config.perfil_turma_ativo && !config.perfil_turma_criterios.is_empty() {
+        let apontamentos = dados
+            .get("perfil_turma")
+            .and_then(|pt| pt.get(bimestre))
+            .and_then(Value::as_object)
+            .cloned();
+
+        documento.paragrafo("");
+        documento.paragrafo_negrito("PERFIL DA TURMA:");
+
+        let mut tabela_perfil = vec![vec![
+            CelulaDocx::cabecalho("CRITÉRIOS"),
+            CelulaDocx::cabecalho("ESCALA DE OBSERVAÇÃO"),
+            CelulaDocx::cabecalho("APONTAMENTO"),
+        ]];
+
+        for criterio in &config.perfil_turma_criterios {
+            let escala_xml = {
+                let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+                let sz = r#"<w:sz w:val="16"/>"#;
+                let ppr = r#"<w:pPr><w:spacing w:before="0" w:after="0" w:line="220" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>"#;
+                let mut runs = String::new();
+                for (i, opcao) in criterio.opcoes.iter().enumerate() {
+                    if i > 0 {
+                        runs.push_str(&format!(
+                            r#"<w:r><w:rPr>{fonte}{sz}</w:rPr><w:t xml:space="preserve">   </w:t></w:r>"#
+                        ));
+                    }
+                    let cor = match opcao.nivel.as_str() {
+                        "baixo" => "CC0000",
+                        "medio" => "BB8800",
+                        "alto" => "007700",
+                        _ => "444444",
+                    };
+                    runs.push_str(&format!(
+                        r#"<w:r><w:rPr>{fonte}<w:color w:val="{cor}"/>{sz}</w:rPr><w:t>&#x25A0;</w:t></w:r>"#
+                    ));
+                    runs.push_str(&format!(
+                        r#"<w:r><w:rPr>{fonte}{sz}</w:rPr><w:t xml:space="preserve"> {label}</w:t></w:r>"#,
+                        label = escape_xml(&opcao.label)
+                    ));
+                }
+                format!("<w:p>{ppr}{runs}</w:p>")
+            };
+
+            let nivel_selecionado = apontamentos
+                .as_ref()
+                .and_then(|m| m.get(&criterio.id))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+
+            let label_apontamento = criterio
+                .opcoes
+                .iter()
+                .find(|op| op.nivel == nivel_selecionado)
+                .map(|op| op.label.as_str())
+                .unwrap_or("");
+
+            let cor_apontamento = cor_nivel_perfil(nivel_selecionado);
+
+            tabela_perfil.push(vec![
+                CelulaDocx::texto(&criterio.nome).alinhada("left").tamanho(16),
+                CelulaDocx::texto("").com_conteudo_xml(escala_xml),
+                CelulaDocx::texto(label_apontamento)
+                    .centralizada()
+                    .tamanho(16)
+                    .fundo_opcional(cor_apontamento),
+            ]);
+        }
+
+        documento.tabela_celulas_compacta(tabela_perfil, &[3800, 5000, 2300], true);
+        documento.paragrafo("");
+    }
+
+    if config.aluno_destaque_ativo && !config.aluno_destaque_criterios.is_empty() {
+        let nomes_destaque = dados
+            .get("alunos_destaque")
+            .and_then(|ad| ad.get(bimestre))
+            .and_then(Value::as_object)
+            .cloned();
+
+        let entradas: Vec<(&CriterioDestaque, &str)> = config
+            .aluno_destaque_criterios
+            .iter()
+            .filter_map(|c| {
+                let nome = nomes_destaque
+                    .as_ref()
+                    .and_then(|m| m.get(&c.id))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if nome.is_empty() { None } else { Some((c, nome)) }
+            })
+            .collect();
+
+        if !entradas.is_empty() {
+            documento.paragrafo_negrito("ALUNOS EM DESTAQUE:");
+            let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+            let tabela_dest: Vec<Vec<CelulaDocx>> = entradas
+                .into_iter()
+                .map(|(criterio, nome)| {
+                    let titulo_xml = format!(
+                        r#"<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="220" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr><w:r><w:rPr>{fonte}<w:b/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">{icone} {titulo}</w:t></w:r></w:p>"#,
+                        fonte = fonte,
+                        icone = escape_xml(&criterio.icone),
+                        titulo = escape_xml(&criterio.titulo),
+                    );
+                    vec![
+                        CelulaDocx::texto("").com_conteudo_xml(titulo_xml),
+                        CelulaDocx::texto(nome).alinhada("left").tamanho(18),
+                    ]
+                })
+                .collect();
+            documento.tabela_celulas_compacta(tabela_dest, &[3800, 7300], false);
+            documento.paragrafo("");
+        }
+    }
 
     let mut tabela = Vec::new();
     let mut cabecalho = vec![
@@ -5190,6 +5433,42 @@ impl DocumentoDocx {
         self.corpo.push_str("</w:tbl>");
     }
 
+    fn tabela_celulas_compacta(
+        &mut self,
+        linhas: Vec<Vec<CelulaDocx>>,
+        larguras: &[i32],
+        repetir_primeira_linha: bool,
+    ) {
+        if linhas.is_empty() {
+            return;
+        }
+        let colunas = linhas.iter().map(Vec::len).max().unwrap_or(0);
+        let alguma_borda = linhas.iter().flatten().any(|c| c.borda);
+        let bordas = if alguma_borda {
+            r#"<w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders>"#
+        } else {
+            r#"<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>"#
+        };
+        self.corpo.push_str(&format!(r#"<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/><w:jc w:val="center"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="20" w:type="dxa"/><w:left w:w="30" w:type="dxa"/><w:bottom w:w="20" w:type="dxa"/><w:right w:w="30" w:type="dxa"/></w:tblCellMar><w:tblLook w:firstColumn="1" w:firstRow="1" w:lastColumn="0" w:lastRow="0" w:noHBand="0" w:noVBand="1" w:val="04A0"/>{bordas}</w:tblPr><w:tblGrid>"#));
+        for indice in 0..colunas {
+            let largura = larguras.get(indice).copied().unwrap_or(585);
+            self.corpo.push_str(&format!(r#"<w:gridCol w:w="{largura}"/>"#));
+        }
+        self.corpo.push_str("</w:tblGrid>");
+        for (indice, linha) in linhas.iter().enumerate() {
+            if repetir_primeira_linha && indice == 0 {
+                self.corpo.push_str(r#"<w:tr><w:trPr><w:tblHeader w:val="true"/></w:trPr>"#);
+            } else {
+                self.corpo.push_str("<w:tr>");
+            }
+            for celula in linha {
+                self.corpo.push_str(&celula_docx(celula));
+            }
+            self.corpo.push_str("</w:tr>");
+        }
+        self.corpo.push_str("</w:tbl>");
+    }
+
     fn salvar(self, caminho: &Path) -> Result<(), String> {
         escrever_docx(caminho, &self.corpo)
     }
@@ -5903,7 +6182,12 @@ fn ler_configuracoes() -> ConfiguracoesApp {
                 .collect::<Vec<_>>()
         })
         .map(|lista| normalizar_lista_texto(&lista))
-        .unwrap_or_else(atendimento_tipos_padrao);
+        .unwrap_or_default();
+    let atendimento_tipos = if atendimento_tipos.is_empty() {
+        atendimento_tipos_padrao()
+    } else {
+        atendimento_tipos
+    };
 
     ConfiguracoesApp {
         direcao_nome: dados
@@ -5936,6 +6220,16 @@ fn ler_configuracoes() -> ConfiguracoesApp {
             .unwrap_or("Elegível")
             .to_string(),
         atendimento_tipos,
+        perfil_turma_ativo: dados.get("perfil_turma_ativo").and_then(Value::as_bool).unwrap_or(false),
+        perfil_turma_criterios: dados
+            .get("perfil_turma_criterios")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_else(criterios_perfil_padrao),
+        aluno_destaque_ativo: dados.get("aluno_destaque_ativo").and_then(Value::as_bool).unwrap_or(false),
+        aluno_destaque_criterios: dados
+            .get("aluno_destaque_criterios")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default(),
     }
 }
 
@@ -5946,6 +6240,36 @@ fn atendimento_tipos_padrao() -> Vec<String> {
         "Pedagógico".to_string(),
         "Financeiro".to_string(),
         "Educação especial".to_string(),
+    ]
+}
+
+fn criterios_perfil_padrao() -> Vec<CriterioPerfil> {
+    fn c(id: &str, nome: &str, b: &str, m: &str, a: &str) -> CriterioPerfil {
+        CriterioPerfil {
+            id: id.to_string(),
+            nome: nome.to_string(),
+            opcoes: vec![
+                OpcaoCriterioPerfil { nivel: "baixo".to_string(), label: b.to_string() },
+                OpcaoCriterioPerfil { nivel: "medio".to_string(), label: m.to_string() },
+                OpcaoCriterioPerfil { nivel: "alto".to_string(), label: a.to_string() },
+            ],
+        }
+    }
+    vec![
+        c("participacao_aulas", "Participação nas aulas", "Baixa", "Média", "Alta"),
+        c("entrega_atividades", "Entrega de atividades", "Raramente", "Algumas vezes", "Com frequência"),
+        c("interesse_engajamento", "Interesse e engajamento", "Apático", "Oscilante", "Interessado"),
+        c("convivencia_interpessoal", "Convivência e relações interpessoais", "Conflituosa", "Equilibrada", "Colaborativa"),
+        c("frequencia_escolar", "Frequência escolar", "Alta evasão", "Ausências regulares", "Presença constante"),
+        c("leitura_interpretacao", "Habilidades de leitura e interpretação", "Muitos com dificuldades", "Nível mediano", "Turma avançada"),
+        c("producao_escrita", "Produção escrita", "Pouco desenvolvida", "Parcialmente desenvolvida", "Desenvolvida"),
+        c("desempenho_matematica", "Desempenho em matemática", "Majoritariamente insuficiente", "Mediano", "Satisfatório"),
+        c("uso_plataformas", "Uso das plataformas digitais", "Raramente acessam", "Alguns utilizam", "Utilizam com autonomia"),
+        c("participacao_familia", "Participação da família", "Inexistente", "Ocasional", "Presente e atuante"),
+        c("autonomia_rotinas", "Autonomia da turma nas rotinas escolares", "Dependente", "Em construção", "Autônoma"),
+        c("protagonismo", "Nível de protagonismo", "Pouco participativa", "Participa quando estimulada", "Participativa e propositiva"),
+        c("clima_escolar", "Clima escolar (relato dos professores)", "Desafiador", "Razoável", "Positivo e acolhedor"),
+        c("nivel_aprendizagem", "Nível de aprendizagem da turma", "Abaixo do esperado", "Em processo", "Adequado à série"),
     ]
 }
 
@@ -5964,6 +6288,10 @@ fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String>
         "elegivel_ativo": config.elegivel_ativo,
         "elegivel_rotulo": config.elegivel_rotulo,
         "atendimento_tipos": config.atendimento_tipos,
+        "perfil_turma_ativo": config.perfil_turma_ativo,
+        "perfil_turma_criterios": serde_json::to_value(&config.perfil_turma_criterios).unwrap_or_default(),
+        "aluno_destaque_ativo": config.aluno_destaque_ativo,
+        "aluno_destaque_criterios": serde_json::to_value(&config.aluno_destaque_criterios).unwrap_or_default(),
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())
@@ -10665,6 +10993,10 @@ fn main() {
             carregar_configuracoes,
             salvar_configuracoes,
             salvar_cabecalho_ata,
+            carregar_perfil_turma,
+            salvar_perfil_turma,
+            carregar_alunos_destaque,
+            salvar_alunos_destaque,
             publicar_estado_sincronizacao,
             carregar_estado_sincronizacao,
             carregar_estados_sincronizacao,
@@ -10961,7 +11293,22 @@ mod tests {
         let ata = pasta.join("ata.docx");
         let relatorio = pasta.join("relatorio.docx");
 
-        escrever_ata_docx(&ata, &dados, "1", "Texto base da ata").unwrap();
+        let config_teste = ConfiguracoesApp {
+            direcao_nome: "DIRECAO".to_string(),
+            direcao_pronome: "F".to_string(),
+            nota_minima: 5.0,
+            cabecalho_ata: None,
+            lider_ativo: false,
+            lider_rotulo: "Líder de sala".to_string(),
+            elegivel_ativo: false,
+            elegivel_rotulo: "Elegível".to_string(),
+            atendimento_tipos: vec![],
+            perfil_turma_ativo: false,
+            perfil_turma_criterios: vec![],
+            aluno_destaque_ativo: false,
+            aluno_destaque_criterios: vec![],
+        };
+        escrever_ata_docx(&ata, &dados, "1", "Texto base da ata", &config_teste).unwrap();
         escrever_relatorio_professores_docx(&relatorio, &dados, "1").unwrap();
 
         let xml_ata = texto_documento_docx(&ata);

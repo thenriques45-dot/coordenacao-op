@@ -15,6 +15,23 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
 
+type OpcaoCriterioPerfil = {
+  nivel: string;
+  label: string;
+};
+
+type CriterioPerfil = {
+  id: string;
+  nome: string;
+  opcoes: OpcaoCriterioPerfil[];
+};
+
+type CriterioDestaque = {
+  id: string;
+  titulo: string;
+  icone: string;
+};
+
 type NotaBimestre = {
   bimestre: string;
   media: number;
@@ -298,7 +315,7 @@ export function Council({
   setModoReuniao,
 }: {
   aluno: Aluno;
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; perfil_turma_ativo?: boolean; perfil_turma_criterios?: CriterioPerfil[]; aluno_destaque_ativo?: boolean; aluno_destaque_criterios?: CriterioDestaque[] };
   alunos: Aluno[];
   totalAlunos: number;
   indiceAluno: number;
@@ -331,6 +348,13 @@ export function Council({
   const [tempoBaseReuniao, setTempoBaseReuniao] = useState(0);
   const [tempoReuniao, setTempoReuniao] = useState(0);
   const [finalizacaoAberta, setFinalizacaoAberta] = useState(false);
+  const perfilTurmaDisponivel = Boolean(turmaConfig.perfil_turma_ativo) && (
+    (turmaConfig.perfil_turma_criterios?.length ?? 0) > 0 ||
+    (turmaConfig.aluno_destaque_ativo && (turmaConfig.aluno_destaque_criterios?.length ?? 0) > 0)
+  );
+  const [visaoPerfil, setVisaoPerfil] = useState(perfilTurmaDisponivel);
+  const [apontamentos, setApontamentos] = useState<Record<string, string>>({});
+  const [nomesDestaque, setNomesDestaque] = useState<Record<string, string>>({});
   const turmaLabel = turmaSelecionada
     ? `${turmaSelecionada.codigo} - ${turmaSelecionada.ano} - ${rotuloBimestre(turmaDetalhe?.bimestre ?? bimestreSelecionado)}`
     : `2A - ${rotuloBimestre(bimestreSelecionado)}`;
@@ -343,6 +367,10 @@ export function Council({
       .map((item, indice) => ({ item, indice }))
       .filter(({ item }) => classificarAluno(item) === filtroAlunos);
   }, [alunos, filtroAlunos]);
+
+  useEffect(() => {
+    setVisaoPerfil(perfilTurmaDisponivel);
+  }, [turmaSelecionada?.caminho, bimestreSelecionado, perfilTurmaDisponivel]);
 
   useEffect(() => {
     const acumulado = turmaDetalhe?.tempo_conselho_segundos ?? 0;
@@ -370,6 +398,54 @@ export function Council({
     }, 1000);
     return () => window.clearInterval(timer);
   }, [modoReuniao, inicioReuniao, tempoBaseReuniao, turmaSelecionada, turmaDetalhe]);
+
+  useEffect(() => {
+    if (!turmaSelecionada) return;
+    invokeApp<Record<string, string>>("carregar_perfil_turma", {
+      caminho: turmaSelecionada.caminho,
+      bimestre: bimestreSelecionado,
+    }).then(setApontamentos).catch(() => {});
+  }, [turmaSelecionada?.caminho, bimestreSelecionado]);
+
+  useEffect(() => {
+    if (!turmaSelecionada) return;
+    invokeApp<Record<string, string>>("carregar_alunos_destaque", {
+      caminho: turmaSelecionada.caminho,
+      bimestre: bimestreSelecionado,
+    }).then(setNomesDestaque).catch(() => {});
+  }, [turmaSelecionada?.caminho, bimestreSelecionado]);
+
+  function salvarNomeDestaque(criterioId: string, nome: string) {
+    if (!turmaSelecionada) return;
+    const novos = { ...nomesDestaque };
+    if (nome.trim() === "") {
+      delete novos[criterioId];
+    } else {
+      novos[criterioId] = nome.trim();
+    }
+    setNomesDestaque(novos);
+    invokeApp("salvar_alunos_destaque", {
+      caminho: turmaSelecionada.caminho,
+      bimestre: bimestreSelecionado,
+      nomes: novos,
+    }).catch(() => {});
+  }
+
+  function salvarApontamento(criterioId: string, nivel: string | null) {
+    if (!turmaSelecionada) return;
+    const novos = { ...apontamentos };
+    if (nivel === null) {
+      delete novos[criterioId];
+    } else {
+      novos[criterioId] = nivel;
+    }
+    setApontamentos(novos);
+    invokeApp("salvar_perfil_turma", {
+      caminho: turmaSelecionada.caminho,
+      bimestre: bimestreSelecionado,
+      apontamentos: novos,
+    }).catch(() => {});
+  }
 
   function ativarModoReuniao() {
     const agora = Date.now();
@@ -616,21 +692,42 @@ export function Council({
             <button className={filtroAlunos === "atencao" ? "active" : ""} onClick={() => setFiltroAlunos("atencao")}>Atenção</button>
           </div>
           <div className="student-list">
+            {perfilTurmaDisponivel && (
+              <button
+                className={`student-list-item perfil-turma-item ${visaoPerfil ? "active" : ""}`}
+                onClick={() => { setVisaoPerfil(true); }}
+              >
+                <div>
+                  <strong>Perfil da turma</strong>
+                  <span>Caracterização e destaques</span>
+                </div>
+                <div className="student-list-status">
+                  <i className="perfil-icon">★</i>
+                </div>
+              </button>
+            )}
             {alunosFiltrados.map(({ item, indice }) => {
               const media = calcularMediaAluno(item);
               const status = classificarAluno(item);
               return (
                 <button
-                  className={`student-list-item ${indice === indiceAluno ? "active" : ""} ${
+                  className={`student-list-item ${!visaoPerfil && indice === indiceAluno ? "active" : ""} ${
                     alunosDeliberados.has(item.matricula ?? item.nome) ? "deliberated" : ""
                   }`}
                   key={item.matricula ?? `${item.nome}-${indice}`}
-                  onClick={() => selecionarAluno(indice)}
+                  onClick={() => { setVisaoPerfil(false); selecionarAluno(indice); }}
                   onBlur={() => marcarAlunoDeliberado(item)}
                   >
                   <div>
                     <strong>{item.nome}</strong>
                     <span>{item.matricula ? `RA: ${item.matricula}` : "Sem RA"}</span>
+                    {turmaConfig.aluno_destaque_ativo && turmaConfig.aluno_destaque_criterios?.some((c) => nomesDestaque[c.id] === item.nome) && (
+                      <span className="mini-destaque-row">
+                        {turmaConfig.aluno_destaque_criterios!.filter((c) => nomesDestaque[c.id] === item.nome).map((c) => (
+                          <span key={c.id} className="mini-destaque" title={c.titulo}>{c.icone}</span>
+                        ))}
+                      </span>
+                    )}
                   </div>
                   <div className="student-list-status">
                     {turmaConfig.elegivel_ativo && item.elegivel && <span className="mini-eligible">{turmaConfig.elegivel_rotulo}</span>}
@@ -644,12 +741,107 @@ export function Council({
         </aside>
 
         <section className="panel council-detail-panel">
-          <div className="student-detail-header">
+          {visaoPerfil && (
+            <div className="perfil-turma-panel">
+              <div className="panel-heading">
+                <h3>Perfil da turma</h3>
+              </div>
+              {turmaConfig.perfil_turma_criterios && turmaConfig.perfil_turma_criterios.length > 0 && (
+                <table className="perfil-turma-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "30%" }}>CRITÉRIOS</th>
+                      <th>ESCALA DE OBSERVAÇÃO</th>
+                      <th style={{ width: "130px" }}>APONTAMENTO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {turmaConfig.perfil_turma_criterios.map((criterio) => {
+                      const selecionado = apontamentos[criterio.id] ?? null;
+                      return (
+                        <tr key={criterio.id}>
+                          <td className="perfil-criterio-nome">{criterio.nome}</td>
+                          <td>
+                            <div className="perfil-escala">
+                              {criterio.opcoes.map((opcao) => (
+                                <button
+                                  key={opcao.nivel}
+                                  className={`perfil-opcao perfil-opcao-${opcao.nivel} ${selecionado === opcao.nivel ? "selecionada" : ""}`}
+                                  onClick={() => salvarApontamento(criterio.id, selecionado === opcao.nivel ? null : opcao.nivel)}
+                                  title={`${opcao.label}${selecionado === opcao.nivel ? " (clique para desmarcar)" : ""}`}
+                                >
+                                  {opcao.label}
+                                </button>
+                              ))}
+                            </div>
+                          </td>
+                          <td className={`perfil-apontamento ${selecionado ? `perfil-nivel-${selecionado}` : ""}`}>
+                            {selecionado ? criterio.opcoes.find((op) => op.nivel === selecionado)?.label ?? "" : ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {turmaConfig.aluno_destaque_ativo && (turmaConfig.aluno_destaque_criterios?.length ?? 0) > 0 && (
+                <div className="destaque-section">
+                  <h4 className="destaque-section-titulo">Alunos em destaque</h4>
+                  {turmaConfig.aluno_destaque_criterios!.map((criterio) => {
+                    const nomeAtual = nomesDestaque[criterio.id];
+                    return (
+                      <div key={criterio.id} className="destaque-criterio-row">
+                        <label className="destaque-criterio-label">
+                          <span className="destaque-icone">{criterio.icone}</span>
+                          {criterio.titulo}
+                        </label>
+                        <div className="destaque-nome-display">
+                          {nomeAtual ? (
+                            <>
+                              <span className="destaque-nome-valor">{nomeAtual}</span>
+                              <button
+                                type="button"
+                                className="destaque-limpar-btn"
+                                onClick={() => salvarNomeDestaque(criterio.id, "")}
+                                title="Remover destaque"
+                              >×</button>
+                            </>
+                          ) : (
+                            <span className="destaque-nome-vazio">Nenhum aluno selecionado</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+          {!visaoPerfil && (<><div className="student-detail-header">
             <div>
               <FotoAluno matricula={aluno.matricula} tamanho={114} />
               <div className="student-name" style={{ marginTop: "0.6rem" }}>
                 {turmaConfig.elegivel_ativo && aluno.elegivel && <span className="eligible-badge">ALUNO {turmaConfig.elegivel_rotulo.toLocaleUpperCase("pt-BR")}</span>}
                 <h2>{aluno.nome}</h2>
+                {turmaConfig.aluno_destaque_ativo && (turmaConfig.aluno_destaque_criterios?.length ?? 0) > 0 && (
+                  <div className="student-destaque-badges">
+                    {turmaConfig.aluno_destaque_criterios!.map((criterio) => {
+                      const ativo = nomesDestaque[criterio.id] === aluno.nome;
+                      return (
+                        <button
+                          key={criterio.id}
+                          type="button"
+                          className={`student-destaque-badge ${ativo ? "ativo" : ""}`}
+                          onClick={() => salvarNomeDestaque(criterio.id, ativo ? "" : aluno.nome)}
+                          title={ativo ? `Remover de "${criterio.titulo}"` : `Marcar como "${criterio.titulo}"`}
+                        >
+                          <span>{criterio.icone}</span>
+                          {criterio.titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <p>
                 {aluno.matricula ? `RA: ${aluno.matricula}` : "Sem RA"} | Media:{" "}
@@ -819,6 +1011,7 @@ export function Council({
               </div>
             </div>
           </section>
+          </>)}
         </section>
       </section>
 

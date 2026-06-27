@@ -21,6 +21,13 @@ import {
   type KanbanTarefa,
 } from "./management";
 
+const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
+
+function normalizarTiposAtendimento(tipos: string[]) {
+  const normalizados = tipos.map((tipo) => tipo.trim()).filter(Boolean);
+  return normalizados.length ? normalizados : [...TIPOS_ATENDIMENTO_PADRAO];
+}
+
 type NotaBimestre = {
   bimestre: string;
   media: number;
@@ -1129,7 +1136,10 @@ function AlunoDetalheGestao({
 
   const atendimentosAluno = aluno.atendimentos ?? [];
   const totalFollowUps = atendimentosAluno.reduce((total, atendimento) => total + (atendimento.followups?.length ?? 0), 0);
-  const opcoesTipoAtendimento = Array.from(new Set([...tiposAtendimento, ...tiposAtendimentoSelecionados])).filter(Boolean);
+  const opcoesTipoAtendimento = Array.from(new Set([
+    ...normalizarTiposAtendimento(tiposAtendimento),
+    ...tiposAtendimentoSelecionados,
+  ])).filter(Boolean);
   const tituloModalAtendimento = modalAtendimento?.modo === "editar"
     ? "Editar atendimento"
     : modalAtendimento?.modo === "followup"
@@ -1308,14 +1318,14 @@ function AlunoDetalheGestao({
               <h3>Atendimentos</h3>
               <p>Histórico de casos e seguimentos registrados para este aluno.</p>
             </div>
-            <button type="button" className="primary-action" onClick={abrirNovoAtendimento} disabled={!tiposAtendimento.length}>
+            <button type="button" className="primary-action" onClick={abrirNovoAtendimento} disabled={!opcoesTipoAtendimento.length}>
               <Plus size={17} />
               Registrar atendimento
             </button>
           </div>
           {mensagem && <div className="notice success kanban-notice">{mensagem}</div>}
           {erroAtendimento && !modalAtendimento && <div className="notice error kanban-notice">{erroAtendimento}</div>}
-          {!tiposAtendimento.length && (
+          {!opcoesTipoAtendimento.length && (
             <div className="empty-special-list">Configure os tipos de atendimento em Configurações antes de registrar novos casos.</div>
           )}
 
@@ -1330,7 +1340,7 @@ function AlunoDetalheGestao({
             </article>
             <article>
               <span>Tipos configurados</span>
-              <strong>{tiposAtendimento.length}</strong>
+              <strong>{opcoesTipoAtendimento.length}</strong>
             </article>
           </div>
 

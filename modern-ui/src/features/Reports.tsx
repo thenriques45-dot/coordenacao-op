@@ -92,6 +92,99 @@ const opcoesBimestre = [
   { valor: "4", rotulo: "4º bimestre/conselho final" },
 ];
 
+const ROTULOS_CICLO: Record<string, string> = {
+  EI: "Ed. Infantil",
+  EFAI: "Anos iniciais",
+  EFAF: "Anos finais",
+  EM: "Ens. médio",
+};
+
+function rotuloCiclo(ciclo: string) {
+  return ROTULOS_CICLO[ciclo] ?? ciclo;
+}
+
+function TurmaChipSelector({
+  turmas,
+  selecionadas,
+  onToggle,
+  onSelecionarSubset,
+  onDesmarcarSubset,
+}: {
+  turmas: TurmaResumoRelatorio[];
+  selecionadas: Set<string>;
+  onToggle: (codigo: string) => void;
+  onSelecionarSubset: (codigos: string[]) => void;
+  onDesmarcarSubset: (codigos: string[]) => void;
+}) {
+  const [cicloFiltro, setCicloFiltro] = useState("todos");
+
+  const ciclos = useMemo(() => {
+    const set = new Set<string>();
+    turmas.forEach((t) => { if (t.ciclo) set.add(t.ciclo); });
+    return Array.from(set).sort();
+  }, [turmas]);
+
+  const turmasVisiveis = useMemo(
+    () =>
+      [...turmas]
+        .filter((t) => cicloFiltro === "todos" || t.ciclo === cicloFiltro)
+        .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true })),
+    [turmas, cicloFiltro],
+  );
+
+  const codigosVisiveis = useMemo(() => turmasVisiveis.map((t) => t.codigo), [turmasVisiveis]);
+
+  return (
+    <div className="turma-selector">
+      {ciclos.length > 1 && (
+        <div className="turma-ciclo-filtro">
+          <button
+            type="button"
+            className={`turma-ciclo-btn${cicloFiltro === "todos" ? " ativo" : ""}`}
+            onClick={() => setCicloFiltro("todos")}
+          >
+            Todos
+          </button>
+          {ciclos.map((ciclo) => (
+            <button
+              key={ciclo}
+              type="button"
+              className={`turma-ciclo-btn${cicloFiltro === ciclo ? " ativo" : ""}`}
+              onClick={() => setCicloFiltro(ciclo)}
+            >
+              {rotuloCiclo(ciclo)}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="turma-selector-header">
+        <span className="turma-selector-label">Turmas</span>
+        <button type="button" className="turma-selector-btn" onClick={() => onSelecionarSubset(codigosVisiveis)}>
+          Todas
+        </button>
+        <button type="button" className="turma-selector-btn" onClick={() => onDesmarcarSubset(codigosVisiveis)}>
+          Nenhuma
+        </button>
+        <span className="turma-selector-count">
+          {selecionadas.size} de {turmas.length} selecionada{selecionadas.size !== 1 ? "s" : ""}
+        </span>
+      </div>
+      <div className="turma-chip-list">
+        {turmasVisiveis.map((t) => (
+          <button
+            key={t.codigo}
+            type="button"
+            className={`turma-chip${selecionadas.has(t.codigo) ? " selecionado" : ""}`}
+            onClick={() => onToggle(t.codigo)}
+          >
+            {t.codigo}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function rotuloSerie(valor?: string | null) {
   if (!valor) return "";
   return valor
@@ -770,13 +863,13 @@ export function RelatorioTarefas({
     setResultado(null);
   }
 
-  function selecionarTodas() {
-    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
+  function selecionarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
     setResultado(null);
   }
 
-  function desmarcarTodas() {
-    setSelecionadas(new Set());
+  function desmarcarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
     setResultado(null);
   }
 
@@ -815,11 +908,6 @@ export function RelatorioTarefas({
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
   }
 
-  const turmasOrdenadas = useMemo(
-    () => [...turmas].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true })),
-    [turmas],
-  );
-
   return (
     <section className="reports-page">
       <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
@@ -851,47 +939,13 @@ export function RelatorioTarefas({
           </label>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>Turmas</span>
-            <button type="button" className="secondary-action" style={{ padding: "0.15rem 0.6rem", fontSize: "0.8rem" }} onClick={selecionarTodas}>
-              Todas
-            </button>
-            <button type="button" className="secondary-action" style={{ padding: "0.15rem 0.6rem", fontSize: "0.8rem" }} onClick={desmarcarTodas}>
-              Nenhuma
-            </button>
-            <span style={{ fontSize: "0.8rem", color: "var(--muted, #667085)" }}>
-              {selecionadas.size} de {turmas.length} selecionada(s)
-            </span>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-            {turmasOrdenadas.map((t) => (
-              <label
-                key={t.codigo}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.3rem",
-                  padding: "0.2rem 0.6rem",
-                  borderRadius: "0.4rem",
-                  border: "1px solid var(--border, #e2e8f0)",
-                  cursor: "pointer",
-                  background: selecionadas.has(t.codigo) ? "var(--primary-50, #eff6ff)" : "transparent",
-                  fontSize: "0.85rem",
-                  userSelect: "none",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selecionadas.has(t.codigo)}
-                  onChange={() => toggleTurma(t.codigo)}
-                  style={{ accentColor: "var(--primary, #2563eb)" }}
-                />
-                {t.codigo}
-              </label>
-            ))}
-          </div>
-        </div>
+        <TurmaChipSelector
+          turmas={turmas}
+          selecionadas={selecionadas}
+          onToggle={toggleTurma}
+          onSelecionarSubset={selecionarSubset}
+          onDesmarcarSubset={desmarcarSubset}
+        />
 
         <div className="report-actions">
           <button
@@ -919,19 +973,57 @@ export function RelatorioTarefas({
   );
 }
 
-export function RelatorioProvaPaulista({ onVoltar }: { onVoltar: () => void }) {
+export function RelatorioProvaPaulista({
+  turmas,
+  onVoltar,
+}: {
+  turmas: TurmaResumoRelatorio[];
+  onVoltar: () => void;
+}) {
   const [bimestre, setBimestre] = useState("1");
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmas.map((t) => t.codigo)));
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<RelatorioProvaPaulistaResultado | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
+  useEffect(() => {
+    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
+  }, [turmas]);
+
+  function toggleTurma(codigo: string) {
+    setSelecionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(codigo)) next.delete(codigo);
+      else next.add(codigo);
+      return next;
+    });
+    setResultado(null);
+  }
+
+  function selecionarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
+    setResultado(null);
+  }
+
+  function desmarcarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
+    setResultado(null);
+  }
+
   function gerarRelatorio() {
+    if (selecionadas.size === 0) {
+      setErro("Selecione ao menos uma turma.");
+      return;
+    }
     setProcessando(true);
     setErro("");
     setMensagem("");
     setResultado(null);
-    invokeApp<RelatorioProvaPaulistaResultado>("gerar_relatorio_prova_paulista", { bimestre })
+    invokeApp<RelatorioProvaPaulistaResultado>("gerar_relatorio_prova_paulista", {
+      bimestre,
+      turmasFiltro: Array.from(selecionadas),
+    })
       .then((resposta) => {
         setResultado(resposta);
         setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
@@ -977,7 +1069,7 @@ export function RelatorioProvaPaulista({ onVoltar }: { onVoltar: () => void }) {
         <div className="report-controls">
           <label>
             Bimestre
-            <select value={bimestre} onChange={(e) => setBimestre(e.target.value)}>
+            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setResultado(null); }}>
               {opcoesBimestre.map((opcao) => (
                 <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
               ))}
@@ -985,8 +1077,16 @@ export function RelatorioProvaPaulista({ onVoltar }: { onVoltar: () => void }) {
           </label>
         </div>
 
+        <TurmaChipSelector
+          turmas={turmas}
+          selecionadas={selecionadas}
+          onToggle={toggleTurma}
+          onSelecionarSubset={selecionarSubset}
+          onDesmarcarSubset={desmarcarSubset}
+        />
+
         <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || selecionadas.size === 0}>
             {processando ? "Gerando..." : "Gerar planilha"}
           </button>
           {resultado && (
