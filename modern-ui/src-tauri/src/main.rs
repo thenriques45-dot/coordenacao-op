@@ -1119,6 +1119,11 @@ fn carregar_dados_institucionais_sincronizacao(
     copiar_recursivamente_contando(&origem_dados, &temporario, &mut total)
         .map_err(|err| err.to_string())?;
 
+    // Remove cópias de conflito criadas pelo OneDrive dentro do estado recebido
+    // (ex.: "turma_X-NomePC.json"), que viravam turmas duplicadas na listagem.
+    remover_copias_de_conflito_sync(&temporario.join("persistidos"))
+        .map_err(|err| err.to_string())?;
+
     // Merge: preserva turmas criadas localmente e mescla campos por timestamp
     mesclar_diretorio_persistidos(
         &destino.join("persistidos"),
@@ -1459,6 +1464,17 @@ fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     let caminho = pasta.join(format!("turma_{}.json", sanitizar_segmento(&codigo)));
     if caminho.exists() {
         return Err(format!("Ja existe uma turma {codigo} para {}.", input.ano));
+    }
+    // Compara também ignorando acentos e maiúsculas ("2ª SERIE B" x "2ª Série B"),
+    // senão importações com grafia diferente criam turmas duplicadas.
+    let codigo_norm = normalizar_texto_basico(&codigo);
+    for (_, existente) in carregar_turmas_com_caminho()? {
+        if existente.ano == input.ano && normalizar_texto_basico(&existente.codigo) == codigo_norm {
+            return Err(format!(
+                "Ja existe uma turma equivalente a {codigo} para {} (cadastrada como {}).",
+                input.ano, existente.codigo
+            ));
+        }
     }
     validar_conflito_sala(input.ano, &periodo, input.sala.trim(), None)?;
 
@@ -7420,6 +7436,9 @@ fn visitar_jsons_turma_com_dados(
         if !nome.starts_with("turma_") || !nome.ends_with(".json") {
             continue;
         }
+        if eh_copia_de_conflito_sync(&caminho) {
+            continue;
+        }
         let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
         let turma: TurmaArquivo = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
         turmas.push((caminho, turma));
@@ -8457,6 +8476,44 @@ fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
     resultado
 }
 
+// Cópias de conflito criadas por serviços de sincronização de arquivos (OneDrive,
+// Google Drive) recebem sufixo com o nome do dispositivo: "turma_X-NomePC.json" ou
+// "turma_X-NomePC-2.json". Se remover sufixos "-token" do nome resultar em um
+// arquivo que também existe na mesma pasta, este é uma cópia de conflito, não uma turma.
+fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
+    let Some(pasta) = caminho.parent() else {
+        return false;
+    };
+    let Some(stem) = caminho.file_stem().and_then(|s| s.to_str()) else {
+        return false;
+    };
+    let mut base = stem;
+    while let Some(pos) = base.rfind('-') {
+        base = &base[..pos];
+        if !base.is_empty() && pasta.join(format!("{base}.json")).is_file() {
+            return true;
+        }
+    }
+    false
+}
+
+fn remover_copias_de_conflito_sync(pasta: &Path) -> io::Result<()> {
+    if !pasta.is_dir() {
+        return Ok(());
+    }
+    for entrada in fs::read_dir(pasta)? {
+        let caminho = entrada?.path();
+        if caminho.is_dir() {
+            remover_copias_de_conflito_sync(&caminho)?;
+        } else if caminho.extension().and_then(|e| e.to_str()) == Some("json")
+            && eh_copia_de_conflito_sync(&caminho)
+        {
+            fs::remove_file(&caminho)?;
+        }
+    }
+    Ok(())
+}
+
 fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -> io::Result<()> {
     if !local_dir.is_dir() {
         return Ok(());
@@ -8472,6 +8529,9 @@ fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -> io::Resul
         if local_path.is_dir() {
             mesclar_diretorio_persistidos(&local_path, &temp_path)?;
         } else if local_path.extension().and_then(|e| e.to_str()) == Some("json") {
+            if eh_copia_de_conflito_sync(&local_path) {
+                continue;
+            }
             if temp_path.exists() {
                 // Arquivo em ambos: merge, mantendo o mais recente por campo
                 let texto_local = fs::read_to_string(&local_path)?;
@@ -8602,6 +8662,9 @@ fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>) -> Result
             continue;
         };
         if !nome.starts_with("turma_") || !nome.ends_with(".json") {
+            continue;
+        }
+        if eh_copia_de_conflito_sync(&caminho) {
             continue;
         }
 

@@ -1,7 +1,7 @@
 {
   "name": "coordenacaoop-modern-ui",
   "private": true,
-  "version": "2.15.3",
+  "version": "2.15.4",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",

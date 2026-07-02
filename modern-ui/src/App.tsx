@@ -280,6 +280,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.15.4": [
+    "Corrigida a duplicação de turmas na sincronização: cópias de conflito criadas pelo OneDrive (ex.: 'turma_X-NomePC') agora são ignoradas e removidas automaticamente — as turmas não aparecem mais duplicadas ou triplicadas após sincronizar.",
+    "Criação de turmas (individual e em lote) passa a bloquear duplicatas com grafia diferente do mesmo nome — ex.: '3ª SERIE A' não cria mais uma cópia de '3ª Série A'.",
+    "Importação de notas mais clara: o contador 'Duplicados' virou 'Ambíguos' (alunos cujo nome casa com mais de um estudante, deixados de fora por segurança) e a prévia agora informa quantos alunos serão importados e atualizados.",
+  ],
   "2.15.3": [
     "Conselho de classe: o Perfil da Turma passa a respeitar a configuração principal e só aparece quando estiver ativado.",
     "Perfil da Turma e Aluno Destaque agora vêm desativados por padrão nas configurações.",

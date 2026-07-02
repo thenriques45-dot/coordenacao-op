@@ -704,9 +704,9 @@ export function ImportarNotas({
           <div className="import-preview-heading">
             <h2>Prévia da importação</h2>
             <div>
-              <span>Correspondências: <strong>{previa.total_correspondencias}</strong></span>
+              <span>Serão importados: <strong>{previa.total_correspondencias}</strong></span>
               <span>Não encontrados: <strong>{previa.total_nao_encontrados}</strong></span>
-              <span>Duplicados: <strong>{previa.total_duplicados}</strong></span>
+              <span>Ambíguos: <strong>{previa.total_duplicados}</strong></span>
             </div>
           </div>
 
@@ -714,14 +714,14 @@ export function ImportarNotas({
             <div className="import-diagnostics">
               <strong>Verifique antes de aplicar</strong>
               <span>Alunos não encontrados não serão importados. Se o problema estiver no CSV da turma, selecione a turma correta na linha e envie o CSV atualizado.</span>
-              {previa.total_duplicados > 0 && <span>Duplicados ficam de fora para evitar gravação no aluno errado.</span>}
+              {previa.total_duplicados > 0 && <span>Ambíguos são alunos cujo nome casa com mais de um estudante — ficam de fora para não gravar a nota no aluno errado. Os demais {previa.total_correspondencias} alunos serão importados e atualizados normalmente.</span>}
             </div>
           )}
 
           <div className="import-preview-table-wrap">
             <table className="import-preview-table">
               <thead>
-                <tr><th>Arquivo</th><th>Turma provável</th><th>Alunos</th><th>Disciplinas</th><th>Casados</th><th>Não encontrados</th><th>Duplicados</th><th>Status</th><th>CSV da turma</th></tr>
+                <tr><th>Arquivo</th><th>Turma provável</th><th>Alunos</th><th>Disciplinas</th><th>Casados</th><th>Não encontrados</th><th>Ambíguos</th><th>Status</th><th>CSV da turma</th></tr>
               </thead>
               <tbody>
                 {previa.arquivos.map((arquivo) => (
@@ -772,7 +772,7 @@ export function ImportarNotas({
                             <p><strong>Não encontrados:</strong> {arquivo.nomes_nao_encontrados.slice(0, 20).join(", ")}{arquivo.nomes_nao_encontrados.length > 20 ? ` e mais ${arquivo.nomes_nao_encontrados.length - 20}` : ""}</p>
                           )}
                           {arquivo.nomes_duplicados.length > 0 && (
-                            <p><strong>Duplicados:</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>
+                            <p><strong>Ambíguos (nome casa com mais de um estudante):</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>
                           )}
                         </td>
                       </tr>
@@ -1021,15 +1021,15 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
             <h2>Prévia da importação</h2>
             <div>
               <span>Registros: <strong>{previa.total_registros}</strong></span>
-              <span>Correspondências: <strong>{previa.total_correspondencias}</strong></span>
+              <span>Serão importados: <strong>{previa.total_correspondencias}</strong></span>
               <span>Não encontrados: <strong>{previa.total_nao_encontrados}</strong></span>
-              <span>Duplicados: <strong>{previa.total_duplicados}</strong></span>
+              <span>Ambíguos: <strong>{previa.total_duplicados}</strong></span>
             </div>
           </div>
           <div className="import-preview-table-wrap">
             <table className="import-preview-table">
               <thead>
-                <tr><th>Arquivo</th><th>Registros</th><th>Casados</th><th>Não encontrados</th><th>Duplicados</th><th>Status</th></tr>
+                <tr><th>Arquivo</th><th>Registros</th><th>Casados</th><th>Não encontrados</th><th>Ambíguos</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {previa.arquivos.map((arquivo) => (
@@ -1047,7 +1047,7 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
                         <td colSpan={6}>
                           {arquivo.erro && <p>{arquivo.erro}</p>}
                           {arquivo.nomes_nao_encontrados.length > 0 && <p><strong>Não encontrados:</strong> {arquivo.nomes_nao_encontrados.slice(0, 20).join(", ")}{arquivo.nomes_nao_encontrados.length > 20 ? ` e mais ${arquivo.nomes_nao_encontrados.length - 20}` : ""}</p>}
-                          {arquivo.nomes_duplicados.length > 0 && <p><strong>Duplicados:</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>}
+                          {arquivo.nomes_duplicados.length > 0 && <p><strong>Ambíguos (nome casa com mais de um estudante):</strong> {arquivo.nomes_duplicados.slice(0, 20).join(", ")}{arquivo.nomes_duplicados.length > 20 ? ` e mais ${arquivo.nomes_duplicados.length - 20}` : ""}</p>}
                         </td>
                       </tr>
                     )}
