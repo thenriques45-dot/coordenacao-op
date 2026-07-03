@@ -200,6 +200,20 @@ pub(crate) fn listar_turmas() -> Result<Vec<TurmaResumo>, String> {
 
     let mut turmas = Vec::new();
     visitar_jsons_turma(&pasta, &mut turmas)?;
+
+    // Marca as turmas com conselho preparado em pendrive e ainda não reintegrado.
+    let externos = ler_conselhos_externos();
+    if !externos.is_empty() {
+        for turma in &mut turmas {
+            let caminho_turma = Path::new(&turma.caminho);
+            turma.em_conselho_externo = externos
+                .iter()
+                .filter(|item| mesmos_caminhos(caminho_turma, &pasta.join(&item.caminho_relativo)))
+                .map(|item| item.bimestre.clone())
+                .collect();
+        }
+    }
+
     turmas.sort_by_key(|a| (a.ano, a.codigo.clone()));
     Ok(turmas)
 }
@@ -859,6 +873,12 @@ pub(crate) fn aplicar_finalizacao_conselho(
         "gerar_relatorio".to_string(),
         Value::from(finalizacao.gerar_relatorio),
     );
+    // Data da finalização: alimenta o status por bimestre na lista de turmas e
+    // desempata o merge de conselhos entre máquinas (sync e pendrive).
+    registro.insert(
+        "finalizado_em".to_string(),
+        Value::from(Local::now().to_rfc3339()),
+    );
     Ok(())
 }
 
@@ -1232,12 +1252,26 @@ pub(crate) fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>
 }
 
 pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResumo {
-    let conselho_finalizado = turma
+    // Bimestre -> data da finalização ("" para registros antigos, sem data).
+    let conselhos_finalizados: BTreeMap<String, String> = turma
         .conselhos
         .as_ref()
-        .and_then(|conselhos| conselhos.get("1"))
-        .map(conselho_foi_finalizado)
-        .unwrap_or(false);
+        .map(|conselhos| {
+            conselhos
+                .iter()
+                .filter(|(_, registro)| conselho_foi_finalizado(registro))
+                .map(|(bimestre, registro)| {
+                    let data = registro
+                        .get("finalizado_em")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
+                    (bimestre.clone(), data)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let conselho_finalizado = !conselhos_finalizados.is_empty();
     let alunos = turma.alunos.unwrap_or_default();
     let total_alunos = alunos.len();
     let mut alunos_ativos = 0;
@@ -1315,6 +1349,9 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         nomes_alunos,
         conselhos_com_ajustes,
         conselho_finalizado,
+        conselhos_finalizados,
+        // Preenchido em listar_turmas, que cruza com o registro de check-outs.
+        em_conselho_externo: Vec::new(),
         caminho: caminho.to_string_lossy().to_string(),
     }
 }

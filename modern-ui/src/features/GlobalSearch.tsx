@@ -17,6 +17,8 @@ type TurmaResumo = {
   nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
+  conselhos_finalizados: Record<string, string>;
+  em_conselho_externo: string[];
   caminho: string;
 };
 

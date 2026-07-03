@@ -254,6 +254,10 @@ pub(crate) struct TurmaResumo {
     pub(crate) nomes_alunos: Vec<String>,
     pub(crate) conselhos_com_ajustes: usize,
     pub(crate) conselho_finalizado: bool,
+    // Bimestre -> data da finalização (RFC3339; vazio em registros antigos).
+    pub(crate) conselhos_finalizados: BTreeMap<String, String>,
+    // Bimestres com conselho preparado em pendrive e ainda não reintegrado.
+    pub(crate) em_conselho_externo: Vec<String>,
     pub(crate) caminho: String,
 }
 

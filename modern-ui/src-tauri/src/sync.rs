@@ -501,7 +501,77 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
         }
     }
 
+    mesclar_conselhos_turma(res_obj, incoming);
+
     resultado
+}
+
+// Finalização do conselho (nó "conselhos") e texto da ata: por bimestre, vence
+// o lado com finalizado_em mais recente; um registro finalizado vence um que
+// nunca foi. Sem isso, um conselho finalizado em outra máquina (sync ou
+// pendrive) era descartado silenciosamente, e a turma voltava a "pendente".
+pub(crate) fn mesclar_conselhos_turma(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &Value,
+) {
+    let Some(conselhos_inc) = incoming.get("conselhos").and_then(Value::as_object) else {
+        return;
+    };
+
+    let mut bimestres_vencidos: Vec<String> = Vec::new();
+    {
+        let conselhos_local = local
+            .entry("conselhos".to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let Some(conselhos_local) = conselhos_local.as_object_mut() else {
+            return;
+        };
+        for (bimestre, registro_inc) in conselhos_inc {
+            let vence = match conselhos_local.get(bimestre) {
+                None => true,
+                Some(registro_local) => {
+                    let em_inc = registro_inc
+                        .get("finalizado_em")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    let em_local = registro_local
+                        .get("finalizado_em")
+                        .and_then(Value::as_str)
+                        .unwrap_or("");
+                    let finalizado_inc = conselho_foi_finalizado(registro_inc);
+                    let finalizado_local = conselho_foi_finalizado(registro_local);
+                    if finalizado_inc != finalizado_local {
+                        finalizado_inc
+                    } else {
+                        em_inc > em_local
+                    }
+                }
+            };
+            if vence {
+                conselhos_local.insert(bimestre.clone(), registro_inc.clone());
+                bimestres_vencidos.push(bimestre.clone());
+            }
+        }
+    }
+
+    // O texto da ata acompanha o registro de conselho que venceu o merge.
+    if bimestres_vencidos.is_empty() {
+        return;
+    }
+    let Some(textos_inc) = incoming.get("textos_ata").and_then(Value::as_object) else {
+        return;
+    };
+    let textos_local = local
+        .entry("textos_ata".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(textos_local) = textos_local.as_object_mut() else {
+        return;
+    };
+    for bimestre in bimestres_vencidos {
+        if let Some(texto) = textos_inc.get(&bimestre) {
+            textos_local.insert(bimestre, texto.clone());
+        }
+    }
 }
 
 // Cópias de conflito criadas por serviços de sincronização de arquivos (OneDrive,

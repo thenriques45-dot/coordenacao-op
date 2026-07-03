@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Trash2,
   Upload,
+  Usb,
   UserRound,
   Users,
   X,
@@ -179,6 +180,8 @@ type TurmaResumo = {
   nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
+  conselhos_finalizados: Record<string, string>;
+  em_conselho_externo: string[];
   caminho: string;
 };
 
@@ -190,6 +193,14 @@ type TurmaDetalhe = {
   tempo_conselho_segundos: number;
   texto_ata: string;
   alunos: AlunoApi[];
+};
+
+type PendriveConselhoDetectado = {
+  pasta: string;
+  bimestre: string;
+  criado_em: string;
+  origem: string;
+  turmas: string[];
 };
 
 type AtualizacaoInfo = {
@@ -280,6 +291,16 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.16.0": [
+    "Novo 'Pendrive do conselho': prepare um pendrive com as turmas do conselho — o app copia a si mesmo e os dados necessários (notas, fotos e configurações). Faça o conselho em qualquer computador e reintegre tudo na volta.",
+    "Reintegração com um clique: ao abrir o app com o pendrive plugado, ele detecta o conselho feito e oferece a reintegração, criando um backup de segurança antes de mesclar.",
+    "A tela de conselhos mostra o andamento por bimestre em cada turma: selo verde com a data quando o conselho foi finalizado e selo vermelho quando a turma está em conselho externo.",
+    "Tutorial de primeiro acesso na tela de conselhos, apresentando os selos de status e o fluxo do pendrive.",
+    "Corrigido: o status de 'conselho finalizado' considerava apenas o 1º bimestre — agora vale para todos os bimestres.",
+    "Corrigido: conselhos finalizados em outra máquina (sincronização ou pendrive) não se perdem mais na mesclagem — a finalização mais recente vence e o texto da ata acompanha.",
+    "Desempenho: sincronização, importações, backups e geração de documentos deixaram de travar a interface.",
+    "Quadro Kanban, calendário e caches de PEI/planejamento ganharam cópia de segurança em disco, restaurada automaticamente se o navegador interno perder os dados.",
+  ],
   "2.15.4": [
     "Corrigida a duplicação de turmas na sincronização: cópias de conflito criadas pelo OneDrive (ex.: 'turma_X-NomePC') agora são ignoradas e removidas automaticamente — as turmas não aparecem mais duplicadas ou triplicadas após sincronizar.",
     "Criação de turmas (individual e em lote) passa a bloquear duplicatas com grafia diferente do mesmo nome — ex.: '3ª SERIE A' não cria mais uma cópia de '3ª Série A'.",
@@ -800,6 +821,44 @@ export function App() {
       });
   }, []);
 
+  function recarregarDadosTurmas() {
+    invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+    setTurmaRefreshKey((atual) => atual + 1);
+  }
+
+  // Pendrive de conselho: na abertura, procura conselhos preparados e ainda não
+  // reintegrados (nas unidades removíveis e nas pastas registradas no check-out).
+  const [pendrivesConselho, setPendrivesConselho] = useState<PendriveConselhoDetectado[]>([]);
+  const [mensagemPendrive, setMensagemPendrive] = useState("");
+  const [reintegrandoPendrive, setReintegrandoPendrive] = useState(false);
+  useEffect(() => {
+    invokeApp<PendriveConselhoDetectado[]>("detectar_pendrives_conselho")
+      .then(setPendrivesConselho)
+      .catch(() => {});
+  }, []);
+
+  async function reintegrarPendriveDetectado(pendrive: PendriveConselhoDetectado) {
+    if (reintegrandoPendrive) return;
+    setReintegrandoPendrive(true);
+    setMensagemPendrive("");
+    try {
+      const resultado = await invokeApp<{ turmas: number; bimestre: string; avisos: string[] }>(
+        "reintegrar_pendrive_conselho",
+        { pasta: pendrive.pasta },
+      );
+      const avisos = resultado.avisos.length ? ` Avisos: ${resultado.avisos.join(" ")}` : "";
+      setMensagemPendrive(
+        `Conselho do ${resultado.bimestre}º bimestre reintegrado: ${resultado.turmas} turma(s) atualizadas.${avisos}`,
+      );
+      setPendrivesConselho((atual) => atual.filter((item) => item.pasta !== pendrive.pasta));
+      recarregarDadosTurmas();
+    } catch (err) {
+      setMensagemPendrive(String(err));
+    } finally {
+      setReintegrandoPendrive(false);
+    }
+  }
+
   useEffect(() => {
     if (!turmaSelecionada) {
       setTurmaDetalhe(null);
@@ -1103,6 +1162,33 @@ export function App() {
       </aside>
 
       <section className="workspace">
+        {pendrivesConselho.map((pendrive) => (
+          <div key={pendrive.pasta} className="data-warning neutral pendrive-detectado">
+            <Usb size={17} />
+            <span>
+              Conselho do {pendrive.bimestre}º bimestre encontrado no pendrive
+              {pendrive.turmas.length ? ` (${pendrive.turmas.join(", ")})` : ""}. Reintegrar os dados
+              agora?
+            </span>
+            <button onClick={() => reintegrarPendriveDetectado(pendrive)} disabled={reintegrandoPendrive}>
+              {reintegrandoPendrive ? "Reintegrando…" : "Reintegrar"}
+            </button>
+            <button
+              className="ghost-action"
+              onClick={() => setPendrivesConselho((atual) => atual.filter((item) => item.pasta !== pendrive.pasta))}
+            >
+              Agora não
+            </button>
+          </div>
+        ))}
+        {mensagemPendrive && (
+          <div className="data-warning neutral">
+            {mensagemPendrive}
+            <button className="ghost-action" onClick={() => setMensagemPendrive("")}>
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {tela === "dashboard" && (
           <Dashboard
             turmas={turmas}
@@ -1114,7 +1200,7 @@ export function App() {
           />
         )}
         {tela === "conselhos" && (
-          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} onSelecionar={(turma) => {
+          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} bimestreSelecionado={bimestreSelecionado} aoAtualizarDados={recarregarDadosTurmas} onSelecionar={(turma) => {
             setTurmaSelecionada(turma);
             navegarPara("conselho");
           }} />

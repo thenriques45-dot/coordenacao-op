@@ -2,6 +2,7 @@
 
 mod backup;
 mod config;
+mod conselho_pendrive;
 mod docx;
 mod fotos;
 mod ia;
@@ -22,9 +23,9 @@ mod turmas;
 // módulos autocontidos, cujos itens ninguém referencia pela raiz.
 #[allow(unused_imports)]
 pub(crate) use {
-    backup::*, config::*, docx::*, fotos::*, ia::*, importador_alunos::*, importador_mapao::*,
-    infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, shell::*, sync::*,
-    tipos::*, turmas::*,
+    backup::*, config::*, conselho_pendrive::*, docx::*, fotos::*, ia::*, importador_alunos::*,
+    importador_mapao::*, infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
+    shell::*, sync::*, tipos::*, turmas::*,
 };
 
 use tauri::{
@@ -160,6 +161,11 @@ fn main() {
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,
             turmas::salvar_finalizacao_conselho,
+            conselho_pendrive::preparar_pendrive_conselho,
+            conselho_pendrive::reintegrar_pendrive_conselho,
+            conselho_pendrive::detectar_pendrives_conselho,
+            conselho_pendrive::listar_conselhos_externos,
+            conselho_pendrive::cancelar_conselho_externo,
             pei::buscar_pei_planilha,
             pei::salvar_url_pei,
             pei::carregar_url_pei,
@@ -200,6 +206,57 @@ mod tests {
     use calamine::Data;
     use chrono::NaiveDate;
     use std::{env, fs, path::Path};
+
+    #[test]
+    fn merge_de_turma_traz_conselho_finalizado_em_outra_maquina() {
+        let local = json!({
+            "codigo": "2A",
+            "alunos": {},
+            "conselhos": {"2": {"gerar_ata": false, "gerar_relatorio": false}},
+            "textos_ata": {"2": {"cabecalho": "", "corpo": "rascunho local"}}
+        });
+        let incoming = json!({
+            "codigo": "2A",
+            "alunos": {},
+            "conselhos": {"2": {
+                "gerar_ata": true,
+                "gerar_relatorio": true,
+                "tempo_segundos": 3600,
+                "finalizado_em": "2026-07-01T10:00:00-03:00"
+            }},
+            "textos_ata": {"2": {"cabecalho": "", "corpo": "ata do conselho"}}
+        });
+
+        let resultado = mesclar_arquivo_turma(&local, &incoming);
+
+        assert!(conselho_foi_finalizado(&resultado["conselhos"]["2"]));
+        assert_eq!(
+            resultado["conselhos"]["2"]["finalizado_em"],
+            json!("2026-07-01T10:00:00-03:00")
+        );
+        assert_eq!(resultado["textos_ata"]["2"]["corpo"], json!("ata do conselho"));
+    }
+
+    #[test]
+    fn merge_de_turma_nao_regride_conselho_ja_finalizado() {
+        let local = json!({
+            "conselhos": {"1": {
+                "gerar_ata": true,
+                "gerar_relatorio": true,
+                "finalizado_em": "2026-05-10T09:00:00-03:00"
+            }},
+            "textos_ata": {"1": {"cabecalho": "", "corpo": "ata final"}}
+        });
+        let incoming = json!({
+            "conselhos": {"1": {"gerar_ata": false, "gerar_relatorio": false}},
+            "textos_ata": {"1": {"cabecalho": "", "corpo": "rascunho antigo"}}
+        });
+
+        let resultado = mesclar_arquivo_turma(&local, &incoming);
+
+        assert!(conselho_foi_finalizado(&resultado["conselhos"]["1"]));
+        assert_eq!(resultado["textos_ata"]["1"]["corpo"], json!("ata final"));
+    }
     use serde_json::json;
     use std::io::Read;
 

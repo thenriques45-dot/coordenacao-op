@@ -3,14 +3,17 @@ import {
   ArrowUpRight,
   BookOpen,
   CalendarClock,
+  CheckCircle2,
   ClipboardList,
   Clock,
   FileText,
   Minus,
   Search,
+  Usb,
   Users,
   X,
 } from "lucide-react";
+import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
@@ -117,6 +120,8 @@ type TurmaResumo = {
   nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
+  conselhos_finalizados: Record<string, string>;
+  em_conselho_externo: string[];
   caminho: string;
 };
 
@@ -1035,14 +1040,35 @@ export function SelecaoConselho({
   erroTurmas,
   onSelecionar,
   turmaConfig,
+  bimestreSelecionado,
+  aoAtualizarDados,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
   onSelecionar: (turma: TurmaResumo) => void;
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
+  bimestreSelecionado: string;
+  aoAtualizarDados: () => void;
 }) {
   const [busca, setBusca] = useState("");
+  const [pendriveAberto, setPendriveAberto] = useState(false);
+  const [mostrarTutorial, setMostrarTutorial] = useState(() => {
+    try {
+      return localStorage.getItem(TUTORIAL_CONSELHO_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
   const turmasFiltradas = filtrarTurmas(turmas, busca);
+
+  function fecharTutorial() {
+    try {
+      localStorage.setItem(TUTORIAL_CONSELHO_KEY, "sim");
+    } catch {
+      // Sem localStorage o tutorial apenas volta a aparecer na próxima visita.
+    }
+    setMostrarTutorial(false);
+  }
 
   return (
     <>
@@ -1051,6 +1077,12 @@ export function SelecaoConselho({
           <span className="eyebrow">Conselhos de classe</span>
           <h1>Selecionar conselho</h1>
           <p>Escolha a turma para iniciar ou reabrir o conselho.</p>
+        </div>
+        <div className="council-actions">
+          <button className="primary-action" onClick={() => setPendriveAberto(true)}>
+            <Usb size={18} />
+            Pendrive do conselho
+          </button>
         </div>
       </header>
 
@@ -1077,6 +1109,8 @@ export function SelecaoConselho({
               <h2>{rotuloTurma(turma)}</h2>
               <span>{rotuloSerie(turma.serie) || turma.ciclo || `${turma.ano}`}</span>
             </div>
+
+            <StatusConselhoTurma turma={turma} />
 
             <div className="turma-card-meta">
               <span className="meta-line">
@@ -1117,7 +1151,438 @@ export function SelecaoConselho({
           </div>
         )}
       </section>
+
+      {pendriveAberto && (
+        <PendriveConselhoModal
+          turmas={turmas}
+          bimestreInicial={bimestreSelecionado}
+          onFechar={() => setPendriveAberto(false)}
+          aoAtualizarDados={aoAtualizarDados}
+        />
+      )}
+
+      {mostrarTutorial && !pendriveAberto && (
+        <TutorialConselho
+          onFechar={fecharTutorial}
+          onAbrirPendrive={() => {
+            fecharTutorial();
+            setPendriveAberto(true);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+const TUTORIAL_CONSELHO_KEY = "coordenacaoop:tutorial-conselho-visto:v1";
+
+function TutorialConselho({
+  onFechar,
+  onAbrirPendrive,
+}: {
+  onFechar: () => void;
+  onAbrirPendrive: () => void;
+}) {
+  const [passo, setPasso] = useState(0);
+  const totalPassos = 3;
+
+  return (
+    <div className="modal-backdrop">
+      <section className="sync-wizard" role="dialog" aria-modal="true" aria-labelledby="tutorial-conselho-titulo">
+        <div className="sync-wizard-progress" aria-label={`Etapa ${passo + 1} de ${totalPassos}`}>
+          {Array.from({ length: totalPassos }).map((_, indice) => (
+            <span key={indice} className={indice <= passo ? "active" : ""} />
+          ))}
+        </div>
+
+        {passo === 0 && (
+          <>
+            <span className="eyebrow">Conselho de classe</span>
+            <h2 id="tutorial-conselho-titulo">Acompanhe cada turma daqui</h2>
+            <p>
+              Esta tela lista as turmas e mostra a situação do conselho de cada uma. Os selos nos
+              cartões indicam o andamento por bimestre.
+            </p>
+            <div className="sync-wizard-grid">
+              <article>
+                <CheckCircle2 size={20} />
+                <strong>Conselho feito</strong>
+                <span>Selo verde com o bimestre e a data em que o conselho foi finalizado.</span>
+              </article>
+              <article>
+                <Usb size={20} />
+                <strong>Em pendrive</strong>
+                <span>Selo vermelho quando a turma foi levada para um conselho fora da escola.</span>
+              </article>
+            </div>
+          </>
+        )}
+
+        {passo === 1 && (
+          <>
+            <span className="eyebrow">Levar o conselho</span>
+            <h2 id="tutorial-conselho-titulo">Preparar pendrive para o conselho</h2>
+            <p>
+              O botão vermelho <strong>Pendrive do conselho</strong> monta uma versão portátil do
+              aplicativo com as turmas escolhidas: notas, fotos e configurações vão juntas.
+            </p>
+            <div className="sync-wizard-grid">
+              <article>
+                <ClipboardList size={20} />
+                <strong>Escolha o que levar</strong>
+                <span>Selecione o bimestre, as turmas daquele conselho e a pasta do pendrive.</span>
+              </article>
+              <article>
+                <Usb size={20} />
+                <strong>Use em qualquer computador</strong>
+                <span>No dia, basta abrir o CoordenacaoOP.exe do pendrive — sem instalar nada.</span>
+              </article>
+            </div>
+          </>
+        )}
+
+        {passo === 2 && (
+          <>
+            <span className="eyebrow">Na volta</span>
+            <h2 id="tutorial-conselho-titulo">Reintegrar os dados</h2>
+            <p>
+              De volta à sua máquina, conecte o pendrive: o aplicativo percebe o conselho feito e
+              oferece a reintegração. Um backup de segurança é criado antes, e as decisões do
+              conselho entram sem sobrescrever o que você fez aqui.
+            </p>
+            <p className="sync-wizard-note">
+              Também dá para reintegrar manualmente na aba "Reintegrar dados" do Pendrive do
+              conselho.
+            </p>
+          </>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" onClick={onFechar}>Pular</button>
+          {passo > 0 && (
+            <button type="button" onClick={() => setPasso((atual) => atual - 1)}>Voltar</button>
+          )}
+          {passo < totalPassos - 1 ? (
+            <button type="button" className="primary-action" onClick={() => setPasso((atual) => atual + 1)}>
+              Próximo
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onFechar}>Entendi</button>
+              <button type="button" className="primary-action" onClick={onAbrirPendrive}>
+                <Usb size={16} />
+                Abrir pendrive do conselho
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function formatarDataCurta(iso: string) {
+  if (!iso) return "";
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "";
+  return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function StatusConselhoTurma({ turma }: { turma: TurmaResumo }) {
+  const finalizados = Object.entries(turma.conselhos_finalizados ?? {});
+  const externos = turma.em_conselho_externo ?? [];
+  if (!finalizados.length && !externos.length) return null;
+  return (
+    <div className="conselho-status-row">
+      {finalizados.map(([bimestre, data]) => (
+        <span key={`fin-${bimestre}`} className="conselho-status feito" title={data ? `Finalizado em ${formatarDataCurta(data)}` : "Finalizado"}>
+          <CheckCircle2 size={14} />
+          {bimestre}º bim{data ? ` · ${formatarDataCurta(data)}` : ""}
+        </span>
+      ))}
+      {externos.map((bimestre) => (
+        <span key={`ext-${bimestre}`} className="conselho-status externo" title="Conselho preparado em pendrive, ainda não reintegrado">
+          <Usb size={14} />
+          {bimestre}º bim em pendrive
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type ConselhoExterno = {
+  caminho_relativo: string;
+  rotulo: string;
+  bimestre: string;
+  pasta: string;
+  criado_em: string;
+};
+
+type ResultadoPreparacaoPendrive = {
+  pasta: string;
+  turmas: number;
+  fotos: number;
+  avisos: string[];
+};
+
+type ResultadoReintegracaoPendrive = {
+  turmas: number;
+  bimestre: string;
+  backup_seguranca: string | null;
+  avisos: string[];
+};
+
+export function PendriveConselhoModal({
+  turmas,
+  bimestreInicial,
+  onFechar,
+  aoAtualizarDados,
+}: {
+  turmas: TurmaResumo[];
+  bimestreInicial: string;
+  onFechar: () => void;
+  aoAtualizarDados: () => void;
+}) {
+  const [aba, setAba] = useState<"preparar" | "reintegrar">("preparar");
+  const [bimestre, setBimestre] = useState(bimestreInicial);
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set());
+  const [pasta, setPasta] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+  const [preparacao, setPreparacao] = useState<ResultadoPreparacaoPendrive | null>(null);
+  const [reintegracao, setReintegracao] = useState<ResultadoReintegracaoPendrive | null>(null);
+  const [externos, setExternos] = useState<ConselhoExterno[]>([]);
+
+  useEffect(() => {
+    invokeApp<ConselhoExterno[]>("listar_conselhos_externos").then(setExternos).catch(() => {});
+  }, []);
+
+  function alternarTurma(caminho: string) {
+    setSelecionadas((atual) => {
+      const proxima = new Set(atual);
+      if (proxima.has(caminho)) {
+        proxima.delete(caminho);
+      } else {
+        proxima.add(caminho);
+      }
+      return proxima;
+    });
+  }
+
+  async function escolherPasta() {
+    try {
+      const escolha = await abrirDialogoArquivo({
+        directory: true,
+        title: "Escolha a pasta do pendrive",
+      });
+      if (typeof escolha === "string" && escolha) {
+        setPasta(escolha);
+      }
+    } catch {
+      setErro("Não foi possível abrir o seletor de pastas.");
+    }
+  }
+
+  async function preparar() {
+    if (ocupado) return;
+    setErro("");
+    setPreparacao(null);
+    if (!pasta) {
+      setErro("Escolha a pasta do pendrive.");
+      return;
+    }
+    if (!selecionadas.size) {
+      setErro("Escolha ao menos uma turma.");
+      return;
+    }
+    setOcupado(true);
+    try {
+      const resultado = await invokeApp<ResultadoPreparacaoPendrive>("preparar_pendrive_conselho", {
+        input: { destino: pasta, turmas: [...selecionadas], bimestre },
+      });
+      setPreparacao(resultado);
+      invokeApp<ConselhoExterno[]>("listar_conselhos_externos").then(setExternos).catch(() => {});
+      aoAtualizarDados();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function reintegrar() {
+    if (ocupado) return;
+    setErro("");
+    setReintegracao(null);
+    let escolha: unknown;
+    try {
+      escolha = await abrirDialogoArquivo({
+        directory: true,
+        title: "Escolha a pasta do pendrive de conselho",
+      });
+    } catch {
+      setErro("Não foi possível abrir o seletor de pastas.");
+      return;
+    }
+    if (typeof escolha !== "string" || !escolha) return;
+    setOcupado(true);
+    try {
+      const resultado = await invokeApp<ResultadoReintegracaoPendrive>("reintegrar_pendrive_conselho", {
+        pasta: escolha,
+      });
+      setReintegracao(resultado);
+      invokeApp<ConselhoExterno[]>("listar_conselhos_externos").then(setExternos).catch(() => {});
+      aoAtualizarDados();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function cancelarExterno(item: ConselhoExterno) {
+    if (ocupado) return;
+    const confirmado = window.confirm(
+      `Cancelar o conselho externo da turma ${item.rotulo} (${item.bimestre}º bimestre)? Os dados do pendrive não serão reintegrados.`,
+    );
+    if (!confirmado) return;
+    try {
+      const restantes = await invokeApp<ConselhoExterno[]>("cancelar_conselho_externo", {
+        caminhoRelativo: item.caminho_relativo,
+        bimestre: item.bimestre,
+      });
+      setExternos(restantes);
+      aoAtualizarDados();
+    } catch (err) {
+      setErro(String(err));
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onFechar(); }}>
+      <section className="whats-new-modal pendrive-conselho-modal" role="dialog" aria-modal="true">
+        <div className="panel-heading">
+          <div>
+            <h2 style={{ margin: 0 }}>Pendrive do conselho</h2>
+            <p style={{ margin: "0.2rem 0 0" }}>
+              Leve as turmas para um conselho fora da escola e reintegre os dados na volta.
+            </p>
+          </div>
+          <button type="button" className="ghost-action" onClick={onFechar}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="student-filter-row" style={{ marginTop: "0.6rem" }}>
+          <button className={aba === "preparar" ? "active" : ""} onClick={() => setAba("preparar")}>
+            Preparar pendrive
+          </button>
+          <button className={aba === "reintegrar" ? "active" : ""} onClick={() => setAba("reintegrar")}>
+            Reintegrar dados
+          </button>
+        </div>
+
+        {erro && <div className="data-warning">{erro}</div>}
+
+        {aba === "preparar" && (
+          <div className="pendrive-conselho-corpo">
+            <label className="pendrive-campo">
+              Bimestre do conselho
+              <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
+                {opcoesBimestre.map((opcao) => (
+                  <option key={opcao.valor} value={opcao.valor}>
+                    {opcao.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <span className="pendrive-campo-rotulo">Turmas deste conselho</span>
+            <div className="pendrive-turmas-lista">
+              {turmas.map((turma) => (
+                <label key={turma.caminho} className="pendrive-turma-item">
+                  <input
+                    type="checkbox"
+                    checked={selecionadas.has(turma.caminho)}
+                    onChange={() => alternarTurma(turma.caminho)}
+                  />
+                  <span>{rotuloTurma(turma)}</span>
+                  {(turma.em_conselho_externo ?? []).includes(bimestre) && (
+                    <em>já em pendrive</em>
+                  )}
+                </label>
+              ))}
+              {!turmas.length && <em>Nenhuma turma cadastrada.</em>}
+            </div>
+
+            <div className="pendrive-pasta-row">
+              <button type="button" onClick={escolherPasta} disabled={ocupado}>
+                Escolher pasta do pendrive…
+              </button>
+              <span className="pendrive-pasta-atual">{pasta || "Nenhuma pasta escolhida."}</span>
+            </div>
+
+            <button className="details-action" onClick={preparar} disabled={ocupado}>
+              {ocupado ? "Preparando…" : "Preparar pendrive"}
+            </button>
+
+            {preparacao && (
+              <div className="data-warning neutral">
+                <strong>Pendrive pronto.</strong> {preparacao.turmas} turma(s)
+                {preparacao.fotos > 0 ? ` e ${preparacao.fotos} foto(s)` : ""} copiadas para{" "}
+                {preparacao.pasta}. Abra o CoordenacaoOP.exe dessa pasta no computador do conselho.
+                {preparacao.avisos.map((aviso) => (
+                  <div key={aviso}>⚠ {aviso}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {aba === "reintegrar" && (
+          <div className="pendrive-conselho-corpo">
+            <p style={{ marginTop: 0 }}>
+              Escolha a pasta do pendrive onde o conselho foi feito. As turmas serão mescladas com os
+              dados desta máquina (um backup de segurança é criado antes).
+            </p>
+            <button className="details-action" onClick={reintegrar} disabled={ocupado}>
+              {ocupado ? "Reintegrando…" : "Escolher pasta e reintegrar"}
+            </button>
+
+            {reintegracao && (
+              <div className="data-warning neutral">
+                <strong>Reintegração concluída.</strong> {reintegracao.turmas} turma(s) do{" "}
+                {reintegracao.bimestre}º bimestre mescladas.
+                {reintegracao.backup_seguranca && (
+                  <div>Backup de segurança: {reintegracao.backup_seguranca}</div>
+                )}
+                {reintegracao.avisos.map((aviso) => (
+                  <div key={aviso}>⚠ {aviso}</div>
+                ))}
+              </div>
+            )}
+
+            {externos.length > 0 && (
+              <>
+                <span className="pendrive-campo-rotulo">Conselhos externos em aberto</span>
+                <div className="pendrive-turmas-lista">
+                  {externos.map((item) => (
+                    <div key={`${item.caminho_relativo}-${item.bimestre}`} className="pendrive-turma-item">
+                      <span>
+                        {item.rotulo} · {item.bimestre}º bim · desde {formatarDataCurta(item.criado_em)}
+                      </span>
+                      <button type="button" className="ghost-action" onClick={() => cancelarExterno(item)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
