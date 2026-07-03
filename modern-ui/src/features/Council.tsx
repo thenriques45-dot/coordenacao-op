@@ -318,6 +318,7 @@ export function Council({
   salvarEncaminhamentos,
   modoReuniao,
   setModoReuniao,
+  aoAtualizarDados,
 }: {
   aluno: Aluno;
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; perfil_turma_ativo?: boolean; perfil_turma_criterios?: CriterioPerfil[]; aluno_destaque_ativo?: boolean; aluno_destaque_criterios?: CriterioDestaque[] };
@@ -335,6 +336,7 @@ export function Council({
   salvarEncaminhamentos: (codigos: number[]) => Promise<void>;
   modoReuniao: boolean;
   setModoReuniao: (ativo: boolean) => void;
+  aoAtualizarDados: () => void;
 }) {
   const [disciplinaEditando, setDisciplinaEditando] = useState<string | null>(null);
   const [disciplinaHistoricoAberta, setDisciplinaHistoricoAberta] = useState<string | null>(null);
@@ -1028,6 +1030,7 @@ export function Council({
           turmaDetalhe={turmaDetalhe}
           onClose={() => setFinalizacaoAberta(false)}
           onFinished={sairModoReuniao}
+          aoFinalizado={aoAtualizarDados}
         />
       )}
 
@@ -1655,6 +1658,7 @@ function FinalizacaoConselho({
   turmaDetalhe,
   onClose,
   onFinished,
+  aoFinalizado,
 }: {
   turmaLabel: string;
   tempoSegundos: number;
@@ -1662,6 +1666,7 @@ function FinalizacaoConselho({
   turmaDetalhe: TurmaDetalhe | null;
   onClose: () => void;
   onFinished: () => void;
+  aoFinalizado: () => void;
 }) {
   const [textoAta, setTextoAta] = useState(
     turmaDetalhe?.texto_ata || `Conselho de classe - ${turmaLabel}`,
@@ -1690,7 +1695,10 @@ function FinalizacaoConselho({
         gerar_relatorio: gerarRelatorio,
       },
     })
-      .then((retorno) => setResultado(retorno))
+      .then((retorno) => {
+        setResultado(retorno);
+        aoFinalizado();
+      })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
       .finally(() => setSalvando(false));
   }

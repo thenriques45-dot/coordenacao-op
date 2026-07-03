@@ -822,7 +822,12 @@ export function App() {
   }, []);
 
   function recarregarDadosTurmas() {
-    invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+    invokeApp<TurmaResumo[]>("listar_turmas")
+      .then((resultado) => {
+        setTurmas(resultado);
+        setTurmaSelecionada((atual) => atual ? resultado.find((item) => item.caminho === atual.caminho) ?? atual : atual);
+      })
+      .catch(() => {});
     setTurmaRefreshKey((atual) => atual + 1);
   }
 
@@ -1223,6 +1228,7 @@ export function App() {
             salvarEncaminhamentos={salvarEncaminhamentos}
             modoReuniao={modoReuniao}
             setModoReuniao={setModoReuniao}
+            aoAtualizarDados={recarregarDadosTurmas}
           />
         )}
         {tela === "turmas" && (

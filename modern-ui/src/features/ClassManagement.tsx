@@ -429,6 +429,12 @@ export function GestaoTurma({
     }
   }, [nomeAlunoInicial, alunos]);
 
+  // A ficha aberta sempre reflete a versão mais recente vinda do App;
+  // alunoAberto é apenas o marcador de qual aluno está aberto.
+  const alunoAbertoAtual = alunoAberto
+    ? alunos.find((item) => item.matricula && item.matricula === alunoAberto.matricula) ?? alunoAberto
+    : null;
+
   const alunosAtivos = useMemo(() => alunos.filter((aluno) => aluno.ativo !== false), [alunos]);
   const totalInativos = alunos.length - alunosAtivos.length;
   const alunosVisiveis = mostrarInativos ? alunos : alunosAtivos;
@@ -545,7 +551,7 @@ export function GestaoTurma({
     onSalvarLideranca(matricula, proxima).finally(() => setSalvandoLideranca(null));
   }
 
-  if (alunoAberto) {
+  if (alunoAbertoAtual) {
     return (
       <>
         <button className="back-link" onClick={onVoltar}>← Voltar para Turmas</button>
@@ -558,7 +564,7 @@ export function GestaoTurma({
         </section>
 
         <AlunoDetalheGestao
-          aluno={alunoAberto}
+          aluno={alunoAbertoAtual}
           bimestre={turmaDetalhe?.bimestre ?? "1"}
           turmaLabel={turma ? rotuloTurma(turma) : undefined}
           onVoltar={() => setAlunoAberto(null)}
