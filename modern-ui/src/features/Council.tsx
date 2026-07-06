@@ -77,6 +77,7 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  deliberado: boolean;
   diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
 };
@@ -316,6 +317,7 @@ export function Council({
   selecionarAluno,
   salvarAjustesMedia,
   salvarEncaminhamentos,
+  salvarAlunoDeliberado,
   modoReuniao,
   setModoReuniao,
   aoAtualizarDados,
@@ -334,6 +336,7 @@ export function Council({
   selecionarAluno: (indice: number) => void;
   salvarAjustesMedia: (ajustes: AjusteMediaPayload[]) => Promise<void>;
   salvarEncaminhamentos: (codigos: number[]) => Promise<void>;
+  salvarAlunoDeliberado: (matricula: string, deliberado: boolean) => Promise<void>;
   modoReuniao: boolean;
   setModoReuniao: (ativo: boolean) => void;
   aoAtualizarDados: () => void;
@@ -349,7 +352,6 @@ export function Council({
   const [documentosConselho, setDocumentosConselho] = useState<DocumentoConselho[]>([]);
   const [documentoAbrindo, setDocumentoAbrindo] = useState<string | null>(null);
   const [mensagemDocumento, setMensagemDocumento] = useState("");
-  const [alunosDeliberados, setAlunosDeliberados] = useState<Set<string>>(() => new Set());
   const [filtroAlunos, setFiltroAlunos] = useState<"todos" | "critico" | "atencao">("todos");
   const [inicioReuniao, setInicioReuniao] = useState<number | null>(null);
   const [tempoBaseReuniao, setTempoBaseReuniao] = useState(0);
@@ -384,8 +386,11 @@ export function Council({
     setTempoBaseReuniao(acumulado);
     setTempoReuniao(acumulado);
     setInicioReuniao(null);
-    setFinalizacaoAberta(false);
   }, [turmaDetalhe?.bimestre, turmaDetalhe?.tempo_conselho_segundos]);
+
+  useEffect(() => {
+    setFinalizacaoAberta(false);
+  }, [turmaSelecionada?.caminho, turmaDetalhe?.bimestre]);
 
   useEffect(() => {
     if (!modoReuniao || inicioReuniao === null) {
@@ -578,8 +583,10 @@ export function Council({
   }
 
   function marcarAlunoDeliberado(item: Aluno) {
-    const chave = item.matricula ?? item.nome;
-    setAlunosDeliberados((atuais) => new Set(atuais).add(chave));
+    if (!item.matricula || item.deliberado) {
+      return;
+    }
+    salvarAlunoDeliberado(item.matricula, true).catch(() => {});
   }
 
   return (
@@ -719,7 +726,7 @@ export function Council({
               return (
                 <button
                   className={`student-list-item ${!visaoPerfil && indice === indiceAluno ? "active" : ""} ${
-                    alunosDeliberados.has(item.matricula ?? item.nome) ? "deliberated" : ""
+                    item.deliberado ? "deliberated" : ""
                   }`}
                   key={item.matricula ?? `${item.nome}-${indice}`}
                   onClick={() => { setVisaoPerfil(false); selecionarAluno(indice); }}

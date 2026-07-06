@@ -72,6 +72,7 @@ pub(crate) struct ConfiguracoesApp {
     pub(crate) perfil_turma_criterios: Vec<CriterioPerfil>,
     pub(crate) aluno_destaque_ativo: bool,
     pub(crate) aluno_destaque_criterios: Vec<CriterioDestaque>,
+    pub(crate) modo_notas_ata: String,
 }
 
 #[derive(Deserialize)]
@@ -93,6 +94,8 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) aluno_destaque_ativo: bool,
     #[serde(default)]
     pub(crate) aluno_destaque_criterios: Vec<CriterioDestaque>,
+    #[serde(default = "modo_notas_ata_padrao")]
+    pub(crate) modo_notas_ata: String,
 }
 
 #[derive(Deserialize)]
@@ -337,6 +340,7 @@ pub(crate) struct AlunoDetalhe {
     pub(crate) comentario_educacao_especial: Option<String>,
     pub(crate) frequencia_percentual: Option<f64>,
     pub(crate) encaminhamentos: Vec<i64>,
+    pub(crate) deliberado: bool,
     pub(crate) atendimentos: Vec<AtendimentoAluno>,
     pub(crate) diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     pub(crate) disciplinas: Vec<DisciplinaDetalhe>,
@@ -413,6 +417,14 @@ pub(crate) struct FinalizacaoConselhoInput {
     pub(crate) tempo_segundos: i64,
     pub(crate) gerar_ata: bool,
     pub(crate) gerar_relatorio: bool,
+}
+
+pub(crate) fn modo_notas_ata_padrao() -> String {
+    "x_vermelhas".to_string()
+}
+
+pub(crate) fn modo_notas_ata_valido(valor: &str) -> bool {
+    matches!(valor, "x_vermelhas" | "todas" | "somente_vermelhas")
 }
 
 #[derive(Deserialize)]

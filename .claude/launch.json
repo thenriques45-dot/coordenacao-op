@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "modern-ui-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "modern-ui", "run", "dev"],
+      "port": 1420
+    }
+  ]
+}

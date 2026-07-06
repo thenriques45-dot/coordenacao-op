@@ -159,6 +159,7 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  deliberado: boolean;
   atendimentos?: AtendimentoAlunoApi[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagemApi | null;
   disciplinas: Disciplina[];
@@ -222,6 +223,7 @@ type AlunoApi = {
   comentario_educacao_especial: string | null;
   frequencia_percentual: number | null;
   encaminhamentos: number[];
+  deliberado: boolean;
   atendimentos: AtendimentoAlunoApi[];
   diagnostico_aprendizagem: DiagnosticoAprendizagemApi | null;
   disciplinas: DisciplinaApi[];
@@ -536,6 +538,7 @@ const alunosDemo: Aluno[] = [
     comentarioEducacaoEspecial: "",
     frequencia: 86,
     encaminhamentos: [3, 9],
+    deliberado: false,
     disciplinas: [
       { nome: "Lingua Portuguesa", mediaOriginal: 4.5, mediaConselho: 5.0, faltas: 3, situacao: "ajustada" },
       { nome: "Matematica", mediaOriginal: 4.0, mediaConselho: null, faltas: 12, situacao: "abaixo" },
@@ -552,6 +555,7 @@ const alunosDemo: Aluno[] = [
     comentarioEducacaoEspecial: "",
     frequencia: 92,
     encaminhamentos: [5],
+    deliberado: false,
     disciplinas: [
       { nome: "Lingua Portuguesa", mediaOriginal: 6.5, mediaConselho: null, faltas: 2, situacao: "adequada" },
       { nome: "Matematica", mediaOriginal: 5.5, mediaConselho: null, faltas: 3, situacao: "adequada" },
@@ -614,6 +618,7 @@ export function App() {
       comentarioEducacaoEspecial: aluno.comentario_educacao_especial,
       frequencia: aluno.frequencia_percentual,
       encaminhamentos: aluno.encaminhamentos,
+      deliberado: aluno.deliberado,
       atendimentos: aluno.atendimentos ?? [],
       diagnosticoAprendizagem: aluno.diagnostico_aprendizagem,
       disciplinas: aluno.disciplinas.map((disciplina) => ({
@@ -926,6 +931,21 @@ export function App() {
     });
   }
 
+  function salvarAlunoDeliberado(matricula: string, deliberado: boolean) {
+    if (!turmaSelecionada || !turmaDetalhe) {
+      return Promise.reject(new Error("Selecione uma turma antes de marcar o aluno."));
+    }
+
+    return invokeApp<TurmaDetalhe>("salvar_aluno_deliberado", {
+      caminho: turmaSelecionada.caminho,
+      matricula,
+      bimestre: turmaDetalhe.bimestre,
+      deliberado,
+    }).then((detalheAtualizado) => {
+      setTurmaDetalhe(detalheAtualizado);
+    });
+  }
+
   function salvarCoordenadorTurma(coordenador: string) {
     if (!turmaSelecionada) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar o coordenador."));
@@ -1226,6 +1246,7 @@ export function App() {
             selecionarAluno={selecionarAluno}
             salvarAjustesMedia={salvarAjustesMedia}
             salvarEncaminhamentos={salvarEncaminhamentos}
+            salvarAlunoDeliberado={salvarAlunoDeliberado}
             modoReuniao={modoReuniao}
             setModoReuniao={setModoReuniao}
             aoAtualizarDados={recarregarDadosTurmas}

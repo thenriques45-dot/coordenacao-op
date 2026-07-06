@@ -353,6 +353,7 @@ pub(crate) fn escrever_ata_docx(
     texto_ata: &str,
     config: &ConfiguracoesApp,
 ) -> Result<(), String> {
+    let modo_notas = config.modo_notas_ata.as_str();
     let titulo = montar_titulo_ata(dados, bimestre);
     let disciplinas = levantar_disciplinas_ata(dados);
     let alunos = preparar_alunos_ata(dados, bimestre, &disciplinas);
@@ -514,12 +515,25 @@ pub(crate) fn escrever_ata_docx(
                 .fundo_opcional(cor_linha),
         ];
         linha.extend(disciplinas.iter().map(|disciplina| {
-            let texto = if aluno.defasagens.contains(disciplina) {
-                "X"
-            } else {
-                ""
+            let em_defasagem = aluno.defasagens.contains(disciplina);
+            let texto = match modo_notas {
+                "todas" => aluno
+                    .notas
+                    .get(disciplina)
+                    .map(|nota| formatar_media_docx(Some(*nota)))
+                    .unwrap_or_default(),
+                "somente_vermelhas" => if em_defasagem {
+                    aluno
+                        .notas
+                        .get(disciplina)
+                        .map(|nota| formatar_media_docx(Some(*nota)))
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                },
+                _ => if em_defasagem { "X".to_string() } else { String::new() },
             };
-            CelulaDocx::texto(texto)
+            CelulaDocx::texto(&texto)
                 .centralizada()
                 .fundo_opcional(cor_linha)
         }));
@@ -1311,6 +1325,7 @@ pub(crate) struct AlunoAta {
     pub(crate) nome: String,
     pub(crate) status: String,
     pub(crate) defasagens: BTreeSet<String>,
+    pub(crate) notas: BTreeMap<String, f64>,
     pub(crate) frequencia_percentual: String,
     pub(crate) encaminhamento: String,
     pub(crate) linha_amarela: bool,
@@ -1358,6 +1373,7 @@ pub(crate) fn preparar_alunos_ata(dados: &Value, bimestre: &str, _disciplinas: &
         }
 
         let mut defasagens = BTreeSet::new();
+        let mut notas = BTreeMap::new();
         for disciplina in disciplinas {
             let media_mapao = medias
                 .and_then(|mapa| mapa.get(&disciplina))
@@ -1368,8 +1384,11 @@ pub(crate) fn preparar_alunos_ata(dados: &Value, bimestre: &str, _disciplinas: &
                 .and_then(|ajuste| ajuste.get("media_ajustada"))
                 .and_then(valor_para_f64);
             let media_vigente = media_ajustada.or(media_mapao);
-            if media_vigente.is_some_and(|media| media < nota_minima) {
-                defasagens.insert(disciplina);
+            if let Some(media) = media_vigente {
+                notas.insert(disciplina.clone(), media);
+                if media < nota_minima {
+                    defasagens.insert(disciplina);
+                }
             }
         }
 
@@ -1396,6 +1415,7 @@ pub(crate) fn preparar_alunos_ata(dados: &Value, bimestre: &str, _disciplinas: &
                 .to_string(),
             status,
             defasagens,
+            notas,
             frequencia_percentual,
             encaminhamento,
             linha_amarela: matches!(status_raw, "NCOM" | "RM" | "TR"),

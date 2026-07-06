@@ -472,8 +472,8 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
     }
 
     // Campos de conselho e encaminhamentos: local sempre vence (edições intencionais)
-    // ajustes_medias_conselho, encaminhamentos, lideranca_sala, deficiencias,
-    // comentario_educacao_especial — não tocamos
+    // ajustes_medias_conselho, encaminhamentos_conselho, deliberados_conselho,
+    // lideranca_sala, deficiencias, comentario_educacao_especial — não tocamos
 }
 
 pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {

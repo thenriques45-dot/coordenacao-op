@@ -58,6 +58,9 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
     if pronome != "F" && pronome != "M" {
         return Err("Selecione o pronome da direcao.".to_string());
     }
+    if !modo_notas_ata_valido(&input.modo_notas_ata) {
+        return Err("Selecione uma opção válida para exibição de notas na ata.".to_string());
+    }
 
     let lider_rotulo = {
         let r = input.lider_rotulo.trim();
@@ -93,6 +96,7 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         },
         aluno_destaque_ativo: input.aluno_destaque_ativo,
         aluno_destaque_criterios: input.aluno_destaque_criterios,
+        modo_notas_ata: input.modo_notas_ata,
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
@@ -258,6 +262,12 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .get("aluno_destaque_criterios")
             .and_then(|v| serde_json::from_value(v.clone()).ok())
             .unwrap_or_default(),
+        modo_notas_ata: dados
+            .get("modo_notas_ata")
+            .and_then(Value::as_str)
+            .filter(|valor| modo_notas_ata_valido(valor))
+            .map(str::to_string)
+            .unwrap_or_else(modo_notas_ata_padrao),
     }
 }
 
@@ -320,6 +330,7 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "perfil_turma_criterios": serde_json::to_value(&config.perfil_turma_criterios).unwrap_or_default(),
         "aluno_destaque_ativo": config.aluno_destaque_ativo,
         "aluno_destaque_criterios": serde_json::to_value(&config.aluno_destaque_criterios).unwrap_or_default(),
+        "modo_notas_ata": config.modo_notas_ata,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())

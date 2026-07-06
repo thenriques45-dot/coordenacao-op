@@ -304,6 +304,28 @@ pub(crate) fn salvar_encaminhamentos(
 }
 
 #[tauri::command]
+pub(crate) fn salvar_aluno_deliberado(
+    caminho: String,
+    matricula: String,
+    bimestre: String,
+    deliberado: bool,
+) -> Result<TurmaDetalhe, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+
+    aplicar_aluno_deliberado(&mut dados, &matricula, &bimestre, deliberado)?;
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+#[tauri::command]
 pub(crate) fn salvar_tempo_conselho(
     caminho: String,
     bimestre: String,
@@ -975,6 +997,36 @@ pub(crate) fn aplicar_encaminhamentos(
     Ok(())
 }
 
+pub(crate) fn aplicar_aluno_deliberado(
+    dados: &mut Value,
+    matricula: &str,
+    bimestre: &str,
+    deliberado: bool,
+) -> Result<(), String> {
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula))
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+    let Some(aluno_obj) = aluno.as_object_mut() else {
+        return Err("Registro do aluno esta invalido.".to_string());
+    };
+
+    let por_bimestre = aluno_obj
+        .entry("deliberados_conselho")
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(por_bimestre) = por_bimestre.as_object_mut() else {
+        return Err("Campo deliberados_conselho esta invalido.".to_string());
+    };
+
+    if deliberado {
+        por_bimestre.insert(bimestre.to_string(), Value::Bool(true));
+    } else {
+        por_bimestre.remove(bimestre);
+    }
+    Ok(())
+}
+
 pub(crate) fn aplicar_ajustes_media(
     dados: &mut Value,
     matricula: &str,
@@ -1444,6 +1496,7 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
             comentario_educacao_especial,
             frequencia_percentual,
             encaminhamentos: extrair_encaminhamentos(&info, &bimestre),
+            deliberado: extrair_aluno_deliberado(&info, &bimestre),
             atendimentos: extrair_atendimentos_aluno(&info),
             diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
@@ -1531,6 +1584,14 @@ pub(crate) fn extrair_encaminhamentos(info: &Value, bimestre: &str) -> Vec<i64> 
     codigos.sort_unstable();
     codigos.dedup();
     codigos
+}
+
+pub(crate) fn extrair_aluno_deliberado(info: &Value, bimestre: &str) -> bool {
+    info.get("deliberados_conselho")
+        .and_then(Value::as_object)
+        .and_then(|por_bimestre| por_bimestre.get(bimestre))
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 pub(crate) fn extrair_diagnostico_aprendizagem(info: &Value) -> Option<DiagnosticoAprendizagem> {

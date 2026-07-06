@@ -146,6 +146,7 @@ fn main() {
             turmas::carregar_turma,
             turmas::salvar_ajustes_media,
             turmas::salvar_encaminhamentos,
+            turmas::salvar_aluno_deliberado,
             turmas::salvar_tempo_conselho,
             turmas::salvar_coordenador_turma,
             turmas::salvar_elegibilidade_aluno,
@@ -256,6 +257,43 @@ mod tests {
 
         assert!(conselho_foi_finalizado(&resultado["conselhos"]["1"]));
         assert_eq!(resultado["textos_ata"]["1"]["corpo"], json!("ata final"));
+    }
+
+    // Reintegração de pendrive chama mesclar_arquivo_turma(&valor_pendrive,
+    // &valor_local): o pendrive entra como "local" do merge, então marcações
+    // feitas durante o conselho fora da escola (encaminhamentos, aluno já
+    // deliberado) precisam sobreviver à volta, mesmo que a máquina de origem
+    // tenha dados antigos/diferentes para esses campos.
+    #[test]
+    fn merge_de_turma_traz_encaminhamentos_e_deliberado_do_pendrive() {
+        let valor_pendrive = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "encaminhamentos_conselho": {"1": [3, 9]},
+                    "deliberados_conselho": {"1": true}
+                }
+            }
+        });
+        let valor_local = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "encaminhamentos_conselho": {},
+                    "deliberados_conselho": {}
+                }
+            }
+        });
+
+        let resultado = mesclar_arquivo_turma(&valor_pendrive, &valor_local);
+
+        assert_eq!(
+            resultado["alunos"]["123"]["encaminhamentos_conselho"]["1"],
+            json!([3, 9])
+        );
+        assert_eq!(resultado["alunos"]["123"]["deliberados_conselho"]["1"], json!(true));
     }
     use serde_json::json;
     use std::io::Read;
@@ -385,6 +423,31 @@ mod tests {
     }
 
     #[test]
+    fn aluno_deliberado_marca_e_desmarca_por_bimestre() {
+        let mut dados = json!({
+            "codigo": "2A",
+            "ano": 2026,
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE"
+                }
+            }
+        });
+
+        aplicar_aluno_deliberado(&mut dados, "123", "1", true).unwrap();
+        assert_eq!(dados["alunos"]["123"]["deliberados_conselho"]["1"], json!(true));
+        assert!(extrair_aluno_deliberado(&dados["alunos"]["123"], "1"));
+        assert!(!extrair_aluno_deliberado(&dados["alunos"]["123"], "2"));
+
+        aplicar_aluno_deliberado(&mut dados, "123", "1", false).unwrap();
+        assert!(dados["alunos"]["123"]["deliberados_conselho"]
+            .as_object()
+            .unwrap()
+            .is_empty());
+        assert!(!extrair_aluno_deliberado(&dados["alunos"]["123"], "1"));
+    }
+
+    #[test]
     fn salvar_finalizacao_guarda_texto_ata_e_tempo() {
         let mut dados = json!({
             "codigo": "2A",
@@ -482,6 +545,7 @@ mod tests {
             perfil_turma_criterios: vec![],
             aluno_destaque_ativo: false,
             aluno_destaque_criterios: vec![],
+            modo_notas_ata: modo_notas_ata_padrao(),
         };
         escrever_ata_docx(&ata, &dados, "1", "Texto base da ata", &config_teste).unwrap();
         escrever_relatorio_professores_docx(&relatorio, &dados, "1").unwrap();

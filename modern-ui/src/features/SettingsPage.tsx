@@ -55,7 +55,16 @@ type ConfiguracoesApp = {
   perfil_turma_criterios: CriterioPerfil[];
   aluno_destaque_ativo: boolean;
   aluno_destaque_criterios: CriterioDestaque[];
+  modo_notas_ata: ModoNotasAta;
 };
+
+type ModoNotasAta = "x_vermelhas" | "todas" | "somente_vermelhas";
+
+const opcoesModoNotasAta: { valor: ModoNotasAta; rotulo: string }[] = [
+  { valor: "x_vermelhas", rotulo: "Mostrar X nas notas vermelhas" },
+  { valor: "todas", rotulo: "Mostrar todas as notas" },
+  { valor: "somente_vermelhas", rotulo: "Mostrar apenas notas vermelhas" },
+];
 
 type BackupResultado = {
   caminho: string | null;
@@ -143,6 +152,7 @@ export function Configuracoes({
     perfil_turma_criterios: [],
     aluno_destaque_ativo: false,
     aluno_destaque_criterios: [],
+    modo_notas_ata: "x_vermelhas",
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -892,6 +902,27 @@ export function Configuracoes({
               </button>
             </>
           )}
+
+          <hr style={{ margin: "1.25rem 0", borderColor: "var(--border)" }} />
+
+          <h3 style={{ marginBottom: "0.5rem" }}>Notas na ATA</h3>
+          <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+            Escolha como as notas de cada disciplina aparecem na ATA do conselho.
+          </p>
+          <div className="ata-notas-options">
+            {opcoesModoNotasAta.map((opcao) => (
+              <label key={opcao.valor} className="settings-check-row">
+                <input
+                  type="radio"
+                  name="modo-notas-ata"
+                  value={opcao.valor}
+                  checked={config.modo_notas_ata === opcao.valor}
+                  onChange={() => setConfig((a) => ({ ...a, modo_notas_ata: opcao.valor }))}
+                />
+                {opcao.rotulo}
+              </label>
+            ))}
+          </div>
 
           <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1.25rem" }}>
             Salvar configurações
