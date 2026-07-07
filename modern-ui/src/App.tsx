@@ -293,6 +293,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.17.0": [
+    "Planejamento dos Professores: cada segmento (Anos Finais e Ensino Médio) agora usa uma única planilha de respostas cobrindo o ano letivo inteiro (1º ao 4º bimestre), em vez de uma planilha por semestre — configuração mais simples do Forms.",
+    "Novos prazos de entrega por semestre na tela de Planejamento: defina a data de corte do 1º e do 2º semestre e a bolinha de cada turma passa a indicar entrega completa (verde), parcial (amarelo) ou nenhuma (vermelho), comparando com as disciplinas do mapão.",
+    "Corrigida a leitura da planilha do Forms quando Turma, Componente, Série/Ano ou Bimestre aparecem em colunas repetidas (um ramo do formulário por resposta anterior) — o app agora usa sempre a primeira coluna preenchida.",
+    "Renomeado 'Fundamental' para 'Anos Finais' no script e na tela de Planejamento, alinhado à nomenclatura oficial.",
+  ],
   "2.16.0": [
     "Novo 'Pendrive do conselho': prepare um pendrive com as turmas do conselho — o app copia a si mesmo e os dados necessários (notas, fotos e configurações). Faça o conselho em qualquer computador e reintegre tudo na volta.",
     "Reintegração com um clique: ao abrir o app com o pendrive plugado, ele detecta o conselho feito e oferece a reintegração, criando um backup de segurança antes de mesclar.",

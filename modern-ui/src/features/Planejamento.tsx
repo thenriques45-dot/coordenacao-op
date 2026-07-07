@@ -30,14 +30,26 @@ type TurmaResumo = {
   caminho: string;
 };
 
-type ParPlanejamento = { sem1: string; sem2: string };
-type ConfigPlanejamento = { fundamental: ParPlanejamento; medio: ParPlanejamento; versao: string };
+type ConfigPlanejamento = {
+  anos_finais: string;
+  medio: string;
+  versao: string;
+  prazo_1_semestre: string;
+  prazo_2_semestre: string;
+};
 
 const CONFIG_PADRAO: ConfigPlanejamento = {
-  fundamental: { sem1: "", sem2: "" },
-  medio: { sem1: "", sem2: "" },
+  anos_finais: "",
+  medio: "",
   versao: "",
+  prazo_1_semestre: "",
+  prazo_2_semestre: "",
 };
+
+const SEGMENTOS: { chave: "anos_finais" | "medio"; rotulo: string }[] = [
+  { chave: "anos_finais", rotulo: "Anos Finais (6º ao 9º ano)" },
+  { chave: "medio", rotulo: "Ensino Médio" },
+];
 
 const PLANEJAMENTO_ULTIMA_BUSCA_KEY = "coordenacaoop:planejamento-ultima-busca";
 const PLANEJAMENTO_REGISTROS_KEY = "coordenacaoop:planejamento-registros-cache";
@@ -60,7 +72,20 @@ function carregarRegistrosCache(): RegistroPlanejamento[] {
 }
 
 function urlsDaConfig(c: ConfigPlanejamento): string[] {
-  return [c.fundamental.sem1, c.fundamental.sem2, c.medio.sem1, c.medio.sem2].map((u) => u.trim()).filter(Boolean);
+  return [c.anos_finais, c.medio].map((u) => u.trim()).filter(Boolean);
+}
+
+// Semestre que a bolinha de status das turmas está acompanhando: até o
+// prazo do 1º semestre (inclusive), avalia os bimestres 1 e 2; depois,
+// passa a avaliar os bimestres 3 e 4. Sem prazo configurado, não há como
+// saber qual semestre olhar — retorna null e a bolinha usa o indicador
+// simples (recebeu algo ou não).
+function semestreAtivo(c: ConfigPlanejamento): { bimestres: string[] } | null {
+  const prazo1 = c.prazo_1_semestre.trim();
+  if (!prazo1) return null;
+  const dataPrazo1 = new Date(`${prazo1}T23:59:59`);
+  if (Number.isNaN(dataPrazo1.getTime())) return null;
+  return new Date() > dataPrazo1 ? { bimestres: ["3", "4"] } : { bimestres: ["1", "2"] };
 }
 
 const passoStyle: React.CSSProperties = { display: "flex", gap: "0.9rem", marginBottom: "1rem", alignItems: "flex-start" };
@@ -90,7 +115,7 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
   useEffect(() => {
     invokeApp<ConfigPlanejamento>("carregar_config_planejamento")
       .then((c) => {
-        const cfg = { ...CONFIG_PADRAO, ...c, fundamental: { ...CONFIG_PADRAO.fundamental, ...c.fundamental }, medio: { ...CONFIG_PADRAO.medio, ...c.medio } };
+        const cfg = { ...CONFIG_PADRAO, ...c };
         setConfig(cfg);
         setConfigAberta(urlsDaConfig(cfg).length === 0);
       })
@@ -114,6 +139,27 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
       .catch(() => setDisciplinasMapao((m) => ({ ...m, [turmaSelecionada.caminho]: [] })));
   }, [turmaSelecionada, disciplinasMapao]);
 
+  // Carrega disciplinas do mapão de todas as turmas (com cache por caminho) —
+  // necessário para a bolinha de status calcular completo/parcial de cada turma.
+  useEffect(() => {
+    const faltantes = turmas.filter((t) => !disciplinasMapao[t.caminho]);
+    if (faltantes.length === 0) return;
+    Promise.all(
+      faltantes.map((t) =>
+        invokeApp<string[]>("listar_disciplinas_turma", { caminho: t.caminho })
+          .then((ds) => [t.caminho, ds] as const)
+          .catch(() => [t.caminho, [] as string[]] as const)
+      )
+    ).then((resultados) => {
+      setDisciplinasMapao((m) => {
+        const novo = { ...m };
+        for (const [caminho, ds] of resultados) novo[caminho] = ds;
+        return novo;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turmas]);
+
   // Índice: turma-norm -> contagem de planejamentos (para o indicador da lista).
   const planosPorTurma = useMemo(() => {
     const mapa = new Map<string, number>();
@@ -123,6 +169,38 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
     }
     return mapa;
   }, [registros]);
+
+  // Status de entrega por turma no semestre ativo (definido pelos prazos
+  // configurados): completa a comparação com as disciplinas do mapão, igual
+  // ao relatório de Pendências — "adequado" (tudo entregue), "atencao"
+  // (parcial) ou "critico" (nada entregue). Sem prazo configurado, fica vazio
+  // e a lista cai no indicador simples (recebeu algo ou não).
+  const statusEntregaPorTurma = useMemo(() => {
+    const mapa = new Map<string, "adequado" | "atencao" | "critico">();
+    const ativo = semestreAtivo(config);
+    if (!ativo) return mapa;
+    const indice = new Set<string>();
+    for (const r of registros) {
+      indice.add(`${normalizarTurma(r.turma)}|${normalizarDisciplina(r.disciplina)}|${r.bimestre}`);
+    }
+    for (const turma of turmas) {
+      const disciplinas = Array.from(
+        new Set((disciplinasMapao[turma.caminho] ?? []).map(normalizarDisciplina).filter(Boolean))
+      );
+      if (disciplinas.length === 0) continue;
+      const tn = normalizarTurma(turma.codigo);
+      let esperado = 0;
+      let encontrado = 0;
+      for (const d of disciplinas) {
+        for (const b of ativo.bimestres) {
+          esperado++;
+          if (indice.has(`${tn}|${d}|${b}`)) encontrado++;
+        }
+      }
+      mapa.set(tn, encontrado === 0 ? "critico" : encontrado >= esperado ? "adequado" : "atencao");
+    }
+    return mapa;
+  }, [config, turmas, disciplinasMapao, registros]);
 
   // Registros da turma selecionada, indexados por disciplina|bimestre.
   const registrosDaTurma = useMemo(() => {
@@ -152,8 +230,11 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
     return n;
   }, [turmas, planosPorTurma]);
 
-  function atualizarUrl(seg: "fundamental" | "medio", sem: "sem1" | "sem2", valor: string) {
-    setConfig((c) => ({ ...c, [seg]: { ...c[seg], [sem]: valor } }));
+  function atualizarUrl(seg: "anos_finais" | "medio", valor: string) {
+    setConfig((c) => ({ ...c, [seg]: valor }));
+  }
+  function atualizarPrazo(campo: "prazo_1_semestre" | "prazo_2_semestre", valor: string) {
+    setConfig((c) => ({ ...c, [campo]: valor }));
   }
   function salvarConfig(): Promise<void> {
     return invokeApp("salvar_config_planejamento", { config }).then(() => {});
@@ -254,11 +335,12 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
     }
   }
 
-  async function copiarScript(seg: "fundamental" | "medio") {
+  async function copiarScript(seg: "anos_finais" | "medio") {
     try {
       const txt = await invokeApp<string>("obter_script_planejamento", { segmento: seg });
       await navigator.clipboard.writeText(txt);
-      setStatusScript(`Script do ${seg === "fundamental" ? "Fundamental" : "Médio"} copiado. Cole no editor em script.google.com e execute.`);
+      const rotulo = SEGMENTOS.find((s) => s.chave === seg)?.rotulo ?? seg;
+      setStatusScript(`Script de ${rotulo} copiado. Cole no editor em script.google.com e execute.`);
     } catch (err) {
       setStatusScript(`Não foi possível copiar: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -305,7 +387,7 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
 
             <p style={{ marginBottom: "1rem" }}>
               Os planejamentos são coletados por um formulário Google Forms padronizado (gerado por um script).
-              Preencha abaixo apenas os segmentos e semestres que sua escola utiliza.
+              Preencha abaixo apenas os segmentos que sua escola utiliza.
             </p>
 
             <div style={passoStyle}>
@@ -317,8 +399,11 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
                   Copie o do segmento desejado:
                 </p>
                 <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => copiarScript("fundamental")}><ClipboardCopy size={14} /> Copiar script · Fundamental</button>
-                  <button type="button" onClick={() => copiarScript("medio")}><ClipboardCopy size={14} /> Copiar script · Médio</button>
+                  {SEGMENTOS.map((s) => (
+                    <button key={s.chave} type="button" onClick={() => copiarScript(s.chave)}>
+                      <ClipboardCopy size={14} /> Copiar script · {s.rotulo}
+                    </button>
+                  ))}
                 </div>
                 {statusScript && <p style={{ ...textoPassoStyle, color: "var(--accent)", marginTop: "0.45rem" }}>{statusScript}</p>}
               </div>
@@ -331,7 +416,7 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
                 <ol style={textoPassoStyle}>
                   <li>Acesse <em>script.google.com</em> e crie um novo projeto.</li>
                   <li>Apague o conteúdo padrão e <em>cole</em> o script copiado.</li>
-                  <li>Clique em <em>Executar</em> (▶) na função <code>criarFormulario</code> e autorize as permissões.</li>
+                  <li>Clique em <em>Executar</em> (▶) — o editor já seleciona a única função do script — e autorize as permissões.</li>
                   <li>O link do formulário aparece no <em>Registro de execução</em> (Ctrl+Enter).</li>
                 </ol>
               </div>
@@ -353,16 +438,48 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
               <div style={numStyle}>4</div>
               <div style={{ flex: 1 }}>
                 <strong>Links das planilhas de respostas</strong>
-                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr", gap: "0.5rem", marginTop: "0.6rem", alignItems: "center" }}>
-                  <span />
-                  <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)", fontWeight: 600 }}>1º Semestre (1º/2º bim)</span>
-                  <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)", fontWeight: 600 }}>2º Semestre (3º/4º bim)</span>
-                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Fundamental</span>
-                  <input type="url" placeholder="https://docs.google.com/..." value={config.fundamental.sem1} onChange={(e) => atualizarUrl("fundamental", "sem1", e.target.value)} />
-                  <input type="url" placeholder="https://docs.google.com/..." value={config.fundamental.sem2} onChange={(e) => atualizarUrl("fundamental", "sem2", e.target.value)} />
-                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Ensino Médio</span>
-                  <input type="url" placeholder="https://docs.google.com/..." value={config.medio.sem1} onChange={(e) => atualizarUrl("medio", "sem1", e.target.value)} />
-                  <input type="url" placeholder="https://docs.google.com/..." value={config.medio.sem2} onChange={(e) => atualizarUrl("medio", "sem2", e.target.value)} />
+                <p style={textoPassoStyle}>
+                  Cada Forms já cobre o ano letivo inteiro (1º ao 4º bimestre) — uma planilha por segmento.
+                  Preencha só os segmentos que sua escola utiliza.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "0.5rem", marginTop: "0.6rem", alignItems: "center" }}>
+                  {SEGMENTOS.map((s) => (
+                    <React.Fragment key={s.chave}>
+                      <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>{s.rotulo}</span>
+                      <input
+                        type="url"
+                        placeholder="https://docs.google.com/..."
+                        value={config[s.chave]}
+                        onChange={(e) => atualizarUrl(s.chave, e.target.value)}
+                      />
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ ...passoStyle, marginBottom: "1rem" }}>
+              <div style={numStyle}>5</div>
+              <div style={{ flex: 1 }}>
+                <strong>Prazos de entrega por semestre</strong>
+                <p style={textoPassoStyle}>
+                  Define qual semestre a bolinha de status das turmas está acompanhando. Até o prazo do 1º semestre,
+                  ela mostra a entrega do 1º e 2º bimestres; depois, passa a mostrar a do 3º e 4º.
+                  Verde = todas as disciplinas do mapão entregaram os dois bimestres do semestre; amarelo = entrega parcial; vermelho = nada entregue ainda.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: "0.5rem", marginTop: "0.6rem", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>1º semestre (1º e 2º bim.)</span>
+                  <input
+                    type="date"
+                    value={config.prazo_1_semestre}
+                    onChange={(e) => atualizarPrazo("prazo_1_semestre", e.target.value)}
+                  />
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>2º semestre (3º e 4º bim.)</span>
+                  <input
+                    type="date"
+                    value={config.prazo_2_semestre}
+                    onChange={(e) => atualizarPrazo("prazo_2_semestre", e.target.value)}
+                  />
                 </div>
               </div>
             </div>
@@ -400,15 +517,20 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
             )}
             {turmas.map((turma) => {
               const ativo = turmaSelecionada?.caminho === turma.caminho;
-              const n = planosPorTurma.get(normalizarTurma(turma.codigo)) ?? 0;
-              const status = n > 0 ? "atencao" : "critico";
+              const tn = normalizarTurma(turma.codigo);
+              const n = planosPorTurma.get(tn) ?? 0;
+              const statusEntrega = statusEntregaPorTurma.get(tn);
+              const status = statusEntrega ?? (n > 0 ? "atencao" : "critico");
+              const titulo = statusEntrega
+                ? { adequado: "Entrega completa no semestre em curso", atencao: "Entrega parcial no semestre em curso", critico: "Nenhum plano entregue no semestre em curso" }[statusEntrega]
+                : undefined;
               return (
                 <button key={turma.caminho} className={`student-list-item ${ativo ? "active" : ""}`} onClick={() => setTurmaSelecionada(ativo ? null : turma)}>
                   <div>
                     <strong>{turma.codigo}</strong>
                     <span>{turma.periodo ?? turma.ciclo ?? ""}</span>
                   </div>
-                  <div className="student-list-status"><i className={status} /></div>
+                  <div className="student-list-status" title={titulo}><i className={status} /></div>
                 </button>
               );
             })}

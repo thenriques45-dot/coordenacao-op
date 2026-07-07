@@ -29,8 +29,8 @@ use tauri::{
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
-pub(crate) const SCRIPT_PLANEJAMENTO_FUNDAMENTAL: &str =
-    include_str!("../scripts/planejamento_fundamental.gs");
+pub(crate) const SCRIPT_PLANEJAMENTO_ANOS_FINAIS: &str =
+    include_str!("../scripts/planejamento_anos_finais.gs");
 pub(crate) const SCRIPT_PLANEJAMENTO_MEDIO: &str = include_str!("../scripts/planejamento_medio.gs");
 pub(crate) const VERSAO_SCRIPT_PLANEJAMENTO: &str = "Currículo Priorizado 2026";
 pub(crate) const REFERENCIAS_PLANEJAMENTO: &str =
@@ -284,12 +284,32 @@ pub(crate) fn parsear_csv_planejamento(texto: &str) -> Result<Vec<RegistroPlanej
 
     let primeiro = |kw: &str| -> Option<usize> { norm.iter().position(|n| n.contains(kw)) };
     let exato = |kw: &str| -> Option<usize> { norm.iter().position(|n| n == kw) };
+    let todos = |kw: &str| -> Vec<usize> {
+        norm.iter().enumerate().filter(|(_, n)| n.contains(kw)).map(|(i, _)| i).collect()
+    };
+    let todos_exato = |kw: &str| -> Vec<usize> {
+        norm.iter().enumerate().filter(|(_, n)| n.as_str() == kw).map(|(i, _)| i).collect()
+    };
 
+    // Componente, Turma, Série/Ano e Bimestre podem aparecer em várias colunas
+    // (uma por ramo de navegação do formulário — o Forms só ramifica a partir
+    // da resposta imediatamente anterior, então Turma/Componente/Bimestre
+    // encadeados após Série viram itens repetidos, um por ramo). Cada
+    // resposta preenche apenas a coluna do ramo que percorreu; as demais
+    // ficam vazias — por isso usamos sempre a primeira coluna não vazia.
     let idx_professor = primeiro("PROFESSOR");
-    let idx_componente = primeiro("COMPONENTE").or_else(|| primeiro("DISCIPLINA"));
-    let idx_ano = exato("ANO").or_else(|| primeiro("SERIE"));
-    let idx_turma = primeiro("TURMA");
-    let idx_bimestre = exato("BIMESTRE");
+    let idxs_componente: Vec<usize> = {
+        let mut v = todos("COMPONENTE");
+        v.extend(todos("DISCIPLINA"));
+        v
+    };
+    let idxs_ano: Vec<usize> = {
+        let mut v = todos_exato("ANO");
+        v.extend(todos("SERIE"));
+        v
+    };
+    let idxs_turma: Vec<usize> = todos("TURMA");
+    let idxs_bimestre: Vec<usize> = todos_exato("BIMESTRE");
     // Colunas de aulas (checkbox) duplicadas, uma por componente.
     let idxs_aulas: Vec<usize> = norm
         .iter()
@@ -328,13 +348,13 @@ pub(crate) fn parsear_csv_planejamento(texto: &str) -> Result<Vec<RegistroPlanej
         if linha.iter().all(|c| c.trim().is_empty()) {
             continue;
         }
-        let disciplina = col(linha, idx_componente);
-        let ano = col(linha, idx_ano);
+        let disciplina = primeira_nao_vazia(linha, &idxs_componente);
+        let ano = primeira_nao_vazia(linha, &idxs_ano);
         if disciplina.is_empty() && ano.is_empty() {
             continue;
         }
 
-        let bimestre_raw = col(linha, idx_bimestre);
+        let bimestre_raw = primeira_nao_vazia(linha, &idxs_bimestre);
         let bimestre: String = bimestre_raw.chars().filter(|c| c.is_ascii_digit()).collect();
         let bimestre = if bimestre.is_empty() { bimestre_raw } else { bimestre };
 
@@ -381,7 +401,7 @@ pub(crate) fn parsear_csv_planejamento(texto: &str) -> Result<Vec<RegistroPlanej
 
         // Expansão por turma (Turma A, Turma B... -> 8º A, 8º B...).
         let professor = col(linha, idx_professor);
-        let turmas_resp = col(linha, idx_turma);
+        let turmas_resp = primeira_nao_vazia(linha, &idxs_turma);
         let letras: Vec<String> = turmas_resp
             .split(',')
             .map(|t| t.trim().trim_start_matches("Turma").trim().to_string())
@@ -501,9 +521,13 @@ pub(crate) fn carregar_config_planejamento() -> Result<ConfigPlanejamento, Strin
 #[tauri::command]
 pub(crate) fn obter_script_planejamento(segmento: String) -> Result<String, String> {
     match normalizar_texto_basico(&segmento).as_str() {
-        s if s.contains("FUNDAMENTAL") => Ok(SCRIPT_PLANEJAMENTO_FUNDAMENTAL.to_string()),
+        // "FUNDAMENTAL" é mantido por compatibilidade com chamadas antigas do
+        // frontend — sempre resolve para Anos Finais.
+        s if s.contains("ANOS FINAIS") || s.contains("FUNDAMENTAL") => {
+            Ok(SCRIPT_PLANEJAMENTO_ANOS_FINAIS.to_string())
+        }
         s if s.contains("MEDIO") => Ok(SCRIPT_PLANEJAMENTO_MEDIO.to_string()),
-        _ => Err("Segmento inválido. Use 'fundamental' ou 'medio'.".to_string()),
+        _ => Err("Segmento inválido. Use 'anos_finais' ou 'medio'.".to_string()),
     }
 }
 

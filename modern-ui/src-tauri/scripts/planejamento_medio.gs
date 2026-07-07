@@ -11,28 +11,30 @@
  * 6. O link do Forms atualizado aparecerá no Log (Ctrl+Enter)
  *
  * COMPONENTES COM ESCOPO COMPLETO (Guia do Currículo Priorizado — EM):
- *   Arte ........... 1ª série (1º/2º bim)
- *   Biologia ....... 1ª e 2ª séries (1º/2º bim)
- *   Educação Física  1ª série (1º/2º bim, 14 aulas); 2ª e 3ª séries (1º/2º bim, 7 aulas)
- *   Filosofia ...... 1ª série (1º/2º bim)
- *   Física ......... 1ª, 2ª e 3ª séries (1º/2º bim)
- *   Geografia ...... 1ª e 2ª séries (1º/2º bim)
- *   História ....... 1ª, 2ª e 3ª séries (1º/2º bim)
- *   Inglês ......... 1ª e 2ª séries (1º/2º bim; aulas Plataforma EF consolidadas)
- *   Língua Portuguesa  1ª, 2ª e 3ª séries (1º/2º bim, 28 aulas)
- *   Matemática ..... 1ª, 2ª e 3ª séries (1º/2º bim, 28 aulas)
- *   Química ........ 1ª e 2ª séries (1º/2º bim)
- *   Sociologia ..... 2ª série (1º/2º bim)
+ *   Arte ........... 1ª série (1º ao 4º bim)
+ *   Biologia ....... 1ª e 2ª séries (1º ao 4º bim)
+ *   Educação Física  1ª série (1º ao 4º bim, 14 aulas); 2ª e 3ª séries (1º ao 4º bim, 7 aulas)
+ *   Filosofia ...... 1ª série (1º ao 4º bim)
+ *   Física ......... 1ª, 2ª e 3ª séries (1º ao 4º bim)
+ *   Geografia ...... 1ª e 2ª séries (1º ao 4º bim)
+ *   História ....... 1ª, 2ª e 3ª séries (1º ao 4º bim)
+ *   Inglês ......... 1ª e 2ª séries (1º ao 4º bim); 3ª série (só 3º/4º bim — novidade do 2º semestre); aulas Plataforma EF consolidadas
+ *   Língua Portuguesa  1ª, 2ª e 3ª séries (1º ao 4º bim; 28 aulas no 1º/2º bim, 24 no 3º/4º bim)
+ *   Matemática ..... 1ª, 2ª e 3ª séries (1º ao 4º bim; 28 aulas no 1º/2º bim, 24 no 3º/4º bim)
+ *   Química ........ 1ª e 2ª séries (1º ao 4º bim)
+ *   Sociologia ..... 2ª série (1º ao 4º bim)
  * COMPONENTES SEM CURRÍCULO PRIORIZADO (campo de texto livre):
  *                                   Orientação de Estudo em Língua Portuguesa
  *                                   Orientação de Estudo em Matemática
+ *                                   Redação e Leitura
+ *                                   Educação Financeira
  *
  * PARA ADICIONAR NOVOS ESCOPOS:
  * Localize o objeto ESCOPOS_POR_COMPONENTE e siga o padrão dos componentes
  * já preenchidos (chave = "Xª Série — Nº Bimestre", valor = array de strings).
  */
 
-const ID_FORMULARIO_EXISTENTE = "1E7Yi4ucUaX3Qtl4ezd3zFq90zt-zmuRJWT7FRk2ESwc";
+const ID_FORMULARIO_EXISTENTE = "";
 
 function obterFormulario_() {
   if (
@@ -120,8 +122,34 @@ function criarFormulario() {
         "Aula 13 — Vontade geral e soberania popular | Contratualismo de Rousseau; soberania popular (AE5 | EM13CHS603)",
         "Aula 14 — [Complementar] Um olhar da atualidade para o contratualismo clássico | Legado de Hobbes, Locke e Rousseau (EM13CHS603)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Identidade e produção filosófica | A Filosofia e o filosofar: diferentes modos de ser e de estar no mundo (AE6 | EM13CHS601)",
+        "Aula 2 — Filosofias de matriz africana | A filosofia Ubuntu; filósofos negros do Brasil contemporâneo (AE6 | EM13CHS601)",
+        "Aula 3 — Protagonismo e cidadania dos povos indígenas | Protagonismo e cidadania dos povos indígenas do Brasil; filósofos indígenas do Brasil contemporâneo (AE6 | EM13CHS601)",
+        "Aula 4 — A reflexão filosófica como fundamento da conduta ética | A reflexão filosófica como fundamento da conduta ética (AE7 | EM13CHS501)",
+        "Aula 5 — A ação humana e sua iniciativa criadora: liberdade ou determinismo | As posições antagônicas de Jean Paul Sartre e Louis Althusser (AE7 | EM13CHS501)",
+        "Aula 6 — Ética e democracia | Os valores democráticos e solidários, o respeito à diversidade e a institucionalização dos direitos humanos: as contribuições de Jürgen Habermas (AE7 | EM13CHS501)",
+        "Aula 7 — Há uma moral válida para todos? | O debate sobre o universalismo moral na Filosofia contemporânea; as posições antagônicas de Jürgen Habermas e Michel Foucault (AE7 | EM13CHS501)",
+        "Aula 8 — Existe conflito entre ciência e religião? | Características dos discursos religioso e científico; a relação entre ciência e religião em diferentes períodos históricos (AE8 | EM13CHS504)",
+        "Aula 9 — O rompimento com a tradição: empirismo e racionalismo na modernidade | A ruptura com a tradição escolástica e a valorização da razão ou da experiência como fontes do conhecimento (AE8 | EM13CHS504)",
+        "Aula 10 — Impasses ético-políticos do problema do conhecimento | O ceticismo de David Hume e o desafio à noção de causalidade; a filosofia crítica de Immanuel Kant como resposta ao desafio cético posto por Hume (AE8 | EM13CHS504)",
+        "Aula 11 — O mito da certeza e da neutralidade da ciência | O mito da certeza e da neutralidade da ciência (AE8 | EM13CHS504)",
+        "Aula 12 — Bioética e os limites à dominação humana da natureza | O conceito de bioética; dilemas bioéticos contemporâneos (AE8 | EM13CHS504)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Uma discrepância prometeica | A inovação tecnológica e os seus efeitos socioambientais; os desafios da sociedade tecnológica segundo Günther Anders (AE9 | EM13CHS301)",
+        "Aula 2 — A ética da responsabilidade na sociedade tecnológica | Os objetivos de desenvolvimento sustentável; a ética da responsabilidade, proposta por Hans Jonas (AE9 | EM13CHS301)",
+        "Aula 3 — O contrato natural | O contrato natural de Michel Serres; consumo sustentável e redução da geração de resíduos (AE9 | EM13CHS301)",
+        "Aula 4 — Críticas e alternativas à concepção convencional de desenvolvimento | Pensamento filosófico de Ailton Krenak e de Antônio Bispo dos Santos (AE9 | EM13CHS301)",
+        "Aula 5 — A sociedade disciplinar | O conceito de sociedade disciplinar em Michel Foucault; o esquema de poder no Panóptico de Bentham (AE10 | EM13CHS103)",
+        "Aula 6 — A Condição pós-moderna: o fim das grandes narrativas | Jean-François Lyotard; crítica e declínio das grandes narrativas e a elevação dos saberes locais/fragmentados (AE10 | EM13CHS103)",
+        "Aula 7 — A sociedade hipermoderna | O conceito de sociedade hipermoderna segundo Gilles Lipovetsky; o papel da moda e a noção de império do efêmero (AE10 | EM13CHS103)",
+        "Aula 8 — A sociedade do cansaço | O conceito de sociedade do cansaço segundo Byung-Chul Han; formas contemporâneas de alienação (AE10 | EM13CHS103)",
+        "Aula 9 — A seguridade social e os direitos humanos | A dimensão ética dos desafios contemporâneos impostos à seguridade social (AE11 | EM13CHS403)",
+        "Aula 10 — O Estado de bem-estar social, suas promessas e seus desafios | O Estado de bem-estar social segundo Jürgen Habermas (AE11 | EM13CHS403)",
+        "Aula 11 — Conflitos sociais e luta por reconhecimento | Conflitos sociais e luta por reconhecimento, a partir das contribuições de Axel Honneth (AE11 | EM13CHS403)",
+        "Aula 12 — A ideia de justiça redistributiva | A ideia de justiça redistributiva, a partir de Nancy Fraser (AE11 | EM13CHS403)",
+      ],
       "2ª Série — 1º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "2ª Série — 2º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "2ª Série — 3º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
@@ -169,8 +197,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] Impactos da poluição nos sistemas respiratório e cardiovascular | (EM13CNT306)",
         "Aula 14 — [Complementar] Biomateriais: a ciência dos materiais | Biomateriais; propriedades físicas e químicas (EM13CNT306)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Ciclos biogeoquímicos do carbono e do oxigênio | Ciclo do carbono; ciclo do oxigênio (AE5 | EM13CNT105)",
+        "Aula 2 — Ciclo do nitrogênio | Ciclo do nitrogênio (AE5 | EM13CNT105)",
+        "Aula 3 — Interferência humana nos ciclos biogeoquímicos: fertilizantes | Tipos de fertilizantes; impactos no ciclo do nitrogênio (AE5 | EM13CNT105)",
+        "Aula 4 — Eutrofização e maré vermelha | Eutrofização; maré vermelha (AE5 | EM13CNT105)",
+        "Aula 5 — Ações mitigatórias da interferência humana nos ciclos biogeoquímicos | Adubação verde; reflorestamento; rotação de culturas (AE5 | EM13CNT105)",
+        "Aula 6 — Construção de hipóteses e teorias científicas | Fato, mito, crença, hipótese, senso comum e teoria científica; método científico (AE6 | EM13CNT201)",
+        "Aula 7 — Teorias científicas sobre a origem da vida | Panspermia cósmica; evolução química; abiogênese; biogênese (AE6 | EM13CNT201)",
+        "Aula 8 — Teorias científicas: experimentos de Redi, Spallanzani e Pasteur | Experimentos de Redi (1668), Spallanzani (1770) e Pasteur (1860) (AE6 | EM13CNT201)",
+        "Aula 9 — Surgimento e evolução da vida | Terra primitiva; teoria de Oparin e Haldane; experimento de Urey e Miller (AE6 | EM13CNT201)",
+        "Aula 10 — Teorias científicas sobre evolução | Teorias de Lamarck e Darwin (AE6 | EM13CNT201)",
+        "Aula 11 — Relações evolutivas | Árvores filogenéticas; ancestral comum; convergência e irradiação adaptativa (AE6 | EM13CNT201)",
+        "Aula 12 — Endossimbiose, analogia e homologia | Teoria endossimbiótica; analogia; homologia (AE6 | EM13CNT201)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Procariontes e eucariontes | Procariontes; eucariontes (AE7 | EM13CNT202)",
+        "Aula 2 — Transportes transmembranas | Membrana plasmática; transportes (AE7 | EM13CNT202)",
+        "Aula 3 — Bactérias | Bactérias (características e formas de classificação) (AE7 | EM13CNT202)",
+        "Aula 4 — Fungos | Fungos (características e importâncias) (AE7 | EM13CNT202)",
+        "Aula 5 — Aplicação dos fungos | Fungos: importâncias para o ambiente e para os seres humanos (AE7 | EM13CNT202)",
+        "Aula 6 — Fisiologia comparada: sistema digestório | Tipos de digestão; sistema digestório humano (AE8 | EM13CNT202)",
+        "Aula 7 — Fisiologia comparada: sistema circulatório | Tipos de circulação (AE8 | EM13CNT202)",
+        "Aula 8 — Fisiologia comparada: sistema respiratório | Tipos de respiração; multicelularidade (AE8 | EM13CNT202)",
+        "Aula 9 — Fisiologia comparada: reprodução | Tipos de reprodução, com foco na reprodução animal (AE8 | EM13CNT202)",
+        "Aula 10 — Árvores filogenéticas: Evolução humana | Árvore filogenética; ancestral comum (AE6 | EM13CNT208)",
+        "Aula 11 — Sistema ABO e fator Rh | Sistema ABO; fator Rh (AE9 | EM13CNT205)",
+        "Aula 12 — Leis de Mendel | 1ª e 2ª Leis de Mendel; codominância; polialelia (AE9 | EM13CNT205)",
+      ],
       // ── 2ª SÉRIE ─────────────────────────────────────────────────────
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Radiação: potencialidades e riscos | Aplicação da radiação em diagnóstico e tratamento (AE1 | EM13CNT103)",
@@ -204,8 +258,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] Hábitos de consumo | Microplástico; ODS 12; consumo sustentável (EM13CNT309)",
         "Aula 14 — [Complementar] Greenwashing: nem tudo é o que parece | Greenwashing; consumo sustentável (EM13CNT309)",
       ],
-      "2ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "2ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Células HeLa: a importância da bioética em biotecnologia | Células HeLa; biotecnologia; bioética (AE6 | EM13CNT304)",
+        "Aula 2 — DNA e RNA | DNA e RNA; genoma; replicação do DNA (AE7 | EM13CNT304)",
+        "Aula 3 — Transcrição | RNA; transcrição; tipos de RNA (AE7 | EM13CNT304)",
+        "Aula 4 — Tradução | Código genético; tradução; síntese de proteína (AE7 | EM13CNT304)",
+        "Aula 5 — Engenharia genética: CRISPR/Cas9 | Biotecnologia; engenharia genética; CRISPR/Cas9 (AE6 | EM13CNT304)",
+        "Aula 6 — Clonagem | DNA recombinante; clonagem reprodutiva e terapêutica (AE6 | EM13CNT304)",
+        "Aula 7 — Terapia gênica | Terapia gênica (AE6 | EM13CNT304)",
+        "Aula 8 — Soros imunológicos | Biotecnologia; antígeno e anticorpo; soro (AE6 | EM13CNT304)",
+        "Aula 9 — Vacinas | Imunidade inata e adquirida; antígeno e anticorpo; soro (AE6 | EM13CNT304)",
+        "Aula 10 — Darwinismo social e eugenia | Darwinismo social; eugenia (AE6 | EM13CNT305)",
+        "Aula 11 — O papel da bioética diante da postura eugenista | Bioética; racismo científico (AE6 | EM13CNT305)",
+        "Aula 12 — Heredogramas | Daltonismo; heredogramas; endogamia e diversidade genética (AE7 | EM13CNT305)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Saúde e bem-estar dos adolescentes | IST; preservativos (AE8 | EM13CNT207)",
+        "Aula 2 — Infecções sexualmente transmissíveis | Herpes genital; HPV; hepatite B; HIV/Aids (AE8 | EM13CNT207)",
+        "Aula 3 — Sistema endócrino e contraceptivos hormonais | Contracepção hormonal; sistema endócrino; ciclo ovariano e menstrual (AE8 | EM13CNT207)",
+        "Aula 4 — Sistema reprodutor e outros métodos contraceptivos | Contraceptivos; sistema reprodutor (AE8 | EM13CNT207)",
+        "Aula 5 — Sistema Nervoso | Principais divisões do sistema nervoso (AE8 | EM13CNT207)",
+        "Aula 6 — Como as drogas podem impactar o sistema nervoso | Neurotransmissores; drogas psicoativas; dependência química (AE8 | EM13CNT207)",
+        "Aula 7 — Drogas lícitas: tabaco e nicotina | Tabaco e nicotina; perigos do narguilé e do cigarro eletrônico (AE8 | EM13CNT207)",
+        "Aula 8 — Vulnerabilidade dos jovens à desinformação | Perigos da combinação álcool e energético; desinformação e fake news (AE8 | EM13CNT207)",
+        "Aula 9 — Obesidade e desnutrição | Obesidade; desnutrição (AE9 | EM13CNT207)",
+        "Aula 10 — Sistema endócrino e diabetes | Carboidratos; diabetes; insulina e glucagon (AE9 | EM13CNT207)",
+        "Aula 11 — Higiene dos alimentos | Higiene dos alimentos; doenças de transmissão hídrica e alimentar (AE9 | EM13CNT310)",
+        "Aula 12 — Protozooses e saneamento básico: giardíase e amebíase | Protozooses; saneamento básico; ODS 6 (AE9 | EM13CNT310)",
+      ],
       "3ª Série — 1º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "3ª Série — 2º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "3ª Série — 3º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
@@ -217,6 +297,8 @@ function criarFormulario() {
     // ══════════════════════════════════════════════════════════════════════
     "Orientação de Estudo em Língua Portuguesa": { "semCurriculo": true },
     "Orientação de Estudo em Matemática":         { "semCurriculo": true },
+    "Redação e Leitura":                          { "semCurriculo": true },
+    "Educação Financeira":                        { "semCurriculo": true },
 
     // ══════════════════════════════════════════════════════════════════════
     // DEMAIS COMPONENTES — adicione os dados conforme receber os PDFs
@@ -257,8 +339,36 @@ function criarFormulario() {
         "Aula 13 — Expandindo o Movimento | Processos de criação; Processos colaborativos; Movimentos artísticos (AE5 | EM13LGG301)",
         "Aula 14 — Espírito do Tempo: A Era da Participação | Contexto Histórico e Cultural; Zeitgeist; Movimentos artísticos (AE4 | EM13LGG305)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — A arte de ser autêntico | Autorretrato e autoimagem; identidade e tecnologia; arte digital (AE6 | EM13LGG701)",
+        "Aula 2 — Desconstruindo imagens | Manipulação de imagem (AE7 | EM13LGG105)",
+        "Aula 3 — Tecnologia e desenvolvimento humano | Arte e tecnologia (AE7 | EM13LGG603)",
+        "Aula 4 — Arte e transformação digital | Transformação digital; analógico e digital (AE7 | EM13LGG603)",
+        "Aula 5 — Arte como expressão do eu | Autoexpressão; identidade e poética pessoal (AE7 | EM13LGG603)",
+        "Aula 6 — Entre técnicas e mídias | Mídias analógicas; remidiação e adaptação (AE6 | EM13LGG105)",
+        "Aula 7 — Referências artísticas: locais e globais | Apropriação cultural; arte local e global; arte e contexto (AE8 | EM13LGG602)",
+        "Aula 8 — Colaboração criativa: juntos na arte | Legitimidade na arte; autoria na arte; coletivos de arte (AE7 | EM13LGG603)",
+        "Aula 9 — Arte e plataformas digitais | Mídias digitais; produção e veiculação; mercado da arte (AE6 | EM13LGG105)",
+        "Aula 10 — Ética digital e inteligência artificial na arte | Arte e IA; legitimidade na arte; direitos autorais (AE6 | EM13LGG701)",
+        "Aula 11 — Legitimidade na arte contemporânea | Autenticidade na arte; arte contemporânea; mercado da arte (AE7 | EM13LGG603)",
+        "Aula 12 — Finalização do projeto autoral | Arte relacional; espectador e obra (AE7 | EM13LGG603)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Corpo e identidade na era digital | Corpo e imagem; arte e tecnologia; mídias digitais (AE9 | EM13LGG701)",
+        "Aula 2 — Discursos sobre o corpo na mídia | Corpo e imagem; discursos midiáticos (AE10 | EM13LGG101)",
+        "Aula 3 — Dança e autocuidado | Dança contemporânea; corpo e imagem (AE9 | EM13LGG503)",
+        "Aula 4 — Tecnologia e movimento | Dança e tecnologia; corpo híbrido; dança contemporânea (AE6 | EM13LGG701)",
+        "Aula 5 — Discursos tecnocorporais | Corpo e imagem; design e tecnologia; corpo híbrido (AE10 | EM13LGG101)",
+        "Aula 6 — Corpo híbrido em movimento | Dança contemporânea; corpo híbrido (AE9 | EM13LGG503)",
+        "Aula 7 — Dançando futuros | Dança contemporânea; coreografia (AE9 | EM13LGG101)",
+        "Aula 8 — Planejamento da apresentação coletiva em Dança | Dança contemporânea; processo de criação (AE7 | EM13LGG101)",
+        "Aula 9 — Desenvolvimento da apresentação – coreografia | Dança contemporânea (AE9 | EM13LGG503)",
+        "Aula 10 — Desenvolvimento da apresentação – elementos visuais da cena | Elementos visuais da cena (AE1 | EM13LGG101)",
+        "Aula 11 — Ensaio geral | Dança contemporânea; processo de criação em dança (AE9 | EM13LGG503)",
+        "Aula 12 — Apresentação coletiva | Dança contemporânea (AE9 | EM13LGG503)",
+        "Aula 13 — Avaliação e reflexão sobre o processo | Dança contemporânea (AE1 | EM13LGG101)",
+        "Aula 14 — Perspectivas futuras e fechamento do ciclo | Corpo e imagem; arte e tecnologia; mídias digitais (AE1 | EM13LGG101)",
+      ],
       "2ª Série — 1º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "2ª Série — 2º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
       "3ª Série — 1º Bimestre": ["[Aguardando dados — adicione as aulas no script]"],
@@ -300,8 +410,38 @@ function criarFormulario() {
         "Aula 13 — Dança contemporânea | Exploração livre de movimentos e improvisação guiada (AE4 | EM13LGG201)",
         "Aula 14 — Dança contemporânea: criação coletiva | Criação coletiva para dança contemporânea (AE4 | EM13LGG201)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — As Ginásticas de academia e os modismos fitness | Ginástica de academia; modismos fitness (AE5 | EM13LGG102)",
+        "Aula 2 — Musculação na escola | Ginástica de academia: musculação (AE5 | EM13LGG102)",
+        "Aula 3 — Ginástica localizada | Ginástica de academia: ginástica localizada (AE5 | EM13LGG102)",
+        "Aula 4 — Subindo um degrau | Ginástica de academia: step (AE5 | EM13LGG102)",
+        "Aula 5 — Famoso Crossfit | Modismos fitness: crossfit (AE5 | EM13LGG102)",
+        "Aula 6 — Programa Fitness: Zumba | Modismos fitness: zumba (AE5 | EM13LGG102)",
+        "Aula 7 — Dança da atualidade: Fitdance | Modismos fitness: fitdance (AE5 | EM13LGG102)",
+        "Aula 8 — Personal trainer e aplicativos fitness: o futuro do treinamento físico | Princípios do treinamento físico e desportivo; personal trainer; aplicativos fitness (AE6 | EM13LGG101)",
+        "Aula 9 — Um olhar sobre o personal trainer | Treinamento funcional com personal trainer (AE6 | EM13LGG101)",
+        "Aula 10 — Como começar? | Anamnese; parâmetros corporais (AE6 | EM13LGG101)",
+        "Aula 11 — Planejando um exercício funcional | O papel do personal trainer (AE6 | EM13LGG101)",
+        "Aula 12 — Experimentando um aplicativo Fitness: na busca do emagrecimento | Aplicativo fitness; práticas de exercício voltadas ao emagrecimento (AE6 | EM13LGG101)",
+        "Aula 13 — Experimentando um aplicativo Fitness: na busca pela hipertrofia | Aplicativo fitness; práticas de exercício voltadas à hipertrofia (AE6 | EM13LGG101)",
+        "Aula 14 — Experimentando um aplicativo Fitness: na busca pelo condicionamento físico | Aplicativo fitness; práticas voltadas ao condicionamento físico (AE6 | EM13LGG101)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Luta olímpica (Wrestling) | Origem e evolução da Luta Olímpica; regras e estilos; fair play (AE7 | EM13LGG202)",
+        "Aula 2 — Relembrando jogos de oposição | Jogos de oposição que remetam ao Wrestling (AE7 | EM13LGG202)",
+        "Aula 3 — Educativos da luta olímpica | Atividades educativas (AE7 | EM13LGG202)",
+        "Aula 4 — Fundamentos da luta olímpica | Fundamentos da luta olímpica (AE7 | EM13LGG202)",
+        "Aula 5 — Luta simulada | Prática simulada da luta olímpica (AE7 | EM13LGG202)",
+        "Aula 6 — Discutindo e materializando | Superação de preconceitos e estereótipos da Luta Olímpica (AE7 | EM13LGG202)",
+        "Aula 7 — Apresentando a luta olímpica | Informativo produzido pelos estudantes (AE7 | EM13LGG202)",
+        "Aula 8 — Das práticas de aventura urbanas às da natureza | Práticas corporais de aventura urbanas (BMX, paintball) e na natureza (escalada, rapel, arvorismo) (AE8 | EM13LGG501)",
+        "Aula 9 — BMX adaptado | Prática corporal de aventura urbana: BMX (AE8 | EM13LGG501)",
+        "Aula 10 — Paintball adaptado | Prática corporal de aventura urbana: paintball (AE8 | EM13LGG501)",
+        "Aula 11 — Escalada adaptada | Prática corporal de aventura na natureza: escalada (AE8 | EM13LGG501)",
+        "Aula 12 — Rapel adaptado | Prática corporal de aventura na natureza: rapel (AE8 | EM13LGG501)",
+        "Aula 13 — Adaptando o Arvorismo | Prática corporal de aventura na natureza: arvorismo (AE8 | EM13LGG501)",
+        "Aula 14 — Arvorismo adaptado: Vivência | Prática corporal de aventura na natureza: arvorismo (AE8 | EM13LGG501)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Esporte de Rede/quadra dividida: Tênis de mesa e Tênis de campo | Diferenças, fundamentos e regras (AE1 | EM13LGG301)",
         "Aula 2 — Fundamentos do Tênis de Mesa | Postura, saque, recepção, golpes e empunhadura (AE1 | EM13LGG301)",
@@ -320,6 +460,24 @@ function criarFormulario() {
         "Aula 6 — Fandango: primeiro contato | Ritmo, musicalidade e olhar cultural (AE2 | EM13LGG203)",
         "Aula 7 — Fandango em pares | Formação, passo de base, passo cruzado e giro (AE2 | EM13LGG203)",
       ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — DCNT - Doenças crônicas não transmissíveis | DCNT; relação entre exercícios físicos e qualidade de vida; parâmetros corporais; TCB e GCD (AE3 | EM13LGG503)",
+        "Aula 2 — Coordenadas da Saúde | Jogo Coordenadas da Saúde (AE3 | EM13LGG503)",
+        "Aula 3 — Planejando uma vida saudável | IPAQ; planejamento de atividade física diária (AE3 | EM13LGG503)",
+        "Aula 4 — Gamificando | Gamificação; planejamento das regras (AE3 | EM13LGG503)",
+        "Aula 5 — Jogo da saúde | Jogo para saúde (AE3 | EM13LGG503)",
+        "Aula 6 — Movimento da saúde | Atividade física para saúde (AE3 | EM13LGG503)",
+        "Aula 7 — Exercício da saúde | Exercício físico para saúde (AE3 | EM13LGG503)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Jogos Cooperativos | O que são os jogos cooperativos; jogos cooperativos x jogos competitivos; valores (ajuda, respeito, empatia, confiança) (AE4 | EM13LGG305)",
+        "Aula 2 — Jogos de confiança | Jogos cooperativos que se utilizam da confiança como princípio base (AE4 | EM13LGG305)",
+        "Aula 3 — Jogos de comunicação e sintonia | Jogos cooperativos que se utilizam da comunicação como princípio base (AE4 | EM13LGG305)",
+        "Aula 4 — Jogos de superação coletiva | Jogos cooperativos em que o sucesso do grupo dependa do esforço coletivo (AE4 | EM13LGG305)",
+        "Aula 5 — Desafio cooperativo com pontuação coletiva | Jogos cooperativos em que competição e cooperação coexistam de forma equilibrada (AE4 | EM13LGG305)",
+        "Aula 6 — Recriando jogos competitivos de modo cooperativo | Jogos cooperativos recriados a partir de jogos competitivos (AE4 | EM13LGG305)",
+        "Aula 7 — Cooperar é transformar | Atividade de sistematização das aulas sobre jogos cooperativos (AE4 | EM13LGG305)",
+      ],
       "3ª Série — 1º Bimestre": [
         "Aula 1 — Modalidades Esportivas Pouco Praticadas no Brasil | Punhobol; Kin-Ball; Tchoukball; Ultimate Frisbee (AE1 | EM13LGG401)",
         "Aula 2 — Aprendendo a jogar Punhobol e/ou Kimball | Regras e possíveis adaptações (AE1 | EM13LGG401)",
@@ -337,6 +495,24 @@ function criarFormulario() {
         "Aula 5 — Beach tennis adaptado | Regras, possíveis adaptações e prática do Beach tennis (AE2 | EM13LGG301)",
         "Aula 6 — Frescobol: primeiro contato | Regras e possíveis adaptações do Frescobol (AE2 | EM13LGG301)",
         "Aula 7 — Frescobol: vivência | Prática de Frescobol (AE2 | EM13LGG301)",
+      ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — GPT - Ginástica Para Todos | História da GPT; valores fundamentais; diferenças em relação à ginástica competitiva; relação com saúde, lazer e cidadania; Gymnaestrada (AE3 | EM13LGG503)",
+        "Aula 2 — Movimentos básicos da GPT | Giros, saltos, equilíbrios, deslocamentos e movimentos no solo, com ou sem acessórios (AE3 | EM13LGG503)",
+        "Aula 3 — Dinâmica de movimento com música | Criação de movimentos a partir de temas (amizade, natureza, festa popular, cores etc.) (AE3 | EM13LGG503)",
+        "Aula 4 — Integração com elementos culturais | Exploração dos ritmos brasileiros ou de outras culturas (dança + ginástica) (AE3 | EM13LGG503)",
+        "Aula 5 — Criação em grupo | Pequenas sequências de movimentos (com ou sem música) (AE3 | EM13LGG503)",
+        "Aula 6 — Ensaio Geral | Ensaio da criação em grupo (AE3 | EM13LGG503)",
+        "Aula 7 — Mini festival de GPT | Apresentação coletiva (AE3 | EM13LGG503)",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — Swordplay - uma luta do mundo ou entretenimento? | Origem do Swordplay; materiais para confecção dos implementos; regras e adaptações para a escola (AE4 | EM13LGG102)",
+        "Aula 2 — Confeccionando seus implementos | Confecção dos implementos do Swordplay (AE4 | EM13LGG102)",
+        "Aula 3 — Se familiarizando com suas próprias criações | Adequações do gesto motor; golpes básicos (AE4 | EM13LGG102)",
+        "Aula 4 — Regras na prática | Estudo das regras na prática (AE4 | EM13LGG102)",
+        "Aula 5 — Combate 1x1 | Combates individuais (AE4 | EM13LGG102)",
+        "Aula 6 — Ampliando a escala da batalha | Combates coletivos (AE4 | EM13LGG102)",
+        "Aula 7 — Hora do torneio | Mini competição de Swordplay (AE4 | EM13LGG102)",
       ],
     },
     // ══════════════════════════════════════════════════════════════════════
@@ -375,8 +551,34 @@ function criarFormulario() {
         "Aula 13 — Forças conservativas e não conservativas: Impactos na energia mecânica | Forças conservativas e não conservativas (AE3 | EM13CNT101)",
         "Aula 14 — [Complementar] Trabalho de forças conservativas e não conservativas | Forças conservativas e não conservativas (EM13CNT101)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Potência média ou instantânea: Qual é a diferença? | Potência média e instantânea (AE3 | EM13CNT101)",
+        "Aula 2 — Quando parar faz a diferença: O papel do impulso na colisão | Quantidade de movimento, impulso e suas aplicações (AE3 | EM13CNT101)",
+        "Aula 3 — Além do chute: Impulso de uma força variável | Impulso; gráficos Força × Tempo (AE3 | EM13CNT101)",
+        "Aula 4 — Sistemas isolados: A chave para a conservação da quantidade de movimento | Conservação da quantidade de movimento em sistemas isolados (AE3 | EM13CNT101)",
+        "Aula 5 — A terceira Lei de Newton e a conservação da quantidade de movimento | Interações e conservação da quantidade de movimento (AE3 | EM13CNT101)",
+        "Aula 6 — Entre choques e conservação: Tipos de colisões | Colisões em uma dimensão e conservação da quantidade de movimento (AE3 | EM13CNT101)",
+        "Aula 7 — Quando a soma dá zero: O equilíbrio de um ponto material | Equilíbrio de um ponto material e análise de forças coplanares (AE4 | EM13CNT204)",
+        "Aula 8 — Equilíbrio em dois níveis: Translação e rotação | Condições de equilíbrio e momento de uma força em corpos extensos (AE4 | EM13CNT204)",
+        "Aula 9 — Pressão nos líquidos: Forma não importa, profundidade sim | Pressão hidrostática e sua relação com a profundidade em líquidos (AE5 | EM13CNT204)",
+        "Aula 10 — Limites da sucção: A Física aos 10 metros de profundidade | Pressão atmosférica e equilíbrio de líquidos em sistemas abertos (AE5 | EM13CNT204)",
+        "Aula 11 — Como a pressão se transmite nos fluidos? O princípio de Pascal | Pressão em fluidos e contribuições históricas para o Teorema de Pascal (AE5 | EM13CNT204)",
+        "Aula 12 — Vasos comunicantes: Onde todos chegam ao mesmo nível | Pressão em líquidos e aplicações em sistemas interligados (AE5 | EM13CNT204)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Kepler e os movimentos dos objetos astronômicos | Características da elipse, leis de Kepler e variação da velocidade orbital dos planetas (AE6 | EM13CNT204)",
+        "Aula 2 — Estudo das órbitas: Exercícios com leis de Kepler | Características da elipse e leis de Kepler aplicadas às órbitas planetárias (AE6 | EM13CNT204)",
+        "Aula 3 — Lei da gravitação universal, Newton entra em cena de novo | Interações gravitacionais no sistema Terra-Lua-Sol; velocidade orbital de satélites (AE6 | EM13CNT204)",
+        "Aula 4 — Problemas com a Lei de gravitação universal | Lei da gravitação universal; interações gravitacionais (AE6 | EM13CNT204)",
+        "Aula 5 — Nos sentimos atraídos sempre da mesma forma? | Aceleração da gravidade na superfície, no interior e no exterior dos astros; campo gravitacional (AE6 | EM13CNT204)",
+        "Aula 6 — Exercícios sobre aceleração da gravidade e campo gravitacional | Aceleração da gravidade em diferentes corpos celestes (AE6 | EM13CNT204)",
+        "Aula 7 — Nascimento e energia das estrelas | Formação das estrelas, uso do hidrogênio como combustível e fusão nuclear (AE7 | EM13CNT209)",
+        "Aula 8 — Diagrama de Hertzsprung-Russell e sequência principal | Diagrama HR; relação entre temperatura e luminosidade (AE7 | EM13CNT209)",
+        "Aula 9 — Evolução estelar: Gigantes vermelhas e anãs brancas | Evolução das estrelas da sequência principal às fases finais (AE7 | EM13CNT209)",
+        "Aula 10 — Estrelas massivas, supernovas e remanescentes | Evolução de estrelas massivas, supernovas, estrelas de nêutrons e buracos negros (AE7 | EM13CNT209)",
+        "Aula 11 — Matéria escura: conceito, efeitos nas galáxias e importância | Matéria escura e sua importância na evolução do Universo (AE7 | EM13CNT209)",
+        "Aula 12 — Fundamentos da Teoria do Big Bang e a evolução do Universo | Teoria do Big Bang, evidências observacionais e evolução do Universo (AE7 | EM13CNT209)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Traduzindo a agitação das partículas em números: Compreendendo a temperatura | Calor, temperatura e relações com a matéria (AE1 | EM13CNT102)",
         "Aula 2 — Resolvendo problemas de temperatura | Escalas termométricas e variação de temperatura (AE1 | EM13CNT102)",
@@ -409,6 +611,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] Da compressão à combustão: Exercícios do Ciclo Otto | Etapas, diagrama PV e rendimento do Ciclo Otto (AE2 | EM13CNT102)",
         "Aula 14 — [Complementar] Relações termodinâmicas no Ciclo Otto | Etapas do Ciclo Otto e cálculo de rendimento (AE2 | EM13CNT102)",
       ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Som e luz: Exemplos para entender ondas | Conceito de onda; diferenças entre ondas mecânicas e eletromagnéticas (AE3 | EM13CNT104)",
+        "Aula 2 — Ondas na prática: Reconhecendo tipos e características | Tipos de ondas; meio e direção de propagação (AE3 | EM13CNT104)",
+        "Aula 3 — A equação da onda e as relações entre suas grandezas | Grandezas fundamentais das ondas e a equação fundamental da onda (AE3 | EM13CNT104)",
+        "Aula 4 — Resolvendo problemas com a equação fundamental da onda | Efeitos das variações nas grandezas ondulatórias (AE3 | EM13CNT104)",
+        "Aula 5 — Quando as ondas se encontram: Interferência e reflexão | Interferência construtiva e destrutiva, reflexão e ondas estacionárias (AE3 | EM13CNT104)",
+        "Aula 6 — Exercícios sobre interferência e reflexão de ondas | Interferência, reflexão e formação de ondas estacionárias (AE3 | EM13CNT104)",
+        "Aula 7 — Contornando obstáculos: Quando as ondas se curvam | Fenômeno da difração e sua influência na propagação de ondas (AE3 | EM13CNT104)",
+        "Aula 8 — Difração: Relação entre comprimento de onda, tamanho do obstáculo e desvio das ondas | Exercícios sobre difração (AE3 | EM13CNT104)",
+        "Aula 9 — Altura, timbre e intensidade: A identidade das ondas sonoras | Propriedades do som e sua relação com ondas; tipos de sons (AE4 | EM13CNT306)",
+        "Aula 10 — Exercícios sobre altura, timbre e intensidade do som | Propriedades do som (AE4 | EM13CNT306)",
+        "Aula 11 — Quanto vale o som? Conhecendo os decibéis | Características físicas do som; intensidade e escala de decibéis (AE4 | EM13CNT306)",
+        "Aula 12 — Ondas estacionárias e harmônicos | Modos de vibração de cordas; ondas estacionárias (AE4 | EM13CNT306)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Propagação retilínea da luz | Princípios da propagação retilínea; sombra e penumbra; câmara escura de orifício (AE5 | EM13CNT306)",
+        "Aula 2 — Exercícios sobre propagação da luz, sombras e câmara escura | Propagação retilínea; sombra e penumbra; câmara escura de orifício (AE5 | EM13CNT306)",
+        "Aula 3 — Da reflexão à formação de imagens em espelhos planos | Fenômeno da reflexão da luz; leis da reflexão em espelhos planos (AE5 | EM13CNT306)",
+        "Aula 4 — Leis da reflexão e formação de imagens em espelhos planos | Construção de imagens gráficas em espelhos planos (AE5 | EM13CNT306)",
+        "Aula 5 — Elementos geométricos e características dos espelhos esféricos Gaussianos | Classificação dos elementos geométricos; espelhos esféricos gaussianos (AE5 | EM13CNT306)",
+        "Aula 6 — Raios particulares e representações gráficas em espelhos esféricos | Trajetória de raios luminosos particulares (AE5 | EM13CNT306)",
+        "Aula 7 — Exercícios propostos: Raios luminosos e imagens em espelhos esféricos | Representações gráficas de imagens em espelhos côncavos e convexos (AE5 | EM13CNT306)",
+        "Aula 8 — Equação de Gauss e aumento linear | Referencial gaussiano; equação de Gauss e expressão do aumento linear transversal (AE5 | EM13CNT306)",
+        "Aula 9 — Exercícios sobre referencial Gaussiano e equação de Gauss | Equação de Gauss e aumento linear (AE5 | EM13CNT306)",
+        "Aula 10 — Índices de refração e Leis da refração da luz | Índices de refração e refringência; leis da refração (AE5 | EM13CNT306)",
+        "Aula 11 — Comportamento óptico em lentes delgadas | Comportamento óptico e trajetórias de raios luminosos em lentes delgadas (AE5 | EM13CNT306)",
+        "Aula 12 — Resolvendo problemas com equação de Gauss e aumento linear em lentes | Equação de Gauss e aumento linear em lentes delgadas (AE5 | EM13CNT306)",
+      ],
       "3ª Série — 1º Bimestre": [
         "Aula 1 — Quando o condutor encontra o equilíbrio | Carga elétrica, condutores e isolantes, eletrização (AE1 | EM13CNT107)",
         "Aula 2 — Da eletrização à conservação da carga elétrica: Problemas propostos | Eletrização e conservação da carga elétrica (AE1 | EM13CNT107)",
@@ -440,6 +670,34 @@ function criarFormulario() {
         "Aula 12 — Espelhos planos e reflexão da luz: análise e prática | Reflexão da luz e leis da reflexão em espelhos planos (EM13CNT306)",
         "Aula 13 — [Complementar] Espelhos esféricos: identificando raios e construindo imagens | Trajetória de raios e imagens em espelhos esféricos (EM13CNT306)",
         "Aula 14 — [Complementar] Da equação de Gauss ao aumento linear: problemas ópticos | Equação de Gauss e aumento linear transversal (EM13CNT306)",
+      ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — Marcos históricos e propriedades dos materiais magnéticos naturais | Contribuições históricas do magnetismo; materiais magnéticos naturais com dipolos (AE3 | EM13CNT107)",
+        "Aula 2 — Guia para as bússolas | Vetor de indução magnética e campo magnético terrestre (AE3 | EM13CNT107)",
+        "Aula 3 — O campo que ordena: Como ímãs reagem ao magnetismo uniforme | Características e representações de campo magnético uniforme (AE3 | EM13CNT107)",
+        "Aula 4 — Campo magnético e cargas em movimento: A força que desvia trajetórias | Condições para o surgimento da força magnética em cargas elétricas (AE3 | EM13CNT107)",
+        "Aula 5 — Movimento de partículas: Do lançamento oblíquo ao movimento circular | Movimento de portadores de carga em campo magnético uniforme (AE3 | EM13CNT107)",
+        "Aula 6 — Problemas com cargas elétricas em campo uniforme | Trajetória de cargas lançadas obliquamente em campo magnético (AE3 | EM13CNT107)",
+        "Aula 7 — Quando a corrente desvia a bússola: Oersted e o campo magnético | Experiência de Oersted; relação entre correntes elétricas e campos magnéticos (AE3 | EM13CNT107)",
+        "Aula 8 — Campo magnético gerado por corrente: Resolva com a regra da mão direita | Campo magnético gerado por fios condutores com corrente elétrica (AE3 | EM13CNT107)",
+        "Aula 9 — Espira, bobina e solenoide: Comparando campos magnéticos | Campo magnético produzido por espiras, bobinas e solenoides (AE3 | EM13CNT107)",
+        "Aula 10 — Resolva e compare: Campos magnéticos em diferentes configurações | Campo magnético gerado por espiras, bobinas e solenoides; eletroímãs (AE3 | EM13CNT107)",
+        "Aula 11 — Exercícios de ondulatória: Classificação, frequência e velocidade | Classificação das ondas, frequência, comprimento e velocidade (EM13CNT306)",
+        "Aula 12 — Reflexão, difração e interferência: Exercícios | Reflexão, difração e interferência de ondas (EM13CNT306)",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — Campo elétrico e campo magnético de Lei de Faraday-Neumann | Lei de Oersted; Lei de Faraday-Neumann; Lei de Lenz (AE3 | EM13CNT107)",
+        "Aula 2 — O nascimento da física quântica: como o calor mudou a física | Quantização da energia; hipótese de Planck (AE4 | EM13CNT103)",
+        "Aula 3 — A luz em pacotes: quando Einstein inventou os fótons | Efeito fotoelétrico; ideia de fóton; equação de Einstein (AE4 | EM13CNT103)",
+        "Aula 4 — Matéria que ondula: a estranha dualidade onda-partícula | Dualidade onda-partícula; ondas de matéria de Louis de Broglie (AE4 | EM13CNT103)",
+        "Aula 5 — Entre dois mundos: onde a Física clássica encontra a quântica | Princípio da correspondência; fronteiras entre física clássica e quântica (AE4 | EM13CNT103)",
+        "Aula 6 — O limite do conhecimento: a incerteza como lei da natureza | Princípio da incerteza de Heisenberg (AE4 | EM13CNT103)",
+        "Aula 7 — [Complementar] Exercícios propostos sobre trocas de calor entre corpos | Trocas de calor; calor sensível e latente (EM13CNT102)",
+        "Aula 8 — [Complementar] Exercícios sobre Leis de Ohm, Kirchhoff e associação de resistores | Potência e energia elétrica em circuitos (EM13CNT107)",
+        "Aula 9 — [Complementar] Aprendendo a calcular campo e potencial elétrico gerado por cargas pontuais | Campo elétrico e potencial elétrico (EM13CNT107)",
+        "Aula 10 — [Complementar] Exercícios sobre equação dos gases ideais e processos termodinâmicos | Transformações gasosas; trabalho e calor (EM13CNT309)",
+        "Aula 11 — [Complementar] Exercícios sobre segunda e terceira Lei da termodinâmica | Eficiência das máquinas térmicas (EM13CNT309)",
+        "Aula 12 — [Complementar] Problemas de empuxo e equilíbrio de corpos em fluidos | Cálculo do empuxo e flutuabilidade (EM13CNT310)",
       ],
     },
     // ══════════════════════════════════════════════════════════════════════
@@ -478,8 +736,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] Sociedade de consumo | Sociedade de consumo (EM13CHS502)",
         "Aula 14 — Globalização e impacto na cultura | Globalização cultural; homogeneização cultural (AE6 | EM13CHS303)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Impacto ambiental | Conceito de impacto ambiental e suas classificações (positivos/negativos, diretos/indiretos, reversíveis/irreversíveis) (AE1 | EM13CHS103)",
+        "Aula 2 — Alterações antrópicas | Poluição ambiental; perda de biodiversidade e extinção de espécies; urbanização desordenada (AE1 | EM13CHS304)",
+        "Aula 3 — Consumo sustentável | Escolhas de consumo que minimizam impactos ambientais; práticas de consumo consciente: reduzir, reutilizar, reciclar (os 3 Rs) (AE6 | EM13CHS306)",
+        "Aula 4 — Pegada ecológica | Modelo de consumo linear; conceito de pegada ecológica e consumo sustentável (AE7 | EM13CHS301)",
+        "Aula 5 — Padrões de consumo e seus impactos | Relação entre consumo e esgotamento de recursos naturais; produção de resíduos e poluição (AE7 | EM13CHS301)",
+        "Aula 6 — Efeito estufa | Efeito estufa: natural x intensificado; principais gases de efeito estufa (GEE) (AE7 | EM13CHS301)",
+        "Aula 7 — Mudanças climáticas | Causas antrópicas das mudanças climáticas (AE6 | EM13CHS302)",
+        "Aula 8 — Aquecimento global: impactos e acordos internacionais | Consequências do aquecimento global; Protocolo de Kyoto, Acordo de Paris e Conferência das Partes (COP) (AE6 | EM13CHS306)",
+        "Aula 9 — Práticas para o enfrentamento das mudanças climáticas | Práticas individuais e coletivas de mitigação e adaptação às mudanças climáticas (AE6 | EM13CHS305)",
+        "Aula 10 — Sistema de proteção e Defesa Civil | Riscos e desastres (AE6 | EM13CHS305)",
+        "Aula 11 — Defesa civil somos todos nós | Aula prática: prevenção de riscos e desastres na comunidade escolar (AE6 | EM13CHS305)",
+        "Aula 12 — Defesa civil somos todos nós: apresentação dos trabalhos | Apresentação dos trabalhos sobre prevenção de riscos e desastres (AE6 | EM13CHS305)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Sistema Econômico de Mercado (capitalismo) | Características fundamentais do Sistema Econômico de Mercado (AE6 | EM13CHS306)",
+        "Aula 2 — Sistema Econômico Planificado (socialismo) | Características principais do Sistema Econômico Planificado (AE6 | EM13CHS306)",
+        "Aula 3 — Sistema Econômico Misto | Integração entre mercado livre e intervenção estatal (AE6 | EM13CHS306)",
+        "Aula 4 — Blocos econômicos | Blocos econômicos (UE, Mercosul, USMCA); empresas transnacionais e seu papel no capitalismo global (AE4 | EM13CHS404)",
+        "Aula 5 — Economia e mundo do trabalho | Transformações nos mercados de trabalho; tecnologia e globalização (AE4 | EM13CHS404)",
+        "Aula 6 — Inteligência Artificial e mundo do trabalho | Impacto da inteligência artificial no mundo do trabalho (AE4 | EM13CHS403)",
+        "Aula 7 — Economia global e desigualdades | Fluxo de mercadorias, serviços e capitais; desemprego e informalidade (AE6 | EM13CHS302)",
+        "Aula 8 — Trabalho e emprego no mundo contemporâneo | Desafios e desigualdades no mundo do trabalho; automação e novas tecnologias (AE4 | EM13CHS403)",
+        "Aula 9 — Sustentabilidade e desenvolvimento sustentável | Pilares da sustentabilidade: econômico, social, ambiental; Objetivos de Desenvolvimento Sustentável (ODS) (AE1 | EM13CHS304)",
+        "Aula 10 — Formas de produzir para o futuro | Produção e sustentabilidade; novas formas de produção (AE6 | EM13CHS306)",
+        "Aula 11 — Projeto de sustentabilidade na escola | Diagnóstico ambiental da escola (AE7 | EM13CHS304)",
+        "Aula 12 — Projeto de sustentabilidade na escola: planos de ação | Planos de ação para a sustentabilidade na escola (AE7 | EM13CHS304)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Demografia | Conceitos de demografia; transição demográfica (AE1 | EM13CHS205)",
         "Aula 2 — Demografia brasileira | Dados e características da população brasileira (AE1 | EM13CHS205)",
@@ -511,6 +795,34 @@ function criarFormulario() {
         "Aula 12 — [Complementar] O Brasil no cenário agrícola | O Brasil no cenário agrícola (EM13CHS203)",
         "Aula 13 — Territórios Indígenas | Territórios indígenas: importância cultural, social e geográfica (AE4 | EM13CHS106)",
         "Aula 14 — Demarcações dos territórios indígenas | Demarcações de territórios; marco temporal (AE4 | EM13CHS106)",
+      ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — As causas das migrações contemporâneas | Fatores econômicos, sociais e ambientais das migrações; estudos de caso (AE2 | EM13CHS205)",
+        "Aula 2 — Refugiados e organismos internacionais | Funções do ACNUR; convenções internacionais (AE2 | EM13CHS305)",
+        "Aula 3 — Migração em áreas de conflito | Migração forçada; estudos de caso em zonas de conflito (AE2 | EM13CHS201)",
+        "Aula 4 — Políticas de imigração na Europa e nos Estados Unidos | Barreiras e incentivos; questões culturais e econômicas (AE2 | EM13CHS201)",
+        "Aula 5 — Impacto das migrações em países receptores | Impactos demográficos e econômicos; integração social e desafios culturais (AE2 | EM13CHS205)",
+        "Aula 6 — A diáspora brasileira | História da diáspora brasileira; impactos econômicos e culturais (AE2 | EM13CHS201)",
+        "Aula 7 — Fluxos de capitais e investimentos internacionais | Remessas financeiras; globalização econômica; desigualdades econômicas (AE9 | EM13CHS103)",
+        "Aula 8 — Globalização e fluxos culturais | Circulação cultural; globalização e identidade local (AE2 | EM13CHS201)",
+        "Aula 9 — Fluxos de informação na era digital | Redes de informação; poder midiático; impacto das plataformas digitais (AE7 | EM13CHS205)",
+        "Aula 10 — Soberania nacional no contexto global atual | Soberania e globalização; interferência internacional; desafios do século XXI (AE7 | EM13CHS205)",
+        "Aula 11 — FMI e Banco Mundial em países em desenvolvimento | Políticas de ajuste estrutural; dívida externa; desigualdades econômicas (AE9 | EM13CHS305)",
+        "Aula 12 — Sanções econômicas | Tipos de sanções; impactos econômicos e políticos (AE9 | EM13CHS305)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Fluxos globais | Explicar os conceitos de fluxo geográfico; comparar diferentes fluxos materiais e imateriais (AE9 | EM13CHS202)",
+        "Aula 2 — Fluxos de informação e tecnologia | Revolução tecnológica e intensificação dos fluxos de informação; redes sociais e internet (AE9 | EM13CHS202)",
+        "Aula 3 — Fluxos de mercadorias e cadeias produtivas globais | Cadeias globais de produção e o papel dos fluxos de mercadorias na economia mundial (AE9 | EM13CHS202)",
+        "Aula 4 — Impactos dos fluxos globais | Impactos econômicos, sociais e ambientais dos fluxos globais atuais (AE9 | EM13CHS202)",
+        "Aula 5 — Meio técnico-científico-informacional | Meio técnico-científico-informacional e seu papel na transformação do espaço geográfico (AE8 | EM13CHS401)",
+        "Aula 6 — Desafios do meio técnico-científico-informacional | Exclusão digital; impactos ambientais da tecnociência (AE8 | EM13CHS401)",
+        "Aula 7 — Globalização e economia mundial | Formação dos blocos econômicos; circulação de mercadorias e competitividade entre países (AE7 | EM13CHS202)",
+        "Aula 8 — Comércio Global e Blocos Econômicos | Impactos do comércio global nas economias periféricas e nos países em desenvolvimento (AE7 | EM13CHS202)",
+        "Aula 9 — Desenvolvimento Sustentável em Perspectiva Global | Indicadores sociais, econômicos e ambientais; desigualdades e compromissos internacionais (AE9 | EM13CHS202)",
+        "Aula 10 — Economia e desenvolvimento sustentável | Relação entre desenvolvimento econômico e sustentabilidade (AE9 | EM13CHS202)",
+        "Aula 11 — Consumo consciente | Desigualdades regionais e políticas sustentáveis e do consumo consciente (AE7 | EM13CHS205)",
+        "Aula 12 — Desigualdades regionais no Brasil: uma análise de dados socioeconômicos | Dados socioeconômicos e desigualdades regionais no Brasil (AE7 | EM13CHS205)",
       ],
     },
     // ══════════════════════════════════════════════════════════════════════
@@ -549,8 +861,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] Humanismo e estética no Renascimento: análise de obras como fontes históricas | Artistas renascentistas; humanismo (EM13CHS105)",
         "Aula 14 — Reforma protestante e contrarreforma: quebra e continuidade da Igreja Católica | Reforma Protestante; Contrarreforma (AE4 | EM13CHS203)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Entre a fé e o controle: os mecanismos da Contrarreforma | Contrarreforma; Tribunais do Santo Ofício; Companhia de Jesus (AE5 | EM13CHS102)",
+        "Aula 2 — Poder divino e controle absoluto: a ascensão das monarquias europeias | Absolutismo; formação das monarquias europeias (AE5 | EM13CHS203)",
+        "Aula 3 — Modernidade em movimento: entre permanências e rupturas | Modernidade e Europa Moderna (AE5 | EM13CHS204)",
+        "Aula 4 — Da Metrópole à Colônia: a lógica mercantilista na expansão europeia | Lógica mercantil; domínio territorial europeu (AE5 | EM13CHS102)",
+        "Aula 5 — Práticas e saberes ancestrais: a diversidade dos povos originários | Patrimônio histórico cultural material e imaterial; diversidade de povos indígenas (AE6 | EM13CHS104)",
+        "Aula 6 — \"Ventos da mudança\": navegações e conquistas nos séculos XV e XVI | Grandes Navegações; rotas marítimas entre Atlântico e Pacífico; técnicas de navegação (AE6 | EM13CHS204)",
+        "Aula 7 — Dois mundos em conflito: o encontro entre portugueses e povos originários | Colonização; primeiros contatos entre europeus e povos originários (AE6 | EM13CHS204)",
+        "Aula 8 — Permanências de um imaginário: o Brasil indígena pelos olhos do europeu colonizador | Diversidade de povos indígenas; imaginário europeu (AE6 | EM13CHS104)",
+        "Aula 9 — Os donos da terra: território, poder e identidade nas civilizações inca, asteca e maia | Povos originários: astecas, incas e maias (AE6 | EM13CHS204)",
+        "Aula 10 — Materialidade e saberes incas: arquitetura, engenharia e cultura têxtil nos Andes | Arquitetura e engenharia; tecelagem (AE6 | EM13CHS204)",
+        "Aula 11 — Conquista e Resistência: os impactos da colonização espanhola na América | Práticas colonizadoras na América Espanhola; perspectivas sobre a conquista (AE7 | EM13CHS102)",
+        "Aula 12 — Colonização portuguesa na América: poder, resistência e transformações sociais | Práticas colonizadoras da América portuguesa (AE7 | EM13CHS102)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Os mapas contam histórias: poder e conflito na formação do território brasileiro | Capitanias e Governo Geral; Câmaras Municipais; mapas históricos (AE7 | EM13CHS102)",
+        "Aula 2 — Bandeirantes, indígenas e Jesuítas: a construção da narrativa na historiografia paulista | Rivalidades europeias; Missões Guaraníticas; jesuítas e bandeirantes (AE7 | EM13CHS102)",
+        "Aula 3 — A vida não era doce: organização social na sociedade do açúcar | Organização social do engenho; mão de obra escravizada; funcionamento da sociedade açucareira (AE8 | EM13CHS603)",
+        "Aula 4 — Nem tudo que reluz é ouro: sociedade mineradora, características e contradições | Exploração do ouro e pedras preciosas; sociedade mineradora; Guerra dos Emboabas (AE8 | EM13CHS603)",
+        "Aula 5 — O papel das Colônias Ibéricas: comparando as estruturas coloniais de Portugal e Espanha | Colonização portuguesa e espanhola na América; atividades econômicas das colônias (AE8 | EM13CHS603)",
+        "Aula 6 — Rotas de Injustiça: conhecendo o Comércio Triangular e o tráfico de escravizados | Comércio triangular; rotas do tráfico transatlântico; sistema escravista (AE9 | EM13CHS601)",
+        "Aula 7 — Caminhos do cativeiro e da resistência: explorando o Comércio Triangular e as lutas antiescravistas | Comércio triangular; rotas do tráfico transatlântico; sistema escravista (AE9 | EM13CHS601)",
+        "Aula 8 — [Aula desafio] Do tráfico à resistência: a história dos africanos no Brasil e o legado do racismo | Sistema escravocrata e naturalização da violência; racismo (AE9 | EM13CHS601)",
+        "Aula 9 — Da Monarquia ao Parlamentarismo: Revolução Burguesa e a Declaração de Direitos na Inglaterra (1689) | Monarquia inglesa; Revolução Burguesa; Bill of Rights (AE10 | EM13CHS603)",
+        "Aula 10 — \"Laissez-faire\": as ideias de autonomia do mercado | Liberalismo; trabalho e pensamento econômico; teóricos do liberalismo; Adam Smith (AE10 | EM13CHS603)",
+        "Aula 11 — As bases políticas e econômicas da Revolução Industrial: um mundo em transformação | Capitalismo; monarquia britânica (AE10 | EM13CHS603)",
+        "Aula 12 — Da riqueza ao vapor: o capital que movimentou a Revolução Industrial e transformou o trabalho | Revolução Industrial; mudanças tecnológicas; transformações sociais (AE10 | EM13CHS603)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — As abomináveis ideias francesas: o Iluminismo e as bases da sociedade burguesa | Iluminismo; liberalismo; contrato social; fim do Antigo Regime (AE1 | EM13CHS605)",
         "Aula 2 — Revolução Francesa: de súditos a cidadãos | Revolução Francesa; Declaração de Direitos do Homem e do Cidadão (1789) (AE1 | EM13CHS605)",
@@ -582,6 +920,34 @@ function criarFormulario() {
         "Aula 12 — Da Casa-grande ao mito da democracia racial | Gilberto Freyre; Casa-Grande & Senzala; Florestan Fernandes (AE5 | EM13CHS502)",
         "Aula 13 — [Complementar] O patriarcalismo no Brasil: a família, o açúcar e a violência da escravidão | Relações patriarcais; sociedade açucareira; escravidão (EM13CHS502)",
         "Aula 14 — Patrimonialismo: as raízes cordiais do Brasil | Patrimonialismo; Sérgio Buarque de Holanda: a cordialidade (AE5 | EM13CHS502)",
+      ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — \"Bestializados ou bilontras\": um país republicano, mas para quem? | Proclamação da República; Constituição de 1891 (presidencialismo, federalismo, sistema bicameral) (AE6 | EM13CHS602)",
+        "Aula 2 — A República oligárquica: \"a terra do favor\" | Primeira República: oligarquias rurais; coronelismo, clientelismo e mandonismo (AE6 | EM13CHS602)",
+        "Aula 3 — Movimento operário: as greves e as lutas por direitos na Primeira República | Movimento operário; Greve de 1917; luta pela manutenção/conquista de direitos trabalhistas (AE6 | EM13CHS403)",
+        "Aula 4 — Mulheres operárias: permanências e mudanças no mundo do trabalho | Condições de vida e trabalho feminino na Primeira República; anarquismo; resistência feminina (AE6 | EM13CHS403)",
+        "Aula 5 — O fim da \"República que não era velha\": o movimento de 1930 | Crise da Primeira República e das oligarquias tradicionais; tenentismo (AE6 | EM13CHS602)",
+        "Aula 6 — Restauração da legalidade com espírito conservador: os paulistas e a revolta de 1932 | Movimento Constitucionalista de 1932 (AE7 | EM13CHS602)",
+        "Aula 7 — Da (re)constitucionalização do país ao Estado Novo | Governo Getúlio Vargas (1930-1945); AIB; ANL; Intentona Comunista; Plano Cohen (AE7 | EM13CHS602)",
+        "Aula 8 — O que tinha de \"novo\" no Estado Novo? | Estado Novo; Constituição de 1937; DIP; ditadura (AE7 | EM13CHS602)",
+        "Aula 9 — As leis trabalhistas no Brasil: governo Vargas e a CLT | Consolidação das Leis do Trabalho — CLT; Governo Getúlio Vargas — Estado Novo (AE7 | EM13CHS403)",
+        "Aula 10 — Governo Dutra e a Guerra Fria | Governo Dutra (1946-1951); liberalismo e políticas econômicas pró-EUA; Constituição de 1946 (AE7 | EM13CHS403)",
+        "Aula 11 — De volta ao Catete: \"bota o retrato do velho outra vez\" | Governo Vargas (1951-1954); nacionalismo econômico; reforço do trabalhismo (AE7 | EM13CHS403)",
+        "Aula 12 — \"O vendedor de esperanças\": os cinco anos de Juscelino Kubitschek | Governo JK (1956-1961); desenvolvimentismo/industrialização; Plano de Metas; SUDENE (AE7 | EM13CHS403)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Tudo que é sólido desmancha no ar: opulência material e corrosão do trabalhador | 1ª e 2ª Revolução Industrial; mobilizações operárias (AE8 | EM13CHS401)",
+        "Aula 2 — Primavera dos povos: \"sopra o vento das revoluções\" | Europa dos Nacionalismos, liberalismo, socialismo; Primavera dos Povos (1848) (AE8 | EM13CHS603)",
+        "Aula 3 — \"A invenção das tradições\": as unificações da Alemanha e da Itália | Unificação Italiana (1861-1870) e Alemã (1871) (AE8 | EM13CHS603)",
+        "Aula 4 — \"Sangue, Ferro e Risorgimento\": a unificação Alemã e Italiana na Era dos Nacionalismos | Unificação Italiana (1861-1870) e Alemã (1871) (AE8 | EM13CHS603)",
+        "Aula 5 — O longo século XIX: a consolidação e a crítica ao mundo burguês | O Manifesto do Partido Comunista; conflito capital-trabalho; antagonismo burguesia e proletariado (AE9 | EM13CHS603)",
+        "Aula 6 — Revoluções possíveis: \"Vive la Commune!\" | Comuna de Paris (1871) (AE9 | EM13CHS603)",
+        "Aula 7 — Os Estados Unidos e um \"Destino Manifesto\": Go West... e cresça com o país | Doutrina do Destino Manifesto; expansão para o Oeste; Homestead Act (1862) (AE10 | EM13CHS204)",
+        "Aula 8 — \"Uma casa dividida\": a guerra civil nos EUA | Conflito Norte e Sul; Guerra de Secessão (1861-1865); escravidão (AE10 | EM13CHS204)",
+        "Aula 9 — \"Nós o povo dos Estados Unidos\": regionalismo ou união perfeita? | Guerra de Secessão (1861-1865) (AE10 | EM13CHS204)",
+        "Aula 10 — A reconstrução: \"nasce\" uma nação! | 13ª Emenda — o fim da escravidão; Reconstrução (1865-1877); 14ª e 15ª Emendas; Códigos Negros (AE10 | EM13CHS204)",
+        "Aula 11 — American Ingenuity: os magnatas da indústria e o self-made man | A ideologia do self-made man (Rockefeller, Morgan etc.); holdings; trustes; monopólios (AE10 | EM13CHS402)",
+        "Aula 12 — Trabalho e direitos: em qual a \"jornada\"? | A luta por direitos da classe operária; a Revolta de Haymarket (1886) (AE10 | EM13CHS402)",
       ],
       "3ª Série — 1º Bimestre": [
         "Aula 1 — As sociedades do progresso: a segunda revolução industrial | Segunda Revolução Industrial; expansão industrial; transformações técnicas (AE1 | EM13CHS402)",
@@ -615,6 +981,34 @@ function criarFormulario() {
         "Aula 13 — [Complementar] A nova ordem econômica: conferência de Bretton Woods | Bretton Woods; FMI, BIRD e GATT (EM13CHS604)",
         "Aula 14 — Das cinzas à paz: as origens históricas da ONU | Fim da Segunda Guerra; ONU; organismos internacionais (AE4 | EM13CHS604)",
       ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — Da \"guerra quente\" à Guerra Fria: corrida armamentista e mundo bipolarizado | Guerra Fria; alianças econômicas e militares; corridas armamentista e espacial (AE6 | EM13CHS604)",
+        "Aula 2 — Pan-africanismo: resistência e lutas na África do pós Segunda Guerra Mundial | Pan-africanismo; Conferência de Bandung; descolonização e independências (AE6 | EM13CHS204)",
+        "Aula 3 — África: fronteiras artificiais, conflitos e independências | Nacionalismo Afroasiático: descolonização e independências (Congo, Moçambique, Guiné-Bissau, Angola etc.) (AE6 | EM13CHS204)",
+        "Aula 4 — Revolução Chinesa: as tensões políticas e as revoluções socialistas | Revoluções socialistas: China; tensões entre China e Rússia (AE6 | EM13CHS204)",
+        "Aula 5 — Cuba: revolução socialista na América Latina | Revoluções socialistas: Cuba; tensões entre EUA e Cuba (AE6 | EM13CHS204)",
+        "Aula 6 — Crise e desagregação da URSS: uma nova ordem mundial? | Perestroika e Glasnost; queda do Muro de Berlim; colapso da URSS (AE6 | EM13CHS204)",
+        "Aula 7 — Da renúncia de Jânio às polarizações políticas: deposição de João Goulart | Renúncia de Jânio Quadros; plebiscito (1963); Reformas de Base; deposição de João Goulart (AE7 | EM13CHS602)",
+        "Aula 8 — Quando um golpe vira governo: o fim da democracia | Golpe civil-militar no Brasil em 1964; Marcha da Família com Deus e pela Liberdade; Atos Institucionais (AE7 | EM13CHS602)",
+        "Aula 9 — \"Anos de Chumbo\" e \"Brasil: ame-o ou deixe-o!\" | Repressão; campanha ufanista (AE7 | EM13CHS602)",
+        "Aula 10 — Nas \"asas do Condor\": as ditaduras no Chile e Argentina | Ditadura civil-militar do Chile e da Argentina (AE7 | EM13CHS602)",
+        "Aula 11 — O autoritarismo e a canção: \"o sinal está fechado para nós, que somos jovens?\" | Festivais da Canção (1964-1968); juventudes e expressões artísticas na resistência à ditadura (AE8 | EM13CHS503)",
+        "Aula 12 — \"Vida de estudante\": os movimentos estudantis de resistência à ditadura civil-militar | Movimentos estudantis; violência política e repressão aos opositores do regime (AE8 | EM13CHS503)",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — \"Integrar para não entregar\": a ausência de direitos e violência aos povos indígenas na ditadura | A ditadura civil-militar e as violações aos direitos dos povos indígenas; criação da FUNAI; Estatuto do Índio (AE8 | EM13CHS503)",
+        "Aula 2 — Movimento Negro Unificado: luta contra o racismo e repressão na Ditadura Militar | Organizações e movimentos negros no Brasil; Movimento Negro Unificado — MNU (AE8 | EM13CHS501)",
+        "Aula 3 — O Brasil Amazônico e Chico Mendes: impactos dos modelos socioeconômicos no uso dos recursos naturais | Modelos socioeconômicos no uso de recursos naturais na ditadura; Chico Mendes (AE8 | EM13CHS306)",
+        "Aula 4 — Greves do ABC Paulista: \"trabalhadores cruzam os braços\" em plena ditadura | Greve; ABC; industrialização; metalúrgico (AE8 | EM13CHS501)",
+        "Aula 5 — \"Tortura nunca mais!\": a ditadura civil-militar no Brasil | Violação de Direitos Humanos; Doutrina de Segurança Nacional; torturas, mortes e desaparecimentos (AE9 | EM13CHS503)",
+        "Aula 6 — Comissão Nacional da Verdade: o lugar da memória diante da violação dos direitos humanos | Violação de Direitos Humanos no contexto da ditadura civil-militar (1964-1985) (AE9 | EM13CHS503)",
+        "Aula 7 — Diretas Já: mobilização popular por democracia no Brasil | Anistia; redemocratização/Diretas Já! (AE10 | EM13CHS501)",
+        "Aula 8 — Direitos e cidadania no Brasil: um projeto em construção | Redemocratização; Constituição de 1988 (AE10 | EM13CHS501)",
+        "Aula 9 — \"A bancada do batom\": a trajetória e luta dos direitos femininos na política | Cidadania e direito político das mulheres no Brasil; Constituição Federal de 1988 (AE10 | EM13CHS501)",
+        "Aula 10 — Uma \"Nova República\" com pouca novidade: de Tancredo Neves a Sarney | Governo Sarney; Plano Cruzado; direitos sociais (AE11 | EM13CHS501)",
+        "Aula 11 — Um \"caçador\" de Marajás: do confisco da poupança ao impeachment, o governo Fernando Collor de Mello | Governo Collor; Plano Collor; confisco da poupança; impeachment (AE11 | EM13CHS501)",
+        "Aula 12 — O Plano Real: um \"tíquete\" para a presidência da República | Governos Itamar Franco e FHC; Plano Real; neoliberalismo (AE11 | EM13CHS501)",
+      ],
     },
     // ══════════════════════════════════════════════════════════════════════
     // INGLÊS / LÍNGUA INGLESA  (Guia do Currículo Priorizado — EM — Língua Inglesa)
@@ -641,8 +1035,24 @@ function criarFormulario() {
         "Aula 11 — Evolution in Communication (Part 6) | Future tense; uso de \"should\" em conselhos e recomendações (AE2 | EM13LGG103)",
         "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Migration Issues (Part 1) | Prática de leitura; vocabulário temático; superlative form (AE3 | EM13LGG102)",
+        "Aula 3 — Migration Issues (Part 2) | Prática de leitura; comparative form (AE3 | EM13LGG102)",
+        "Aula 5 — Migration Issues (Part 3) | Prática de leitura; palavras-chave relacionadas à migração (AE3 | EM13LGG102)",
+        "Aula 7 — Migration Issues (Part 4) | Prática de leitura; irregular adjectives (AE3 | EM13LGG102)",
+        "Aula 9 — Migration Issues (Part 5) | Compreensão e produção textual; vocabulário temático (AE4 | EM13LGG103)",
+        "Aula 11 — Migration Issues (Part 6) | Compreensão e produção textual; vocabulário temático (AE4 | EM13LGG103)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Consumerism and health (Part 1) | Prática de leitura; vocabulário temático; inferências em questões de vestibulares (AE3 | EM13LGG102)",
+        "Aula 3 — Consumerism and health (Part 2) | Prática de leitura; will x going to (AE3 | EM13LGG102)",
+        "Aula 5 — Consumerism and health (Part 3) | Prática de leitura; active voice x passive voice (AE3 | EM13LGG102)",
+        "Aula 7 — Consumerism and health (Part 4) | Prática de leitura; false cognates (AE3 | EM13LGG102)",
+        "Aula 9 — Consumerism and health (Part 5) | Prática de compreensão e produção textual; vocabulário e gramática específicos (AE4 | EM13LGG103)",
+        "Aula 11 — Consumerism and health (Part 6) | Prática de compreensão e produção textual; vocabulário e gramática específicos (AE4 | EM13LGG103)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Fitness and health (Part 1) | Leitura; inferência de significado pelo contexto; vocabulário temático (AE1 | EM13LGG102)",
         "Aula 3 — Fitness and health (Part 2) | Leitura; inferência; posicionamento crítico diante do texto (AE1 | EM13LGG102)",
@@ -659,6 +1069,42 @@ function criarFormulario() {
         "Aula 7 — Science Revolution (Part 4) | Leitura crítica de textos; estratégias de compreensão (AE1 | EM13LGG102)",
         "Aula 9 — Science Revolution (Part 5) | Passive voice; compreensão e produção textual (AE2 | EM13LGG102)",
         "Aula 11 — Science Revolution (Part 6) | Passive voice; efeito de sentido no uso da voz passiva (AE2 | EM13LGG102)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Science and society (Part 1) | Prática de leitura; vocabulário temático; quantifier - some (AE3 | EM13LGG102)",
+        "Aula 3 — Science and society (Part 2) | Prática de leitura; present perfect (AE3 | EM13LGG102)",
+        "Aula 5 — Science and society (Part 3) | Prática de leitura; terminação -ing (AE3 | EM13LGG102)",
+        "Aula 7 — Science and society (Part 4) | Prática de leitura; should x must (AE3 | EM13LGG102)",
+        "Aula 9 — Science and society (Part 5) | Compreensão e produção textual; present perfect: for-since (AE4 | EM13LGG103)",
+        "Aula 11 — Science and society (Part 6) | Compreensão e produção textual; present perfect: already-yet-just (AE4 | EM13LGG103)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — The world of work (Part 1) | Prática de leitura; vocabulário temático; past perfect (AE3 | EM13LGG102)",
+        "Aula 3 — The world of work (Part 2) | Prática de leitura; future perfect (AE3 | EM13LGG102)",
+        "Aula 5 — The world of work (Part 3) | Prática de leitura; real conditionals (AE3 | EM13LGG102)",
+        "Aula 7 — The world of work (Part 4) | Prática de leitura; unreal conditionals (AE3 | EM13LGG102)",
+        "Aula 9 — The world of work (Part 5) | Compreensão e produção textual; soft skills and hard skills (AE4 | EM13LGG103)",
+        "Aula 11 — The world of work (Part 6) | Compreensão e produção textual; soft skills and hard skills (AE4 | EM13LGG103)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — Artificial Intelligence (Part 1) | Prática de leitura; vocabulário específico; linking words - contrast (AE1 | EM13LGG102)",
+        "Aula 3 — Artificial Intelligence (Part 2) | Prática de leitura; linking words - addition (AE1 | EM13LGG102)",
+        "Aula 5 — Artificial Intelligence (Part 3) | Prática de leitura; linking words - cause (AE1 | EM13LGG102)",
+        "Aula 7 — Artificial Intelligence (Part 4) | Prática de leitura; linking words - consequence (AE1 | EM13LGG102)",
+        "Aula 9 — Artificial Intelligence (Part 5) | Compreensão e produção textual; vocabulário temático (AE2 | EM13LGG103)",
+        "Aula 11 — Artificial Intelligence (Part 6) | Compreensão e produção textual; vocabulário temático (AE2 | EM13LGG103)",
+        "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — Environmental issues (Part 1) | Prática de leitura; vocabulário específico; reference questions; possessive adjectives (AE1 | EM13LGG102)",
+        "Aula 3 — Environmental issues (Part 2) | Prática de leitura; reference questions; relative pronouns (AE1 | EM13LGG102)",
+        "Aula 5 — Environmental issues (Part 3) | Prática de leitura; estratégias de leitura (AE1 | EM13LGG102)",
+        "Aula 7 — Environmental issues (Part 4) | Compreensão e produção textual; fast fashion vocabulary (AE2 | EM13LGG103)",
+        "Aula 9 — Environmental issues (Part 5) | Compreensão e produção textual; fast fashion vocabulary (AE2 | EM13LGG103)",
+        "Aula 11 — [Aula desafio] How can we reduce the impact of fast fashion in our community? | Vocabulário específico sobre meio ambiente e fast fashion (AE2 | EM13LGG103)",
         "Plataforma EF (demais aulas) — Trilha de estudos individual; aprimoramento da proficiência em língua inglesa",
       ],
     },
@@ -726,8 +1172,58 @@ function criarFormulario() {
         "Aula 27 — [Complementar] Revisão bimestral – Parte 1 | Literatura: poemas e figuras de linguagem (EM13LP28)",
         "Aula 28 — [Complementar] Revisão bimestral – Parte 2 | Período composto por subordinação e coordenação (EM13LP28)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Literaturas africanas de expressão portuguesa – Parte 1 | Literatura africana (AE10 | EM13LP52)",
+        "Aula 2 — Literaturas africanas de expressão portuguesa – Parte 2 | Literatura africana; paragrafação (AE10 | EM13LP52)",
+        "Aula 3 — Literaturas africanas de expressão portuguesa – Parte 3 | Literatura africana (AE10 | EM13LP52)",
+        "Aula 4 — Literaturas africanas de expressão portuguesa – Parte 4 | Literatura africana; pontuação (AE10 | EM13LP52)",
+        "Aula 5 — Anúncios publicitários em mídias digitais – Parte 1 | Anúncio publicitário em mídias digitais; estratégias de persuasão (AE8 | EM13LP44A)",
+        "Aula 6 — Anúncios publicitários em mídias digitais – Parte 2 | Anúncio publicitário em mídias digitais; verbos no modo imperativo (AE2 | EM13LP44C)",
+        "Aula 7 — Um fato, duas versões – (Im)parcialidade em textos noticiosos – Parte 1 | Análise de notícia; parcialidade e imparcialidade (AE6 | EM13LP38)",
+        "Aula 8 — Um fato, duas versões – (Im)parcialidade em textos noticiosos – Parte 2 | Oração subordinada substantiva (AE2 | EM13LP08)",
+        "Aula 9 — A Carta de Caminha – Parte 1 | Análise de trechos da carta de Pero Vaz de Caminha (AE1 | EM13LP48)",
+        "Aula 10 — A Carta de Caminha – Parte 2 | Análise de trechos da carta; pronome relativo (AE2 | EM13LP08)",
+        "Aula 11 — Relato de viagem contemporâneo – Parte 1 | Análise de trechos de relato de viagem (AE5 | EM13LGG601)",
+        "Aula 12 — Relato de viagem contemporâneo – Parte 2 | Flexão verbal: conjugação regular e irregular (AE2 | EM13LP08)",
+        "Aula 13 — O gênero diário pessoal: reflexões do cotidiano – Parte 1 | Práticas de leitura e análise do gênero diário pessoal (AE5 | EM13LGG601)",
+        "Aula 14 — O gênero diário pessoal: reflexões do cotidiano – Parte 2 | Conjunções (AE4 | EM13LP02A)",
+        "Aula 15 — Texto dramático – Parte 1 | Características estruturais do texto dramático; análise de trechos de O Auto da Barca do Inferno (AE1 | EM13LP48)",
+        "Aula 16 — Texto dramático – Parte 2 | Análise de trechos de O Auto da Barca do Inferno (AE1 | EM13LP48)",
+        "Aula 17 — Texto dramático – Parte 3 | Planejamento de cenas dramáticas; criação de roteiro de esquete teatral (AE11 | EM13LP15)",
+        "Aula 18 — Texto dramático – Parte 4 | Encenação das cenas preparadas (AE11 | EM13LP15)",
+        "Aula 19 — Moldando imagens – Parte 1 | Análise e interpretação de feeds de redes sociais (AE7 | EM13LP41B)",
+        "Aula 20 — Moldando imagens – Parte 2 | Análise de feed de redes sociais; tempos e modos verbais (AE4 | EM13LP06)",
+        "Aula 21 — Resenha crítica – Parte 1 | Gênero resenha crítica; linguagem persuasiva (AE4 | EM13LP07)",
+        "Aula 22 — Resenha crítica – Parte 2 | Produção de texto; usos da vírgula (AE6 | EM13LP53)",
+        "Aula 23 — Desafios do mundo real – Parte 1 | Situação-problema; resolução de problemas sobre literatura (AE1 | EM13LGG101)",
+        "Aula 24 — Desafios do mundo real – Parte 2 | Situação-problema; resolução de problemas sobre jornalístico-midiático (AE7 | EM13LGG101)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — José de Anchieta e a Literatura de Catequese – Parte 1 | Literatura de catequese; leitura de trechos dos autos de José de Anchieta (AE1 | EM13LP48)",
+        "Aula 2 — José de Anchieta e a Literatura de Catequese – Parte 2 | Tempos verbais: pretérito perfeito e imperfeito (AE4 | EM13LP06)",
+        "Aula 3 — Barroco: Gregório de Matos – Parte 1 | Características do Barroco no Brasil; análise de obra de Gregório de Matos (AE10 | EM13LP52)",
+        "Aula 4 — Barroco: Gregório de Matos – Parte 2 | Análise de textos; concordância nominal (AE2 | EM13LP08)",
+        "Aula 5 — Barroco: Padre Antônio Vieira – Parte 1 | Vida e obra de Antônio Vieira; análise de textos (AE10 | EM13LP52)",
+        "Aula 6 — Barroco: Padre Antônio Vieira – Parte 2 | Análise de textos; concordância verbal (AE2 | EM13LP08)",
+        "Aula 7 — As expressões do Barroco em Portugal | Análise de textos e obras artísticas do período Barroco (AE10 | EM13LP52)",
+        "Aula 8 — Barroco e contemporaneidade: reflexões poéticas atemporais | Recursos linguísticos do Barroco; figuras de linguagem (comparação, metáfora, hipérbole, hipérbato) (AE10 | EM13LP52)",
+        "Aula 9 — Editorial: influenciador de opinião pública – Parte 1 | Gênero editorial; leitura e análise de texto (AE7 | EM13LP45)",
+        "Aula 10 — Editorial: influenciador de opinião pública – Parte 2 | Coesão textual (AE4 | EM13LP02A)",
+        "Aula 11 — Editorial: influenciador de opinião pública – Parte 3 | Leitura e análise de texto (AE7 | EM13LP45)",
+        "Aula 12 — Editorial: influenciador de opinião pública – Parte 4 | Modalizadores argumentativos (AE4 | EM13LP02C)",
+        "Aula 13 — Manifesto – Parte 1 | Gênero manifesto; leitura e análise de texto (AE9 | EM13LP27)",
+        "Aula 14 — Manifesto – Parte 2 | Adequação vocabular; produção de manifesto (AE9 | EM13LP27)",
+        "Aula 15 — Críticas da mídia – Parte 1 | Resenha crítica de produção cultural; leitura e análise de texto (AE5 | EM13LP53)",
+        "Aula 16 — Críticas da mídia – Parte 2 | Locução adverbial (AE5 | EM13LP53)",
+        "Aula 17 — Divulgação científica – Parte 1 | Texto de divulgação científica; leitura e análise de texto (AE12 | EM13LP32B)",
+        "Aula 18 — Divulgação científica – Parte 2 | Coerência textual (AE12 | EM13LP32B)",
+        "Aula 19 — Conto fantástico | Conto fantástico; leitura e análise de texto (AE1 | EM13LP49)",
+        "Aula 20 — Microconto – Parte 1 | Microconto; leitura e análise de texto (AE1 | EM13LP49)",
+        "Aula 21 — Microconto – Parte 2 | Função da pontuação em textos sintéticos (AE4 | EM13LP06)",
+        "Aula 22 — Vídeo-minuto: um bimestre em 60 segundos! – Parte 1 | Vídeo-minuto: função e características (AE12 | EM13LP32C)",
+        "Aula 23 — Vídeo-minuto: um bimestre em 60 segundos! – Parte 2 | Revisão de conteúdos do bimestre; produção textual: vídeo-minuto (AE13 | EM13LP17)",
+        "Aula 24 — Vídeo-minuto: um bimestre em 60 segundos! – Parte 3 | Revisão de conteúdos; apresentação do vídeo-minuto (AE13 | EM13LGG301)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Comecemos com a literatura – Parte 1 | Texto literário e não literário (AE1 | EM13LGG101)",
         "Aula 2 — Comecemos com a literatura – Parte 2 | Estrutura da oração (sujeito, predicado) (AE2 | EM13LP08)",
@@ -788,6 +1284,58 @@ function criarFormulario() {
         "Aula 27 — Divulgando ciência – Parte 1 | Planejamento de texto de divulgação científica; banner (AE12 | EM13LP34)",
         "Aula 28 — Divulgando ciência – Parte 2 | Apresentação de texto de divulgação científica (AE12 | EM13LGG301)",
       ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Literatura latino-americana – Parte 1 | Literatura latino-americana; panorama histórico (AE3 | EM13LP52)",
+        "Aula 2 — Literatura latino-americana – Parte 2 | Literatura latino-americana: o caso do Uruguai; Eduardo Galeano (AE3 | EM13LP52)",
+        "Aula 3 — O Realismo mágico na literatura latino-americana – Parte 1 | Realismo mágico; Gabriel García Márquez; conto de Jorge Luis Borges (AE3 | EM13LP52)",
+        "Aula 4 — O Realismo mágico na literatura latino-americana – Parte 2 | Conto de Julio Cortázar (AE3 | EM13LP52)",
+        "Aula 5 — Realismo em Portugal – Eça de Queirós | Realismo em Portugal; obra de Eça de Queirós; ironia (AE3 | EM13LP52)",
+        "Aula 6 — Realismo no Brasil – Machado de Assis | Realismo no Brasil; Machado de Assis; uso da vírgula e do ponto final (AE3 | EM13LP52)",
+        "Aula 7 — Artigo de opinião – Parte 1 | Questão polêmica; fato x opinião; modos verbais: indicativo e subjuntivo (AE8 | EM13LGG303)",
+        "Aula 8 — Artigo de opinião – Parte 2 | Elementos do artigo de opinião; tese e estratégias argumentativas (AE8 | EM13LGG303)",
+        "Aula 9 — Artigo de opinião – Parte 3 | Tipos de argumento; citação direta e indireta (AE8 | EM13LP05)",
+        "Aula 10 — Artigo de opinião – Parte 4 | Coesão sequencial e referencial; conectivos e pronomes (AE8 | EM13LP02B)",
+        "Aula 11 — Artigo de opinião – Parte 5 | Produção de artigo de opinião (AE6 | EM13LP15)",
+        "Aula 12 — O Romantismo e a identidade brasileira | Romantismo no Brasil; análise do poema \"Canção do exílio\" (AE11 | EM13LP48)",
+        "Aula 13 — As várias faces da \"Canção do Exílio\" na construção da identidade brasileira | Paródia e intertextualidade; ironia (AE11 | EM13LP46)",
+        "Aula 14 — Crônica: Machado de Assis e a apreensão pessoal da vida comum | Análise de crônica; pretérito perfeito e imperfeito (AE11 | EM13LP49)",
+        "Aula 15 — Crônica e cotidiano | Características da crônica contemporânea; discurso direto e indireto (AE11 | EM13LP49)",
+        "Aula 16 — O Realismo/Naturalismo: Aluísio de Azevedo | Romance naturalista; análise de O Cortiço; adjetivação (AE11 | EM13LP48)",
+        "Aula 17 — De O Cortiço ao Quarto de Despejo | Análise comparativa de O Cortiço e Quarto de Despejo; variação linguística (AE11 | EM13LP48)",
+        "Aula 18 — Intervenção urbana – Parte 1 | O gênero grafite como ação social; economia linguística e elipses (AE8 | EM13LGG105)",
+        "Aula 19 — Intervenção urbana – Parte 2 | Oficina de arte urbana: o grafite como expressão cultural (AE6 | EM13LGG105)",
+        "Aula 20 — Da crítica à contemplação: Parnasianismo e a \"arte pela arte\" | Contexto histórico e cultural do Parnasianismo; substantivo e adjetivo (AE11 | EM13LP48)",
+        "Aula 21 — Francisca Júlia: a poesia que transcende a forma | Características da escrita de Francisca Júlia (AE11 | EM13LP48)",
+        "Aula 22 — Meu percurso sintetizado | Gênero mapa conceitual; classes de palavras (AE12 | EM13LP35)",
+        "Aula 23 — Construindo o meu caminho | Produção de mapa conceitual (AE12 | EM13LP28)",
+        "Aula 24 — Concluindo a jornada | Apresentação do mapa conceitual do bimestre (AE12 | EM13LP35)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Simbolismo em diálogo: Baudelaire e Cruz e Sousa | A linguagem do simbolismo; literatura comparada; figuras de linguagem (metáfora, comparação, aliteração, assonância, sinestesia) (AE11 | EM13LP48)",
+        "Aula 2 — Simbolismo no Brasil | Simbolismo no Brasil; Cruz e Sousa e Alphonsus de Guimaraens; antítese (AE11 | EM13LP48)",
+        "Aula 3 — Produzindo poemas, despertando os sentidos! | Produção de textos autorais inspirados no Simbolismo (AE6 | EM13LP54)",
+        "Aula 4 — Simbolistas na vibe: mostra de poemas! | Apresentação oral: leitura de poemas (AE6 | EM13LP54)",
+        "Aula 5 — A prosa regionalista romântica: pais e filhos em Inocência | Prosa regionalista romântica; obra Inocência, de Visconde de Taunay; pontuação (AE9 | EM13LGG204)",
+        "Aula 6 — Perfis femininos no romance urbano: Lucíola | Características do romance romântico urbano; perfis femininos em Lucíola (AE9 | EM13LGG202)",
+        "Aula 7 — Perfis femininos no romance urbano: Senhora | Perfis femininos em Senhora; aposto e vocativo (AE9 | EM13LGG202)",
+        "Aula 8 — Traiu ou não traiu? Dom Casmurro, de Machado de Assis | Contexto histórico e características do Realismo em Dom Casmurro; função metalinguística (AE3 | EM13LP52)",
+        "Aula 9 — Capitu e Desdêmona: entre vozes e narrativas | Literatura comparada: Dom Casmurro e Otelo; adjetivo e construção de sentido (AE9 | EM13LGG202)",
+        "Aula 10 — Júlia Lopes de Almeida: uma escritora à frente de seu tempo | Realismo e Naturalismo; advérbio e orações subordinadas adverbiais (AE3 | EM13LP52)",
+        "Aula 11 — Fanzine literário: palavras, arte e ação! | Gênero fanzine; produção textual (AE7 | EM13LP53)",
+        "Aula 12 — Compartilhando fanzines literários: palavras, arte e ação! | Produção de fanzine (AE7 | EM13LP53)",
+        "Aula 13 — O texto dissertativo-argumentativo e sua importância no Enem – Parte 1 | Importância da redação no Enem; competências avaliadas; análise de redação nota mil (AE8 | EM13LGG303)",
+        "Aula 14 — O texto dissertativo-argumentativo e sua importância no Enem – Parte 2 | Estrutura do texto dissertativo-argumentativo; sinonímia (AE8 | EM13LGG303)",
+        "Aula 15 — Texto dissertativo-argumentativo – Parte 3 | O percurso argumentativo; tipos de argumento (AE8 | EM13LP15)",
+        "Aula 16 — Texto dissertativo-argumentativo – Parte 4 | Projeto de texto: preparação e planejamento de escrita (AE8 | EM13LGG303)",
+        "Aula 17 — Para que servem as leis? | Gêneros legais; coesão referencial (AE13 | EM13LP26A)",
+        "Aula 18 — Se liga: seus direitos no Estatuto da Juventude | Estatuto da Juventude: direitos e deveres; modalizadores discursivos (AE13 | EM13LP26B)",
+        "Aula 19 — Vozes da periferia: A revolução dos saraus e slams | Literatura periférica em saraus e slams; poema \"Os Miseráveis\", de Sérgio Vaz (AE1 | EM13LP46)",
+        "Aula 20 — Vozes da periferia: o slam, a batalha de versos | Literatura periférica; variedades linguísticas: coloquial x formal (AE1 | EM13LP46)",
+        "Aula 21 — Vozes da periferia: produzindo slams | Produção textual: slam (AE7 | EM13LP46)",
+        "Aula 22 — Vozes da periferia: a batalha de versos | Performance e apresentação dos slams (AE7 | EM13LP46)",
+        "Aula 23 — Playlist literária – Parte 1 | Playlist comentada: conceito e características (AE7 | EM13LP21)",
+        "Aula 24 — Playlist literária – Parte 2 | Curadoria e planejamento para produção de playlists (AE7 | EM13LP21)",
+      ],
       "3ª Série — 1º Bimestre": [
         "Aula 1 — Entenda o Pré-modernismo | Pré-Modernismo; Euclides da Cunha; Lima Barreto; Augusto dos Anjos (AE2 | EM13LGG101)",
         "Aula 2 — Quem são os modernistas? | Poética de Oswald de Andrade; revistas modernistas; ortografia (AE2 | EM13LP52)",
@@ -847,6 +1395,58 @@ function criarFormulario() {
         "Aula 26 — Os olhares do cotidiano: o gênero crônica – Parte 3 | Intertextualidade; polissemia (AE8 | EM13LP03)",
         "Aula 27 — [Complementar] Desenhando a sociedade: a charge como texto literário – Parte 1 | Leitura e análise de charge (EM13LGG202)",
         "Aula 28 — [Complementar] Desenhando a sociedade: a charge como texto literário – Parte 2 | Leitura e análise de charge (EM13LGG104)",
+      ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — Variação e norma – Parte 1 | Norma-padrão; variação linguística (AE10 | EM13LGG402)",
+        "Aula 2 — Variação e norma – Parte 2 | Variação linguística; preconceito linguístico (AE10 | EM13LGG402)",
+        "Aula 3 — O texto dissertativo-argumentativo – Parte 1 | Estrutura do texto dissertativo-argumentativo; concordância verbal e nominal (AE1 | EM13LGG104)",
+        "Aula 4 — O texto dissertativo-argumentativo – Parte 2 | Coerência textual; coesão referencial e sequencial; contra-argumentação (AE4 | EM13LGG104)",
+        "Aula 5 — Texto dissertativo-argumentativo – Parte 3 | Argumentos e contra-argumentos; operadores argumentativos (AE4 | EM13LGG104)",
+        "Aula 6 — Texto dissertativo-argumentativo – Parte 4 | Redação do Enem: as cinco competências (AE4 | EM13LGG104)",
+        "Aula 7 — A terceira geração modernista: Clarice Lispector – Parte 1 | Terceira geração modernista; Clarice Lispector e A Hora da Estrela (AE2 | EM13LP52)",
+        "Aula 8 — A terceira geração modernista: Clarice Lispector – Parte 2 | A Hora da Estrela; concordância nominal (AE3 | EM13LP49)",
+        "Aula 9 — A terceira geração modernista: Guimarães Rosa – Parte 1 | Guimarães Rosa e Grande Sertão: Veredas; neologismos (AE2 | EM13LP52)",
+        "Aula 10 — A terceira geração modernista: Guimarães Rosa – Parte 2 | Grande Sertão: Veredas; orações subordinadas substantivas (AE3 | EM13LP49)",
+        "Aula 11 — Resenha crítica – Parte 1 | Resenha crítica da obra A Hora da Estrela (AE4 | EM13LGG202)",
+        "Aula 12 — Resenha crítica – Parte 2 | Resenha crítica de Grande Sertão: Veredas; orações subordinadas adverbiais (AE4 | EM13LGG202)",
+        "Aula 13 — A terceira geração modernista: João Cabral de Melo Neto – Parte 1 | João Cabral de Melo Neto e Morte e Vida Severina (AE2 | EM13LP52)",
+        "Aula 14 — A terceira geração modernista: João Cabral de Melo Neto – Parte 2 | Poesia social de João Cabral; orações subordinadas adverbiais (AE2 | EM13LP52)",
+        "Aula 15 — Fernando Pessoa e seus heterônimos – Parte 1 | Literatura modernista portuguesa; poesia de Fernando Pessoa (AE2 | EM13LP48)",
+        "Aula 16 — Fernando Pessoa e seus heterônimos – Parte 2 | Heterônimos de Fernando Pessoa; figuras de linguagem (AE2 | EM13LP52)",
+        "Aula 17 — Manifesto – Parte 1 | Análise de manifesto (AE4 | EM13LGG302)",
+        "Aula 18 — Manifesto – Parte 2 | Análise de manifesto; regência nominal (AE4 | EM13LGG303)",
+        "Aula 19 — Manifesto – Parte 3 | Produção textual: manifesto (AE1 | EM13LGG304)",
+        "Aula 20 — Debate regrado – Parte 1 | Estrutura do debate regrado (AE4 | EM13LGG303)",
+        "Aula 21 — Debate regrado – Parte 2 | Preparação para debate regrado (AE1 | EM13LP30)",
+        "Aula 22 — Debate regrado – Parte 3 | Realização de debate regrado (AE1 | EM13LP16)",
+        "Aula 23 — Miniconto e microconto – Parte 1 | Leitura de minicontos e microcontos; colocação pronominal (AE3 | EM13LP49)",
+        "Aula 24 — Miniconto e microconto – Parte 2 | Produção de miniconto ou microconto; colocação pronominal (AE1 | EM13LP15)",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — Textos contemporâneos africanos: Moçambique – Parte 1 | Literatura africana de Moçambique: Mia Couto e José Craveirinha (AE2 | EM13LP52)",
+        "Aula 2 — Textos contemporâneos africanos: Moçambique – Parte 2 | Literatura de Moçambique: Paulina Chiziane; concordância verbal e nominal (AE2 | EM13LP52)",
+        "Aula 3 — Textos contemporâneos africanos: Angola | Literatura africana de Angola: Ondjaki (AE2 | EM13LP52)",
+        "Aula 4 — Textos contemporâneos africanos: Cabo Verde | Literatura africana de Cabo Verde: Dina Salústio; regência verbal e nominal (AE2 | EM13LP52)",
+        "Aula 5 — Textos contemporâneos portugueses – Parte 1 | Literatura portuguesa contemporânea: José Saramago (AE3 | EM13LP49)",
+        "Aula 6 — Textos contemporâneos portugueses – Parte 2 | José Saramago; colocação pronominal (AE3 | EM13LP49)",
+        "Aula 7 — Textos contemporâneos indígenas – Parte 1 | Literatura indígena contemporânea: Daniel Munduruku (AE2 | EM13LP52)",
+        "Aula 8 — Textos contemporâneos indígenas – Parte 2 | Literatura indígena contemporânea: Márcia Kambeba; uso de crase (AE2 | EM13LP52)",
+        "Aula 9 — Texto dissertativo-argumentativo – Parte 1 | Análise de artigo de opinião (AE4 | EM13LP05)",
+        "Aula 10 — Texto dissertativo-argumentativo – Parte 2 | Funções do \"se\" (AE7 | EM13LP06)",
+        "Aula 11 — Literatura brasileira e a poesia de Ferreira Gullar | Poesia de Ferreira Gullar (AE3 | EM13LP49)",
+        "Aula 12 — Literatura brasileira e a poesia de Paulo Leminski | Poesia de Paulo Leminski; pontuação (AE3 | EM13LP49)",
+        "Aula 13 — Literatura brasileira e a prosa de Rubem Braga | Análise de crônica (AE3 | EM13LP49)",
+        "Aula 14 — Literatura brasileira e a prosa de Fernando Sabino | Análise de texto; paralelismo sintático (AE3 | EM13LP49)",
+        "Aula 15 — Redação de vestibular como gênero – Parte 1 | Texto dissertativo-argumentativo: redação de vestibular (AE1 | EM13LGG104)",
+        "Aula 16 — Redação de vestibular como gênero – Parte 2 | Operadores argumentativos (AE1 | EM13LGG104)",
+        "Aula 17 — Literatura brasileira contemporânea: Milton Hatoum – Parte 1 | Análise de trechos de romance (AE3 | EM13LP49)",
+        "Aula 18 — Literatura brasileira contemporânea: Milton Hatoum – Parte 2 | Coesão textual: anáfora e catáfora (AE1 | EM13LP02B)",
+        "Aula 19 — Literatura brasileira contemporânea: Conceição Evaristo – Parte 1 | Análise de conto (AE2 | EM13LP52)",
+        "Aula 20 — Literatura brasileira contemporânea: Conceição Evaristo – Parte 2 | Conceição Evaristo e o conceito de escrevivência (AE2 | EM13LP52)",
+        "Aula 21 — Literatura nas redes sociais – Parte 1 | Literatura em suportes digitais: ciberpoesia (AE3 | EM13LP49)",
+        "Aula 22 — Literatura nas redes sociais – Parte 2 | Literatura digital, ciberpoesia e hipertextos; homonímia e paronímia (AE7 | EM13LP06)",
+        "Aula 23 — Vozes das mulheres na literatura contemporânea brasileira – Parte 1 | Literatura contemporânea brasileira produzida por mulheres; A cabeça do santo, de Socorro Acioli (AE3 | EM13LP49)",
+        "Aula 24 — Vozes das mulheres na literatura contemporânea brasileira – Parte 2 | A cabeça do santo; pronomes relativos (AE7 | EM13LP02B)",
       ],
     },
     // ══════════════════════════════════════════════════════════════════════
@@ -913,8 +1513,58 @@ function criarFormulario() {
         "Aula 27 — [Complementar] Aula de revisão: Função afim | Função afim (EM13MAT401)",
         "Aula 28 — [Complementar] Revisão: Função afim - conceitos e aplicações | Função afim (EM13MAT401)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Retomada de função afim | Lei de formação de uma função afim (AE4 | EM13MAT401)",
+        "Aula 2 — Taxa de variação de uma função afim – Parte 1 | Elementos de uma função afim (AE4 | EM13MAT401)",
+        "Aula 3 — Taxa de variação de uma função afim – Parte 2 | Elementos de uma função afim (AE4 | EM13MAT401)",
+        "Aula 4 — Revisão: Função afim | Função afim (AE4 | EM13MAT401)",
+        "Aula 5 — Estratégias de modelagem algébrica com a função afim – Parte 1 | Obtenção da lei de formação da função afim (AE4 | EM13MAT302)",
+        "Aula 6 — Estratégias de modelagem algébrica com a função afim – Parte 2 | Obtenção da lei de formação da função afim (AE4 | EM13MAT302)",
+        "Aula 7 — Resolução de problemas relacionados à função afim | Função afim (AE4 | EM13MAT401)",
+        "Aula 8 — Aula de verificação: Função afim | Função afim (AE4 | EM13MAT401)",
+        "Aula 9 — Equações do 2º grau na geometria | Relação entre áreas e equações polinomiais do 2º grau (AE5 | EF08MA09)",
+        "Aula 10 — Equações do 2º grau incompletas – Parte 1 | Resolução de equações incompletas do 2º grau (AE5 | EF08MA09)",
+        "Aula 11 — Equações do 2º grau incompletas – Parte 2 | Resolução de equações incompletas do 2º grau (AE5 | EF08MA09)",
+        "Aula 12 — Revisão: Equações polinomiais do 2° grau | Resolução de equações incompletas do 2º grau (AE5 | EF08MA09)",
+        "Aula 13 — Estratégias de resolução de equações do 2º grau – Parte 1 | Resolução de equações completas do 2º grau (AE5 | EF08MA09)",
+        "Aula 14 — Estratégias de resolução de equações do 2º grau – Parte 2 | Resolução de equações completas do 2º grau (AE5 | EF08MA09)",
+        "Aula 15 — Resolução de problemas relacionados a equações do 2º grau | Resolução de equações do 2º grau (AE5 | EF08MA09)",
+        "Aula 16 — Aula de verificação: Equações polinomiais do 2º grau | Resolução de equações do 2º grau (AE5 | EF08MA09)",
+        "Aula 17 — Explorando o conceito de função polinomial do 2º grau | Função polinomial do 2º grau (AE5 | EM13MAT502)",
+        "Aula 18 — Elementos de uma função polinomial do 2º grau | Função polinomial do 2º grau (AE5 | EM13MAT502)",
+        "Aula 19 — Modelagem algébrica com funções do 2º grau | Função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 20 — Revisão: Função polinomial do 2° grau | Função polinomial do 2º grau (AE5 | EM13MAT502)",
+        "Aula 21 — Representações da função polinomial do 2º grau – Parte 1 | Gráfico de função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 22 — Representações da função polinomial do 2º grau – Parte 2 | Gráfico de função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 23 — Resolução de problemas relacionados à função polinomial do 2º grau | Função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 24 — Aula de verificação: Função polinomial do 2º grau | Função polinomial do 2º grau (AE5 | EM13MAT402)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Explorando o gráfico da função polinomial do 2º grau | Função polinomial do 2º grau: lei de formação e gráfico (AE6 | EM13MAT302)",
+        "Aula 2 — Coordenadas do vértice de uma parábola – Parte 1 | Obtenção das coordenadas do vértice da parábola (AE6 | EM13MAT402)",
+        "Aula 3 — Coordenadas do vértice de uma parábola – Parte 2 | Obtenção das coordenadas do vértice da parábola (AE6 | EM13MAT503)",
+        "Aula 4 — Revisão: gráfico de uma função polinomial do 2º grau | Função polinomial do 2º grau: lei de formação, gráfico e coordenadas do vértice (AE6 | EM13MAT503)",
+        "Aula 5 — O máximo ou o mínimo de uma função polinomial do 2º grau – Parte 1 | Obtenção das coordenadas do vértice da parábola (AE6 | EM13MAT503)",
+        "Aula 6 — O máximo ou o mínimo de uma função polinomial do 2º grau – Parte 2 | Cálculo de máximo ou mínimo de uma função polinomial do 2º grau (AE6 | EM13MAT503)",
+        "Aula 7 — Resolução de problemas – O máximo ou o mínimo de funções polinomiais do 2º grau | Cálculo de máximo ou mínimo de uma função polinomial do 2º grau (AE6 | EM13MAT503)",
+        "Aula 8 — Aula de verificação: O máximo ou o mínimo de funções polinomiais do 2º grau | Cálculo de máximo ou mínimo de uma função polinomial do 2º grau (AE6 | EM13MAT503)",
+        "Aula 9 — Funções polinomiais do 1º grau no cotidiano | Funções polinomiais do 1º grau (AE4 | EM13MAT302)",
+        "Aula 10 — Situações envolvendo funções polinomiais do 1º grau | Funções polinomiais do 1º grau (AE4 | EM13MAT401)",
+        "Aula 11 — Problemas envolvendo funções do 1º grau | Funções polinomiais do 1º grau (AE4 | EM13MAT302)",
+        "Aula 12 — Revisão: funções polinomiais do 1º grau | Funções polinomiais do 1º grau (AE4 | EM13MAT302)",
+        "Aula 13 — Problemas envolvendo funções do 2º grau – Parte 1 | Cálculo de máximo ou mínimo de uma função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 14 — Problemas envolvendo funções do 2º grau – Parte 2 | Cálculo de máximo ou mínimo de uma função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 15 — Resolução de problemas envolvendo funções do 2º grau | Resolução de problemas envolvendo uma função polinomial do 2º grau (AE5 | EM13MAT402)",
+        "Aula 16 — Aula de verificação: Problemas envolvendo funções do 1º e do 2º grau | Funções polinomiais do 1º e do 2º grau (AE4 | EM13MAT302)",
+        "Aula 17 — Explorando a variação entre duas grandezas | Razões, proporções e relação entre grandezas (AE1 | EF09MA08)",
+        "Aula 18 — Grandezas diretamente proporcionais | Grandezas diretamente proporcionais (AE1 | EF09MA08)",
+        "Aula 19 — Grandezas inversamente proporcionais | Grandezas inversamente proporcionais (AE1 | EM13MAT103)",
+        "Aula 20 — Revisão: grandezas diretamente e inversamente proporcionais | Grandezas diretamente e inversamente proporcionais (AE1 | EF09MA08)",
+        "Aula 21 — A modelagem algébrica e grandezas direta e inversamente proporcionais | Grandezas diretamente e inversamente proporcionais (AE1 | EF09MA08)",
+        "Aula 22 — A representação de grandezas proporcionais no plano cartesiano | Grandezas diretamente e inversamente proporcionais (AE1 | EM13MAT401)",
+        "Aula 23 — Problemas sobre grandezas diretamente e inversamente proporcionais | Grandezas diretamente e inversamente proporcionais (AE1 | EF09MA08)",
+        "Aula 24 — Aula de verificação: Grandezas diretamente e inversamente proporcionais | Grandezas diretamente e inversamente proporcionais (AE1 | EM13MAT103)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Potenciação e unidades de medidas | Potenciação com expoentes inteiros (AE1 | EF08MA01)",
         "Aula 2 — Problemas com potências de expoentes inteiros | Potenciação com expoentes inteiros (AE1 | EF08MA01)",
@@ -974,6 +1624,58 @@ function criarFormulario() {
         "Aula 26 — [Complementar] Aula de revisão: Logaritmos | Logaritmos (EM13MAT305)",
         "Aula 27 — [Complementar] Aula de revisão: Função logarítmica | Função logarítmica (EM13MAT305)",
         "Aula 28 — [Complementar] Revisão: Função logarítmica | Função logarítmica (EM13MAT305)",
+      ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Explorando regularidades em sequências numéricas | Sequências numéricas recursivas e não recursivas (AE5 | EM13MAT507)",
+        "Aula 2 — A progressão aritmética – Termo geral | Termo geral da progressão aritmética (AE5 | EM13MAT507)",
+        "Aula 3 — Propriedades da progressão aritmética | Propriedades de progressão aritmética (AE5 | EM13MAT507)",
+        "Aula 4 — Revisão: Progressão aritmética | Termo geral e propriedades da progressão aritmética (AE5 | EM13MAT507)",
+        "Aula 5 — Soma dos termos de uma progressão aritmética – Parte 1 | Relação para o cálculo da soma dos termos (AE5 | EM13MAT507)",
+        "Aula 6 — Soma dos termos de uma progressão aritmética – Parte 2 | Relação para o cálculo da soma dos termos (AE5 | EM13MAT507)",
+        "Aula 7 — Resolução de problemas com progressão aritmética | Relação para o cálculo da soma dos termos (AE5 | EM13MAT507)",
+        "Aula 8 — Aula de verificação: Progressão aritmética | Termo geral, propriedades e soma dos termos (AE5 | EM13MAT507)",
+        "Aula 9 — A progressão geométrica | Sequências numéricas com a ideia de progressão geométrica (AE6 | EM13MAT508)",
+        "Aula 10 — Termo geral de uma progressão geométrica | Conceito e termo geral (AE6 | EM13MAT508)",
+        "Aula 11 — Propriedades de uma progressão geométrica | Propriedades de progressão geométrica (AE6 | EM13MAT508)",
+        "Aula 12 — Revisão: Progressão geométrica | Termo geral e propriedades da progressão geométrica (AE6 | EM13MAT508)",
+        "Aula 13 — Soma dos termos de uma progressão geométrica – Parte 1 | Relação para o cálculo da soma dos termos (AE6 | EM13MAT508)",
+        "Aula 14 — Soma dos termos de uma progressão geométrica – Parte 2 | Relação para o cálculo do limite da soma dos termos (AE6 | EM13MAT508)",
+        "Aula 15 — Resolução de problemas envolvendo progressão geométrica | Termo geral, soma dos termos e limite da soma dos termos (AE6 | EM13MAT508)",
+        "Aula 16 — Aula de verificação: Progressão geométrica | Termo geral, propriedades, soma dos termos e limite da soma dos termos (AE6 | EM13MAT508)",
+        "Aula 17 — Progressão aritmética e função afim | Relação entre progressão aritmética e função afim (AE5 | EM13MAT507)",
+        "Aula 18 — Progressão geométrica e função exponencial | Relação entre progressão geométrica e função exponencial (AE6 | EM13MAT508)",
+        "Aula 19 — Progressões aritméticas e geométricas | Resolução de problemas sobre progressão aritmética e progressão geométrica (AE5 | EM13MAT508)",
+        "Aula 20 — Revisão: Progressão aritmética e progressão geométrica | Resolução de problemas sobre progressão aritmética e progressão geométrica (AE5 | EM13MAT508)",
+        "Aula 21 — Juros simples | Conceito, cálculo de montante e relação com progressão aritmética e função afim (AE7 | EM13MAT303)",
+        "Aula 22 — Juros compostos | Conceito, cálculo de montante e relação com progressão geométrica e função exponencial (AE7 | EM13MAT303)",
+        "Aula 23 — Resolução de problemas relacionados a juros simples e a juros compostos | Juros simples e juros compostos (AE7 | EM13MAT303)",
+        "Aula 24 — Aula de verificação: Relação entre sequências e funções | Progressão aritmética, juros simples, progressão geométrica e juros compostos (AE7 | EM13MAT303)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Medindo superfícies | Unidades de medida de superfícies (AE8 | EM13MAT307)",
+        "Aula 2 — Áreas de figuras geométricas planas – Parte 1 | Áreas de quadrado, retângulo e paralelogramo (AE8 | EM13MAT307)",
+        "Aula 3 — Áreas de figuras geométricas planas – Parte 2 | Área de triângulo (AE8 | EM13MAT307)",
+        "Aula 4 — Revisão: área de figuras geométricas planas | Áreas de quadrado, retângulo, paralelogramo e triângulo (AE8 | EM13MAT307)",
+        "Aula 5 — Áreas de figuras geométricas planas – Parte 3 | Áreas de trapézio e losango (AE8 | EM13MAT307)",
+        "Aula 6 — Áreas de figuras geométricas planas – Parte 4 | Áreas de círculo e setor circular (AE8 | EM13MAT307)",
+        "Aula 7 — Resolução de problemas relacionados ao cálculo de áreas de figuras geométricas planas | Áreas de figuras geométricas planas (AE8 | EM13MAT307)",
+        "Aula 8 — Aula de verificação: Áreas de figuras geométricas planas | Áreas de figuras geométricas planas (AE8 | EM13MAT307)",
+        "Aula 9 — Poliedros e seus elementos | Elementos e relações entre vértices, arestas e faces; relação de Euler (AE9 | EF06MA17)",
+        "Aula 10 — Sólidos geométricos e suas planificações | Planificações de sólidos geométricos (AE9 | EF06MA17)",
+        "Aula 11 — Áreas de prismas e pirâmides | Áreas laterais e áreas totais de prismas e pirâmides (AE9 | EM13MAT309)",
+        "Aula 12 — Revisão: poliedros | Figuras geométricas espaciais: elementos, relações e áreas (AE9 | EM13MAT309)",
+        "Aula 13 — Estratégias de cálculo do volume de um prisma | Princípio de Cavalieri e a relação para o cálculo do volume de prisma (AE9 | EM13MAT309)",
+        "Aula 14 — Estratégias de cálculo do volume de uma pirâmide | Relação para o cálculo do volume de pirâmides (AE9 | EM13MAT309)",
+        "Aula 15 — Resolução de problemas: volume de prismas e volume de pirâmides | Volume de prismas e volume de pirâmides (AE9 | EM13MAT309)",
+        "Aula 16 — Aula de verificação: Áreas e volumes de prismas e pirâmides | Áreas e volumes de prismas e pirâmides (AE9 | EM13MAT309)",
+        "Aula 17 — Unidades de volume e capacidade | Volume e capacidade (AE9 | EM13MAT309)",
+        "Aula 18 — Cálculo de áreas de um cilindro circular reto | Áreas laterais e totais de cilindro circular reto (AE9 | EM13MAT309)",
+        "Aula 19 — O volume de um cilindro circular reto | Relação para o cálculo do volume de um cilindro circular reto (AE9 | EM13MAT309)",
+        "Aula 20 — Revisão: volume e capacidade de sólidos geométricos | Volume e capacidade de prismas e de cilindros (AE9 | EM13MAT309)",
+        "Aula 21 — Cálculo de áreas de um cone circular reto | Áreas laterais e totais de cone circular reto (AE9 | EM13MAT309)",
+        "Aula 22 — Volume de um cone circular reto | Volume de um cone circular reto (AE9 | EM13MAT309)",
+        "Aula 23 — Resolução de problemas: áreas e volume de cone circular reto | Cálculo de áreas e de volume de cone circular reto (AE9 | EM13MAT309)",
+        "Aula 24 — Aula de verificação: Cálculo de áreas e volumes de cone circular reto | Cálculo de áreas e de volume de cone circular reto (AE9 | EM13MAT309)",
       ],
       "3ª Série — 1º Bimestre": [
         "Aula 1 — Equações do 1º grau e proporcionalidade | Equação do 1º grau; razão entre grandezas de espécies diferentes (AE1 | EF07MA18)",
@@ -1035,6 +1737,58 @@ function criarFormulario() {
         "Aula 27 — [Complementar] Aula de revisão: Cálculo de probabilidades – Parte 2 | Adição e multiplicação de probabilidades (EM13MAT312)",
         "Aula 28 — [Complementar] Revisão: Probabilidade de eventos independentes | Cálculo de probabilidades (EM13MAT312)",
       ],
+      "3ª Série — 3º Bimestre": [
+        "Aula 1 — Retomando o teorema de Pitágoras | Teorema de Pitágoras (AE6 | EM13MAT308)",
+        "Aula 2 — Introdução à trigonometria | Razões trigonométricas no triângulo retângulo (AE6 | EM13MAT308)",
+        "Aula 3 — Razões trigonométricas – Parte 1 | Seno, cosseno e tangente para ângulo agudo no triângulo retângulo (AE6 | EM13MAT308)",
+        "Aula 4 — Revisão: trigonometria no triângulo retângulo | Razões trigonométricas no triângulo retângulo (AE6 | EM13MAT308)",
+        "Aula 5 — A racionalização de denominadores em trigonometria | Racionalização de denominadores (AE6 | EM13MAT308)",
+        "Aula 6 — Razões trigonométricas – Parte 2 | Razões trigonométricas para os ângulos notáveis 30º, 45º e 60º (AE6 | EM13MAT308)",
+        "Aula 7 — Resolução de problemas sobre razões trigonométricas em triângulos retângulos | Razões trigonométricas no triângulo retângulo (AE6 | EM13MAT308)",
+        "Aula 8 — Aula de verificação: razões trigonométricas | Razões trigonométricas no triângulo retângulo (AE6 | EM13MAT308)",
+        "Aula 9 — Explorando arcos e ângulos | Arcos e ângulos; unidades de medidas grau e radiano (AE7 | EM13MAT306)",
+        "Aula 10 — Circunferência trigonométrica | A circunferência trigonométrica e arcos côngruos (AE7 | EM13MAT306)",
+        "Aula 11 — Razão seno e razão cosseno na circunferência trigonométrica | Valores extremos e sinais nos quadrantes (AE7 | EM13MAT306)",
+        "Aula 12 — Revisão: trigonometria na circunferência trigonométrica | A circunferência trigonométrica e arcos côngruos (AE7 | EM13MAT306)",
+        "Aula 13 — Funções trigonométricas – Parte 1 | Função seno: gráfico, domínio, imagem e período (AE7 | EM13MAT306)",
+        "Aula 14 — Funções trigonométricas – Parte 2 | Função cosseno: gráfico, domínio, imagem e período (AE7 | EM13MAT306)",
+        "Aula 15 — Resolução de problemas – fenômenos periódicos | Funções trigonométricas seno e cosseno (AE7 | EM13MAT306)",
+        "Aula 16 — Aula de verificação: funções trigonométricas | Funções trigonométricas seno e cosseno (AE7 | EM13MAT306)",
+        "Aula 17 — Semelhança de triângulos | Semelhança de triângulos (AE6 | EM13MAT308)",
+        "Aula 18 — A lei dos senos | Lei dos senos (AE6 | EM13MAT308)",
+        "Aula 19 — A lei dos cossenos | Lei dos cossenos (AE6 | EM13MAT308)",
+        "Aula 20 — Revisão: lei dos senos e lei dos cossenos | Lei dos senos e lei dos cossenos (AE6 | EM13MAT308)",
+        "Aula 21 — Resolução de problemas com triângulos quaisquer – Parte 1 | Lei dos senos e lei dos cossenos (AE6 | EM13MAT308)",
+        "Aula 22 — Resolução de problemas com triângulos quaisquer – Parte 2 | Lei dos senos e lei dos cossenos (AE6 | EM13MAT308)",
+        "Aula 23 — Resolução de problemas – lei dos senos, lei dos cossenos e semelhança de triângulos | Lei dos senos, lei dos cossenos e semelhança de triângulos (AE6 | EM13MAT308)",
+        "Aula 24 — Aula de verificação: tópicos de geometria plana - triângulos | Lei dos senos e lei dos cossenos (AE6 | EM13MAT308)",
+      ],
+      "3ª Série — 4º Bimestre": [
+        "Aula 1 — Explorando o cálculo de velocidade média | Relação entre grandezas de espécies diferentes (AE8 | EM13MAT314)",
+        "Aula 2 — Grandezas determinadas pela razão ou pelo produto de outras – Parte 1 | Relação entre grandezas de espécies diferentes (AE8 | EM13MAT314)",
+        "Aula 3 — Grandezas determinadas pela razão ou pelo produto de outras – Parte 2 | Relação entre grandezas de espécies diferentes (AE8 | EM13MAT314)",
+        "Aula 4 — Revisão: grandezas determinadas pela razão ou pelo produto de outras | Relação entre grandezas de espécies diferentes (AE8 | EM13MAT314)",
+        "Aula 5 — A regra de três simples | Grandezas diretamente e inversamente proporcionais (AE8 | EM13MAT314)",
+        "Aula 6 — A regra de três composta | Grandezas diretamente e inversamente proporcionais (AE8 | EM13MAT314)",
+        "Aula 7 — Resolução de problemas envolvendo relação entre grandezas | Relação entre grandezas (AE8 | EM13MAT314)",
+        "Aula 8 — Aula de verificação: Relação entre grandezas | Relação entre grandezas (AE8 | EM13MAT314)",
+        "Aula 9 — Média aritmética | Conceito de média aritmética (AE9 | EM13MAT316)",
+        "Aula 10 — Média aritmética e média ponderada | Conceito de média ponderada (AE9 | EM13MAT316)",
+        "Aula 11 — Mediana e moda | Conceito de mediana e de moda (AE9 | EM13MAT316)",
+        "Aula 12 — Revisão: medidas de tendência central | Média aritmética simples, moda, mediana e média ponderada (AE9 | EM13MAT316)",
+        "Aula 13 — Amplitude e variância | Amplitude e variância como medidas de dispersão (AE9 | EM13MAT316)",
+        "Aula 14 — Desvio médio e desvio padrão | Desvio médio e desvio padrão como medidas de dispersão (AE9 | EM13MAT316)",
+        "Aula 15 — Resolução de problemas – Desvio médio e desvio padrão | Cálculo de desvio médio e desvio padrão (AE9 | EM13MAT316)",
+        "Aula 16 — Aula de verificação: Medidas de tendência central e medidas de dispersão | Medidas de tendência central e medidas de dispersão (AE9 | EM13MAT316)",
+        "Aula 17 — Proporcionalidade com perímetro e área de polígonos | Relação de proporcionalidade entre lado, perímetro e área de um quadrado (AE10 | EM13MAT506)",
+        "Aula 18 — Polígonos convexos regulares | Polígonos convexos: conceitos e elementos; polígonos não convexos (AE10 | EM13MAT307)",
+        "Aula 19 — Áreas de polígonos regulares – Parte 1 | Áreas de quadrado, triângulo equilátero e hexágono regular (AE10 | EM13MAT307)",
+        "Aula 20 — Revisão: polígonos convexos e cálculos de área | Polígonos convexos e o cálculo de áreas (AE10 | EM13MAT307)",
+        "Aula 21 — Áreas de polígonos regulares – Parte 2 | Áreas de polígonos regulares (AE10 | EM13MAT307)",
+        "Aula 22 — Área do círculo e do setor circular | Área de círculo e de setor circular (AE10 | EM13MAT307)",
+        "Aula 23 — Resolução de problemas envolvendo áreas de figuras planas | Área do triângulo equilátero, quadrado, hexágono regular e círculo (AE10 | EM13MAT307)",
+        "Aula 24 — Aula de verificação: Áreas de figuras planas | Áreas de polígonos regulares e áreas de círculo (AE10 | EM13MAT307)",
+      ],
     },
     // ══════════════════════════════════════════════════════════════════════
     // QUÍMICA  (Guia do Currículo Priorizado — EM — Química)
@@ -1072,8 +1826,34 @@ function criarFormulario() {
         "Aula 13 — Reações que liberam e absorvem energia | Reações endotérmicas e exotérmicas (AE4 | EM13CNT101)",
         "Aula 14 — Reações de combustão | Combustão; combustível, comburente e fonte de ignição (AE4 | EM13CNT101)",
       ],
-      "1ª Série — 3º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
-      "1ª Série — 4º Bimestre": ["[Aguardando atualização do Guia do Currículo Priorizado]"],
+      "1ª Série — 3º Bimestre": [
+        "Aula 1 — Explorando as leis ponderais | Lei da conservação da massa; Lei das Proporções Definidas e Múltiplas (AE5 | EM13CNT101)",
+        "Aula 2 — Balanceamento de equações químicas: a produção de aço | Transformações químicas em processos produtivos; siderúrgica; balanceamento de equações (AE5 | EM13CNT101)",
+        "Aula 3 — Experimento: queima de papel e palha de aço | Evidências da reação de combustão; Lei de Lavoisier (AE5 | EM13CNT101)",
+        "Aula 4 — Como medir o que não se vê? Entendendo o mol | Mol, massa molar, constante de Avogadro e leis das proporções (AE5 | EM13CNT101)",
+        "Aula 5 — Fórmulas químicas | Tipos de fórmulas: empírica, molecular, eletrônica e estrutural plana (AE5 | EM13CNT101)",
+        "Aula 6 — As relações quantitativas entre os reagentes e os produtos | Estequiometria das reações químicas (AE5 | EM13CNT101)",
+        "Aula 7 — Estequiometria das reações químicas | Quantidade de matéria, coeficientes e a quantidade de substância (AE5 | EM13CNT101)",
+        "Aula 8 — Reagente em excesso e reagente limitante | Reagente em excesso e reagente limitante (AE5 | EM13CNT101)",
+        "Aula 9 — Reagente em excesso, reagente limitante e suas aplicações | Aplicações industriais (AE5 | EM13CNT101)",
+        "Aula 10 — Impurezas e rendimento | Reações químicas com substâncias impuras; rendimento (AE5 | EM13CNT101)",
+        "Aula 11 — Calculando o rendimento de reações químicas com impurezas | Rendimento de reação química a partir de amostras impuras (AE5 | EM13CNT101)",
+        "Aula 12 — Estequiometria em ação! | Experimentos envolvendo reagentes em excesso, limitantes e rendimento (AE5 | EM13CNT101)",
+      ],
+      "1ª Série — 4º Bimestre": [
+        "Aula 1 — Funções inorgânicas e os ciclos biogeoquímicos: a manutenção da vida no planeta | Funções inorgânicas; ciclos biogeoquímicos e as perturbações no equilíbrio (AE6 | EM13CNT105)",
+        "Aula 2 — Ciclos biogeoquímicos: fósforo e enxofre | Ciclos biogeoquímicos (fósforo e enxofre) (AE6 | EM13CNT105)",
+        "Aula 3 — Ciclos biogeoquímicos e pH: explorando as interações químicas do ambiente | Acidez e alcalinidade; pH das substâncias (AE6 | EM13CNT105)",
+        "Aula 4 — Poluição e poluentes | Características físicas e químicas de ecossistemas; poluição e poluentes (AE6 | EM13CNT105)",
+        "Aula 5 — Chuva ácida | Óxidos; reações ácido-base, pH, indicadores ácido e base (AE6 | EM13CNT105)",
+        "Aula 6 — Reações de neutralização | Reações de neutralização (total e parcial); força de ácidos e bases (AE6 | EM13CNT105)",
+        "Aula 7 — Poluentes nitratos e nitritos na água | Sais (AE6 | EM13CNT105)",
+        "Aula 8 — Solubilidade de compostos iônicos em água | Compostos iônicos (AE6 | EM13CNT105)",
+        "Aula 9 — Soluções químicas | Soluto e solvente; coeficiente de solubilidade (AE6 | EM13CNT105)",
+        "Aula 10 — Concentração de soluções | Concentrações; unidades de medida de concentração de soluções (AE6 | EM13CNT105)",
+        "Aula 11 — Qualidade da Água e do Ar: Interferências Humanas e Impactos Ambientais | Ciclos biogeoquímicos; toxicidade das substâncias; índices de qualidade da água e do ar (AE6 | EM13CNT105)",
+        "Aula 12 — Tratamento de água e esgoto | Tratamento de água e esgoto; recursos hídricos (AE6 | EM13CNT206)",
+      ],
       "2ª Série — 1º Bimestre": [
         "Aula 1 — Composição e propriedades dos materiais | Composição e propriedades dos materiais (AE1 | EM13CNT104)",
         "Aula 2 — Barragens e mineração | Ciclos biogeoquímicos; impactos da mineração e de barragens (AE1 | EM13CNT203)",
@@ -1105,6 +1885,34 @@ function criarFormulario() {
         "Aula 12 — Agrotóxicos e fertilizantes | Agrotóxicos e fertilizantes: estrutura e composição (AE4 | EM13CNT304)",
         "Aula 13 — Polímeros | Polímeros e isomeria; reações de polimerização (AE5 | EM13CNT304)",
         "Aula 14 — Síntese de polímeros | Polímeros e isomeria; boas práticas laboratoriais (AE5 | EM13CNT304)",
+      ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — Condições fundamentais para a ocorrência das transformações químicas | Teoria das colisões; introdução à cinética química; rapidez das reações químicas (AE6 | EM13CNT205)",
+        "Aula 2 — Energia de ativação | Energia de ativação (AE6 | EM13CNT205)",
+        "Aula 3 — Fatores que influenciam a rapidez de uma transformação | Concentração, pressão, temperatura, superfície de contato e catalisador (AE6 | EM13CNT205)",
+        "Aula 4 — Lei da rapidez e as concentrações | Lei da rapidez e as concentrações (AE6 | EM13CNT205)",
+        "Aula 5 — Transformações químicas reversíveis | Processos reversíveis e equilíbrio químico (AE7 | EM13CNT202)",
+        "Aula 6 — Equilíbrio homogêneo e equilíbrio heterogêneo | Constante de equilíbrio (Kc e Kp); equilíbrio homogêneo e heterogêneo (AE7 | EM13CNT202)",
+        "Aula 7 — Perturbação no equilíbrio químico | Deslocamento do equilíbrio químico (AE7 | EM13CNT202)",
+        "Aula 8 — Produto iônico da água | Equilíbrios iônicos; produto iônico da água (AE7 | EM13CNT202)",
+        "Aula 9 — Equilíbrio químico nos oceanos | Equilíbrio químico e pH (AE7 | EM13CNT202)",
+        "Aula 10 — O pH e pOH em soluções tamponadas e não tamponadas | pH e pOH; indicadores ácido-base (AE7 | EM13CNT202)",
+        "Aula 11 — Hidrólise salina | Hidrólise salina; equilíbrio químico (AE7 | EM13CNT202)",
+        "Aula 12 — Constante do produto de solubilidade | Constante do produto de solubilidade (AE7 | EM13CNT202)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — A história e evolução das pilhas e baterias | Tabela periódica (reatividade dos elementos químicos); transformações químicas envolvendo corrente elétrica (AE8 | EM13CNT107)",
+        "Aula 2 — Processos eletroquímicos | Condutividade elétrica de soluções (AE8 | EM13CNT107)",
+        "Aula 3 — Oxirredução e condução de energia | Número de oxidação (AE8 | EM13CNT107)",
+        "Aula 4 — Funcionamento de pilhas e baterias | Semirreações, reação global, fila de reatividade dos metais, cálculo de ddp (AE8 | EM13CNT107)",
+        "Aula 5 — Avaliando a diferença de potencial de uma pilha | Semirreações, equação global, fila de reatividade dos metais, cálculo de ddp (AE8 | EM13CNT107)",
+        "Aula 6 — Construindo uma pilha ou bateria | Pilha e bateria (AE8 | EM13CNT107)",
+        "Aula 7 — Células voltaicas | Células voltaicas: visão molecular; oxidação do ferro (AE8 | EM13CNT107)",
+        "Aula 8 — Eletrólise ígnea e aquosa | Eletrólise ígnea e aquosa (AE8 | EM13CNT107)",
+        "Aula 9 — Galvanoplastia | Galvanoplastia (AE8 | EM13CNT107)",
+        "Aula 10 — Galvanoplastia: uma aplicação da eletrólise | Eletrólise (AE8 | EM13CNT107)",
+        "Aula 11 — Primeira lei da eletrólise | Primeira lei da eletrólise (AE8 | EM13CNT107)",
+        "Aula 12 — Lixo eletrônico: descarte e impactos ambientais | Processo de reciclagem de pilhas e baterias (AE8 | EM13CNT107)",
       ],
     },
     // ══════════════════════════════════════════════════════════════════════
@@ -1144,6 +1952,34 @@ function criarFormulario() {
         "Aula 13 — Diferentes sim, iguais também: os direitos de todos os seres humanos | Dignidade humana; Declaração Universal dos DH de 1948 (AE7 | EM13CHS605)",
         "Aula 14 — [Aula desafio] O estado dos Direitos Humanos | Direitos humanos no Brasil e no mundo (AE7 | EM13CHS605)",
       ],
+      "2ª Série — 3º Bimestre": [
+        "Aula 1 — A dimensão política da vida em sociedade | Relação entre sociedade, política e poder; o ser humano como ser social, cultural e político (AE8 | EM13CHS603)",
+        "Aula 2 — Estado: a institucionalização da política e do poder | O surgimento do Estado; definição de Estado e seus elementos constitutivos (soberania, território, povo, nação, governo) (AE8 | EM13CHS603)",
+        "Aula 3 — As funções e os poderes do Estado | Funções executiva, legislativa e judiciária; princípio da separação dos poderes (AE8 | EM13CHS603)",
+        "Aula 4 — Estado e sistemas políticos | Formas de governo; sistemas de governo; regimes políticos (AE8 | EM13CHS603)",
+        "Aula 5 — Cidadania: a relação política entre indivíduo e Estado | A ideia de cidadania; dimensões política, jurídica, espacial e histórica da cidadania (AE8 | EM13CHS603)",
+        "Aula 6 — Democracia e suas formas: deliberativa, representativa e participativa | O conceito de poliarquia em Robert Dahl (AE9 | EM13CHS602)",
+        "Aula 7 — Políticas públicas e participação | Definição e tipos de políticas públicas (constitutivas, distributivas, redistributivas, regulatórias); ciclo de políticas públicas (AE10 | EM13CHS601)",
+        "Aula 8 — A organização política do Estado brasileiro | Estado brasileiro como República Federativa e Estado Democrático de Direito; presidencialismo de coalizão (AE8 | EM13CHS603)",
+        "Aula 9 — Desenvolvimento da cidadania no Brasil | A inversão da ordem de T.H. Marshall; a cidadania tutelada ou regulada no Brasil (AE8 | EM13CHS603)",
+        "Aula 10 — Cultura política no Brasil: entre autoritarismos e democracia | Autoritarismo no Brasil; práticas autoritárias e antidemocráticas: populismo e clientelismo (AE9 | EM13CHS602)",
+        "Aula 11 — Democracia brasileira na atualidade | Dimensão representativa e participativa da democracia brasileira; plebiscito, referendo e iniciativa popular (AE9 | EM13CHS602)",
+        "Aula 12 — Movimentos sociais e participação democrática | Ação coletiva e movimentos sociais; o direito a ter direitos (AE10 | EM13CHS601)",
+      ],
+      "2ª Série — 4º Bimestre": [
+        "Aula 1 — Mudanças sociais: como as sociedades se transformam | Perspectiva sociológica de mudança social; fatores que provocam mudanças nas sociedades e nas culturas (AE11 | EM13CHS202)",
+        "Aula 2 — Globalização, tecnologia e mudanças sociais | A globalização na perspectiva sociológica; impactos das transformações tecnológicas nas mudanças sociais (AE11 | EM13CHS202)",
+        "Aula 3 — Mudanças sociais e contemporaneidade | Modernidade sólida e modernidade líquida em Zygmunt Bauman (AE11 | EM13CHS202)",
+        "Aula 4 — A sociedade de risco | A perspectiva da sociedade de riscos em Ulrich Beck; riscos produzidos e impactos para a vida humana e o meio ambiente (AE12 | EM13CHS504)",
+        "Aula 5 — Mundo do trabalho e capitalismo | O trabalho no desenvolvimento do capitalismo; a centralidade do trabalho assalariado; o trabalho como direito humano e de cidadania (AE13 | EM13CHS404)",
+        "Aula 6 — Tecnologia e mundo do trabalho | A relação entre tecnologia e trabalho; impactos do desenvolvimento técnico-científico no mundo do trabalho (AE13 | EM13CHS404)",
+        "Aula 7 — Mudanças no mundo do trabalho | Emprego, ocupação e desemprego estrutural; precarização das relações de trabalho, o \"precariado\" e o trabalho análogo à escravidão (AE13 | EM13CHS404)",
+        "Aula 8 — Trabalho e riscos na contemporaneidade | Impasses ético-políticos das transformações no mundo do trabalho; riscos do desenvolvimento tecnológico e do envelhecimento (AE12 | EM13CHS504)",
+        "Aula 9 — Sociedade de consumidores | A dimensão do consumo na organização da sociedade; a sociedade de consumidores na perspectiva de Zygmunt Bauman (AE14 | EM13CHS303)",
+        "Aula 10 — Indústria cultural, consumismo e identidade | O fenômeno do consumismo; a formação do indivíduo como consumidor (AE14 | EM13CHS303)",
+        "Aula 11 — A vida digital e seus riscos | Definição de sociedade digital; impactos da vida digital nas relações sociais; sociabilidade virtual e seus riscos (AE12 | EM13CHS504)",
+        "Aula 12 — Viver para o consumismo? | Impasses ético-políticos da sociedade digital e de consumidores; o trabalhador-consumidor \"falho\" (AE12 | EM13CHS504)",
+      ],
     },
   };
 
@@ -1151,12 +1987,41 @@ function criarFormulario() {
 
   const COMPONENTES = Object.keys(ESCOPOS_POR_COMPONENTE).sort();
   const SERIES      = ["1ª Série", "2ª Série", "3ª Série"];
-  const BIMESTRES   = ["1º Bimestre", "2º Bimestre"];
+  const BIMESTRES   = ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"];
   const TURMAS      = ["A","B","C","D","E","F"].map(l => "Turma " + l);
 
-  function blocoDeBimestreAtivo(blocoLabel) {
-    return BIMESTRES.some(function(bimestre) {
-      return blocoLabel.indexOf(bimestre) !== -1;
+  // Um bloco é "real" quando tem aulas de fato cadastradas — e não um
+  // placeholder de "ainda não recebi os dados" ou "esta série/bimestre
+  // não existe para este componente" (ambos usam o padrão "[Aguardando...]").
+  function ehBlocoReal_(aulas) {
+    return !!aulas && aulas.length > 0 &&
+      !(aulas.length === 1 && /^\[Aguardando/.test(aulas[0]));
+  }
+
+  function bimestresValidosDaSerie_(escopo, serie) {
+    return BIMESTRES.filter(function(bimestre) {
+      return ehBlocoReal_(escopo[serie + " — " + bimestre]);
+    });
+  }
+
+  // Um componente "nunca recebeu dado nenhum" quando não tem nenhum bloco
+  // real em nenhuma série — nesse caso ele continua aparecendo em todas as
+  // séries (com campo de texto livre) para não sumir da lista de escolha.
+  function escopoTemAlgumDadoReal_(escopo) {
+    return SERIES.some(function(serie) {
+      return bimestresValidosDaSerie_(escopo, serie).length > 0;
+    });
+  }
+
+  // Componentes oferecidos para uma série: os que têm Escopo-Sequência real
+  // para ela, os sem Currículo Priorizado (texto livre, valem para qualquer
+  // série) e os que ainda não têm dado algum cadastrado (placeholder).
+  function componentesValidosDaSerie_(componentes, serie) {
+    return componentes.filter(function(componente) {
+      var escopo = ESCOPOS_POR_COMPONENTE[componente];
+      if (escopo.semCurriculo) return true;
+      if (bimestresValidosDaSerie_(escopo, serie).length > 0) return true;
+      return !escopoTemAlgumDadoReal_(escopo);
     });
   }
 
@@ -1222,99 +2087,129 @@ function criarFormulario() {
     .setHelpText("Ex.: Maria da Silva")
     .setRequired(true);
 
-  // Item de componente — choices com navegação condicional serão definidos depois
-  const itemComponente = form.addListItem()
-    .setTitle("Componente curricular *")
-    .setRequired(true);
-
-  itemComponente.setChoiceValues(COMPONENTES); // provisório; refeito ao final
-
-  form.addListItem()
-    .setTitle("Série *")
-    .setRequired(true)
-    .setChoiceValues(SERIES);
-
-  form.addCheckboxItem()
-    .setTitle("Turma(s) *")
-    .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
-    .setChoiceValues(TURMAS)
-    .setRequired(true);
-
-  form.addListItem()
-    .setTitle("Bimestre *")
-    .setRequired(true)
-    .setChoiceValues(BIMESTRES);
-
   form.addTextItem()
     .setTitle("Data prevista para a(s) aula(s)")
     .setHelpText("Ex.: 03/06/2026  ou  03/06 a 07/06/2026");
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEÇÃO 2 — AULAS E OBJETIVOS  (uma seção por componente)
+  // SEÇÕES 2 a 6 — SÉRIE → TURMA → COMPONENTE → BIMESTRE → ESCOPO-SEQUÊNCIA
   //
-  // Lógica de navegação:
-  //   • Ao escolher o componente na Seção 1, o respondente é enviado
-  //     diretamente para a seção daquele componente.
-  //   • Componentes COM escopo: checkboxes agrupados por série/bimestre.
-  //   • Componentes SEM currículo priorizado: campo de texto livre.
-  //   • Componentes placeholder: campo de texto aberto (aguardando PDF).
-  //   • Ao final de cada seção de componente, o respondente é encaminhado
-  //     para a Seção 3 (Estratégias e Recursos).
+  // O Google Forms só permite ramificar a página seguinte a partir da
+  // resposta da pergunta imediatamente anterior — por isso a árvore de
+  // navegação precisa aninhar Série dentro de Componente dentro de Bimestre,
+  // mesmo pedindo as perguntas nessa ordem ao respondente:
+  //   • Série (2): pergunta única, sempre feita — leva a uma página por
+  //     série contendo Turma e Componente.
+  //   • Turma (3): checkbox simples, não ramifica.
+  //   • Componente (4): só são oferecidos, para a série escolhida, os
+  //     componentes com Escopo-Sequência real para ela
+  //     (componentesValidosDaSerie_), mais os sem Currículo Priorizado
+  //     (texto livre) e os que ainda não têm dado algum cadastrado (para
+  //     não sumirem da lista).
+  //   • Bimestre (5): só são oferecidos os bimestres com aulas reais
+  //     (bimestresValidosDaSerie_) para a série/componente escolhidos. Se
+  //     houver só um bimestre válido, a pergunta nem aparece.
+  //   • Escopo-Sequência (6): checkbox das aulas do componente+bimestre
+  //     escolhidos (ou campo de texto livre quando não há currículo
+  //     priorizado ou dado cadastrado).
+  //   • Toda página "folha" (onde estão de fato as aulas ou o texto
+  //     livre) é registrada em paginasFinais_ e, ao final, redirecionada
+  //     para a Seção 7 (Estratégias e Recursos).
   // ══════════════════════════════════════════════════════════════════════════
 
-  const secoesPorComponente = {};
+  const paginasFinais_ = [];
 
-  COMPONENTES.forEach(function(componente) {
+  // Constrói a pergunta de Bimestre (se houver mais de um válido) e o
+  // Escopo-Sequência (checkbox de aulas ou texto livre) de um componente já
+  // escolhido dentro de uma série, na página atual.
+  function construirBlocoBimestreEscopo_(serie, componente, paginaAtual) {
     var escopo = ESCOPOS_POR_COMPONENTE[componente];
+    var semCurriculo = !!escopo.semCurriculo;
+    var bimestresValidos = semCurriculo ? [] : bimestresValidosDaSerie_(escopo, serie);
 
-    var secao = form.addPageBreakItem()
-      .setTitle("Aulas e Objetivos — " + componente)
-      .setHelpText(
-        escopo && !escopo.placeholder && !escopo.semCurriculo
-          ? "Selecione as aulas do Escopo-Sequência que você planeja trabalhar neste período. " +
-            "As aulas estão organizadas por série e bimestre."
-          : "Descreva as aulas e os objetivos previstos para este período."
-      );
-
-    secoesPorComponente[componente] = secao;
-
-    if (escopo && !escopo.placeholder && !escopo.semCurriculo) {
-      // ── Componente com escopo completo: checkboxes por bloco série/bimestre
-      Object.keys(escopo).filter(blocoDeBimestreAtivo).forEach(function(blocoLabel) {
-        var aulas = escopo[blocoLabel];
-        form.addCheckboxItem()
-          .setTitle("Aulas — " + blocoLabel)
-          .setHelpText("Marque as aulas que fazem parte deste planejamento.")
-          .setChoiceValues(aulas);
-      });
-
-    } else if (escopo && escopo.semCurriculo) {
-      // ── Componente sem currículo priorizado: campo de texto livre
+    if (semCurriculo || bimestresValidos.length === 0) {
+      form.addListItem().setTitle("Bimestre *").setRequired(true).setChoiceValues(BIMESTRES);
       form.addParagraphTextItem()
-        .setTitle("Aulas e objetivos planejados *")
+        .setTitle("Aulas e objetivos planejados" + (semCurriculo ? " *" : ""))
         .setHelpText(
-          "Este componente não possui Currículo Priorizado publicado. " +
-          "Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos."
+          semCurriculo
+            ? "Este componente não possui Currículo Priorizado publicado. " +
+              "Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos."
+            : "O Escopo-Sequência para " + componente + " — " + serie + " ainda não foi inserido no sistema. " +
+              "Descreva as aulas e conteúdos previstos."
         )
-        .setRequired(true);
-
-    } else {
-      // ── Placeholder: escopo ainda não inserido
-      form.addParagraphTextItem()
-        .setTitle("Aulas e objetivos planejados")
-        .setHelpText(
-          "O Escopo-Sequência deste componente ainda não foi inserido no sistema. " +
-          "Descreva as aulas e conteúdos previstos."
-        );
+        .setRequired(semCurriculo);
+      paginasFinais_.push(paginaAtual);
+      return;
     }
+
+    if (bimestresValidos.length === 1) {
+      var chaveUnica = serie + " — " + bimestresValidos[0];
+      form.addCheckboxItem()
+        .setTitle("Aulas — " + chaveUnica)
+        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+        .setChoiceValues(escopo[chaveUnica]);
+      paginasFinais_.push(paginaAtual);
+      return;
+    }
+
+    var itemBimestre = form.addListItem()
+      .setTitle("Bimestre *")
+      .setHelpText("Selecione o bimestre para ver as aulas de " + componente + " — " + serie + ".")
+      .setRequired(true);
+
+    var escolhasBimestre = bimestresValidos.map(function(bimestre) {
+      var chave = serie + " — " + bimestre;
+      var paginaBimestre = form.addPageBreakItem().setTitle("Aulas — " + componente + " — " + chave);
+      form.addCheckboxItem()
+        .setTitle("Aulas — " + chave)
+        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+        .setChoiceValues(escopo[chave]);
+      paginasFinais_.push(paginaBimestre);
+      return itemBimestre.createChoice(bimestre, paginaBimestre);
+    });
+    itemBimestre.setChoices(escolhasBimestre);
+  }
+
+  var itemSerie = form.addListItem()
+    .setTitle("Série *")
+    .setHelpText("Selecione a série da turma para ver a Turma e o Componente correspondentes.")
+    .setRequired(true);
+
+  var escolhasSerie = SERIES.map(function(serie) {
+    var paginaSerie = form.addPageBreakItem()
+      .setTitle("Turma e Componente — " + serie);
+
+    form.addCheckboxItem()
+      .setTitle("Turma(s) *")
+      .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
+      .setChoiceValues(TURMAS)
+      .setRequired(true);
+
+    var itemComponente = form.addListItem()
+      .setTitle("Componente curricular *")
+      .setHelpText("Selecione o componente para ver o Bimestre e o Escopo-Sequência correspondentes.")
+      .setRequired(true);
+
+    var componentesValidos = componentesValidosDaSerie_(COMPONENTES, serie);
+    var escolhasComponente = componentesValidos.map(function(componente) {
+      var paginaComponente = form.addPageBreakItem()
+        .setTitle("Bimestre e Escopo — " + componente + " — " + serie);
+      construirBlocoBimestreEscopo_(serie, componente, paginaComponente);
+      return itemComponente.createChoice(componente, paginaComponente);
+    });
+    itemComponente.setChoices(escolhasComponente);
+
+    return itemSerie.createChoice(serie, paginaSerie);
   });
+  itemSerie.setChoices(escolhasSerie);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEÇÃO 3 — ESTRATÉGIAS DIDÁTICAS E RECURSOS
+  // SEÇÃO 7 — ESTRATÉGIAS DIDÁTICAS E RECURSOS
   // ══════════════════════════════════════════════════════════════════════════
 
   var secaoEstrategias = form.addPageBreakItem()
-    .setTitle("2. Estratégias Didáticas e Recursos")
+    .setTitle("7. Estratégias Didáticas e Recursos")
     .setHelpText("Como você vai conduzir e apoiar a aprendizagem?");
 
   form.addCheckboxItem()
@@ -1338,11 +2233,11 @@ function criarFormulario() {
     .setRequired(true);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // SEÇÃO 4 — AVALIAÇÃO DOS OBJETIVOS DE APRENDIZAGEM
+  // SEÇÃO 8 — AVALIAÇÃO DOS OBJETIVOS DE APRENDIZAGEM
   // ══════════════════════════════════════════════════════════════════════════
 
   form.addPageBreakItem()
-    .setTitle("3. Avaliação dos Objetivos de Aprendizagem")
+    .setTitle("8. Avaliação dos Objetivos de Aprendizagem")
     .setHelpText(
       "Reflita sobre como será verificado o alcance dos objetivos previstos."
     );
@@ -1379,17 +2274,15 @@ function criarFormulario() {
     );
 
   // ══════════════════════════════════════════════════════════════════════════
-  // NAVEGAÇÃO CONDICIONAL: componente → seção correta de Aulas e Objetivos
+  // NAVEGAÇÃO CONDICIONAL: toda página "folha" (onde as aulas do
+  // Escopo-Sequência ou o texto livre aparecem de fato) redireciona para
+  // Estratégias ao terminar. Páginas intermediárias (que só perguntam
+  // Série, Componente ou Bimestre) já têm sua navegação definida pelas
+  // escolhas do respectivo item — não devem receber goToPage aqui.
   // ══════════════════════════════════════════════════════════════════════════
 
-  var choicesComponente = COMPONENTES.map(function(componente) {
-    return itemComponente.createChoice(componente, secoesPorComponente[componente]);
-  });
-  itemComponente.setChoices(choicesComponente);
-
-  // Todas as seções de componente redirecionam para Estratégias ao terminar
-  COMPONENTES.forEach(function(componente) {
-    secoesPorComponente[componente].setGoToPage(secaoEstrategias);
+  paginasFinais_.forEach(function(pagina) {
+    pagina.setGoToPage(secaoEstrategias);
   });
 
   // ══════════════════════════════════════════════════════════════════════════

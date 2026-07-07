@@ -10,12 +10,17 @@
  * 5. Autorize as permissões solicitadas.
  * 6. O link do Forms atualizado aparecerá no Log (Ctrl+Enter).
  *
- * Escopos extraídos dos PDFs AF_V2 enviados:
+ * Escopos extraídos dos PDFs AF_V2 enviados (só 1º e 2º Bimestre por
+ * enquanto — 3º e 4º ainda pendentes de cadastro):
  * Arte, Ciências, Educação Física, Geografia, História, Língua Inglesa,
  * Língua Portuguesa e Matemática.
  *
  * Orientação de Estudo em Língua Portuguesa e Orientação de Estudo em Matemática
  * aparecem como campo livre para 6º Ano e 9º Ano, sem Escopo-Sequência.
+ *
+ * FLUXO DO FORMULÁRIO: Identificação → Ano → Turma → Componente → Bimestre →
+ * Escopo-Sequência → Estratégias Didáticas e Recursos → Avaliação dos
+ * Objetivos de Aprendizagem (mesma estrutura de planejamento_medio.gs).
  */
 
 const ID_FORMULARIO_EXISTENTE = "";
@@ -100,6 +105,34 @@ function criarFormularioFundamental() {
       "Aula 13 - Registros da Nossa Vida | Conteúdos: Composição Musical.; Produção Musical.; Registro Musical. | Habilidades: EF06AR22, EF06AR23 | AE4 - Criar composições musicais, por meio da voz, sons corporais e instrumentos não convencionais, traduzindo-as em partituras criativas.",
       "Aula 14 - Refletindo sobre o processo | Conteúdos: Produção Musical.; Circulação Musical.; Repertório Musical. | Habilidades: EF06AR16, EF06AR23 | AE3 - Analisar os gêneros da música brasileira a partir de seus contextos de produção, circulação e apreciação."
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Arte nas dobras de papel | Conteúdos: Dobradura.; Elementos da dobradura. | Habilidades: EF06AR01, EF06AR04 | AE5",
+      "Aula 2 - Explorando dobraduras | Conteúdos: Dobradura.; Elementos da dobradura. | Habilidades: EF06AR01, EF06AR02 | AE5",
+      "Aula 3 - Dobraduras dinâmicas | Conteúdos: Tridimensionalidade.; Arte e interatividade. | Habilidades: EF06AR04, EF06AR01 | AE6",
+      "Aula 4 - Gravura | Conteúdos: Gravura e xilogravura.; Conceitos e estilos visuais da gravura. | Habilidades: EF06AR01, EF06AR02 | AE5",
+      "Aula 5 - Da xilogravura à animação | Conteúdos: Gravura e Xilogravura.; Animação. | Habilidades: EF06AR01, EF06AR04 | AE5",
+      "Aula 6 - Criando Flipbooks | Conteúdos: Técnica de animação.; Flipbook ou folioscópio.; Narrativa visual. | Habilidades: EF06AR05 | AE6",
+      "Aula 7 - Explorando as estéticas da animação | Conteúdos: Técnicas de animação.; Animações do mundo. | Habilidades: EF06AR05 | AE5",
+      "Aula 8 - Criando stop-motion | Conteúdos: Stop-motion.; Animações do mundo.; Técnicas de animação. | Habilidades: EF06AR05, EF06AR01, EF06AR03 | AE6",
+      "Aula 9 - Da animação ao lambe-lambe: Criando cartazes! | Conteúdos: Cartazes.; Lambe-Lambe. | Habilidades: EF06AR01, EF06AR06 | AE6",
+      "Aula 10 - Letras no lambe-lambe | Conteúdos: Tipografia.; Lambe-lambe. | Habilidades: EF06AR06 | AE5",
+      "Aula 11 - Intervenção artística coletiva | Conteúdos: Intervenção artística.; Expografia.; Arte Urbana. | Habilidades: EF06AR06 | AE5",
+      "Aula 12 - Arte: espaço de apreciação | Conteúdos: Curadoria e Montagem. | Habilidades: EF06AR06 | AE5"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Fugindo com o circo: Memórias do circo paulista | Conteúdos: História do Circo.; Circo Paulista.; Jogos Teatrais. | Habilidades: EF06AR24, EF06AR28 | AE7",
+      "Aula 2 - O poder do riso | Conteúdos: Função Social do Riso.; Comédia no Circo. | Habilidades: EF06AR24, EF06AR25 | AE7",
+      "Aula 3 - O Augusto e o Branco | Conteúdos: Jogos Teatrais.; Palhaçaria.; Dinâmicas Circenses.; Improvisações circenses. | Habilidades: EF06AR28, EF06AR24, EF06AR26 | AE8",
+      "Aula 4 - A trupe chegou: funções e organização | Conteúdos: Funções Teatrais.; Organização do Circo.; Colaboração Artística. | Habilidades: EF06AR24, EF06AR28 | AE9",
+      "Aula 5 - Teatro e circo: velhos companheiros | Conteúdos: Circo e Teatro.; Evolução Histórica.; Jogos Teatrais. | Habilidades: EF06AR24, EF06AR25, EF06AR28 | AE7",
+      "Aula 6 - A comédia e a farsa no circo | Conteúdos: Comédia e Farsa.; História do Riso.; Palhaçaria Clássica. | Habilidades: EF06AR24, EF06AR25, EF06AR28 | AE8",
+      "Aula 7 - Meu palhaço pessoal | Conteúdos: Matrizes Estéticas.; Figurinos e Adereços. | Habilidades: EF06AR24 | AE7",
+      "Aula 8 - O nariz do palhaço | Conteúdos: Matrizes Estéticas.; Figurinos e Adereços.; Autoconhecimento. | Habilidades: EF06AR24, EF06AR25, EF06AR28 | AE7",
+      "Aula 9 - Levantando a lona do circo | Conteúdos: Elementos de Cena.; Função do Riso.; Números Clássicos. | Habilidades: EF06AR26 | AE8",
+      "Aula 10 - Confusão nos bastidores? | Conteúdos: Produção Coletiva.; Dinâmicas de Grupo.; Jogos Teatrais. | Habilidades: EF06AR24, EF06AR26, EF06AR28, EF06AR25 | AE7",
+      "Aula 11 - Criando e ensaiando cenas cômicas | Conteúdos: Criação de Espetáculo.; Gêneros Teatrais.; Preparação de Números Circenses. | Habilidades: EF06AR28, EF06AR26 | AE8",
+      "Aula 12 - O grande dia: o circo-teatro chegou! | Conteúdos: Improvisação Teatral.; Elementos Cênicos. | Habilidades: EF06AR28 | AE8"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - O Que é Dança para Você? | Conteúdos: Introdução à Dança.; Expressão Corporal.; Pesquisar as origens e características de danças clássicas e modernas. - EF07AR09 | AE1 - Relacionar elementos estruturais, origens e contextos das danças clássicas e modernas a partir da apreciação de diferentes artistas e grupos.",
       "Aula 2 - A Dança através dos Tempos | Conteúdos: Introdução à História da Dança;; Pesquisar as origens e características de danças clássicas e modernas. - EF07AR09 | AE1 - Relacionar elementos estruturais, origens e contextos das danças clássicas e modernas a partir da apreciação de diferentes artistas e grupos.",
@@ -132,6 +165,34 @@ function criarFormularioFundamental() {
       "Aula 13 - Ensaio geral | Conteúdos: Improvisação Musical.; Composição Musical.; Performance Musical. | Habilidades: EF07AR21, EF07AR22, EF07AR23 | AE4 - Criar composições musicais coletivamente, por meio de práticas de improvisação.",
       "Aula 14 - Apresentação final e reflexão | Conteúdos: Composição Musical.; Performance Musical.; Produção Musical. | Habilidades: EF07AR16, EF07AR22, EF07AR23 | AE4 - Criar composições musicais coletivamente, por meio de práticas de improvisação."
     ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Assemblage ou... O que é \"montagem\"? | Conteúdos: Assemblage.; Arte brasileira. | Habilidades: EF07AR01, EF07AR04 | AE6",
+      "Aula 2 - Conhecendo artistas que fizeram Assemblages | Conteúdos: Escultura.; Assemblage. | Habilidades: EF07AR05, EF07AR06, EF07AR01 | AE6",
+      "Aula 3 - Minha assemblage pessoal | Conteúdos: Assemblage.; Autoexpressão. | Habilidades: EF07AR04, EF07AR03 | AE7",
+      "Aula 4 - Reinventando objetos do cotidiano | Conteúdos: Assemblage.; Investigação artística. | Habilidades: EF07AR06, EF07AR02 | AE6",
+      "Aula 5 - Da assemblage ao mosaico | Conteúdos: Mosaico.; Processo de criação. | Habilidades: EF07AR01 | AE6",
+      "Aula 6 - Conhecendo o muralismo | Conteúdos: Muralismo.; Processo de criação. | Habilidades: EF07AR01 | AE6",
+      "Aula 7 - Planejando um mural na escola | Conteúdos: Muralismo.; Composição visual.; Intervenção Artística. | Habilidades: EF07AR01 | AE7",
+      "Aula 8 - As muitas partes de um mural coletivo | Conteúdos: Muralismo.; Intervenção artística. | Habilidades: EF07AR01, EF07AR06 | AE6",
+      "Aula 9 - A diversidade do muralismo | Conteúdos: Muralismo.; Arte Latino-Americana.; Intervenção artística. | Habilidades: EF07AR04, EF07AR06 | AE7",
+      "Aula 10 - Preparando a instalação do mural | Conteúdos: Muralismo.; Intervenção artística.; Processo de criação. | Habilidades: EF07AR01, EF07AR02 | AE6",
+      "Aula 11 - Produzindo o Mural | Conteúdos: Expografia.; Processo de criação. | Habilidades: EF07AR01 | AE6",
+      "Aula 12 - Exposição: Nossas obras a vista de todos | Conteúdos: Expografia.; Intervenção artística.; Processo de criação. | Habilidades: EF07AR01 | AE6"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Fundamentos do teatro de animação | Conteúdos: Teatro de Animação.; Técnicas de Manipulação.; Teatro de Fantoche. | Habilidades: EF07AR26, EF07AR30 | AE8",
+      "Aula 2 - Fantoche de Luva e o despertar da voz! | Conteúdos: Teatro de Animação.; Técnicas de Manipulação.; Esquete e Improvisação. | Habilidades: EF07AR27, EF07AR30 | AE8",
+      "Aula 3 - Fantoche de Luva: criando pequenas cenas! | Conteúdos: Técnicas de Manipulação.; Dramaturgia Teatral.; Relação com o Espectador. | Habilidades: EF07AR30 | AE9",
+      "Aula 4 - Explorando o teatro de sombras: Luz, recorte e distorção | Conteúdos: Teatro de Sombras.; Teatro Contemporâneo.; Construção de Personagem. | Habilidades: EF07AR24, EF07AR26 | AE8",
+      "Aula 5 - Animando os objetos do mundo | Conteúdos: Teatro de Formas Animadas.; Construção de Dramaturgia.; Técnicas de Manipulação. | Habilidades: EF07AR24, EF07AR26, EF07AR27, EF07AR30 | AE8",
+      "Aula 6 - Combinando formas animadas | Conteúdos: Teatro de Animação.; Teatro Contemporâneo.; Processos de Criação. | Habilidades: EF07AR24, EF07AR27, EF07AR30 | AE8",
+      "Aula 7 - Improvisação em grupos | Conteúdos: Improvisação Teatral.; Composição Cênica. | Habilidades: EF07AR30 | AE9",
+      "Aula 8 - Dramaturgia de formas animadas | Conteúdos: Dramaturgia.; Processos de Criação.; Composição Cênica. | Habilidades: EF07AR24, EF07AR27, EF07AR30 | AE8",
+      "Aula 9 - Ensaiando a cena | Conteúdos: Dramaturgia.; Processos de Criação.; Composição Cênica. | Habilidades: EF07AR24, EF07AR27, EF07AR30 | AE10",
+      "Aula 10 - Ensaio geral | Conteúdos: Dramaturgia.; Composição Cênica. | Habilidades: EF07AR27, EF07AR30, EF07AR24 | AE8",
+      "Aula 11 - Apresentações Finais | Conteúdos: Teatro de Animação.; Relação com o Espectador. | Habilidades: EF07AR26, EF07AR30 | AE10",
+      "Aula 12 - Retrospectiva e reflexão | Conteúdos: Teatro de Animação.; Processos de Criação.; Composição Cênica. | Habilidades: EF07AR30 | AE9"
+    ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - O brincante no tempo da dança | Conteúdos: Origens da Dança.; Fatores do Movimento.; Variação de Tempo. | Habilidades: EF08AR09, EF08AR11 | AE1 - Analisar composições de danças coletivas de diferentes matrizes culturais brasileiras para apreciá- las.",
       "Aula 2 - Dança, uma brincadeira no espaço | Conteúdos: Origens e Procedimentos.; Improvisação em Dança.; Deslocamento Espacial. | Habilidades: EF08AR09, EF08AR12, EF08AR11 | AE2 - Explorar as variações dos fatores do movimento (tempo, fluência e espaço) explorando-os na prática da dança.",
@@ -150,6 +211,22 @@ function criarFormularioFundamental() {
       "Aula 6 - Refinan do Nossas Composições | Conteúdos: Elementos da Música.; Práticas de Criação.; Composição Musical. | Habilidades: EF08AR20, EF08AR23 | AE5 - Analisar os elementos das músicas indígenas como uma das matrizes culturais brasileiras, utilizando canções, jogos e apreciando as composições. AE6 - Expressar ideias musi...",
       "Aula 7 - Apresentaçã o Final e Reflexão - Aula Complementar | Conteúdos: Expressão Musical.; Composição Musical.; Função Social da Música. | Habilidades: EF08AR16, EF08AR23"
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - O grafismo indígena e africano e outras expressões gráficas | Conteúdos: Grafismo.; Arte Indígena.; Arte Africana. | Habilidades: EF08AR01, EF69AR34 | AE7",
+      "Aula 2 - Geometrias indígenas e africanas: diversidade de padrões e composições | Conteúdos: Arte indígena.; Arte africana.; Padrões geométricos. | Habilidades: EF08AR04, EF69AR31, EF08AR01, EF69AR33 | AE7",
+      "Aula 3 - Arte e Vida: O retorno do manto Tupinambá e bronzes de Benin | Conteúdos: Arte Indígena e Africana.; Arte & Vida.; Colonialismo na Arte. | Habilidades: EF08AR06, EF08AR02 | AE7",
+      "Aula 4 - Arte Indígena e Arte Africana: Escultura, Modelagem e Artesanato | Conteúdos: Escultura e Modelagem.; Arte Indígena e Arte Africana Contemporânea.; Artesanato x Arte: categorização da arte. | Habilidades: EF08AR01 | AE9",
+      "Aula 5 - As Máscaras na Arte Indígena e na Arte Africana | Conteúdos: Máscaras Indígenas e Africanas.; Arte & Vida. | Habilidades: EF08AR01 | AE8",
+      "Aula 6 - Diálogo com a Tradição: Arte Indígena e Africana como Inspiração a ser vista | Conteúdos: Processo de criação.; Expografia. | Habilidades: EF08AR01 | AE8"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - O teatro e (é) a nossa história | Conteúdos: Teatro e Sociedade.; Elementos de Cena.; Contação de Histórias. | Habilidades: EF08AR25, EF08AR26, EF08AR28 | AE10",
+      "Aula 2 - Teatro e ancestralidade | Conteúdos: Teatro e Sociedade.; Criação Coletiva.; Contação de Histórias. | Habilidades: EF08AR24, EF08AR25, EF08AR26, EF08AR28 | AE11",
+      "Aula 3 - Os elementos que fazem o teatro | Conteúdos: Poéticas Pessoais.; Elementos de Cena.; Contação de Histórias. | Habilidades: EF08AR25, EF08AR26, EF08AR28 | AE10",
+      "Aula 4 - Ensaiando e refinando | Conteúdos: Teatro e Sociedade.; Processos de Criação Teatral.; Poéticas Pessoais. | Habilidades: EF08AR25 | AE10",
+      "Aula 5 - Apresentação das cenas | Conteúdos: Poéticas Pessoais.; Elementos de Cena.; Processos de Criação Teatral.; Teatro e Sociedade. | Habilidades: EF08AR25 | AE10",
+      "Aula 6 - Minhas raízes teatrais | Conteúdos: Processos de Criação Teatral.; Processo Colaborativo. | Habilidades: EF08AR25 | AE12"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - Dança: Movimento da Vida | Conteúdos: Pesquisa em Dança.; Movimento Cotidiano.; Jogos e Brincadeiras. | Habilidades: EF09AR13, EF09AR09 | AE1 - Analisar o uso de elementos cênicos (figurino, cenário, iluminação, espaços e tecnologias digitais) nos contextos de criação coreográfica e apresentações de dança.",
       "Aula 2 - Espaços e Esferas do Movimento | Conteúdos: Kinesfera.; Adaptação Espacial.; Adaptação Coreográfica. | Habilidades: EF09AR09, EF09AR14 | AE1 - Analisar o uso de elementos cênicos (figurino, cenário, iluminação, espaços e tecnologias digitais) nos contextos de criação coreográfica e apresentações de dança.",
@@ -167,6 +244,23 @@ function criarFormularioFundamental() {
       "Aula 5 - Recriando gêneros musicais - Aula Complementar | Conteúdos: Música e Tecnologia.; Composição Musical.; Elementos de | Habilidades: EF09AR20, EF09AR23",
       "Aula 6 - Criando nossa composição | Conteúdos: Música e Tecnologia.; Composição Musical.; Elementos de | Habilidades: EF09AR23 | AE4 - Compor e decompor músicas, explorando variações de timbre, altura, intensidade, melodia e ritmo com uso de diversas tecnologias, inclusive as digitais.",
       "Aula 7 - O que nossa música diz sobre nós | Conteúdos: Função Social da Música.; Apreciação Musical.; Expressão Musical. | Habilidades: EF09AR16, EF09AR19, EF09AR23 | AE4 - Compor e decompor músicas, explorando variações de timbre, altura, intensidade, melodia e ritmo com uso de diversas tecnologias, inclusive as digitais."
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Fotografia: arte e contemporaneidade | Conteúdos: Fotografia.; Arte contemporânea.; Intervenção urbana. | Habilidades: EF09AR01, EF09AR02, EF69AR31 | AE5",
+      "Aula 2 - Fotografia: elementos da linguagem | Conteúdos: Fotografia.; Enquadramento, Luz, Textura, Cor e Composição. | Habilidades: EF09AR01, EF69AR31 | AE5",
+      "Aula 3 - Arte urbana e a ressignificação dos Monumentos | Conteúdos: Monumento.; Escultura.; Arte urbana. | Habilidades: EF09AR05, EF09AR01, EF69AR31, EF09AR06 | AE5",
+      "Aula 4 - Grafites, cartazes e stickers | Conteúdos: Manifestações de arte urbana.; Intervenção artística.; Arte brasileira. | Habilidades: EF09AR07, EF69AR31 | AE6",
+      "Aula 5 - Laboratório de arte urbana | Conteúdos: Intervenção artística.; Processo de criação. | Habilidades: EF69AR31 | AE6",
+      "Aula 6 - Projeto final: reflexões contemporâneas | Conteúdos: Intervenção artística.; Processo de criação.; Autoria. | Habilidades: EF69AR31 | AE6"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - A Vida dos atores: Do tablado ao tapete vermelho | Conteúdos: Teatro Contemporâneo.; História do Drama.; Interpretação Teatral. | Habilidades: EF09AR24, EF09AR25, EF09AR26 | AE7",
+      "Aula 2 - Romeu no palco, Julieta na tela | Conteúdos: Apreciação Estética.; Teatro x Cinema.; Motivação do Personagem. | Habilidades: EF09AR25, EF09AR28 | AE8",
+      "Aula 3 - Caminhos de construção de personagem | Conteúdos: Memória Afetiva.; Gesto Psicológico.; Intensidade Emocional. | Habilidades: EF09AR26 | AE8",
+      "Aula 4 - Para além da interpretação | Conteúdos: Tecnologias Digitais.; Vocabulário Técnico.; Funções Teatrais. | Habilidades: EF09AR25, EF09AR26, EF09AR28 | AE7",
+      "Aula 5 - A construção da cena | Conteúdos: Trabalho Coletivo.; Apreciação Estética. | Habilidades: EF09AR25, EF09AR28 | AE7",
+      "Aula 6 - Luz, câmera e ação! | Conteúdos: Ator-Propositor.; Montagem Coletiva.; Critérios de Avaliação.; Performance Autoral. | Habilidades: EF09AR24, EF09AR25, EF09AR26, EF09AR28 | AE8",
+      "Aula 7 - No tapete vermelho! | Conteúdos: Montagem Coletiva.; Critérios de Avaliação.; Performance Autoral. | Habilidades: EF09AR24 | AE7"
     ]
   },
   "Ciências": {
@@ -216,6 +310,46 @@ function criarFormularioFundamental() {
       "Aula 20 - Materiais sintéticos- Aula complementar | Conteúdos: O desenvolvimento tecnológico e; Apresentar o uso de aplicações tecnológicas | Habilidades: EF06CI04",
       "Aula 21 - Simulador:estadosde organização da matéria | Conteúdos: Estado de organização da; Sistematizar os conceitos relacionados à | Habilidades: EF06CI01 | AE4 - Analisar os processos de separação de misturas do cotidiano, classificando as substâncias, as misturas e as mudanças de estado físico da matéria."
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - A célula como unidade básica da vida: Teoria celular | Conteúdos: Introdução à célula.; Teoria celular.; Seres unicelulares e pluricelulares. | Habilidades: EF06CI05 | AE5",
+      "Aula 2 - Desenvolvimento da microscopia | Conteúdos: Aspectos históricos da criação do microscópio.; Funcionamento do microscópio. | Habilidades: EF06CI05 | AE5",
+      "Aula 3 - Introdução à estrutura celular | Conteúdos: Aplicação da microscopia no cotidiano.; Componentes básicos das células: membrana, citoplasma e material genético. | Habilidades: EF06CI05 | AE5",
+      "Aula 4 - Seres eucariontes e procariontes | Conteúdos: Diferenças na organização do material genético entre os seres vivos. | Habilidades: EF06CI05 | AE5",
+      "Aula 5 - Célula animal | Conteúdos: Organelas que compõem uma célula animal. | Habilidades: EF06CI05 | AE5",
+      "Aula 6 - Célula vegetal | Conteúdos: Organelas que compõem uma célula vegetal. | Habilidades: EF06CI05 | AE5",
+      "Aula 7 - Construção de um modelo celular - Parte 1 | Conteúdos: Morfologia celular. | Habilidades: EF06CI05 | AE5",
+      "Aula 8 - Construção de um modelo celular - Parte 2 | Conteúdos: Morfologia celular. | Habilidades: EF06CI05 | AE5",
+      "Aula 9 - Bactérias | Conteúdos: Morfologia da célula bacteriana.; Classificação das bactérias. | Habilidades: EF06CI05 | AE5",
+      "Aula 10 - Fungos | Conteúdos: Morfologia da célula dos fungos.; Classificação dos fungos. | Habilidades: EF06CI05 | AE5",
+      "Aula 11 - Protozoários | Conteúdos: Morfologia da célula dos protozoários.; Classificação dos protozoários. | Habilidades: EF06CI05 | AE5",
+      "Aula 12 - Vírus | Conteúdos: Vírus. | Habilidades: EF06CI05 | AE5",
+      "Aula 13 - Doenças causadas por bactérias, fungos e protozoários | Conteúdos: Doenças causadas por bactérias, fungos e protozoários.; Saneamento básico. | Habilidades: EF06CI05 | AE5",
+      "Aula 14 - Saneamento básico e saúde | Conteúdos: Saneamento básico.; Saúde. | Habilidades: EF06CI05 | AE5",
+      "Aula 15 - Níveis de organização dos seres vivos | Conteúdos: Níveis de organização dos seres vivos. | Habilidades: EF06CI06 | AE6",
+      "Aula 16 - Tecidos e órgãos | Conteúdos: Níveis de organização dos seres vivos. | Habilidades: EF06CI06 | AE6",
+      "Aula 17 - Retomada: Biologia celular | Conteúdos: Biologia celular. | Habilidades: EF06CI05 | AE5",
+      "Aula 18 - Retomada: Meio ambiente e Saúde | Conteúdos: Meio ambiente.; Saúde.; Organização dos seres vivos. | Habilidades: EF06CI05 | AE5"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Organização dos órgãos em sistemas do corpo humano | Conteúdos: Tecidos do corpo humano.; Organização dos tecidos em sistemas. | Habilidades: EF06CI06, EF06CI07 | AE6",
+      "Aula 2 - Sistema nervoso | Conteúdos: Componentes do sistema nervoso.; Tipos celulares do sistema nervoso. | Habilidades: EF06CI07 | AE7",
+      "Aula 3 - Estrutura do neurônio | Conteúdos: Neurônio: estrutura e função.; Papel do neurônio no impulso nervoso.; Neurônio e sinapse. | Habilidades: EF06CI08 | AE7",
+      "Aula 4 - Sistema nervoso central | Conteúdos: Sistema nervoso central: componentes e funções. | Habilidades: EF06CI07 | AE7",
+      "Aula 5 - Sistema nervoso periférico | Conteúdos: Sistema nervoso periférico.; Sistema nervoso simpático e parassimpático. | Habilidades: EF06CI07 | AE7",
+      "Aula 6 - Sentido da visão | Conteúdos: Estrutura do olho humano.; Olho humano e percepção dos estímulos eletromagnéticos.; Formação de imagem pelo olho.; Transmissão e interpretação da imagem pelo sistema nervoso. | Habilidades: EF06CI07 | AE7",
+      "Aula 7 - Simulador: funcionamento do olho humano | Conteúdos: Estrutura do olho humano.; Formação de imagem pelo olho. | Habilidades: EF06CI08 | AE7",
+      "Aula 8 - Sentidos do paladar e do olfato | Conteúdos: Papel dos quimiorreceptores para a percepção de odores e gostos.; Interpretação de odores e gostos pelo sistema nervoso central. | Habilidades: EF06CI07 | AE7",
+      "Aula 9 - Sentido do tato | Conteúdos: Papel da pele para o tato.; Tato e os diferentes receptores.; Tato e acessibilidade. | Habilidades: EF06CI09 | AE7",
+      "Aula 10 - Sentido da audição e equilíbrio | Conteúdos: Composição e funcionamento do sistema auditivo.; Correlação entre sistema auditivo, equilíbrio e sistema nervoso central. | Habilidades: EF06CI09 | AE7",
+      "Aula 11 - Sistema esquelético | Conteúdos: Composição do sistema esquelético.; Papel do sistema esquelético no movimento. | Habilidades: EF06CI09 | AE8",
+      "Aula 12 - Sistema muscular | Conteúdos: Composição do sistema muscular.; Movimentos voluntários e involuntários dos músculos. | Habilidades: EF06CI09 | AE8",
+      "Aula 13 - Mão biônica: acessibilidade | Conteúdos: Acessibilidade e movimentos voluntários.; Progressos científicos e melhoria na qualidade de vida. | Habilidades: EF06CI09 | AE8",
+      "Aula 14 - Mão biônica: finalização | Conteúdos: Acessibilidade e movimentos voluntários.; Progressos científicos e melhoria na qualidade de vida. | Habilidades: EF06CI09 | AE8",
+      "Aula 15 - Efeitos das drogas no organismo | Conteúdos: Efeitos das drogas no sistema nervoso central.; Qualidade de vida. | Habilidades: EF06CI10 | AE7",
+      "Aula 16 - Conscientização sobre o enfrentamento ao uso de drogas | Conteúdos: Prevenção ao uso de drogas.; Efeitos das drogas no sistema nervoso central.; Qualidade de vida. | Habilidades: EF06CI10, EF06CI07 | AE7",
+      "Aula 17 - Retomada: Sistema nervoso | Conteúdos: Sistema nervoso. | Habilidades: EF06CI07 | AE7",
+      "Aula 18 - Retomada: Sistema locomotor | Conteúdos: Sistema locomotor. | Habilidades: EF06CI09 | AE8"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Placas tectônicas | Conteúdos: Placas tectônicas.; Definir o conceito de placas tectônicas e o desenvolvimento das | Habilidades: EF07CI16 | AE1 - Investigar a teoria da deriva continental, relacionando a correspondência entre os formatos das costas brasileira e africana aos processos da tectônica de placas.",
       "Aula 2 - Deriva continental | Conteúdos: Deriva continental.; Compreender o histórico do desenvolvimento da hipótese da; Localizar o Brasil sobre a placa Sul-Americana. | Habilidades: EF07CI16 | AE1 - Investigar a teoria da deriva continental, relacionando a correspondência entre os formatos das costas brasileira e africana aos processos da tectônica de placas.",
@@ -261,6 +395,46 @@ function criarFormularioFundamental() {
       "Aula 19 - Investigação da biodiversidadevegetal local | Conteúdos: Biodiversidade local.; Investigar as características e a ocorrência de | Habilidades: EF07CI07 | AE9 - Caracterizar os ecossistemas brasileiros, explicando como os fatores bióticos e abióticos se relacionam às características da fauna e da flora, considerando a biodiversida...",
       "Aula 20 - Retomada: Sustentabilidade- Aula complementar | Conteúdos: Sustentabilidade.; Identificar as principais relações entre as mudanças; Compreender o conceito de sustentabilidade e o | Habilidades: EF07CI06, EF07CI17*",
       "Aula 21 - Retomada: Biodiversidade- Aula complementar | Conteúdos: Biodiversidade.; Reconhecer as principais características e funções; Reconhecer as principais características dos grupos | Habilidades: EF07CI07"
+    ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Ecossistemas aquáticos | Conteúdos: Ecossistemas.; Ecossistemas aquáticos: componentes e biodiversidade. | Habilidades: EF07CI07 | AE10",
+      "Aula 2 - Mata Atlântica | Conteúdos: Bioma: conceito.; Bioma Mata Atlântica.; Biodiversidade da Mata Atlântica. | Habilidades: EF07CI07 | AE10",
+      "Aula 3 - Os desafios da preservação da Mata Atlântica | Conteúdos: Bioma Mata Atlântica.; Biodiversidade da Mata Atlântica.; Impactos ambientais no bioma. | Habilidades: EF07CI07 | AE10",
+      "Aula 4 - Cerrado | Conteúdos: Bioma Cerrado.; Biodiversidade do Cerrado. | Habilidades: EF07CI07 | AE10",
+      "Aula 5 - Os desafios da preservação do Cerrado | Conteúdos: Bioma Cerrado.; Biodiversidade do Cerrado.; Impactos ambientais no bioma. | Habilidades: EF07CI07 | AE10",
+      "Aula 6 - Investigação da biodiversidade local | Conteúdos: Biodiversidade no cotidiano. | Habilidades: EF07CI07 | AE10",
+      "Aula 7 - Amazônia | Conteúdos: Bioma Amazônia.; Biodiversidade da Amazônia.; Impactos ambientais no bioma. | Habilidades: EF07CI07 | AE10",
+      "Aula 8 - Desafios na conservação da Amazônia | Conteúdos: Bioma Amazônia.; Biodiversidade da Amazônia.; Impactos ambientais no bioma. | Habilidades: EF07CI07 | AE10",
+      "Aula 9 - Pantanal | Conteúdos: Bioma Pantanal.; Biodiversidade do Pantanal.; Impactos ambientais no bioma. | Habilidades: EF07CI07, EF07CI18, EF07CI08 | AE10",
+      "Aula 10 - Pampa | Conteúdos: Bioma Pampa.; Biodiversidade do Pampa. | Habilidades: EF07CI07 | AE10",
+      "Aula 11 - Caatinga | Conteúdos: Bioma Caatinga.; Biodiversidade da Caatinga. | Habilidades: EF07CI07 | AE10",
+      "Aula 12 - Construindo uma campanha de conscientização ambiental | Conteúdos: Impactos ambientais no bioma.; Bioma Caatinga.; Bioma Pampa. | Habilidades: EF07CI07 | AE10",
+      "Aula 13 - Unidades de conservação | Conteúdos: Biodiversidade dos biomas.; Tipos e usos das Unidades de conservação. | Habilidades: EF07CI07 | AE10",
+      "Aula 14 - Agricultura | Conteúdos: Fenômenos naturais e impactos ambientais.; Agricultura e produção de alimentos. | Habilidades: EF07CI07 | AE10",
+      "Aula 15 - Júri simulado sobre produção de alimentos e uso do solo | Conteúdos: Sustentabilidade e produção de alimentos. | Habilidades: EF07CI09, EF07CI07 | AE10",
+      "Aula 16 - Saúde única | Conteúdos: Saúde pública.; Saúde ambiental. | Habilidades: EF07CI07 | AE11",
+      "Aula 17 - Retomada: Unidades de conservação e biomas | Conteúdos: Biodiversidade dos biomas.; Tipos e usos das Unidades de conservação. | Habilidades: EF07CI07 | AE10",
+      "Aula 18 - Retomada: Agricultura, impactos ambientais e saúde única | Conteúdos: Fenômenos naturais e impactos ambientais.; Agricultura e produção de alimentos.; Saúde pública.; Saúde ambiental. | Habilidades: EF07CI09 | AE10"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Saúde | Conteúdos: Definição de saúde.; Correlação entre saúdes ambiental, individual e coletiva. | Habilidades: EF07CI10B, EF07CI11 | AE11",
+      "Aula 2 - Vírus | Conteúdos: Conceito biológico de vida. | Habilidades: EF07CI10A | AE11",
+      "Aula 3 - Doenças causadas por vírus | Conteúdos: Vírus e características básicas.; Doenças causadas por vírus a seres humanos.; Doenças causadas por vírus a outros seres vivos. | Habilidades: EF07CI10B, EF07CI10A, EF07CI09, EF07CI11 | AE8",
+      "Aula 4 - Bactérias | Conteúdos: Bactérias e estruturas.; Grupos de bactérias.; Papéis ecossistêmicos das bactérias. | Habilidades: EF07CI09 | AE8",
+      "Aula 5 - Doenças causadas por bactérias | Conteúdos: Bactérias e características básicas.; Doenças causadas por bactérias a seres humanos.; Doenças causadas por bactérias a outros seres vivos. | Habilidades: EF07CI09 | AE8",
+      "Aula 6 - Pandemia, endemia, epidemia e surto | Conteúdos: Definição e diferenciação dos conceitos: pandemia, endemia, epidemia e surto. | Habilidades: EF07CI09 | AE11",
+      "Aula 7 - Como as pandemias se espalham? | Conteúdos: Características de vírus e de bactérias.; Conceitos de pandemia, epidemia, endemia e surto. | Habilidades: EF07CI09 | AE11",
+      "Aula 8 - Sistema imune humano: principais características | Conteúdos: Mecanismos de defesa do corpo.; Primeira linha de defesa.; Segunda linha de defesa. | Habilidades: EF07CI10B, EF07CI09 | AE11",
+      "Aula 9 - Sistema imune humano: resposta imune | Conteúdos: Mecanismos de defesa do corpo.; Primeira linha de defesa.; Segunda linha de defesa. | Habilidades: EF07CI09, EF07CI10B | AE11",
+      "Aula 10 - Vacinas | Conteúdos: Vacina como mecanismo para manutenção da saúde.; Saúde coletiva. | Habilidades: EF07CI10B, EF07CI09 | AE11",
+      "Aula 11 - Processo de fabricação de vacinas | Conteúdos: Valorização de instituições públicas responsáveis pela produção de vacinas, como a FioCruz e o Instituto Butantan.; Etapas envolvidas na produção, no estudo e na autorização de vacinas pelo SUS. | Habilidades: EF07CI09 | AE11",
+      "Aula 12 - A importância da vacinação: um estudo de caso | Conteúdos: Vacina como mecanismo para manutenção da saúde.; Vacina como pacto coletivo. | Habilidades: EF07CI09 | AE11",
+      "Aula 13 - A importância da vacinação: reflexão | Conteúdos: Vacina como mecanismo para manutenção da saúde.; Vacina como pacto coletivo. | Habilidades: EF07CI09 | AE11",
+      "Aula 14 - Saneamento básico: impactos na vida cotidiana | Conteúdos: Saneamento básico e seus componentes (água e esgoto).; Saneamento básico e fontes de poluição das águas. | Habilidades: EF07CI09 | AE11",
+      "Aula 15 - Saneamento básico: papel na sustentabilidade | Conteúdos: Saneamento básico e seus componentes (água e esgoto).; Saneamento básico e fontes de poluição das águas. | Habilidades: EF07CI09, EF07CI11 | AE11",
+      "Aula 16 - Indicadores de saúde | Conteúdos: Indicadores de saúde.; Dados de acesso populacional a serviços como vacinas, escolaridade e saneamento básico. | Habilidades: EF07CI09, EF07CI11, EF07CI10B | AE11",
+      "Aula 17 - Retomada: Epidemiologia | Conteúdos: Problematização de taxa de mortalidade infantil e dos demais indicadores de saúde. | Habilidades: EF07CI09 | AE11",
+      "Aula 18 - Retomada: Saúde | Conteúdos: Correlação entre saúde ambiental, individual e coletiva.; Saúde como direito do cidadão.; SUS e a universalização da saúde.; Saneamento básico. | Habilidades: EF07CI09 | AE11"
     ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Adolescência | Conteúdos: Adolescência.; Reconhecer características e expressões | Habilidades: EF08CI08A | AE1 - Identificar as mudanças físicas e comportamentais que ocorrem na puberdade, relacionando-as às interações entre os sistemas nervoso e endócrino.",
@@ -322,6 +496,58 @@ function criarFormularioFundamental() {
       "Aula 27 - Retomada:Sistema respiratório | Conteúdos: Sistema respiratório. - Compreender o funcionamento do sistema respiratório. | Habilidades: EF08CI08B, EF05CI06B",
       "Aula 28 - Retomada:Sistema cardiovascular | Conteúdos: Sistema cardiovascular.; Compreender o funcionamento do sistema | Habilidades: EF08CI08B, EF05CI07"
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - Astronomia | Conteúdos: Astronomia.; Desenvolvimento da Astronomia.; Características de Corpos celestes. | Habilidades: EF08CI13 | AE8",
+      "Aula 2 - Movimentos da Terra | Conteúdos: Movimentos de rotação, precessão e translação da Terra. | Habilidades: EF08CI12 | AE8",
+      "Aula 3 - Estações do ano | Conteúdos: Eixo de rotação da Terra.; Correlação entre inclinação do eixo e ocorrência das estações do ano. | Habilidades: EF08CI12 | AE8",
+      "Aula 4 - Observação da Lua | Conteúdos: Lua. | Habilidades: EF08CI12 | AE8",
+      "Aula 5 - Movimentos da Lua | Conteúdos: Movimentos da Lua. | Habilidades: EF08CI12 | AE8",
+      "Aula 6 - Fases da Lua | Conteúdos: Fases da Lua.; Calendário lunar. | Habilidades: EF08CI12 | AE8",
+      "Aula 7 - Eclipses lunar e solar | Conteúdos: Eclipse solar.; Eclipse lunar. | Habilidades: EF08CI12 | AE8",
+      "Aula 8 - Caixa lunar | Conteúdos: Fases da Lua.; Eclipse solar.; Eclipse lunar. | Habilidades: EF08CI12, EF08CI15 | AE8",
+      "Aula 9 - Clima e tempo | Conteúdos: Diferença entre tempo e clima.; Climatologia.; Ciência e previsão do tempo. | Habilidades: EF08CI15, EF08CI14 | AE9",
+      "Aula 10 - Previsão do tempo | Conteúdos: Aspectos da previsão do tempo.; Umidade do ar.; Temperatura.; Pressão atmosférica. | Habilidades: EF08CI15 | AE9",
+      "Aula 11 - Estação meteorológica | Conteúdos: Estação meteorológica.; Previsão do tempo. | Habilidades: EF08CI15 | AE9",
+      "Aula 12 - Simulando uma previsão do tempo | Conteúdos: Previsão do tempo.; Variáveis envolvidas na previsão do tempo. | Habilidades: EF08CI15 | AE9",
+      "Aula 13 - Divulgação da previsão do tempo | Conteúdos: Previsão do tempo.; Sensação térmica. | Habilidades: EF08CI15 | AE9",
+      "Aula 14 - Circulação atmosférica | Conteúdos: Clima.; Fatores climáticos.; Circulação atmosférica. | Habilidades: EF08CI14 | AE9",
+      "Aula 15 - Circulação oceânica | Conteúdos: Clima.; Fatores climáticos.; Circulação oceânica. | Habilidades: EF08CI14 | AE9",
+      "Aula 16 - Climas do planeta | Conteúdos: Climas regionais do planeta. | Habilidades: EF08CI14, EF08CI16 | AE9",
+      "Aula 17 - El Niño e La Niña | Conteúdos: Fenômenos El Niño e La Niña.; Alterações climáticas regionais. | Habilidades: EF08CI16, EF08CI13 | AE9",
+      "Aula 18 - Mudanças climáticas | Conteúdos: Mudanças climáticas.; Correlação entre mudanças climáticas e intervenções humanas. | Habilidades: EF08CI13 | AE9",
+      "Aula 19 - Aquecimento global | Conteúdos: Aquecimento global.; Mudanças climáticas. | Habilidades: EF08CI13 | AE9",
+      "Aula 20 - Equilíbrio ambiental | Conteúdos: Efeitos das mudanças climáticas.; Iniciativas para mitigar efeitos das mudanças climáticas.; Estações do ano.; Movimentos da Terra. | Habilidades: EF08CI13 | AE10",
+      "Aula 21 - Retomada: Estações do ano | Conteúdos: Estações do ano.; Movimentos da Terra. | Habilidades: EF08CI12 | AE9",
+      "Aula 22 - Retomada: Sistema Sol-Terra-Lua | Conteúdos: Corpos celestes.; Eclipses solar e lunar.; Fases da Lua. | Habilidades: EF08CI12, EF08CI15 | AE9",
+      "Aula 23 - Retomada: Previsão do tempo | Conteúdos: Previsão do tempo.; Variáveis envolvidas na previsão do tempo. | Habilidades: EF08CI14 | AE9",
+      "Aula 24 - Retomada: Climas do planeta | Conteúdos: Climas regionais.; Circulação atmosférica.; Circulação oceânica. | Habilidades: EF08CI14 | AE9"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Energia no cotidiano | Conteúdos: Tipos de energia (cinética, potencial, elétrica, térmica, luminosa, nuclear). | Habilidades: EF08CI03, EF08CI01 | AE11",
+      "Aula 2 - Fontes de energia | Conteúdos: Eletrodinâmica.; Fontes de energia renováveis e não renováveis. | Habilidades: EF08CI06B, EF08CI03, EF08CI01 | AE11",
+      "Aula 3 - Transformação de energia | Conteúdos: Transformação e conservação da energia. | Habilidades: EF08CI18 | AE11",
+      "Aula 4 - Energias renováveis | Conteúdos: Diversidade de energias renováveis.; Problematização dos prós e contras das diversas formas de energia. | Habilidades: EF08CI18 | AE11",
+      "Aula 5 - Magnetismo | Conteúdos: Fenômenos elétricos e magnéticos.; Natureza elétrica da matéria.; Magnetismo natural e artificial. | Habilidades: EF08CI18 | AE11",
+      "Aula 6 - Cargas elétricas e eletrização – Parte 1 | Conteúdos: Campo magnético terrestre.; Campo magnético.; Corpos eletricamente carregados.; Eletrostática. | Habilidades: EF08CI18 | AE11",
+      "Aula 7 - Cargas elétricas e eletrização – Parte 2 | Conteúdos: Tipos de eletrização (atrito, contato, indução).; Raios e relâmpagos. | Habilidades: EF08CI18 | AE11",
+      "Aula 8 - Corrente elétrica | Conteúdos: Resistência elétrica.; Corrente elétrica. | Habilidades: EF08CI18 | AE12",
+      "Aula 9 - Corrente alternada e corrente contínua | Conteúdos: Corrente alternada e corrente contínua.; Geradores elétricos. | Habilidades: EF08CI06A, EF08CI06C, EF08CI04 | AE12",
+      "Aula 10 - Condutores e isolantes | Conteúdos: Condutores e isolantes elétricos.; Propriedades dos materiais e suas diferenças. | Habilidades: EF08CI04 | AE12",
+      "Aula 11 - Distribuição de energia | Conteúdos: Geração e distribuição de energia em larga escala.; Usinas hidrelétricas, termelétricas, eólicas, solares e nucleares. | Habilidades: EF08CI04 | AE12",
+      "Aula 12 - Circuitos elétricos | Conteúdos: Componentes do circuito elétrico. | Habilidades: EF08CI04 | AE11",
+      "Aula 13 - Circuito em série e circuito em paralelo | Conteúdos: Circuitos em série e circuitos em paralelo.; Tensão e corrente em circuitos em série e paralelos. | Habilidades: EF08CI04 | AE12",
+      "Aula 14 - Cuidados em relação à eletricidade | Conteúdos: Proteção contra choques.; Uso de fusíveis e disjuntores.; Aterramento de aparelhos elétricos.; Segurança na utilização de energia elétrica. | Habilidades: EF08CI04 | AE12",
+      "Aula 15 - Simulador de um circuito elétrico – Parte 1 | Conteúdos: Componentes eletrônicos.; Circuito elétrico. | Habilidades: EF08CI02 | AE12",
+      "Aula 16 - Simulador de um circuito elétrico – Parte 2 | Conteúdos: Componentes eletrônicos.; Circuito elétrico. | Habilidades: EF08CI03, EF08CI04, EF08CI17 | AE12",
+      "Aula 17 - Classificação dos aparelhos eletrônicos | Conteúdos: Circuito elétrico doméstico.; Categorias de classificação dos eletrodomésticos quanto ao consumo de energia elétrica. | Habilidades: EF08CI03, EF08CI18, EF08CI17 | AE12",
+      "Aula 18 - Consumo dos aparelhos eletrônicos | Conteúdos: Potência e consumo de energia elétrica.; Uso racional da energia elétrica. | Habilidades: EF08CI18 | AE12",
+      "Aula 19 - Ações de economia de eletricidade | Conteúdos: Consumo de energia elétrica e práticas sustentáveis. | Habilidades: EF08CI18 | AE13",
+      "Aula 20 - Simulador: ações de economia de eletricidade | Conteúdos: Eletricidade.; Consumo elétrico. | Habilidades: EF08CI18 | AE13",
+      "Aula 21 - Consumo e desenvolvimento sustentável | Conteúdos: Lixo eletroeletrônico e descarte adequado. | Habilidades: EF08CI18 | AE13",
+      "Aula 22 - Retomada: Energia | Conteúdos: Tipos de energia.; Fontes de energia renováveis e não renováveis.; Transformação e conservação da energia. | Habilidades: EF08CI03, EF08CI01, EF08CI18 | AE11",
+      "Aula 23 - Retomada: Fenômenos elétricos e magnéticos | Conteúdos: Magnetismo.; Carga elétrica e eletrização.; Corrente elétrica.; Condutores e isolantes. | Habilidades: EF08CI06A, EF08CI18, EF08CI02 | AE12",
+      "Aula 24 - Retomada: Distribuição de energia | Conteúdos: Distribuição de energia.; Circuitos elétricos.; Circuito em série e circuito em paralelo.; Cuidados em relação à eletricidade. | Habilidades: EF08CI18 | AE12"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - O que é Ciência? | Conteúdos: Natureza da Ciência.; Contextualizar os conceitos de ciência e de tecnologia na atualidade.; Compreender questões relacionadas ao processo de investigação científica. | Habilidades: EF09CI18*, EF09CI05 | AE1 - Analisar a importância do acesso a informações científicas de qualidade, considerando os critérios de confiabilidade das fontes e avaliando os impactos da desinformação.",
       "Aula 2 - Etapas do processo de investigação científica | Conteúdos: Natureza da Ciência.; Argumentar, com base em evidências, sobre as etapas da investigação; Compreender a ciência como prática colaborativa e valorizar cientistas | Habilidades: EF09CI18*, EF09CI05 | AE1 - Analisar a importância do acesso a informações científicas de qualidade, considerando os critérios de confiabilidade das fontes e avaliando os impactos da desinformação.",
@@ -381,6 +607,58 @@ function criarFormularioFundamental() {
       "Aula 26 - Retomada:Genes e DNA | Conteúdos: Aula; Gene.; DNA. | Habilidades: EF09CI08",
       "Aula 27 - Retomada:Leis de Mendel | Conteúdos: Aula; Primeira Lei de; Segunda Lei de | Habilidades: EF09CI09",
       "Aula 28 - Retomada: Biotecnologia- Aula complementar | Conteúdos: Biotecnologia. - Reconhecer o uso da Biotecnologia no cotidiano. | Habilidades: EF09CI08, EF09CI09"
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Adaptação e especiação | Conteúdos: Especiação e adaptação.; Correlação entre especiação e isolamento geográfico e isolamento reprodutivo. | Habilidades: EF09CI11, EF09CI10 | AE10",
+      "Aula 2 - Evolução convergente e divergente | Conteúdos: Análise de cladogramas.; Evolução convergente e divergente.; Grupos monofiléticos. | Habilidades: EF09CI11, EF09CI10 | AE10",
+      "Aula 3 - Evidências da evolução: fósseis e análises genéticas | Conteúdos: Teoria da Evolução.; Fósseis e características ancestrais.; Análises genéticas e inferências evolutivas. | Habilidades: EF09CI11 | AE10",
+      "Aula 4 - Evolução e geração de biodiversidade | Conteúdos: Biodiversidade.; Evolução e biodiversidade. | Habilidades: EF09CI11, EF09CI12A | AE10",
+      "Aula 5 - Preservação da biodiversidade: impacto humano | Conteúdos: Ações humanas e impactos na biodiversidade.; Unidades de conservação.; Papel do Instituto Florestal. | Habilidades: EF09CI12A | AE11",
+      "Aula 6 - Unidades de conservação: importância para a preservação da biodiversidade | Conteúdos: Unidades de conservação e preservação da biodiversidade.; Critérios para estabelecimento de Unidades de conservação. | Habilidades: EF09CI12A | AE11",
+      "Aula 7 - Aula desafio: RPG: conhecendo a situação-problema | Conteúdos: Critérios para estabelecimento de Unidades de conservação. | Habilidades: EF09CI12A | AE11",
+      "Aula 8 - Aula desafio: RPG: construindo um plano de manejo | Conteúdos: Critérios para estabelecimento de Unidades de conservação. | Habilidades: EF09CI12A, EF09CI12B, EF09CI13 | AE11",
+      "Aula 9 - Bacias hidrográficas nacionais e hidrografia do estado de São Paulo | Conteúdos: Hidrografia do estado de São Paulo.; Matas ciliares.; Mapas hidrográficos. | Habilidades: EF09CI13, EF09CI12B | AE11",
+      "Aula 10 - Poluição da água: causas e impactos | Conteúdos: Poluição da água.; Fontes de Poluição da água.; Impactos da Poluição da água. | Habilidades: EF09CI13, EF09CI12B | AE11",
+      "Aula 11 - Tratamento de água: estação de tratamento, saneamento básico e direito à saúde | Conteúdos: Tratamento da água.; Estação de tratamento de água e esgoto. | Habilidades: EF09CI13 | AE11",
+      "Aula 12 - Aula desafio: Conhecendo questões acerca da gestão de recursos hídricos - Parte 1 | Conteúdos: Gestão de recursos hídricos. | Habilidades: EF09CI13 | AE11",
+      "Aula 13 - Aula desafio: Conhecendo questões acerca da gestão de recursos hídricos - Parte 2 | Conteúdos: Gestão de recursos hídricos. | Habilidades: EF09CI13 | AE11",
+      "Aula 14 - Objetivos de desenvolvimento sustentável | Conteúdos: Objetivos de desenvolvimento sustentável. | Habilidades: EF09CI13 | AE11",
+      "Aula 15 - Pegada ecológica e consumo responsável | Conteúdos: Pegada ecológica.; Papel das ações individuais e coletivas na preservação ambiental. | Habilidades: EF09CI12B, EF09CI13 | AE11",
+      "Aula 16 - Economia circular e desenvolvimento sustentável | Conteúdos: Economia circular.; Desenvolvimento sustentável. | Habilidades: EF09CI12B, EF09CI13 | AE11",
+      "Aula 17 - Gestão de resíduos sólidos: logística reversa e Política Nacional de Resíduos Sólidos (PNRS) | Conteúdos: Gestão de resíduos sólidos.; Reciclagem dos resíduos sólidos. | Habilidades: EF09CI12B, EF09CI13 | AE11",
+      "Aula 18 - Coleta seletiva e reciclagem de materiais | Conteúdos: Gestão de resíduos sólidos.; Reciclagem dos resíduos sólidos. | Habilidades: EF09CI13 | AE11",
+      "Aula 19 - Identificação de problemas ambientais na comunidade escolar | Conteúdos: Identificação de questões ambientais.; Proposição de soluções para a resolução de questões ambientais. | Habilidades: EF09CI13 | AE11",
+      "Aula 20 - Ações sustentáveis na comunidade: planejamento de iniciativas e plano de ação | Conteúdos: Identificação de questões ambientais.; Proposição de soluções para a resolução de questões ambientais. | Habilidades: EF09CI13 | AE11",
+      "Aula 21 - Retomada: Evolução e biodiversidade | Conteúdos: Especiação e adaptação.; Evolução convergente e divergente.; Fósseis e características ancestrais.; Evolução e biodiversidade. | Habilidades: EF09CI11 | AE10",
+      "Aula 22 - Retomada: Unidades de conservação | Conteúdos: Unidades de conservação.; Papel do Instituto Florestal.; Critérios para estabelecimento de Unidades de conservação. | Habilidades: EF09CI12A, EF09CI12B | AE11",
+      "Aula 23 - Retomada: Recursos hídricos | Conteúdos: Hidrografia do estado de São Paulo.; Poluição da água.; Tratamento da água.; Gestão de recursos hídricos. | Habilidades: EF09CI13 | AE11",
+      "Aula 24 - Retomada: Sustentabilidade e consumo consciente | Conteúdos: Objetivos do Desenvolvimento Sustentável.; Pegada ecológica.; Economia circular.; Gestão dos resíduos sólidos. | Habilidades: EF09CI13 | AE11"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - História do estudo dos movimentos | Conteúdos: Histórico da construção da ideia do conceito físico de 'movimento'.; Movimento natural e movimento violento.; Ideias sobre movimento de Ptolomeu, Aristóteles, Jean Buridan e Galileu. | Habilidades: EF09CI14 | AE12",
+      "Aula 2 - Introdução à cinemática e Primeira Lei de Newton | Conteúdos: Conceitos básicos de cinemática: trajetória, posição, ponto material, corpo extenso e referencial.; Primeira Lei de Newton. | Habilidades: EF09CI14 | AE12",
+      "Aula 3 - Posição, distância e espaço percorrido | Conteúdos: Conceitos básicos de cinemática: posição, distância percorrida, espaço percorrido. | Habilidades: EF09CI14 | AE12",
+      "Aula 4 - Velocidade - Parte 1 | Conteúdos: Velocidade escalar média.; Equação para cálculo de velocidade média.; Ponto de referência.; Velocidade escalar instantânea. | Habilidades: EF09CI14 | AE12",
+      "Aula 5 - Velocidade - Parte 2 | Conteúdos: Velocidade escalar média.; Equação para cálculo de velocidade média.; Velocidade escalar instantânea. | Habilidades: EF09CI14 | AE12",
+      "Aula 6 - Aceleração, força e leis de Newton - Parte 1 | Conteúdos: Aceleração escalar média.; Equação para cálculo de aceleração média.; Força.; Segunda Lei de Newton.; Terceira Lei de Newton. | Habilidades: EF09CI14 | AE12",
+      "Aula 7 - Aceleração, força e leis de Newton - Parte 2 | Conteúdos: Aceleração escalar média.; Força.; Segunda Lei de Newton.; Terceira Lei de Newton. | Habilidades: EF09CI14 | AE12",
+      "Aula 8 - Aula desafio: Cálculo da velocidade escalar média | Conteúdos: Velocidade escalar média.; Aceleração escalar média. | Habilidades: EF09CI14 | AE12",
+      "Aula 9 - Aula desafio: Cálculo da aceleração escalar média | Conteúdos: Velocidade escalar média.; Aceleração escalar média. | Habilidades: EF09CI14 | AE12",
+      "Aula 10 - Modelos geocêntrico e heliocêntrico: a construção do conhecimento científico ao longo do tempo | Conteúdos: Modelo geocêntrico.; Modelo heliocêntrico.; Natureza da Ciência. | Habilidades: EF09CI14 | AE12",
+      "Aula 11 - Origem do Sistema Solar e de seus astros | Conteúdos: Origem do Universo.; Origem do Sistema Solar.; Corpos celestes.; Composição do Sistema Solar. | Habilidades: EF09CI14, EF09CI17, EF09CI15 | AE12",
+      "Aula 12 - Planetas do Sistema Solar | Conteúdos: Planetas rochosos.; Hipóteses de surgimento dos planetas. | Habilidades: EF09CI14 | AE12",
+      "Aula 13 - Ciclo de vida das estrelas | Conteúdos: Estrelas.; Buracos negros.; Supernovas. | Habilidades: EF09CI14 | AE12",
+      "Aula 14 - Observação do céu | Conteúdos: Astronomia.; Telescópios.; Sondas espaciais. | Habilidades: EF09CI14 | AE12",
+      "Aula 15 - Constelações indígenas | Conteúdos: Cultura indígena.; Constelações.; Etnoastronomia. | Habilidades: EF09CI15 | AE12",
+      "Aula 16 - Planetário virtual | Conteúdos: Observação do céu.; Sistema Solar.; Estrelas. | Habilidades: EF09CI15, EF09CI14 | AE12",
+      "Aula 17 - Força gravitacional | Conteúdos: Gravidade.; Lei da Gravitação Universal. | Habilidades: EF09CI14, EF09CI16 | AE12",
+      "Aula 18 - Movimentos da Terra e da Lua | Conteúdos: Movimento da Terra.; Movimentos da Lua.; Sistema Terra-Sol-Lua.; Força gravitacional. | Habilidades: EF09CI14 | AE12",
+      "Aula 19 - Vida fora da Terra | Conteúdos: Existência de vida fora da Terra.; Condições para a existência de vida tal qual a concebemos. | Habilidades: EF09CI14 | AE13",
+      "Aula 20 - Exploração espacial | Conteúdos: Exploração espacial.; Desenvolvimento tecnológico. | Habilidades: EF09CI14 | AE13",
+      "Aula 21 - Retomada: Movimento | Conteúdos: Movimento natural e movimento violento.; Conceitos básicos de cinemática.; Leis de Newton.; Velocidade escalar média.; Aceleração escalar média.; Força. | Habilidades: EF09CI14 | AE12",
+      "Aula 22 - Retomada: Sistema Solar | Conteúdos: Modelo geocêntrico.; Modelo heliocêntrico.; Natureza da Ciência. | Habilidades: EF09CI14, EF09CI15 | AE12",
+      "Aula 23 - Retomada: Observação do céu | Conteúdos: Origem do Universo.; Origem do Sistema Solar.; Corpos celestes.; Composição do Sistema Solar. | Habilidades: EF09CI14 | AE12",
+      "Aula 24 - Retomada: Exploração espacial | Conteúdos: Planetas rochosos e gasosos.; Hipóteses de surgimento dos planetas.; Estrelas.; Astronomia.; Telescópios. | Habilidades: EF09CI14 | AE13"
     ]
   },
   "Educação Física": {
@@ -416,6 +694,38 @@ function criarFormularioFundamental() {
       "Aula 13 - Os exercícios anaeróbios | Conteúdos: membros; Exercícios anaeróbios (membros; Vivenciar exercícios anaeróbios para membros superiores. | Habilidades: EF06EF08, EF06EF09 | AE4 - Praticar exercícios da ginástica de condicionamento físico, identificando as capacidades físicas envolvidas.",
       "Aula 14 - Os exercícios anaeróbios | Conteúdos: membros; Exercícios anaeróbios (membros; Vivenciar exercícios anaeróbios para membros inferiores. | Habilidades: EF06EF08, EF06EF09 | AE4 - Praticar exercícios da ginástica de condicionamento físico, identificando as capacidades físicas envolvidas."
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Capacidades físicas, exercício físico e atividade física | Conteúdos: Capacidades físicas mobilizadas no esporte de invasão.; Capacidades físicas mobilizadas no esporte de marca.; Capacidades físicas mobilizadas na ginástica.; Exercício Físico e Atividade Física.; Sedentarismo. | Habilidades: EF06EF23, EF06EF25 | AE5",
+      "Aula 2 - Handebol em ação | Conteúdos: Capacidades físicas mobilizadas durante um jogo de handebol. | Habilidades: EF06EF23, EF06EF25 | AE5",
+      "Aula 3 - Atletismo em ação | Conteúdos: Capacidades físicas mobilizadas em algumas modalidades do atletismo (tiro de 100m, lançamento de disco, arremesso de peso). | Habilidades: EF06EF23, EF06EF25 | AE5",
+      "Aula 4 - Ginástica em ação | Conteúdos: Capacidades físicas mobilizadas em alguns movimentos de ginástica. | Habilidades: EF06EF23, EF06EF25 | AE5",
+      "Aula 5 - Atividade Física | Conteúdos: Atividades que explicitem o que é atividade física. | Habilidades: EF06EF25 | AE5",
+      "Aula 6 - Exercício físico | Conteúdos: Atividade física.; Exercício físico. | Habilidades: EF06EF25 | AE5",
+      "Aula 7 - Mexa-se | Conteúdos: Sedentarismo. | Habilidades: EF06EF25 | AE5",
+      "Aula 8 - Práticas corporais de aventura urbana: Segurança na prática | Conteúdos: Origem das práticas corporais de aventura urbana.; Parkour.; Slackline.; Skate.; Medidas de segurança.; Equipamentos necessários. | Habilidades: EF06EF18, EF06EF19, EF06EF21 | AE6",
+      "Aula 9 - Parkour na escola | Conteúdos: Atividades que envolvam saltar escadas, bancos, corrimãos, muretas e muros da escola. | Habilidades: EF06EF18, EF06EF19, EF06EF21 | AE6",
+      "Aula 10 - Movimentos do Parkour | Conteúdos: Atividades que envolvam movimentos do parkour (precisão, rolamento, turn valt, safety vault). | Habilidades: EF06EF18, EF06EF19, EF06EF21 | AE6",
+      "Aula 11 - Por um fio | Conteúdos: Atividades de equilíbrio e desafios de slackline. | Habilidades: EF06EF18, EF06EF19, EF06EF21 | AE6",
+      "Aula 12 - Slackline na escola | Conteúdos: Atividades que envolvam manobras do slackline (pose ou stance, drop knee, estrelinha). | Habilidades: EF06EF18, EF06EF19, EF06EF21 | AE6",
+      "Aula 13 - Introdução ao Skate | Conteúdos: Atividades de equilíbrio e desafios progressivos com deslocamentos sobre o skate. | Habilidades: EF06EF21 | AE6",
+      "Aula 14 - Skate na escola | Conteúdos: Atividades que envolvam manobras do skate (ollie, manual, slalom). | Habilidades: EF06EF21 | AE6"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Jogos de Tabuleiro | Conteúdos: Definição de jogos de tabuleiro.; A origem e a evolução dos jogos de tabuleiro.; Os jogos de tabuleiro do mundo. | Habilidades: EF06EF24 | AE7",
+      "Aula 2 - Damas e Xadrez | Conteúdos: Jogos damas e xadrez. | Habilidades: EF06EF24 | AE7",
+      "Aula 3 - Trilha | Conteúdos: Jogo trilha.; Jogo da velha Chinês. | Habilidades: EF06EF24 | AE7",
+      "Aula 4 - Pong Hau Ki | Conteúdos: Jogos de tabuleiro Africano.; Jogo de tabuleiro indígena. | Habilidades: EF06EF24 | AE7",
+      "Aula 5 - Labirinto e Shisima | Conteúdos: Jogos de tabuleiro trazidos de casa, à escolha dos estudantes. | Habilidades: EF06EF24 | AE7",
+      "Aula 6 - Jogo da onça | Conteúdos: Jogo de tabuleiro indígena. | Habilidades: EF06EF24 | AE7",
+      "Aula 7 - Jogos de casa | Conteúdos: Jogos de tabuleiro trazidos de casa, à escolha dos estudantes. | Habilidades: EF06EF24 | AE7",
+      "Aula 8 - Lutas do Brasil: Tarracá, Huka-Huka e Luta Marajoara | Conteúdos: Definição e características culturais das Lutas do Brasil.; Tarracá.; Huka-Huka.; Marajoara. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 9 - Os jogos de oposição nas lutas do Brasil | Conteúdos: Jogos de oposição. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 10 - O Huka-Huka | Conteúdos: Vivência do Huka-Huka. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 11 - A Luta Marajoara | Conteúdos: Vivência da Luta Marajoara. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 12 - O Tarracá | Conteúdos: Vivência do Tarracá. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 13 - Recriando as lutas do Brasil | Conteúdos: Lutas do Brasil: recriação. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8",
+      "Aula 14 - Apresentando as criações | Conteúdos: Lutas do Brasil: apresentação. | Habilidades: EF06EF14, EF06EF15, EF06EF16 | AE8"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Capoeira do Brasil | Conteúdos: Lutas do Brasil.; Conceitos.; Capoeira Regional × Capoeira | Habilidades: EF07EF14, EF07EF17 | AE1 - Praticar a capoeira, identificando suas características e elementos culturais, problematizando preconceitos e estereótipos.",
       "Aula 2 - O ritmo da capoeira | Conteúdos: A música, os instrumentos e o; Conhecer os instrumentos e experimentar a musicalidade se apropriando | Habilidades: EF07EF14, EF07EF17 | AE1 - Praticar a capoeira, identificando suas características e elementos culturais, problematizando preconceitos e estereótipos.",
@@ -447,6 +757,38 @@ function criarFormularioFundamental() {
       "Aula 12 - Corpo ativo, vida saudável | Conteúdos: Benefícios físicos: melhora da; Benefícios mentais: bem-estar,; Benefícios sociais: cooperação, | Habilidades: EF07EF08, EF07EF09 | AE4 - Experimentar exercícios físicos, identificando as capacidades físicas envolvidas, incentivando a prática regular.",
       "Aula 13 - Propostaspara a promoção do movimento | Conteúdos: Criação, em grupos, de programas; Criar programas de exercícios físicos.; Motivar os estudantes a manter uma rotina de exercícios fora da escola. | Habilidades: EF07EF08, EF07EF09 | AE4 - Experimentar exercícios físicos, identificando as capacidades físicas envolvidas, incentivando a prática regular.",
       "Aula 14 - Exercício físico para além da escola | Conteúdos: Apresentação, em grupos, dos; Promover ações coletivas de divulgação que incentivem e possibilitem a | Habilidades: EF07EF08, EF07EF09 | AE4 - Experimentar exercícios físicos, identificando as capacidades físicas envolvidas, incentivando a prática regular."
+    ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Esporte técnico-combinatório: Ginástica Artística | Conteúdos: Definição de esporte técnico-combinatório.; História da Ginástica artística.; Atletas da ginástica artística.; Transformações históricas. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 2 - Brincando com a G.A | Conteúdos: Pega-pega avião.; Movimentos Numerados. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 3 - Movimentos da Ginástica Artística | Conteúdos: Práticas de movimentos da G.A - Ginástica Artística. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 4 - Coreografia de Ginástica Artística | Conteúdos: Criação de coreografias de G.A em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 5 - Ensaio de Ginástica Artística | Conteúdos: Ensaio de coreografias de G.A criadas em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 6 - Apresentação de G.A - primeiro dia | Conteúdos: Primeiro dia de apresentações de G.A em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 7 - Apresentação de G.A - segundo dia | Conteúdos: Segundo dia de apresentações de G.A em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE5",
+      "Aula 8 - Esporte técnico-combinatório: Ginástica Rítmica | Conteúdos: Origem e evolução da Ginástica Rítmica.; Diferença entre ginástica rítmica e artística.; Apresentação dos aparelhos: fita, arco, bola, maça e corda.; Gestos técnicos da modalidade. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 9 - Movimentos da Ginástica Rítmica | Conteúdos: Práticas de movimentos da Ginástica Rítmica - G.R. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 10 - Confecção de Aparelhos | Conteúdos: Confecção/adaptação dos aparelhos da G.R. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 11 - Exploração dos Aparelhos | Conteúdos: Experimentação dos aparelhos da G.R confeccionados. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 12 - Coreografia de Ginástica Rítmica | Conteúdos: Criação de coreografias de G.R em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 13 - Ensaio de Ginástica Rítmica | Conteúdos: Ensaio de coreografias de G.R criadas em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6",
+      "Aula 14 - Apresentação de G.R | Conteúdos: Apresentações de G.R em grupos. | Habilidades: EF07EF03, EF07EF04, EF07EF05, EF07EF06, EF07EF07 | AE6"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Jogos Eletrônicos: Realidade Virtual e Realidade Aumentada | Conteúdos: Definição e origem dos Jogos eletrônicos.; Processos evolutivos.; Jogos online.; Jogos para Mobile.; Jogos com captura de movimento.; Realidade Virtual e realidade aumentada. | Habilidades: EF07EF02 | AE7",
+      "Aula 2 - Just Dance | Conteúdos: Dança.; Just dance no youtube. | Habilidades: EF07EF02, EF07EF05 | AE7",
+      "Aula 3 - Free Fire adaptado | Conteúdos: Jogo com bola estilo queimada.; Free Fire adaptado. | Habilidades: EF07EF02 | AE7",
+      "Aula 4 - Pokemon Go | Conteúdos: Jogo digital em RA. | Habilidades: EF07EF02 | AE7",
+      "Aula 5 - Damas e xadrez virtual | Conteúdos: Jogo digital.; Damas e xadrez. | Habilidades: EF07EF02 | AE7",
+      "Aula 6 - Agora é a hora da sua sugestão | Conteúdos: Vivência escolhida pelos estudantes. | Habilidades: EF07EF02 | AE7",
+      "Aula 7 - Transformando o virtual em analógico | Conteúdos: Experiência analógica. | Habilidades: EF07EF02 | AE7",
+      "Aula 8 - Jogos eletrônicos, captação de movimento e preparação física de Cyberatletas | Conteúdos: Jogos eletrônicos.; Jogos com captação de movimento.; Capacidades físicas e habilidades motoras nos jogos eletrônicos.; E-sports. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 9 - Jogos eletrônicos de esporte | Conteúdos: Jogos eletrônicos com temas esportivos. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 10 - Jogos eletrônicos com captação de movimento - dança | Conteúdos: Jogos eletrônicos com captação de movimento ou mobilização corporal: Dança. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 11 - Jogos eletrônicos com captação de movimento - esporte ou exercício físico | Conteúdos: Jogos eletrônicos com captação de movimento ou mobilização corporal.; Esporte ou exercício físico. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 12 - Vivenciando modalidades dos e-sports | Conteúdos: Jogos eletrônicos de modalidade dos e-sports. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 13 - A preparação física dos Cyberatletas | Conteúdos: Preparação física.; Exercício Físico.; Cyberatletas. | Habilidades: EF07EF24, EF07EF25 | AE8",
+      "Aula 14 - Programas de preparação física dos atletas de e-sports | Conteúdos: Preparação física.; Exercício Físico.; Cyberatletas. | Habilidades: EF07EF24, EF07EF25 | AE8"
     ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Esporte de rede: voleibol | Conteúdos: Definição de esporte de rede/ parede.; História e características do voleibol.; Fundamentos e regras do voleibol. | Habilidades: EF08EF01, EF08EF03, EF08EF04, EF08EF21*",
@@ -480,6 +822,38 @@ function criarFormularioFundamental() {
       "Aula 13 - Golpes vendados | Conteúdos: Técnicas de perna, braço e quadril; Experimentar golpes/técnicas de perna, braço e quadril dotando | Habilidades: EF08EF21* | AE4 - Experimentar o judô para cegos, analisando suas particularidades técnicas e táticas, discutindo estereótipos e preconceitos.",
       "Aula 14 - Lutando às cegas | Conteúdos: Vivências do Judô para cegos -; Experimentar uma situação de luta, com os olhos vendados, utilizando-se; Refletir sobre as questões que envolvem características técnicas e táticas | Habilidades: EF08EF21* | AE4 - Experimentar o judô para cegos, analisando suas particularidades técnicas e táticas, discutindo estereótipos e preconceitos."
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - Danças de Salão Nacionais | Conteúdos: Origem e transformações históricas das danças de salão nacionais.; Características das danças de salão nacionais.; Principais estilos nacionais (forró, samba de gafieira, samba rock, soltinho, bolero e lambada).; Estereótipos e preconceitos nas danças de salão. | Habilidades: EF08EF12, EF08EF13, EF08EF14, EF08EF15 | AE5",
+      "Aula 2 - O Forró | Conteúdos: Passos básicos e movimentos corporais característicos do forró. | Habilidades: EF08EF12, EF08EF13, EF08EF14 | AE5",
+      "Aula 3 - O Samba de gafieira | Conteúdos: Passos e movimentos básicos do samba de gafieira. | Habilidades: EF08EF15, EF08EF12, EF08EF13 | AE5",
+      "Aula 4 - O Samba Rock | Conteúdos: Movimentos básicos do samba rock com ritmo, coordenação e criatividade. | Habilidades: EF08EF14, EF08EF15, EF08EF12, EF08EF13 | AE5",
+      "Aula 5 - O Soltinho | Conteúdos: Passos básicos, expressão corporal e improvisação. | Habilidades: EF08EF14, EF08EF15 | AE5",
+      "Aula 6 - O Bolero | Conteúdos: Passos básicos e movimentos suaves, expressão emocional e postura. | Habilidades: EF08EF12, EF08EF13, EF08EF14, EF08EF15 | AE5",
+      "Aula 7 - A Lambada | Conteúdos: Passos básicos, condução e respeito em duplas. | Habilidades: EF08EF12, EF08EF13, EF08EF14, EF08EF15 | AE5",
+      "Aula 8 - Ginástica de conscientização corporal e Qualidade de vida | Conteúdos: Conceito e origem das ginásticas de conscientização corporal.; Tipos de ginástica de conscientização corporal.; O Tai chi chuan.; O Yoga/A Ioga.; Qualidade de vida. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 9 - O corpo e a respiração consciente | Conteúdos: Respiração, postura e presença corporal. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 10 - Introdução ao Tai Chi Chuan | Conteúdos: Movimento fluido, equilíbrio e concentração. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 11 - Princípios da Ioga | Conteúdos: Posturas, equilíbrio e respiração. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 12 - Equilíbrio e fluidez (integração Tai Chi + Ioga) | Conteúdos: Equilíbrio, concentração e percepção corporal. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 13 - Concentração e energia interna | Conteúdos: Energia vital, foco e interiorização. | Habilidades: EF08EF10, EF08EF11 | AE6",
+      "Aula 14 - Vivência integrativa e expressão corporal | Conteúdos: Expressão corporal, integração e autoconsciência. | Habilidades: EF08EF10 | AE6"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Trilha e Trekking | Conteúdos: Conceitos e definições de trilha e trekking. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 2 - Planejando a trilha escolar | Conteúdos: História e contexto cultural.; Impacto ambiental e princípios de mínimo impacto. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 3 - Técnicas de caminhada | Conteúdos: Equipamentos básicos.; Regras de segurança. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 4 - Trilha simulada e cooperação | Conteúdos: Planejamento de percurso.; Organização de materiais.; Noções de alimentação e hidratação. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 5 - Riscos e Estratégias de Segurança | Conteúdos: Técnicas de caminhada em diferentes superfícies.; Postura, ritmo e respiração.; Orientação com mapa escolar, sinais e pontos de referência. | Habilidades: EF08EF19 | AE7",
+      "Aula 6 - Preparação de um informe multimidiático sobre Trilhas e Trekking | Conteúdos: Organização de grupos com funções.; Aplicação das técnicas de caminhada e orientação. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 7 - Apresentando a Trilha e o Trekking | Conteúdos: Comunicação e trabalho em equipe.; Principais riscos: quedas, obstáculos, fadiga, desidratação.; Estratégias de prevenção e primeiros socorros básicos. | Habilidades: EF08EF19, EF08EF20 | AE7",
+      "Aula 8 - Exercício físico, dismorfia corporal e medicamentos | Conteúdos: Exercício Físico.; Atividade Física. | Habilidades: EF08EF09 | AE8",
+      "Aula 9 - Planejamento de campanha para uma vida saudável | Conteúdos: Dismorfia corporal.; Medicamentos.; Ginástica de conscientização corporal. | Habilidades: EF08EF09 | AE8",
+      "Aula 10 - Produção da campanha | Conteúdos: Exercício Físico.; Atividade Física.; Dismorfia corporal. | Habilidades: EF08EF09 | AE8",
+      "Aula 11 - Apresentação da campanha - cartazes | Conteúdos: Medicamentos.; Ginástica de conscientização corporal. | Habilidades: EF08EF09 | AE8",
+      "Aula 12 - Apresentação da campanha - Podcasts e vídeocasts | Conteúdos: Exercício Físico.; Atividade Física.; Dismorfia corporal.; Medicamentos. | Habilidades: EF08EF09 | AE8",
+      "Aula 13 - Apresentação da campanha - atividade e exercícios físicos | Conteúdos: Exercício Físico.; Atividade Física.; Dismorfia corporal.; Medicamentos. | Habilidades: EF08EF09 | AE8",
+      "Aula 14 - Apresentação da campanha - atividades diversificadas | Conteúdos: Ginástica de conscientização corporal.; Exercício Físico.; Atividade Física. | Habilidades: EF08EF09 | AE8"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - Esporte de invasão: futsal | Conteúdos: Retomada da definição de esporte de; História do futsal.; Regras e fundamentos do futsal. | Habilidades: EF09EF02, EF09EF03, EF09EF04, EF09EF05, EF09EF06, EF09EF22* | AE1 - Praticar o futsal e o futebol de cegos, aplicando diferenças individuais.",
       "Aula 2 - Estafetas com fundamentos do futsal | Conteúdos: Fundamentos do futsal através de; Vivenciar os fundamentos do futsal a partir de uma atividade mais lúdica. | Habilidades: EF09EF02, EF09EF03, EF09EF04, EF09EF05, EF09EF06, EF09EF22* | AE1 - Praticar o futsal e o futebol de cegos, aplicando diferenças individuais.",
@@ -511,6 +885,38 @@ function criarFormularioFundamental() {
       "Aula 12 - Esgrima na escola | Conteúdos: Vivência da esgrima. - Vivenciar a esgrima na escola. | Habilidades: EF09EF02, EF09EF03, EF09EF04 | AE4 - Vivenciar o MMA, a esgrima e a esgrima em cadeira de rodas, explorando técnicas e golpes, adaptando os materiais para a prática.",
       "Aula 13 - Esgrima em cadeira de rodas adaptada | Conteúdos: Adaptação da esgrima em cadeira; Vivenciar a esgrima em cadeira de rodas. | Habilidades: EF09EF02, EF09EF03, EF09EF04 | AE4 - Vivenciar o MMA, a esgrima e a esgrima em cadeira de rodas, explorando técnicas e golpes, adaptando os materiais para a prática.",
       "Aula 14 - Esgrima x esgrima em cadeira de rodas | Conteúdos: Disputa de esgrima e disputa de; Análise sobre a esgrima e a esgrima; Realizar disputas de esgrima e de esgrima em cadeira de rodas, de maneira | Habilidades: EF09EF02, EF09EF03, EF09EF04 | AE4 - Vivenciar o MMA, a esgrima e a esgrima em cadeira de rodas, explorando técnicas e golpes, adaptando os materiais para a prática."
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Danças de Salão Internacionais | Conteúdos: Origem e transformações históricas das danças de salão internacionais.; Características das danças de salão internacionais.; Principais estilos internacionais (valsa, tango, paso doble, foxtrote, cha-cha-cha e jive).; Estereótipos e preconceitos nas danças de salão. | Habilidades: EF09EF12, EF09EF14 | AE5",
+      "Aula 2 - Valsa | Conteúdos: Movimentos básicos, postura, ritmo e compasso. | Habilidades: EF09EF12, EF09EF14 | AE5",
+      "Aula 3 - Tango | Conteúdos: Movimentos básicos, postura e condução em pares. | Habilidades: EF09EF14, EF09EF12 | AE5",
+      "Aula 4 - Paso doble | Conteúdos: Movimentos básicos, cultura e elementos expressivos. | Habilidades: EF09EF12, EF09EF14 | AE5",
+      "Aula 5 - Foxtrote | Conteúdos: Movimentos básicos, suavidade, controle e harmonia entre os pares. | Habilidades: EF09EF14, EF09EF12 | AE5",
+      "Aula 6 - Cha-cha-cha | Conteúdos: Movimentos básicos, ritmo e cultura. | Habilidades: EF09EF12 | AE5",
+      "Aula 7 - Jive | Conteúdos: Movimentos básicos, cultura, características rítmicas e corporais. | Habilidades: EF09EF12 | AE5",
+      "Aula 8 - Ginástica de condicionamento físico e Ginástica de conscientização corporal | Conteúdos: Retomar conceitos e definições das ginásticas de condicionamento físico e de conscientização corporal.; Diferenças e semelhanças entre a GCF e GCC.; Qualidade de vida. | Habilidades: EF09EF07, EF09EF08, EF09EF11 | AE6",
+      "Aula 9 - Introdução à GCF e GCC | Conteúdos: Exercícios de consciência corporal e de condicionamento físico. | Habilidades: EF09EF07, EF09EF08, EF09EF11 | AE6",
+      "Aula 10 - Fortalecimento e Respiração | Conteúdos: Exercícios de fortalecimento e exercícios de respiração. | Habilidades: EF09EF07, EF09EF08, EF09EF11 | AE6",
+      "Aula 11 - Flexibilidade e Mobilidade | Conteúdos: Exercícios de alongamentos dinâmicos e estáticos. | Habilidades: EF09EF07, EF09EF08, EF09EF11 | AE6",
+      "Aula 12 - Coordenação e Equilíbrio | Conteúdos: Exercícios de equilíbrio, coordenação motora e conscientização corporal. | Habilidades: EF09EF07, EF09EF08, EF09EF11 | AE6",
+      "Aula 13 - Resistência e Jogos Corporais | Conteúdos: Exercícios de resistência, força e conscientização corporal. | Habilidades: EF09EF07 | AE6",
+      "Aula 14 - Retomada das Práticas e Reflexão sobre hábitos saudáveis | Conteúdos: Exercícios que integrem força, flexibilidade, equilíbrio e coordenação.; Reflexão sobre hábitos saudáveis. | Habilidades: EF09EF07 | AE6"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - Introdução à Corrida de Orientação | Conteúdos: Conceito e história da corrida de orientação.; Equipamentos básicos.; Organização e regras básicas da modalidade.; Relação com o meio ambiente e princípios de mínimo impacto. | Habilidades: EF09EF19, EF09EF21 | AE7",
+      "Aula 2 - Conhecendo o território da escola | Conteúdos: Leitura e representação de espaços.; Identificação de pontos de referência e trajetos.; Noções básicas de direção e orientação espacial. | Habilidades: EF09EF19, EF09EF21 | AE7",
+      "Aula 3 - Aprendendo a usar mapas e bússolas | Conteúdos: Elementos de um mapa: legenda, escala, orientação, norte.; Uso básico da bússola (ou bússola digital).; Relação entre mapa e espaço real. | Habilidades: EF09EF19, EF09EF21 | AE7",
+      "Aula 4 - Mini-circuito de orientação na escola | Conteúdos: Organização de percurso com pontos de controle.; Leitura de mapa em movimento.; Estratégias básicas de deslocamento e observação. | Habilidades: EF09EF19 | AE7",
+      "Aula 5 - Estratégias e tomada de decisão | Conteúdos: Planejamento de trajetos e escolha de rotas.; Controle de tempo e ritmo.; Trabalho em duplas ou pequenos grupos. | Habilidades: EF09EF19 | AE7",
+      "Aula 6 - Corrida de Orientação Escolar | Conteúdos: Montagem e execução de uma corrida de orientação no espaço escolar.; Aplicação de regras, estratégias e condutas de segurança.; Valorização da cooperação e respeito ao ambiente. | Habilidades: EF09EF19 | AE7",
+      "Aula 7 - Reflexão e divulgação da experiência | Conteúdos: Avaliação da vivência: desafios, aprendizagens, cooperação.; Produção de material multimodal.; Valorização da prática e do meio ambiente. | Habilidades: EF09EF19 | AE7",
+      "Aula 8 - Padrões de beleza e composição corporal | Conteúdos: Padrões de beleza.; Composição Corporal.; Protocolos. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 9 - Índice de Massa Corporal - IMC | Conteúdos: Protocolos de mensuração de composição corporal - IMC. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 10 - Relação Cintura Quadril - RCQ | Conteúdos: Protocolos de mensuração de composição corporal - RCQ. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 11 - Exercícios para o condicionamento físico | Conteúdos: Exercícios físicos. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 12 - Jogando com a composição corporal | Conteúdos: Composição corporal.; Exercícios físicos. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 13 - Planejamento de um programa de exercício físico | Conteúdos: Composição corporal.; Exercícios físicos. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8",
+      "Aula 14 - Experimentação do programa de exercício físico | Conteúdos: Composição corporal.; Exercícios físicos. | Habilidades: EF09EF23, EF09EF24, EF09EF25 | AE8"
     ]
   },
   "Geografia": {
@@ -560,6 +966,46 @@ function criarFormularioFundamental() {
       "Aula 20 - Elementos do clima | Conteúdos: Precipitação.; Temperatura.; Identificar os principais elementos climáticos. | Habilidades: EF06GE03C | AE4 - Classificar os principais tipos climáticos em diferentes lugares, com base em climogramas e mapas, explicando a diferença entre tempo e clima e a influência da circulação...",
       "Aula 21 - Climograma | Conteúdos: Climograma. - Interpretar climogramas. - EF06GE03C | AE4 - Classificar os principais tipos climáticos em diferentes lugares, com base em climogramas e mapas, explicando a diferença entre tempo e clima e a influência da circulação..."
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Climas predominantes na zona intertropical | Conteúdos: Equatorial.; Tropical.; Árido.; Semiárido. | Habilidades: EF06GE03C | AE4",
+      "Aula 2 - Climas predominantes nas zonas temperadas e polares | Conteúdos: Subtropical.; Temperado.; Mediterrâneo.; Frio.; Frio de montanha.; Polar. | Habilidades: EF06GE03C, EF06GE13 | AE4",
+      "Aula 3 - Climas no Brasil | Conteúdos: Clima Equatorial.; Clima Tropical.; Clima Subtropical. | Habilidades: EF06GE03C | AE4",
+      "Aula 4 - Variações do clima tropical no Brasil | Conteúdos: Clima tropical.; Clima tropical semiárido.; Clima tropical litorâneo.; Clima tropical de altitude. | Habilidades: EF06GE03C | AE4",
+      "Aula 5 - Clima e climograma | Conteúdos: Climograma do mundo.; Climograma do Brasil. | Habilidades: EF06GE03C | AE4",
+      "Aula 6 - Mudanças climáticas | Conteúdos: Mudanças climáticas.; Aquecimento global. | Habilidades: EF06GE13 | AE5",
+      "Aula 7 - Eventos extremos | Conteúdos: Refugiados climáticos.; Eventos climatológicos.; Eventos meteorológicos. | Habilidades: EF06GE13 | AE5",
+      "Aula 8 - Eventos extremos e desastres naturais | Conteúdos: Causas e consequências dos eventos extremos.; El Niño e La Niña. | Habilidades: EF06GE13 | AE5",
+      "Aula 9 - Fenômenos climáticos | Conteúdos: Tornados, furacões, ciclones e tufões. | Habilidades: EF06GE04A | AE5",
+      "Aula 10 - Hidrosfera | Conteúdos: Chuvas ácidas.; Ilhas de calor.; Ciclo hidrológico.; Distribuição da água no planeta.; A importância da água. | Habilidades: EF06GE04A | AE5",
+      "Aula 11 - Usos da água | Conteúdos: Uso direto da água.; Uso indireto da água.; Desperdício de água. | Habilidades: EF06GE04A | AE6",
+      "Aula 12 - Águas oceânicas | Conteúdos: Oceanos.; Mares.; Poluição das águas oceânicas. | Habilidades: EF06GE04A | AE6",
+      "Aula 13 - Águas continentais | Conteúdos: Águas superficiais.; Águas subterrâneas.; Poluição das águas continentais. | Habilidades: EF06GE04A | AE6",
+      "Aula 14 - Planeta Água: o jogo! | Conteúdos: Águas doces e suas formas.; Águas salgadas e suas formas. | Habilidades: EF06GE04A | AE6",
+      "Aula 15 - Rede hidrográfica | Conteúdos: Hidrografia.; Bacias hidrográficas. | Habilidades: EF06GE04B, EF06GE12 | AE6",
+      "Aula 16 - Rios e bacias hidrográficas ao redor do mundo | Conteúdos: Principais bacias hidrográficas do mundo.; Bacias hidrográficas da América do Sul. | Habilidades: EF06GE12, EF06GE04A, EF06GE13 | AE6",
+      "Aula 17 - Regiões hidrográficas brasileiras | Conteúdos: Regiões hidrográficas do Brasil. | Habilidades: EF06GE12 | AE6",
+      "Aula 18 - Eventos hidrológicos | Conteúdos: Inundação.; Enxurrada.; Alagamento.; Enchentes. | Habilidades: EF06GE04B | AE6"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Litosfera e os agentes internos | Conteúdos: Estrutura interna da Terra.; Tectonismo.; Vulcanismo. | Habilidades: EF06GE16 | AE7",
+      "Aula 2 - Relevo e os agentes externos | Conteúdos: Intemperismo.; Erosão.; Sedimentação. | Habilidades: EF06GE16, EF06GE11, EF06GE10 | AE7",
+      "Aula 3 - Formas do relevo | Conteúdos: Relevo terrestre.; Relevo oceânico. | Habilidades: EF06GE16 | AE7",
+      "Aula 4 - Relevo brasileiro | Conteúdos: Relevo do Brasil.; Perfil topográfico brasileiro. | Habilidades: EF06GE16 | AE7",
+      "Aula 5 - Modelagem de formas de relevo | Conteúdos: Forma de relevo terrestre.; Formas de relevo oceânicas. | Habilidades: EF06GE16 | AE7",
+      "Aula 6 - Ação humana sobre o relevo | Conteúdos: Intervenções antrópicas na litosfera.; Movimento de massa. | Habilidades: EF06GE16 | AE7",
+      "Aula 7 - Solo | Conteúdos: Conceito de solo.; Componentes do solo. | Habilidades: EF06GE16 | AE8",
+      "Aula 8 - Formação do solo | Conteúdos: Processos de formação do solo.; Perfil e horizonte do solo.; Tipos de solos brasileiros. | Habilidades: EF06GE10, EF06GE05 | AE8",
+      "Aula 9 - Usos do solo | Conteúdos: Solo e atividades econômicas. | Habilidades: EF06GE05 | AE8",
+      "Aula 10 - Biosfera: ecorregiões e biomas | Conteúdos: Ecorregiões do Brasil e no mundo.; Biomas do Brasil. | Habilidades: EF06GE05 | AE9",
+      "Aula 11 - Ecorregiões terrestres | Conteúdos: Ecorregiões. | Habilidades: EF06GE05 | AE9",
+      "Aula 12 - Biomas do Brasil: Amazônia e Caatinga | Conteúdos: Bioma Amazônia.; Bioma Caatinga. | Habilidades: EF06GE05 | AE9",
+      "Aula 13 - Biomas do Brasil: Cerrado e Pantanal | Conteúdos: Bioma Pantanal.; Bioma Cerrado. | Habilidades: EF06GE05 | AE9",
+      "Aula 14 - Biomas do Brasil: Mata Atlântica e Pampas | Conteúdos: Bioma Mata Atlântica.; Bioma Pampas. | Habilidades: EF06GE05 | AE9",
+      "Aula 15 - Biomas: ameaças e impactos socioambientais | Conteúdos: Biopirataria.; Queimadas.; Desmatamento.; Urbanização. | Habilidades: EF06GE05 | AE9",
+      "Aula 16 - Conservação e preservação dos biomas e biodiversidade | Conteúdos: Biodiversidade.; Restauração dos biomas. | Habilidades: EF06GE05 | AE9",
+      "Aula 17 - Terrário | Conteúdos: Biomas brasileiros. | Habilidades: EF06GE05 | AE9",
+      "Aula 18 - Produzindo um terrário | Conteúdos: Biomas brasileiros. | Habilidades: EF06GE05 | AE9"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Território brasileiro | Conteúdos: Localização e limites do território; Localizar o Brasil no globo.; Identificar os limites e pontos extremos do Brasil. | Habilidades: EF07GE09A | AE1 - Comparar as regiões brasileiras em diferentes tempos, utilizando indicadores e representações (gráficos e mapas temáticos), relacionando desigualdades socioeconômicas e pr...",
       "Aula 2 - Formação territorial do Brasil | Conteúdos: Conceito de território e sua dimensão; Interpretar o conceito de território. | Habilidades: EF07GE01, EF07GE09A | AE2 - Analisar como os fluxos econômicos e populacionais contribuem para a formação do território brasileiro e para o surgimento de tensões e conflitos, especialmente em São Pau...",
@@ -606,6 +1052,46 @@ function criarFormularioFundamental() {
       "Aula 20 - Influência das redes na distribuição industrial brasileira | Conteúdos: Redes de transporte e; Desconcentração industrial.; Analisar o papel das redes na desconcentração industrial no Brasil. | Habilidades: EF07GE07B, EF07GE08 | AE5 - Relacionar os processos de industrialização e inovação tecnológica às transformações socioeconômicas, políticas, culturais e ambientais no território brasileiro.",
       "Aula 21 - Estudo prático das redes na desconcentração industrial | Conteúdos: Redes de transporte e; Desconcentração industrial.; Analisar o papel das redes na desconcentração industrial no Brasil. | Habilidades: EF07GE07B, EF07GE08 | AE5 - Relacionar os processos de industrialização e inovação tecnológica às transformações socioeconômicas, políticas, culturais e ambientais no território brasileiro."
     ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Biomas e recursos naturais: Amazônia, Caatinga e Pampa | Conteúdos: Distribuição territorial dos biomas e dos recursos naturais. | Habilidades: EF07GE06 | AE6",
+      "Aula 2 - Biomas e recursos naturais: Cerrado, Pantanal, Mata Atlântica e Costeiro-Marinho | Conteúdos: Distribuição territorial dos biomas e dos recursos naturais. | Habilidades: EF07GE11, EF07GE09A | AE6",
+      "Aula 3 - Domínios morfoclimáticos do Brasil | Conteúdos: Domínios morfoclimáticos do Brasil. | Habilidades: EF07GE11 | AE7",
+      "Aula 4 - Relevo e clima nos domínios do Brasil | Conteúdos: Interação entre relevo e clima na formação dos domínios morfoclimáticos. | Habilidades: EF07GE11 | AE7",
+      "Aula 5 - A força da vegetação e da água nos domínios brasileiros | Conteúdos: Vegetação e domínios morfoclimáticos.; Hidrografia e a formação dos domínios.; Domínio morfoclimático Amazônico. | Habilidades: EF07GE11 | AE7",
+      "Aula 6 - Domínio morfoclimático amazônico | Conteúdos: Biodiversidade e importância global da Amazônia.; Problemas ambientais. | Habilidades: EF07GE11 | AE7",
+      "Aula 7 - Cerrado e Caatinga – domínios contrastantes | Conteúdos: Domínio morfoclimático do Cerrado.; Domínio morfoclimático da Caatinga.; Comparação entre os dois domínios. | Habilidades: EF07GE11 | AE7",
+      "Aula 8 - Mares de Morros e Araucárias – domínios de florestas | Conteúdos: Domínio morfoclimático Mares de Morros.; Domínio morfoclimático das Araucárias. | Habilidades: EF07GE11, EF07GE12 | AE7",
+      "Aula 9 - Domínios morfoclimáticos: pradarias e faixas de transição | Conteúdos: Domínio morfoclimático das Pradarias.; Atividades econômicas e preservação ambiental.; Faixas de transição. | Habilidades: EF07GE12 | AE7",
+      "Aula 10 - Estudo dirigido: domínios morfoclimáticos | Conteúdos: Elementos que definem um domínio morfoclimático.; Domínio dos Mares de Morros (predominante no Estado de São Paulo). | Habilidades: EF07GE12 | AE8",
+      "Aula 11 - Conservar e preservar o meio ambiente | Conteúdos: Unidades de conservação - Conceito e exemplos práticos.; Diferença entre conservação e preservação. | Habilidades: EF07GE12 | AE8",
+      "Aula 12 - Sustentabilidade e natureza | Conteúdos: Sustentabilidade e conservação da natureza.; Unidades de conservação e uso sustentável dos recursos naturais. | Habilidades: EF07GE12 | AE8",
+      "Aula 13 - Unidades de Conservação | Conteúdos: Tipos de unidades: proteção integral e uso sustentável.; Exemplos e características principais de cada tipo. | Habilidades: EF07GE12 | AE8",
+      "Aula 14 - Sistema Nacional de Unidades de Conservação (SNUC) | Conteúdos: O que é o SNUC e sua importância.; Critérios para criação das unidades dentro do sistema.; Distribuição geográfica das unidades de conservação no Brasil. | Habilidades: EF07GE12 | AE8",
+      "Aula 15 - Biodiversidade nas Unidades de Conservação | Conteúdos: Conceito de biodiversidade.; Importância das Unidades para proteger a diversidade de espécies.; Exemplos de espécies protegidas. | Habilidades: EF07GE12, EF07GE03A | AE8",
+      "Aula 16 - Comunidades tradicionais e a conservação da natureza no Brasil | Conteúdos: Povos originários e comunidades tradicionais.; Conservação e preservação da natureza.; Movimentos de resistência. | Habilidades: EF07GE12 | AE8",
+      "Aula 17 - Ameaças às Unidades de Conservação | Conteúdos: Principais ameaças atuais (desmatamento, poluição, invasões).; Como essas ameaças afetam a sustentabilidade ambiental.; Estratégias para proteção. | Habilidades: EF07GE12 | AE8",
+      "Aula 18 - Diagnóstico ambiental local | Conteúdos: Levantamento da realidade local.; Identificação de áreas que merecem proteção.; Uso de mapas e dados locais para análise. | Habilidades: EF07GE12 | AE8"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Do mercantilismo ao capitalismo | Conteúdos: Transição do período mercantilista ao advento do capitalismo. | Habilidades: EF07GE05 | AE9",
+      "Aula 2 - O capitalismo e suas fases | Conteúdos: Fases do sistema capitalistas.; Características gerais do capitalismo.; Do capitalismo comercial ao capitalismo industrial e financeiro. | Habilidades: EF07GE05, EF07GE06 | AE9",
+      "Aula 3 - Introdução à globalização | Conteúdos: Características gerais do processo de globalização.; Fenômenos socioespaciais das fases da globalização. | Habilidades: EF07GE06 | AE9",
+      "Aula 4 - Globalização | Conteúdos: Globalização. | Habilidades: EF07GE06 | AE9",
+      "Aula 5 - Aula prática: Capitalismo e globalização na sociedade atual | Conteúdos: Evolução do capitalismo e sua relação com a globalização. | Habilidades: EF07GE06 | AE9",
+      "Aula 6 - Revolução Industrial | Conteúdos: Origens, transformações tecnológicas e impacto social. | Habilidades: EF07GE06 | AE6",
+      "Aula 7 - Industrialização e urbanização | Conteúdos: Industrialização e urbanização. | Habilidades: EF07GE06 | AE9",
+      "Aula 8 - A industrialização no campo | Conteúdos: Modernização do campo.; A agropecuária brasileira.; Consequências da modernização.; O agronegócio. | Habilidades: EF07GE08, EF07GE09A | AE5",
+      "Aula 9 - Os contrastes do campo brasileiro | Conteúdos: Concentração fundiária.; Contrastes tecnológicos. | Habilidades: EF07GE09A, EF07GE08 | AE5",
+      "Aula 10 - A urbanização brasileira | Conteúdos: Urbanização.; Industrialização. | Habilidades: EF07GE06, EF07GE09A | AE5",
+      "Aula 11 - Industrialização e a questão ambiental | Conteúdos: Questões ambientais relacionadas à industrialização. | Habilidades: EF07GE06 | AE5",
+      "Aula 12 - A tecnologia transforma | Conteúdos: Mudanças tecnológicas. | Habilidades: EF07GE06 | AE5",
+      "Aula 13 - Recursos naturais | Conteúdos: Recursos naturais.; Usos e impactos. | Habilidades: EF07GE06 | AE5",
+      "Aula 14 - Matriz energética e fontes de energia | Conteúdos: Fontes de energia. | Habilidades: EF07GE06 | AE6",
+      "Aula 15 - Recursos naturais: usos e sustentabilidade | Conteúdos: Desenvolvimento sustentável.; Economia circular. | Habilidades: EF07GE20, EF07GE21 | AE10",
+      "Aula 16 - Uso dos recursos naturais na agricultura e na indústria | Conteúdos: Pegada ecológica.; Pegada hídrica. | Habilidades: EF07GE21, EF07GE20, EF07GE09A | AE10",
+      "Aula 17 - Análise de consumo dos recursos naturais | Conteúdos: Recursos naturais.; Pegada ecológica.; Pegada hídrica. | Habilidades: EF07GE20, EF07GE21 | AE10",
+      "Aula 18 - Alternativas para o futuro | Conteúdos: Desenvolvimento sustentável.; Pegada ecológica.; Pegada hídrica. | Habilidades: EF07GE20 | AE10"
+    ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Estados Unidos na Nova Ordem Mundial | Conteúdos: Do mundo bipolar ao mundo; A ascensão dos EUA.; Descrever a passagem do mundo bipolar para o mundo multipolar. | Habilidades: EF08GE08 | AE1 - Analisar a influência política, econômica, social e cultural da Nova Ordem Mundial estabelecida no pós- Segunda Guerra sobre os Estados Unidos, a América Latina, a África,...",
       "Aula 2 - Estados Unidos: a superpotência | Conteúdos: O poderio militar dos Estados; O poderio econômico dos Estados; O poder político dos Estados | Habilidades: EF08GE08 | AE1 - Analisar a influência política, econômica, social e cultural da Nova Ordem Mundial estabelecida no pós- Segunda Guerra sobre os Estados Unidos, a América Latina, a África,...",
@@ -638,6 +1124,34 @@ function criarFormularioFundamental() {
       "Aula 13 - Ciência e tecnologia na América - Aula complementar | Conteúdos: Tecnologias e os setores da; Profissões do futuro.; Oportunidades e desafios. | Habilidades: EF08GE13",
       "Aula 14 - Ciência e tecnologia na África | Conteúdos: Tecnologias e os setores da; Profissões do futuro.; Oportunidades e desafios. | Habilidades: EF08GE13 | AE5 - Interpretar os efeitos do capital dos Estados Unidos e da China na reorganização das atividades econômicas globais, com destaque para o Brasil."
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - Introdução aos estudos demográficos | Conteúdos: O conceito de demografia.; Indicadores demográficos. | Habilidades: EF08GE03, EF08GE19 | AE6",
+      "Aula 2 - Indicadores demográficos: definições e comparações | Conteúdos: Taxa de mortalidade.; Taxa de mortalidade infantil.; Taxa de natalidade.; Taxa de fecundidade.; Expectativa de vida. | Habilidades: EF08GE03 | AE6",
+      "Aula 3 - Crescimento e distribuição da população | Conteúdos: Distribuição da população mundial.; Teorias demográficas. | Habilidades: EF08GE03 | AE6",
+      "Aula 4 - Densidade demográfica | Conteúdos: Densidade demográfica. | Habilidades: EF08GE03 | AE6",
+      "Aula 5 - Transição demográfica | Conteúdos: O conceito de transição demográfica.; Fases da transição demográfica. | Habilidades: EF08GE03 | AE6",
+      "Aula 6 - Políticas de planejamento familiar em diferentes países | Conteúdos: Principais políticas públicas de planejamento familiar. | Habilidades: EF08GE03 | AE6",
+      "Aula 7 - Projeções de crescimento da população mundial | Conteúdos: Projeções sobre o crescimento populacional mundial até 2100.; Impactos do crescimento populacional na apropriação e no uso de recursos naturais e na sustentabilidade global. | Habilidades: EF08GE03 | AE6",
+      "Aula 8 - Dinâmicas populacionais e as pirâmides etárias | Conteúdos: Fatores que influenciam na dinâmica populacional.; Pirâmides etárias. | Habilidades: EF08GE19, EF08GE20A | AE6",
+      "Aula 9 - Migrações | Conteúdos: Fluxos migratórios no mundo.; Contextos associados às migrações. | Habilidades: EF08GE01, EF08GE02, EF08GE04B, EF08GE04A | AE7",
+      "Aula 10 - Fluxos migratórios contemporâneos | Conteúdos: Fluxos migratórios contemporâneos.; Imigrantes e refugiados. | Habilidades: EF08GE19 | AE7",
+      "Aula 11 - Dinâmicas migratórias na América: consequências e desafios | Conteúdos: Consequências e desafios da migração. | Habilidades: EF08GE19 | AE7",
+      "Aula 12 - Migrações e desastres: impactos na África e na América | Conteúdos: Migrações forçadas.; Mudanças climáticas.; Desastres. | Habilidades: EF08GE19 | AE7"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Urbanização na América Latina | Conteúdos: Fatores impulsionadores da urbanização.; Crescimento das cidades latino-americanas. | Habilidades: EF08GE16A, EF08GE20B, EF08GE16B, EF08GE10, EF08GE17 | AE8",
+      "Aula 2 - Urbanização no continente africano | Conteúdos: Hierarquia das cidades.; Processos históricos da urbanização africana.; Fatores impulsionadores da urbanização. | Habilidades: EF08GE16A, EF08GE16B, EF08GE18, EF08GE20B | AE8",
+      "Aula 3 - A questão habitacional e os movimentos sociais urbanos na América Latina e África | Conteúdos: Déficit habitacional.; Movimentos sociais urbanos. | Habilidades: EF08GE16B | AE8",
+      "Aula 4 - A segregação socioespacial na América Latina | Conteúdos: Segregação socioespacial. | Habilidades: EF08GE16B | AE8",
+      "Aula 5 - Políticas públicas e planejamento urbano | Conteúdos: Modelos de cidades sustentáveis.; Projetos urbanos bem-sucedidos na América Latina e na África. | Habilidades: EF08GE16B | AE8",
+      "Aula 6 - Propostas de melhorias urbanas no meu município | Conteúdos: Projetos urbanos bem-sucedidos na América Latina e na África.; Melhorias urbanas. | Habilidades: EF08GE16B | AE8",
+      "Aula 7 - Biodiversidade na África e na América Latina | Conteúdos: Biodiversidade.; Hotspots. | Habilidades: EF08GE16B | AE9",
+      "Aula 8 - Recursos naturais na África | Conteúdos: Recursos naturais.; Exploração predatória. | Habilidades: EF08GE20B, EF08GE15, EF08GE22 | AE9",
+      "Aula 9 - Geopolítica das águas na América Latina e na África | Conteúdos: Gestão e comercialização da água. | Habilidades: EF08GE21 | AE9",
+      "Aula 10 - Energias renováveis e sustentabilidade | Conteúdos: Energias renováveis.; Conflitos e contradições de recursos energéticos. | Habilidades: EF08GE21 | AE9",
+      "Aula 11 - Mudanças climáticas: desertificação na América Latina e África | Conteúdos: Desertificação.; Impactos socioeconômicos e ambientais. | Habilidades: EF08GE21 | AE9",
+      "Aula 12 - Antártica | Conteúdos: Aspectos físicos e ambientais.; Tratado Antártico.; Protocolo de Madri.; Programa Antártico Brasileiro (PROANTAR). | Habilidades: EF08GE21 | AE9"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - As Grandes Navegações e o início da hegemonia europeia | Conteúdos: Grandes Navegações e expansão; Início da globalização e hegemonia; Relacionar as Grandes Navegações ao início da globalização. | Habilidades: EF09GE01 | AE1 - Analisar o exercício da hegemonia europeia em diferentes tempos e lugares, usando representações cartográficas e gráficas para evidenciar desigualdades sociopolíticas e ge...",
       "Aula 2 - Representaçõesdo mundo e influência europeia | Conteúdos: Evolução dos mapas e; Visões eurocêntricas, divisão; Comparar diferentes representações do espaço geográfico ao longo do | Habilidades: EF09GE01, EF09GE14B | AE1 - Analisar o exercício da hegemonia europeia em diferentes tempos e lugares, usando representações cartográficas e gráficas para evidenciar desigualdades sociopolíticas e ge...",
@@ -669,6 +1183,34 @@ function criarFormularioFundamental() {
       "Aula 12 - Pluralidade de sujeitos: seminários de fechamento | Conteúdos: Aula; Migrantes e refugiados em São; Analisar os principais exemplos de grupos de migrantes e refugiados em | Habilidades: EF09GE08",
       "Aula 13 - Moedas e circuitos da economia global | Conteúdos: Tipos de moeda, evolução e; Analisar o papel das moedas na economia global.; Analisar a influência das moedas nas relações econômicas, políticas e | Habilidades: EF09GE05 | AE2 - Analisar fatos e situações da integração mundial econômica, política e cultural, comparando características e fenômenos da globalização com os da mundialização.",
       "Aula 14 - Moedas alternativas e economias locais | Conteúdos: Moedas sociais, criptomoedas e; Explorar modelos econômicos alternativos, como moedas sociais e; Argumentar sobre a função de moedas alternativas em contextos locais e | Habilidades: EF09GE05 | AE2 - Analisar fatos e situações da integração mundial econômica, política e cultural, comparando características e fenômenos da globalização com os da mundialização."
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Aspectos físico-naturais da Europa | Conteúdos: Características físico naturais do continente europeu.; Clima, hidrografia, relevo e vegetação da Europa. | Habilidades: EF09GE17 | AE5",
+      "Aula 2 - Aspectos físico-naturais da Ásia | Conteúdos: Características físico naturais do continente asiático.; Clima, hidrografia, relevo e vegetação da Ásia. | Habilidades: EF09GE17, EF09GE07 | AE5",
+      "Aula 3 - Aspectos físico-naturais da Oceania | Conteúdos: Características físico naturais da Oceania.; Clima, hidrografia, relevo e vegetação da Oceania. | Habilidades: EF09GE17, EF09GE07 | AE5",
+      "Aula 4 - Uso e ocupação do solo na Europa | Conteúdos: Setores da economia e a correlação com clima, relevo e vegetação.; Urbanização e qualidade de vida.; Distribuição regional das atividades econômicas. | Habilidades: EF09GE17 | AE5",
+      "Aula 5 - Uso e ocupação do solo na Oceania | Conteúdos: Setores econômicos da Oceania.; Principais características físicas e sociais do continente Oceania. | Habilidades: EF09GE17 | AE5",
+      "Aula 6 - Uso do solo na Ásia: Norte, Leste e Sudeste | Conteúdos: Distribuição populacional e economia.; Influência do clima e relevo na ocupação do solo. | Habilidades: EF09GE17 | AE5",
+      "Aula 7 - Uso do solo na Ásia: Oriente Médio, Sul e Ásia Central | Conteúdos: Aspectos físicos e recursos naturais do continente.; Dinâmicas humanas, econômicas e socioambientais. | Habilidades: EF09GE17 | AE5",
+      "Aula 8 - Recursos naturais na Europa: impactos e desafios ambientais | Conteúdos: Exploração de recursos naturais: usos e desafios ambientais na Europa. | Habilidades: EF09GE18, EF09GE14B | AE6",
+      "Aula 9 - Recursos naturais na Ásia: impactos e desafios ambientais | Conteúdos: Exploração de recursos naturais: usos, desafios e consequências ambientais. | Habilidades: EF09GE18 | AE6",
+      "Aula 10 - Recursos naturais na Oceania: riquezas e impactos | Conteúdos: Recursos naturais na Oceania.; Exploração de recursos naturais: usos e desafios. | Habilidades: EF09GE18 | AE6",
+      "Aula 11 - Diversidade ambiental e recursos naturais na Europa, Ásia e Oceania | Conteúdos: Diversidade ambiental e recursos naturais na Europa, Ásia e Oceania.; Desafios socioambientais e transformação da paisagem. | Habilidades: EF09GE18 | AE6",
+      "Aula 12 - Diversidade ambiental e recursos naturais na Europa, Ásia e Oceania - análise de casos | Conteúdos: Diversidade ambiental e recursos naturais na Europa, Ásia e Oceania.; Desafios socioambientais e transformação da paisagem. | Habilidades: EF09GE18, EF09GE14B | AE6"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - Industrialização na Europa: origens e transformações | Conteúdos: Revolução Industrial na Europa. | Habilidades: EF09GE10, EF09GE11 | AE7",
+      "Aula 2 - Industrialização na Europa: distribuição e desafios atuais | Conteúdos: Distribuição industrial na Europa.; Desindustrialização, globalização e desafios da indústria. | Habilidades: EF09GE11, EF09GE10 | AE7",
+      "Aula 3 - Industrialização na Ásia: trajetórias e desafios do Japão | Conteúdos: Desenvolvimento industrial, inovação e estratégias econômicas. | Habilidades: EF09GE11, EF09GE10 | AE7",
+      "Aula 4 - Industrialização na Ásia: a força da China | Conteúdos: Industrialização e papel econômico da China no mundo. | Habilidades: EF09GE11, EF09GE10 | AE7",
+      "Aula 5 - Industrialização na Ásia: a ascensão da Índia | Conteúdos: Crescimento econômico, tecnologia e inovação na Índia. | Habilidades: EF09GE11 | AE7",
+      "Aula 6 - Industrialização na Ásia: os Tigres Asiáticos | Conteúdos: Industrialização dos Tigres Asiáticos e dos Novos Tigres. | Habilidades: EF09GE11 | AE7",
+      "Aula 7 - Indústria e economia na Oceania | Conteúdos: Setores industriais e distribuição industrial na Oceania. | Habilidades: EF09GE11 | AE7",
+      "Aula 8 - Fontes de energia e matrizes tradicionais | Conteúdos: Fontes energéticas históricas, matrizes energéticas, impactos socioambientais. | Habilidades: EF09GE18 | AE6",
+      "Aula 9 - Transição energética e desenvolvimento sustentável | Conteúdos: Transição para Fontes renováveis.; Tecnologias energéticas.; Particularidades regionais. | Habilidades: EF09GE18 | AE6",
+      "Aula 10 - Indústria e energia no mundo digital | Conteúdos: Recursos naturais e sua utilização.; IA: a indústria por trás da sua tela. | Habilidades: EF09GE18 | AE6",
+      "Aula 11 - Energia e território na Europa, Ásia e Oceania – análise de padrões e desafios | Conteúdos: Transição energética e fontes renováveis.; Energia, território e sociedade. | Habilidades: EF09GE18 | AE6",
+      "Aula 12 - Energia e território na Europa, Ásia e Oceania – soluções e escolhas estratégicas | Conteúdos: Transição energética e fontes renováveis.; Energia, território e sociedade. | Habilidades: EF09GE18 | AE6"
     ]
   },
   "História": {
@@ -704,6 +1246,34 @@ function criarFormularioFundamental() {
       "Aula 13 - Heróis, deuses e lendas: mitologia como entendimento do mundo na Antiguidade ‒ Parte 1 | Conteúdos: Deuses gregos, cultura material da; Compreender o papel da mitologia como elemento fundamental na | Habilidades: EF06HI09 | AE6 - Analisar a formação da Grécia Antiga, destacando a formação da pólis e as transformações políticas, sociais e culturais.",
       "Aula 14 - Heróis, deuses e lendas: mitologia como entendimento do mundo na Antiguidade ‒ Parte 2 - Aula Complementar | Conteúdos: Deuses gregos, cultura material da; Compreender o papel da mitologia como elemento fundamental na | Habilidades: EF06HI09"
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - As Pólis gregas: cidades-estado | Conteúdos: O mundo das pólis.; Pólis Esparta e Atenas. | Habilidades: EF06HI10, EF06HI20, EF06HI11 | AE7",
+      "Aula 2 - Guerras Médicas: persas e gregos | Conteúdos: As Guerras Médicas.; Guerras greco-pérsicas. | Habilidades: EF06HI11 | AE7",
+      "Aula 3 - O Império Alexandrino e a difusão da cultura helênica | Conteúdos: O Império Alexandrino.; A difusão da cultura helênica. | Habilidades: EF06HI12 | AE7",
+      "Aula 4 - Formação da Roma Antiga | Conteúdos: A formação da Roma Antiga.; Cidades romanas. | Habilidades: EF06HI12 | AE8",
+      "Aula 5 - A monarquia romana | Conteúdos: A organização social (patrícios, plebeus, clientes). | Habilidades: EF06HI12 | AE8",
+      "Aula 6 - Roma republicana | Conteúdos: As instituições políticas (rei, senado, assembleias).; A economia romana.; A religião e os mitos.; República romana.; Sociedade romana.; Expansão territorial.; As lutas sociais. | Habilidades: EF06HI12 | AE8",
+      "Aula 7 - Cidadania: um privilégio ou um direito? A experiência da Grécia e Roma Antigas | Conteúdos: Cidadania na Grécia e Roma Antiga.; Conceito de cidadania na Grécia e Roma Antiga. | Habilidades: EF06HI12 | AE8",
+      "Aula 8 - Roma império | Conteúdos: Império Romano.; Expansão militar.; Obras públicas.; Pax Romana.; Revoltas dos povos dominados.; Desigualdades sociais. | Habilidades: EF06HI13, EF06HI14 | AE9",
+      "Aula 9 - Crise no Império Romano | Conteúdos: O fim Império Romano.; A divisão do Império Romano em ocidental e oriental. | Habilidades: EF06HI15, EF06HI16 | AE9",
+      "Aula 10 - O mundo bizantino | Conteúdos: O surgimento e características do Império Bizantino.; As principais realizações de Justiniano e seu legado.; Guerras e conflitos do Império Bizantino.; Crise política e econômica do Império Bizantino.; A fragmentação do Império Bizantino. | Habilidades: EF06HI16 | AE9",
+      "Aula 11 - A circulação de mercadorias no Mediterrâneo Antigo | Conteúdos: A circulação de mercadorias no Mediterrâneo antigo.; O impacto econômico, cultural e social dessa circulação nas civilizações mediterrâneas.; A importância das rotas comerciais para a Grécia, Roma, Cartago e outros povos. | Habilidades: EF06HI16 | AE10",
+      "Aula 12 - A transição da Antiguidade para a Idade Média na Europa | Conteúdos: Invasões bárbaras e o fim da Antiguidade.; A divisão da Idade Média.; Características da sociedade medieval: feudalismo, Igreja e monarquia.; Economia agrária e a importância do campesinato. | Habilidades: EF06HI16 | AE10"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - A mulher na transição da Antiguidade para a Idade Média | Conteúdos: A transição da Antiguidade para a Idade Média e suas mudanças sociais, políticas e culturais.; O papel da mulher na Antiguidade (Roma, Grécia, Egito) e as alterações no contexto medieval (feudalismo, cristianismo, isolamento social e público). | Habilidades: EF06HI14, EF06HI16, EF06HI18 | AE10",
+      "Aula 2 - Os povos germânicos | Conteúdos: Reinos germânicos.; Características dos povos germânicos.; Prittlewell. | Habilidades: EF06HI16 | AE10",
+      "Aula 3 - Reino Franco: dinastias Merovíngia e Carolíngia | Conteúdos: Dinastia Merovíngia: origem e características.; A ascensão dos Carolíngios: Carlos Martel.; A coroação de Pepino, o Breve.; Reinado de Carlos Magno.; A queda das dinastias Merovíngia e Carolíngia. | Habilidades: EF06HI16 | AE11",
+      "Aula 4 - O papel da religião cristã na Idade Média | Conteúdos: A relação entre o cristianismo e a política medieval.; Os mosteiros na Idade Média.; O conceito de teocracia.; Conflitos e alianças entre a Igreja e os governantes. | Habilidades: EF06HI16 | AE11",
+      "Aula 5 - O trabalho e a vida social na Idade Média | Conteúdos: Trabalho na Antiguidade.; Trabalho na Idade Média. | Habilidades: EF06HI16 | AE12",
+      "Aula 6 - O feudalismo europeu | Conteúdos: Origens do feudalismo.; Estrutura social e política do feudalismo. | Habilidades: EF06HI16 | AE12",
+      "Aula 7 - Lógicas comerciais no mundo medieval | Conteúdos: Economia e modos de produção na sociedade feudal.; O Clero, a nobreza e os trabalhadores.; Juramentos de fidelidade.; Os reis feudais.; Características do comércio medieval.; As cidades comerciais e o renascimento urbano.; Comércio medieval: as feiras.; O papel das guildas e feiras medievais. | Habilidades: EF06HI16 | AE12",
+      "Aula 8 - Mundo árabe e o nascimento do islamismo | Conteúdos: O povo árabe na Idade Média.; O nascimento do islã.; O islã na cultura medieval.; Expansão islâmica.; Interação dos muçulmanos com outros grupos. | Habilidades: EF06HI21 | AE13",
+      "Aula 9 - Império Otomano | Conteúdos: Origem do império.; Estrutura política, social, econômica e cultural.; Expansão gradual do beilicado. | Habilidades: EF06HI21 | AE13",
+      "Aula 10 - O povo judeu e suas relações no mundo medieval | Conteúdos: O povo judeu na Idade Média.; Judaísmo e cultura medieval.; Interação dos judeus com outros grupos. | Habilidades: EF06HI21 | AE13",
+      "Aula 11 - Em nome de Deus: as Cruzadas | Conteúdos: Principais Cruzadas.; Impacto das Cruzadas na Europa medieval. | Habilidades: EF06HI21 | AE13",
+      "Aula 12 - A crise do sistema feudal | Conteúdos: Causas e fatores da crise do sistema feudal.; O enfraquecimento da classe senhorial. | Habilidades: EF06HI21 | AE13"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Modernidade/ Idade Moderna | Conteúdos: Conceito de modernidade e suas; Contexto histórico e geográfico da; Características da modernidade. | Habilidades: EF07HI01 | AE1 - Analisar o significado de modernidade na concepção europeia, considerando suas manifestações culturais, artísticas, científicas, religiosas e políticas, bem como suas lógi...",
       "Aula 2 - Humanismo | Conteúdos: O conceito de humanismo.; As principais características do; Antropocentrismo. | Habilidades: EF07HI04 | AE1 - Analisar o significado de modernidade na concepção europeia, considerando suas manifestações culturais, artísticas, científicas, religiosas e políticas, bem como suas lógi...",
@@ -735,6 +1305,34 @@ function criarFormularioFundamental() {
       "Aula 12 - A face da colonização portuguesa: dominação e resistência | Conteúdos: Resistência indígena.; Formas de dominação.; Consequências da conquista. | Habilidades: EF07HI09 | AE5 - Analisar a formação histórico-geográfica, a diversidade étnico-cultural e os mecanismos de controle político colonial na América portuguesa a partir da interpretação de ma...",
       "Aula 13 - O genocídio e a resistência dos povos nativos - Aula Complementar | Conteúdos: Formas de genocídio.; Resistência indígena.; Consequências do genocídio. | Habilidades: EF07HI09",
       "Aula 14 - Administração na América portuguesa | Conteúdos: Capitanias hereditárias.; Governo Geral.; Sesmarias. | Habilidades: EF07HI10 | AE5 - Analisar a formação histórico-geográfica, a diversidade étnico-cultural e os mecanismos de controle político colonial na América portuguesa a partir da interpretação de ma..."
+    ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - A formação histórico-geográfica do território brasileiro | Conteúdos: Mapas históricos.; A formação do espaço brasileiro.; Aspectos históricos e geográficos que influenciaram a configuração do território brasileiro. | Habilidades: EF07HI11, EF07HI12 | AE6",
+      "Aula 2 - Agentes da expansão territorial: jesuítas e bandeirantes | Conteúdos: Atuação dos jesuítas na América.; Especiarias do sertão.; Entradas e bandeiras.; Expedições em busca de ouro, diamantes e escravizados indígenas. | Habilidades: EF07HI18 | AE6",
+      "Aula 3 - Jesuítas, bandeirantes e os povos indígenas | Conteúdos: Rivalidade entre bandeirantes e jesuítas.; Missões guaraniticas.; Jesuítas X bandeirantes e os povos indígenas.; Resistências indígenas. | Habilidades: EF07HI18 | AE6",
+      "Aula 4 - A sociedade açucareira e a vida nos engenhos (séculos XVI-XVII) | Conteúdos: Plantation e economia açucareira.; Funcionamento dos engenhos e trabalho dos escravizados.; Vida cotidiana e relações de poder no engenho.; Organização social: senhores, trabalhadores livres, escravizados e indígenas. | Habilidades: EF07HI18 | AE6",
+      "Aula 5 - Os holandeses na América portuguesa | Conteúdos: Os holandeses no Período Colonial na América Portuguesa.; O projeto de ocupação da Companhia Holandesa das Índias Ocidentais (WIC).; Engenhos de açúcar. | Habilidades: EF07HI18 | AE6",
+      "Aula 6 - A Revolta dos Beckman | Conteúdos: Economia açucareira no Maranhão.; Causas e lideranças da Revolta dos Beckman.; Implicações da revolta. | Habilidades: EF07HI18 | AE6",
+      "Aula 7 - Ouro, povoamento e diversidade no Brasil colonial | Conteúdos: A descoberta do ouro e dos diamantes no Brasil.; Métodos de exploração e sociedade mineradora.; Povoamento e diversidade étnico-cultural na região das minas.; Mobilidade social: Chica da Silva. | Habilidades: EF07HI18 | AE6",
+      "Aula 8 - A Guerra dos Emboabas | Conteúdos: Guerra dos Emboabas.; Nova elite econômica.; Os bandeirantes em São Paulo. | Habilidades: EF07HI12, EF07HI18, EF07HI14 | AE6",
+      "Aula 9 - Comparação entre as Américas espanhola e portuguesa | Conteúdos: Colonização portuguesa e espanhola na América.; Principais atividades econômicas das colônias: agricultura, mineração e comércio. | Habilidades: EF07HI14 | AE6",
+      "Aula 10 - Nzinga Mbandi – A rainha guerreira | Conteúdos: Formação e organização do reino.; Nzinga Mbandi.; Relação com os portugueses.; Resistência. | Habilidades: EF07HI14 | AE7",
+      "Aula 11 - Rotas comerciais na África | Conteúdos: Rotas comerciais na África.; Produtos comercializados.; Dinâmicas comerciais.; Impactos da escravização e colonização. | Habilidades: EF07HI14 | AE7",
+      "Aula 12 - Reino de Daomé e Benin | Conteúdos: Reinos de Benin e Daomé.; Comércio.; Guerreiras Daomé. | Habilidades: EF07HI14 | AE7"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - A escravidão e a servidão ao longo da história | Conteúdos: A escravidão na Antiguidade.; A servidão na Idade Média.; A escravidão moderna. | Habilidades: EF07HI15, EF07HI16 | AE7",
+      "Aula 2 - Escravidão na África | Conteúdos: Escravizados na África.; As sociedades africanas e o tráfico de escravizados.; Implicações do comércio de escravizados. | Habilidades: EF07HI19 | AE7",
+      "Aula 3 - Nos caminhos da escravidão: África, Europa e América em conexão | Conteúdos: Comércio triangular.; O sistema escravista. | Habilidades: EF07HI19 | AE7",
+      "Aula 4 - O Atlântico negro: as rotas dos invisíveis da diáspora forçada | Conteúdos: As rotas do tráfico transatlântico.; As principais regiões africanas e os portos de embarque e desembarque.; Diáspora forçada.; Principais etnias africanas envolvidas no comércio de escravizados. | Habilidades: EF07HI19 | AE8",
+      "Aula 5 - O sistema escravista e o comércio de escravizados | Conteúdos: Agentes do tráfico de escravizados.; O sistema escravista na América Portuguesa.; Condição jurídica dos escravizados. | Habilidades: EF07HI19 | AE8",
+      "Aula 6 - Vozes silenciadas: a vida dos negros no Brasil colonial | Conteúdos: A escravidão no Brasil colonial.; Estratégias de resistência cultural e social.; As condições de vida dos negros no Brasil colonial. | Habilidades: EF07HI19 | AE8",
+      "Aula 7 - Resistência negra: Esperança Garcia e outras formas de luta no Brasil colonial | Conteúdos: A carta de Esperança Garcia como fonte histórica.; Condições de vida das pessoas escravizadas.; Formas de resistência: fugas, quilombos, revoltas e recusas ao trabalho.; O papel das mulheres negras na resistência. | Habilidades: EF07HI19 | AE8",
+      "Aula 8 - Palmares: o quilombo que nunca se rendeu | Conteúdos: Quilombo.; Palmares. | Habilidades: EF07HI19, EF07HI20 | AE8",
+      "Aula 9 - Lideranças negras: heróis da resistência | Conteúdos: Resistência.; Lideranças negras. | Habilidades: EF07HI20, EF07HI17 | AE8",
+      "Aula 10 - Raízes do racismo: conexões entre o passado e o presente | Conteúdos: Racismo.; Populações africanas no Período Colonial.; Relação presente e passado. | Habilidades: EF07HI17 | AE8",
+      "Aula 11 - A passagem do capitalismo mercantil para o capitalismo industrial | Conteúdos: Mercantilismo.; Crise do mercantilismo.; Capitalismo. | Habilidades: EF07HI17 | AE9",
+      "Aula 12 - Transição econômica: do mercantilismo ao capitalismo liberal | Conteúdos: Mercantilismo.; Capitalismo. | Habilidades: EF07HI17 | AE9"
     ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Introdução às ideias iluministas | Conteúdos: Conceitos iluministas.; Principais ideias defendidas pelo; Compreender as principais características do pensamento iluminista, os | Habilidades: EF08HI01 | AE1 - Discutir a emergência de ideias iluministas e liberais, relacionando com suas manifestações políticas na Europa.",
@@ -782,6 +1380,46 @@ function criarFormularioFundamental() {
       "Aula 20 - Divisão territorial da América espanhola | Conteúdos: Divisão territorial na América após; Impactos da nova divisão territorial; Analisar a divisão territorial estabelecida após as independências e seus | Habilidades: EF08HI13 | AE10 - Analisar as características políticas, econômicas e os conflitos do Primeiro e Segundo Reinados.",
       "Aula 21 - Formasde governo na América pós- Independência: repúblicas e monarquias | Conteúdos: As formas de governo adotadas; Repúblicas presidencialistas e; Compreender as diferenças entre as formas de Governo nos processos de | Habilidades: EF08HI13 | AE10 - Analisar as características políticas, econômicas e os conflitos do Primeiro e Segundo Reinados. 2º Bimestre"
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - A Guerra da Cisplatina e a Independência do Uruguai | Conteúdos: Guerra da Cisplatina.; Independência do Uruguai. | Habilidades: EF08HI13, EF08HI11 | AE11",
+      "Aula 2 - A Independência da Argentina | Conteúdos: Processo histórico de Independência da Argentina. | Habilidades: EF08HI11, EF08HI15, EF08HI16 | AE11",
+      "Aula 3 - A Revolta de Tupac Amaru II | Conteúdos: Conflitos na América espanhola.; Revolta de Túpac Amaru II. | Habilidades: EF08HI11 | AE11",
+      "Aula 4 - Participação da população negra e indígena na luta pela Independência do Brasil | Conteúdos: Participação da população negra na luta pela Independência do Brasil.; Povos indígenas na luta pela Independência do Brasil. | Habilidades: EF08HI11 | AE11",
+      "Aula 5 - As mulheres na luta pela Independência do Brasil e dos países hispano-americanos | Conteúdos: Lideranças femininas no processo de emancipação política do Brasil.; Mulheres na independência da América Espanhola. | Habilidades: EF08HI11 | AE11",
+      "Aula 6 - Primeiro Reinado: personalidades, disputas e crise | Conteúdos: Os principais personagens políticos do Primeiro Reinado.; A crise do Primeiro Reinado.; A Confederação do Equador.; A abdicação de Dom Pedro I. | Habilidades: EF08HI11 | AE12",
+      "Aula 7 - O Período Regencial | Conteúdos: O início do Período Regencial.; As características e as tendências políticas do Período Regencial.; As fases do Período Regencial. | Habilidades: EF08HI11 | AE12",
+      "Aula 8 - As revoltas regenciais: desordem e poder no Brasil no século XIX ‒ Parte 1 | Conteúdos: A Revolta de Carrancas.; A Revolta dos Farrapos.; A Revolta dos Cabanos. | Habilidades: EF08HI16, EF08HI28 | AE12",
+      "Aula 9 - As revoltas regenciais: desordem e poder no Brasil no século XIX ‒ Parte 2 | Conteúdos: A Revolta dos Sabinos.; A Revolta dos Balaios. | Habilidades: EF08HI15, EF08HI17 | AE12",
+      "Aula 10 - Revolta dos Malês: motivações, desdobramentos e seus impactos na ordem escravocrata | Conteúdos: Contexto social e demográfico da cidade de Salvador na primeira metade do século XIX.; Influências culturais e religiosas na Revolta dos Malês.; Impactos da Revolta dos Malês na ordem escravocrata. | Habilidades: EF08HI17 | AE12",
+      "Aula 11 - Segundo Reinado: disputas políticas e golpe da maioridade | Conteúdos: Disputas de poder no Segundo Reinado.; Golpe da maioridade. | Habilidades: EF08HI17 | AE12",
+      "Aula 12 - Territórios e fronteiras do Brasil no contexto do Segundo Reinado | Conteúdos: Disputas territoriais e conflitos no Segundo Reinado. | Habilidades: EF08HI17 | AE12",
+      "Aula 13 - Segundo Reinado: economia cafeeira e ferrovias | Conteúdos: A economia cafeeira no Brasil do Segundo Reinado.; O Vale do Paraíba e a produção cafeeira.; Ferrovias. | Habilidades: EF08HI17 | AE12",
+      "Aula 14 - Grupos políticos em disputa no Segundo Reinado e a Revolução Praieira | Conteúdos: A Revolução Praieira.; Movimentação política.; Grupos políticos no Segundo Reinado. | Habilidades: EF08HI17 | AE12",
+      "Aula 15 - A Guerra do Paraguai | Conteúdos: A Tríplice Aliança.; Transformações territoriais.; O Brasil na Guerra do Paraguai.; A Guerra do Paraguai e a questão da escravidão. | Habilidades: EF08HI18, EF08HI15 | AE13",
+      "Aula 16 - Guerra do Paraguai: conflito de narrativas | Conteúdos: Narrativas históricas sobre a Guerra do Paraguai. | Habilidades: EF08HI18 | AE13",
+      "Aula 17 - A Lei de Terras de 1850 | Conteúdos: A Lei de Terras de 1850 e seus desdobramentos. | Habilidades: EF08HI18 | AE14",
+      "Aula 18 - O longo caminho para a abolição da escravidão no Brasil | Conteúdos: A Lei Eusébio de Queirós.; Lei do Ventre Livre, Lei dos Sexagenários e Lei Áurea.; Movimento abolicionista.; Personalidades que lutaram pelo fim da escravidão: Maria Firmina dos Reis, Luís Gama, André Rebouças e José do Patrocínio. | Habilidades: EF08HI19B | AE14"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - O legado da luta negra contra a escravidão | Conteúdos: Consequências históricas da escravidão.; Impactos da escravidão na sociedade atual.; Resistência e luta dos afrodescendentes.; A vida dos afrodescendentes após a abolição. | Habilidades: EF08HI19A, EF08HI27 | AE14",
+      "Aula 2 - As políticas de imigração e o abolicionismo no Brasil Imperial | Conteúdos: Movimento abolicionista no Brasil.; Políticas de imigração no Brasil Imperial.; Transição do trabalho escravo para o trabalho livre. | Habilidades: EF08HI21, EF08HI20, EF08HI22 | AE14",
+      "Aula 3 - Pensamento e cultura no século XIX: darwinismo social e racismo | Conteúdos: O pensamento científico no século XIX.; O surgimento das teorias racistas.; Impacto das teorias racistas na sociedade. | Habilidades: EF08HI22 | AE14",
+      "Aula 4 - A resistência dos povos indígenas e o discurso civilizatório nas Américas | Conteúdos: O discurso civilizatório nas Américas.; Integração e destruição de comunidades indígenas.; Resistência dos povos indígenas. | Habilidades: EF08HI22 | AE14",
+      "Aula 5 - O Estado brasileiro e sua relação com os indígenas na construção do Império | Conteúdos: Leis do Período Imperial.; Constituição de 1824.; Permanências geradas a partir das políticas de extermínio dos povos indígenas durante o Império. | Habilidades: EF08HI22 | AE9",
+      "Aula 6 - Vozes da literatura negra no Brasil do século XIX | Conteúdos: Vozes da literatura produzida sobre os negros no Brasil do século XIX. | Habilidades: EF08HI22 | AE9",
+      "Aula 7 - Cultura letrada e não letrada no Brasil durante o século XIX | Conteúdos: Cultura letrada e a produção artística no Brasil do século XIX.; Cultura não letrada e a produção artística no Brasil do século XIX.; Representações visuais da cultura popular brasileira durante o século XIX. | Habilidades: EF08HI22 | AE9",
+      "Aula 8 - Romantismo no Brasil do século XIX | Conteúdos: Romantismo.; Literatura e construção da identidade nacional. | Habilidades: EF08HI22, EF08HI25 | AE9",
+      "Aula 9 - Relações entre os Estados Unidos da América e a América Latina no século XIX | Conteúdos: Interesses políticos e econômicos dos Estados Unidos da América na América Latina.; Diplomacia e comércio entre os Estados Unidos da América e a América Latina. | Habilidades: EF08HI25 | AE15",
+      "Aula 10 - Da Doutrina Monroe ao intervencionismo: as influências dos EUA na América Latina | Conteúdos: Doutrina Monroe.; Desdobramentos da aplicação da Doutrina Monroe.; Casos de intervenções realizados pelos EUA na América Latina durante o século XIX. | Habilidades: EF08HI25, EF08HI23 | AE15",
+      "Aula 11 - Determinismo e imperialismo europeu | Conteúdos: Teorias raciais.; A questão determinista no imperialismo europeu. | Habilidades: EF08HI23 | AE16",
+      "Aula 12 - Nacionalismo e as novas nações europeias: o início do imperialismo | Conteúdos: Nacionalismo.; Unificação da Itália e da Alemanha.; Construção das identidades nacionais. | Habilidades: EF08HI23 | AE16",
+      "Aula 13 - Teorias raciais e o imperialismo na África | Conteúdos: Imperialismo.; Impacto das teorias raciais no continente africano durante o século XIX. | Habilidades: EF08HI23 | AE16",
+      "Aula 14 - O imperialismo europeu e a partilha da África | Conteúdos: Processo de partilha da África segundo a ótica europeia. | Habilidades: EF08HI23 | AE16",
+      "Aula 15 - Resistência à partilha da África | Conteúdos: Formas de resistência frente ao processo de partilha da África. | Habilidades: EF08HI24 | AE16",
+      "Aula 16 - A África e o capitalismo industrial europeu | Conteúdos: Matérias-primas africanas.; Capitalismo industrial europeu. | Habilidades: EF08HI24 | AE16",
+      "Aula 17 - Recursos africanos e os interesses da Europa: histórias por trás do colonialismo | Conteúdos: Impactos do capitalismo industrial europeu na África. | Habilidades: EF08HI24 | AE16",
+      "Aula 18 - Colonialismo ontem e hoje: consequências do colonialismo no mundo atual | Conteúdos: Impactos do capitalismo industrial europeu na África. | Habilidades: EF08HI24 | AE16"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - O fim da monarquia e o início da República no Brasil | Conteúdos: O estabelecimento da República.; Os desafios do início da República.; Compreender os aspectos que marcaram o processo de estabelecimento | Habilidades: EF09HI01 | AE1 - Analisar o processo histórico de implementação da Primeira República no Brasil, suas características políticas, culturais, urbanísticas e sociais.",
       "Aula 2 - Estrutura política e social no Brasil na Primeir a República | Conteúdos: Política na Primeira República.; Sociedade na Primeira República.; Coronelismo e a Política do Café | Habilidades: EF09HI02 | AE1 - Analisar o processo histórico de implementação da Primeira República no Brasil, suas características políticas, culturais, urbanísticas e sociais.",
@@ -827,6 +1465,46 @@ function criarFormularioFundamental() {
       "Aula 19 - Guerra, contradições e fim do Estad o Novo | Conteúdos: Entrada do Brasil na Segunda Guerra Mundial (lado dos Aliados).; Envio da FEB à Itália e participação militar.; Contradições entre luta contra o nazifascismo e autoritarismo | Habilidades: EF09HI06 | AE3 - Analisar os diversos momentos históricos da Era Vargas (1930-1945) sob as perspectivas política, econômica e social.",
       "Aula 20 - Getúlio Vargas e a imagem de \"pai\" dos trabalhadores | Conteúdos: Getulio Vargas.; DIP.; Trabalhismo. | Habilidades: EF09HI06 | AE3 - Analisar os diversos momentos históricos da Era Vargas (1930-1945) sob as perspectivas política, econômica e social.",
       "Aula 21 - Desafio: da ditadura à democracia: redemocratização e transformação urbana no Brasil (1945-1950) | Conteúdos: Eleições de 1945 e a Constituição de 1946.; Governo Dutra: políticas internas, alinhamento com os EUA e; Início da reorganização econômica e fortalecimento do modelo | Habilidades: EF09HI18 | AE9 - Analisar os processos sociais, econômicos, culturais e políticos do Brasil durante o período da República Democrática (1946-1964). 2º Bimestre"
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - \"Queremos Getúlio!\": o segundo Governo Vargas | Conteúdos: Movimento queremista e a mobilização popular pró-Vargas.; Eleição e propostas do segundo governo Vargas (1951–1954).; Políticas trabalhistas, criação da Petrobras e discurso nacionalista.; Oposição política, imprensa e o clima de instabilidade.; Atentado da rua Tonelero e suicídio de Vargas em 1954. | Habilidades: EF09HI06, EF09HI17, EF09HI18, EF09HI28, EF09HI19 | AE10",
+      "Aula 2 - Da crise do varguismo ao Brasil moderno: o projeto de JK | Conteúdos: Instabilidade política pós-1954 e eleição de JK em 1955.; Continuidade e ruptura em relação ao legado de Vargas.; Nacional-desenvolvimentismo.; Eixos principais do Plano de Metas. | Habilidades: EF09HI06 | AE10",
+      "Aula 3 - Brasília: símbolo de progresso ou vitrine das desigualdades? | Conteúdos: Brasília como expressão do projeto desenvolvimentista.; Urbanismo moderno e sua função simbólica.; Contradições entre discurso de modernização e realidade social.; Desigualdades regionais e exclusão urbana. | Habilidades: EF09HI06 | AE11",
+      "Aula 4 - Guerra Fria: tensões políticas, conflitos e representações culturais | Conteúdos: Motivações e desdobramentos da Guerra Fria.; A criação da OTAN e do Pacto de Varsóvia.; As guerras da Coreia e do Vietnã.; Corrida armamentista e espacial.; Ideologias e propaganda no contexto da Guerra Fria. | Habilidades: EF09HI06 | AE11",
+      "Aula 5 - A Revolução Chinesa | Conteúdos: Fim do Império e Proclamação da República na China.; Governo de Mao Tsé-tung.; Relações entre a China e a URSS. | Habilidades: EF09HI06 | AE11",
+      "Aula 6 - A Revolução Cubana | Conteúdos: Antecedentes da Revolução Cubana.; Principais características do período pré-revolucionário em Cuba.; Líderes e ideias da revolução e seus impactos globais. | Habilidades: EF09HI06 | AE11",
+      "Aula 7 - Os anos 1960: a revolução dos hábitos | Conteúdos: Contracultura: aspectos políticos, econômicos e culturais. | Habilidades: EF09HI06 | AE11",
+      "Aula 8 - Os governos de Jânio Quadros e João Goulart | Conteúdos: Medidas do governo Jânio Quadros e sua relação com a Guerra Fria.; Os impactos do governo João Goulart para a História política do Brasil.; Reformas de Base e o Plano Trienal. | Habilidades: EF09HI19, EF09HI20 | AE12",
+      "Aula 9 - A ditadura civil-militar: o contexto de 1964 | Conteúdos: O contexto político e social que levou ao golpe de 1964.; A atuação dos militares no poder e as medidas adotadas no início do regime civil-militar. | Habilidades: EF09HI20 | AE12",
+      "Aula 10 - Ditadura civil-militar: aspectos político-sociais, econômicos e culturais | Conteúdos: Principais aspectos sociais e econômicos da Ditadura Civil-Militar.; Milagre Econômico.; As manifestações culturais como forma de resistência à ditadura. | Habilidades: EF09HI20 | AE12",
+      "Aula 11 - A ditadura civil-militar: repressão, censura e controle social | Conteúdos: Estrutura repressiva do regime militar.; Atuação dos órgãos de controle e censura (DOPS, DOI-CODI, SNI).; Perseguição política, tortura e desaparecimentos.; Limitação das liberdades individuais e censura aos meios de comunicação e à cultura. | Habilidades: EF09HI20 | AE12",
+      "Aula 12 - Resistência à ditadura civil-militar: formas de luta e mobilização social | Conteúdos: A organização da resistência à ditadura civil-militar.; Guerrilhas urbanas e rurais.; Movimentos estudantis e greves operárias.; Ação Libertadora Nacional (ALN), Vanguarda Popular Revolucionária (VPR), Passeata dos Cem Mil e greves do ABC. | Habilidades: EF09HI20 | AE12",
+      "Aula 13 - Resistência à ditadura civil-militar: povos indígenas e movimento negro | Conteúdos: As políticas do Estado em relação aos povos indígenas e comunidades quilombolas durante a ditadura civil-militar.; Violações de direitos e resistência nas aldeias e territórios tradicionais.; O Movimento Negro Unificado (MNU), a União de Negros pela Igualdade (Unegro) e a luta contra o racismo e pela igualdade racial.; Mobilizações e reivindicações por cidadania e reconhecimento. | Habilidades: EF09HI21 | AE12",
+      "Aula 14 - Ditadura civil-militar: discurso oficial e da imprensa | Conteúdos: Leis, decretos, atos institucionais e outros documentos oficiais.; O papel da imprensa durante o período ditatorial.; A cobertura jornalística dos movimentos de resistência à ditadura civil-militar. | Habilidades: EF09HI20 | AE12",
+      "Aula 15 - Ditaduras na América Latina | Conteúdos: Ditaduras militares na América Latina. | Habilidades: EF09HI29 | AE13",
+      "Aula 16 - O processo de abertura política: o movimento pela anistia | Conteúdos: O contexto internacional.; O papel dos movimentos sociais.; E da imprensa.; A Lei da Anistia. | Habilidades: EF09HI22 | AE13",
+      "Aula 17 - O processo de abertura política: o movimento das Diretas Já e a Constituição | Conteúdos: O movimento pelas \"Diretas Já\" e seus desdobramentos.; Antecedentes da Constituinte de 1987 a 1988.; A relação da Constituição com o processo de redemocratização no Brasil.; Justiça de transição e políticas de reparação. | Habilidades: EF09HI22 | AE13",
+      "Aula 18 - Aula desafio: memória, anistia e usos políticos do passado | Conteúdos: A Lei da Anistia e seus desdobramentos.; Construção da memória histórica, indenizações e responsabilizações. | Habilidades: EF09HI19 | AE13"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - A Constituição de 1988: a chamada \"Constituição Cidadã\" | Conteúdos: A importância da luta pela cidadania e pelos direitos civis no Brasil.; A conquista do direito ao voto para os analfabetos e para os jovens a partir dos 16 anos. | Habilidades: EF09HI24, EF09HI22 | AE13",
+      "Aula 2 - A eleição de Tancredo Neves e o Governo José Sarney | Conteúdos: Eleição de Tancredo Neves e o processo de redemocratização.; Governo José Sarney.; Crise econômica e instabilidade política. | Habilidades: EF09HI24, EF09HI31 | AE13",
+      "Aula 3 - As manifestações culturais no processo de redemocratização | Conteúdos: Manifestações culturais como espaços de resistência e expressão. | Habilidades: EF09HI24 | AE13",
+      "Aula 4 - A luta pelos direitos civis no Brasil | Conteúdos: A importância da luta pela cidadania e pelos direitos civis no Brasil.; A conquista do direito ao voto para os analfabetos e para os jovens a partir dos 16 anos. | Habilidades: EF09HI24 | AE14",
+      "Aula 5 - Processos de descolonização na África | Conteúdos: Imperialismo e colonização europeia na África.; Movimentos de libertação e lutas por independência. | Habilidades: EF09HI24 | AE14",
+      "Aula 6 - Líderes e movimentos de independência na África | Conteúdos: Líderes dos processos de descolonização na África: Kwame Nkrumah, Nelson Mandela, Patrice Lumumba e Amílcar Cabral. | Habilidades: EF09HI24 | AE14",
+      "Aula 7 - Processos de descolonização na Ásia: independências e lideranças | Conteúdos: Processos de descolonização na Ásia: Índia, Vietnã, Indonésia e China.; Líderes e movimentos nacionalistas asiáticos. | Habilidades: EF09HI31 | AE14",
+      "Aula 8 - O fim da Guerra Fria | Conteúdos: Estados Unidos e União Soviética.; Dissolução da União Soviética. | Habilidades: EF09HI32 | AE14",
+      "Aula 9 - Globalização em debate: movimentos críticos e seus desafios às políticas globais | Conteúdos: A globalização.; Movimentos antiglobalização.; Alternativas ao processo de globalização. | Habilidades: EF09HI32 | AE14",
+      "Aula 10 - Tecnologias digitais e as transformações da globalização | Conteúdos: Globalização.; Tecnologias digitais de informação e comunicação.; Impacto das tecnologias digitais nas relações políticas globais. | Habilidades: EF09HI33 | AE14",
+      "Aula 11 - Nacionalismo e neoliberalismo na América Latina: o papel das organizações internacionais na dinâmica regional | Conteúdos: Nacionalismo e neoliberalismo na América Latina.; Organizações Internacionais na América Latina.; Relações entre países latino-americanos. | Habilidades: EF09HI34, EF09HI27, EF09HI24 | AE14",
+      "Aula 12 - O Plano Real e as transformações econômicas no Brasil nos anos 1990 | Conteúdos: Planos econômicos e inflação no Brasil.; Plano Real.; Desigualdades sociais no Brasil. | Habilidades: EF09HI34 | AE15",
+      "Aula 13 - O Brasil nos anos 1990: o governo de Fernando Henrique Cardoso e as transformações no país | Conteúdos: Fernando Henrique Cardoso.; Cidadania e democracia no Brasil. | Habilidades: EF09HI34 | AE15",
+      "Aula 14 - Fronteiras em movimento: crise de refugiados e migrações na Era da Globalização | Conteúdos: Terrorismo, migrações forçadas e choques culturais: o drama dos refugiados no mundo contemporâneo. | Habilidades: EF09HI35 | AE16",
+      "Aula 15 - Grupos terroristas contemporâneos | Conteúdos: Grupos terroristas contemporâneos.; Grupos terroristas e suas atividades.; Impactos globais e reflexões sobre os grupos terroristas. | Habilidades: EF09HI35 | AE16",
+      "Aula 16 - Conflitos no século XXI | Conteúdos: Conflitos do século XXI. | Habilidades: EF09HI35, EF09HI36, EF09HI08 | AE16",
+      "Aula 17 - Aula Desafio: defesa das minorias | Conteúdos: Conflitos na Europa Oriental e no Oriente Médio.; As tensões entre Israel e Palestina.; Lei Estadual 10.948, de 05 de novembro de 2001.; Lei Estadual 14.187, de 19 de julho de 2010.; Lei Federal 11.340, de 07 de agosto de 2006. | Habilidades: EF09HI35 | AE16",
+      "Aula 18 - Transformações políticas, sociais e culturais no Brasil de 1989 aos dias atuais | Conteúdos: Transformações políticas, sociais e culturais no Brasil após 1989. | Habilidades: EF09HI35 | AE15"
     ]
   },
   "Língua Inglesa": {
@@ -861,6 +1539,34 @@ function criarFormularioFundamental() {
       "Aula 12 - Listen to me | Conteúdos: Oral presentation in English. - Fazer apresentação oral para falar de si e do outro. | Habilidades: EF06LI05, EF06LI18, EF06LI19 | AE2 - Realizar apresentação oral sobre si mesmo e outras pessoas, compartilhando informações pessoais, familiares, rotinas ou preferências.",
       "Aula 13 - English in daily life - Aula complementar | Conteúdos: Língua inglesa no cotidiano. - Identificar a língua inglesa no cotidiano da comunidade. | Habilidades: EF06LI25, EF06LI26",
       "Aula 14 - English in leisure activities | Conteúdos: Aula; Elementos Culturais em língua; Identificar e problematizar elementos culturais de países de língua inglesa | Habilidades: EF06LI25, EF06LI26"
+    ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Daily routine – Part 1 | Conteúdos: Verbos para descrição de rotinas diárias (e.g. get up/ brush the teeth/ take a shower).; Expressões de tempo (morning/afternoon/evening/night/o'clock/midnight). | Habilidades: EF06LI05, EF06LI17, EF06LI04, EF06LI19 | AE6",
+      "Aula 2 - Daily routine – Part 2 | Conteúdos: Expressões de tempo (morning/afternoon/evening/night/o'clock/midnight).; Horas em inglês. | Habilidades: EF06LI05, EF06LI07, EF06LI08, EF06LI09, EF06LI12, EF06LI17 | AE6",
+      "Aula 3 - I never sleep late! | Conteúdos: Indefinite frequency (always, usually, sometimes, hardly ever, never). | Habilidades: EF06LI19, EF06LI01, EF06LI02, EF06LI04, EF06LI05 | AE6",
+      "Aula 4 - How often do you study English? | Conteúdos: Definite frequency (once, twice, three times a day/week/month/year).; How often do you___? | Habilidades: EF06LI19, EF06LI09, EF06LI13, EF06LI14 | AE6",
+      "Aula 5 - Tell me about your day – Part 1 | Conteúdos: Daily routine verbs.; Negative form: don't. | Habilidades: EF06LI19, EF06LI04, EF06LI14, EF06LI15 | AE6",
+      "Aula 6 - Tell me about your day – Part 2 | Conteúdos: Sequence words: First, after that, then, finally. | Habilidades: EF06LI07, EF06LI08, EF06LI09, EF06LI12, EF06LI19 | AE6",
+      "Aula 7 - A peek at someone's routine – Part 1 | Conteúdos: Simple present: 3rd person (affirmative form). | Habilidades: EF06LI19 | AE6",
+      "Aula 8 - A peek at someone's routine – Part 2 | Conteúdos: Simple present: 3rd person (affirmative form). | Habilidades: EF06LI07, EF06LI08, EF06LI09, EF06LI12, EF06LI19 | AE6",
+      "Aula 9 - Their daily lives | Conteúdos: Daily routine verbs.; Simple Present: 3rd person (affirmative form). | Habilidades: EF06LI19, EF06LI04, EF06LI13, EF06LI14 | AE6",
+      "Aula 10 - She doesn't study in the morning! | Conteúdos: Simple Present negative form: doesn't. | Habilidades: EF06LI15, EF06LI19 | AE6",
+      "Aula 11 - Do you practice sports? | Conteúdos: Interrogative form: Do/Does. | Habilidades: EF06LI04, EF06LI19 | AE9",
+      "Aula 12 - What do you do after school? | Conteúdos: Question words (what/where/who/when/what time). | Habilidades: EF06LI19 | AE6"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Describing pictures - Part 1 | Conteúdos: Verbos de ação (ex.: run, read, play, ride…).; Presente contínuo.; Revisão: Subject Pronouns. | Habilidades: EF06LI04, EF06LI05, EF06LI20 | AE6",
+      "Aula 2 - Describing pictures - Part 2 | Conteúdos: Presente contínuo. | Habilidades: EF06LI17 | AE6",
+      "Aula 3 - My place | Conteúdos: Cômodos de uma casa. | Habilidades: EF06LI15, EF06LI17 | AE8",
+      "Aula 4 - Blueprints | Conteúdos: Cômodos de uma casa.; There + to be (na forma afirmativa). | Habilidades: EF06LI04, EF06LI05, EF06LI13, EF06LI15, EF06LI17, EF06LI01 | AE6",
+      "Aula 5 - The house of my dreams – Part 1 | Conteúdos: Tipos de moradia.; Adjetivos usados para descrever casas.; There + to be (negative form). | Habilidades: EF06LI05, EF06LI17 | AE6",
+      "Aula 6 - The house of my dreams – Part 2 | Conteúdos: Vocabulário específico sobre casas.; There + to be (negative and affirmative forms). | Habilidades: EF06LI17 | AE9",
+      "Aula 7 - How is your dream house? | Conteúdos: To be (interrogative form).; Pronome interrogativo: How many...? | Habilidades: EF06LI17 | AE6",
+      "Aula 8 - Addresses in English | Conteúdos: Vocabulário específico sobre endereços e abreviações.; Preposições de lugares (in/on/at). | Habilidades: EF06LI12, EF06LI17 | AE8",
+      "Aula 9 - Numbers and addresses - Part 1 | Conteúdos: Vocabulário específico sobre endereço.; Numbers 100-999. | Habilidades: EF06LI07, EF06LI09, EF06LI12, EF06LI17 | AE8",
+      "Aula 10 - Numbers and addresses - Part 2 | Conteúdos: Numbers in the thousands. | Habilidades: EF06LI04, EF06LI24, EF06LI25 | AE8",
+      "Aula 11 - Nationalities and languages | Conteúdos: Countries and languages. | Habilidades: EF06LI26, EF06LI04, EF06LI24 | AE10",
+      "Aula 12 - We all speak English | Conteúdos: Vocabulário específico do tema (ex.: mother language, additional language). | Habilidades: EF06LI25, EF06LI26 | AE10"
     ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Free time activities | Conteúdos: Verbs to describe leisure; Preposition “with”.; Like/ dislike + ing (ou infinitive). | Habilidades: EF07LI01, EF07LI03 | AE1 - Interagir com os colegas para trocar informações sobre acontecimentos e hábitos passados.",
@@ -906,6 +1612,38 @@ function criarFormularioFundamental() {
       "Aula 19 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
       "Aula 20 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa."
     ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Leisure-time stories - Part 1 | Conteúdos: Revisão: Simple past time markers (e.g. yesterday, last week, etc.).; Revisão: Simple Past - regular and irregular verbs. | Habilidades: EF07LI03, EF07LI06, EF07LI07, EF07LI08, EF07LI09, EF07LI11, EF07LI14, EF07LI15 | AE7",
+      "Aula 2 - Leisure-time stories - Part 2 | Conteúdos: Simple past review.; Sequence words. | Habilidades: EF07LI14 | AE10",
+      "Aula 3 - Then and now – Part 1 | Conteúdos: Specific vocabulary related to the lesson topic.; Modal verb: can/could.; Time markers: present/past. | Habilidades: EF07LI03, EF07LI04, EF07LI06, EF07LI07, EF07LI08, EF07LI09 | AE7",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI14, EF07LI15 | AE10",
+      "Aula 5 - Then and now – Part 2 | Conteúdos: Specific vocabulary related to the lesson topic.; Modal verb: can/could. | Habilidades: EF07LI18, EF07LI03 | AE7",
+      "Aula 6 - Childhood memories – Part 1 | Conteúdos: Structure: \"I used to ___ when I was __ years old.\" | Habilidades: EF07LI06, EF07LI07, EF07LI08, EF07LI09, EF07LI11, EF07LI20 | AE7",
+      "Aula 7 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI20 | AE10",
+      "Aula 8 - Childhood memories – Part 2 | Conteúdos: Specific vocabulary related to the lesson topic.; Used to – Negative form. | Habilidades: EF07LI03, EF07LI15, EF07LI02 | AE7",
+      "Aula 9 - Childhood memories – Part 3 | Conteúdos: Used to – Interrogative form. | Habilidades: EF07LI02 | AE9",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI02 | AE10",
+      "Aula 11 - Reading and entertainment | Conteúdos: Object pronouns.; Grammar review: Simple past. | Habilidades: EF07LI06, EF07LI07, EF07LI08, EF07LI09, EF07LI11 | AE9",
+      "Aula 12 - Songs and entertainment | Conteúdos: Grammar review: Simple past and object pronouns. | Habilidades: EF07LI19, EF07LI03, EF07LI04, EF07LI09 | AE8",
+      "Aula 13 - Short films and entertainment | Conteúdos: Grammar review: Simple past, connectors. | Habilidades: EF07LI03, EF07LI04, EF07LI11, EF07LI15, EF07LI19 | AE8",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI19 | AE10"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Birth dates | Conteúdos: Dates in English (ordinal numbers, months of the year).; Prepositions of time (on, in).; Simple Past: to be (was/were). | Habilidades: EF07LI02, EF07LI05, EF07LI15 | AE7",
+      "Aula 2 - Dates in history | Conteúdos: Dates in English (years).; Simple Past review: regular and irregular verbs. | Habilidades: EF07LI02, EF07LI05, EF07LI06, EF07LI08 | AE7",
+      "Aula 3 - Life story timeline - Part 1 | Conteúdos: Specific vocabulary related to timeline.; Grammar review: simple past. | Habilidades: EF07LI15, EF07LI06, EF07LI07, EF07LI08, EF07LI09, EF07LI11 | AE7",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI11 | AE10",
+      "Aula 5 - Life story timeline - Part 2 | Conteúdos: Specific vocabulary related to the lesson topic.; Grammar review: simple past. | Habilidades: EF07LI12, EF07LI13, EF07LI14, EF07LI06, EF07LI07, EF07LI08 | AE7",
+      "Aula 6 - Biographies - Part 1 | Conteúdos: Specific vocabulary related to biographies.; Verb to be: simple past - affirmative and negative forms (wasn't/weren't). | Habilidades: EF07LI09, EF07LI11, EF07LI15 | AE7",
+      "Aula 7 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI15 | AE10",
+      "Aula 8 - Biographies - Part 2 | Conteúdos: Specific vocabulary related to biographies.; Simple Past: Negative Form. | Habilidades: EF07LI06, EF07LI07, EF07LI08, EF07LI09, EF07LI11, EF07LI15 | AE7",
+      "Aula 9 - Bold women in history - Part 1 | Conteúdos: Specific vocabulary related to the lesson topic.; Simple Past - interrogative form (wh + did). | Habilidades: EF07LI03, EF07LI04, EF07LI05 | AE7",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI05 | AE10",
+      "Aula 11 - Bold women in history - Part 2 | Conteúdos: Simple Past - interrogative form (did + verb). | Habilidades: EF07LI03, EF07LI04, EF07LI05 | AE7",
+      "Aula 12 - Say it your way | Conteúdos: Linguistic prejudice. | Habilidades: EF07LI22, EF07LI01, EF07LI07, EF07LI09, EF07LI11 | AE7",
+      "Aula 13 - Aula Desafio: What can we do with our electronic waste? | Conteúdos: Vocabulário específico sobre lixo eletrônico. | Habilidades: EF07LI12 | AE7",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF07LI12 | AE10"
+    ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Weekend plans | Conteúdos: Going to para planos e intenções; Future time markers (E.g.; Quantifier: Some. | Habilidades: EF08LI03, EF08LI11, EF08LI12, EF08LI14 | AE1 - Identificar informações gerais e específicas em textos orais, especialmente sobre futuro e comparações. AE2 - Produzir texto escrito para comunicar ideias sobre o futuro.",
       "Aula 2 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
@@ -950,6 +1688,44 @@ function criarFormularioFundamental() {
       "Aula 19 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
       "Aula 20 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa."
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - The future of schools – 1 | Conteúdos: Formas futuras (revisão).; Sufixos da língua inglesa. | Habilidades: EF08LI05, EF08LI12, EF08LI13 | AE6",
+      "Aula 2 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI13 | AE6",
+      "Aula 3 - The future of schools – 2 | Conteúdos: Formas futuras (revisão).; Prefixos da língua inglesa. | Habilidades: EF08LI05, EF08LI12, EF08LI13 | AE6",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI13 | AE6",
+      "Aula 5 - Interesting places around the world – 1 | Conteúdos: Pronomes relativos.; Vocabulário temático. | Habilidades: EF08LI03, EF08LI17 | AE6",
+      "Aula 6 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI17 | AE6",
+      "Aula 7 - Interesting places around the world – 2 | Conteúdos: Pronomes relativos.; Vocabulário temático. | Habilidades: EF08LI17 | AE6",
+      "Aula 8 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI05, EF08LI08 | AE7",
+      "Aula 9 - Informative texts – 1 | Conteúdos: Leitura de textos informativos.; Skimming. | Habilidades: EF08LI08 | AE7",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 11 - Informative texts – 2 | Conteúdos: Leitura de textos informativos.; Scanning. | Habilidades: EF08LI05, EF08LI08 | AE7",
+      "Aula 12 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 13 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Are robots better than humans? - Part 1 | Conteúdos: Formas comparativas.; Vocabulário temático. | Habilidades: EF08LI03, EF08LI15 | AE6",
+      "Aula 2 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI15 | AE6",
+      "Aula 3 - Are robots better than humans? - Part 2 | Conteúdos: Formas comparativas.; Vocabulário temático. | Habilidades: EF08LI03, EF08LI15 | AE6",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI15 | AE6",
+      "Aula 5 - The coolest gadgets - Part 1 | Conteúdos: Formas superlativas.; Vocabulário temático. | Habilidades: EF08LI03, EF08LI15 | AE6",
+      "Aula 6 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI15 | AE6",
+      "Aula 7 - The coolest gadgets - Part 2 | Conteúdos: Formas superlativas.; Vocabulário temático. | Habilidades: EF08LI03, EF08LI15 | AE6",
+      "Aula 8 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI15 | AE7",
+      "Aula 9 - Narrative texts - Part 1 | Conteúdos: Leitura de textos narrativos. | Habilidades: EF08LI05, EF08LI06, EF08LI08 | AE7",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 11 - Narrative texts - Part 2 | Conteúdos: Leitura de textos narrativos. | Habilidades: EF08LI05, EF08LI06, EF08LI08 | AE7",
+      "Aula 12 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 13 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 15 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 16 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08",
+      "Aula 17 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 18 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 19 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7",
+      "Aula 20 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF08LI08 | AE7"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - You must consume less | Conteúdos: Modal Verbs.; Compreender e utilizar verbos modais para expressão de diferentes | Habilidades: EF09LI03, EF09LI04, EF09LI12, EF09LI16 | AE1 - Expressar recomendações, obrigações, necessidades e probabilidades, utilizando verbos modais em diferentes contextos comunicativos. AE2 - Identificar posicionamento crític...",
       "Aula 2 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
@@ -993,6 +1769,50 @@ function criarFormularioFundamental() {
       "Aula 18 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
       "Aula 19 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa.",
       "Aula 20 - Plataform a EF | Conteúdos: Trilha de estudos individual na; Aprimoramento da proficiência em língua inglesa."
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Expressing opinions – 1 | Conteúdos: Conectivos de adição. | Habilidades: EF09LI03, EF09LI07 | AE6",
+      "Aula 2 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI14 | AE7",
+      "Aula 3 - Expressing opinions - Part 2 | Conteúdos: Conectivos de contraste. | Habilidades: EF09LI03, EF09LI07, EF09LI14 | AE6",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI03, EF09LI07 | AE6",
+      "Aula 5 - Opinions and Evidences - Part 1 | Conteúdos: Revisão de conectivos de contraste. | Habilidades: EF09LI14, EF09LI03 | AE6",
+      "Aula 6 - Plataforma EF (contra-argumentação) | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI07 | AE6",
+      "Aula 7 - Opinions and Evidences - Part 2 | Conteúdos: Revisão de conectivos de adição e contraste.; Utilizar e reconhecer a contra-argumentação para posicionar-se criticamente em língua inglesa. | Habilidades: EF09LI14 | AE8",
+      "Aula 8 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI14 | AE8",
+      "Aula 9 - Movie Reviews - Part 1 | Conteúdos: Leitura de resenha em inglês. | Habilidades: EF09LI07 | AE8",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI07 | AE8",
+      "Aula 11 - Movie Reviews - Part 2 | Conteúdos: Leitura de resenha em inglês. | Habilidades: EF09LI07 | AE8",
+      "Aula 12 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI07 | AE8",
+      "Aula 13 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI07 | AE8",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula. | Habilidades: EF09LI07 | AE8",
+      "Aula 15 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 16 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 17 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 18 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 19 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 20 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula."
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - Reporting facts - Part 1 | Conteúdos: Conectivos de conclusão. | Habilidades: EF09LI07, EF09LI14 | AE6",
+      "Aula 2 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 3 - Reporting facts - Part 2 | Conteúdos: Conectivos de condição. | Habilidades: EF09LI07, EF09LI14 | AE6",
+      "Aula 4 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 5 - Fact or opinion? - Part 1 | Conteúdos: Revisão de conectivos de condição e conclusão. | Habilidades: EF09LI06, EF09LI14 | AE6",
+      "Aula 6 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 7 - Fact or opinion? - Part 2 | Conteúdos: Vocabulário temático. | Habilidades: EF09LI06, EF09LI14 | AE6",
+      "Aula 8 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 9 - Reading News - Part 1 | Conteúdos: Leitura textos jornalísticos em inglês. | Habilidades: EF09LI06 | AE8",
+      "Aula 10 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 11 - Reading News - Part 2 | Conteúdos: Leitura de textos jornalísticos em inglês. | Habilidades: EF09LI06 | AE8",
+      "Aula 12 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 13 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 14 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 15 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 16 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 17 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 18 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 19 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula.",
+      "Aula 20 - Plataforma EF | Conteúdos: Trilha de estudos individual na sala de aula."
     ]
   },
   "Língua Portuguesa": {
@@ -1056,6 +1876,32 @@ function criarFormularioFundamental() {
       "Aula 27 - História de uma vida - Parte 1 | Conteúdos: Aula; Leitura de biografia.; Foco narrativo. | Habilidades: EF67LP28",
       "Aula 28 - História de uma vida - Parte 2 | Conteúdos: Aula; Tempos verbais.; Reconhecer diferentes tempos verbais. | Habilidades: EF06LP11"
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Histórias de si – Parte 1 | Conteúdos: Leitura de autobiografia. | Habilidades: EF67LP28, EF67LP8 | AE5",
+      "Aula 2 - Histórias de si – Parte 2 | Conteúdos: Linguagem figurada.; Leitura de história em quadrinhos. | Habilidades: EF67LP28, EF06LP11 | AE5",
+      "Aula 3 - De quadro em quadro – Parte 1 | Conteúdos: Estratégias de leitura.; Pontuação. | Habilidades: EF67LP28 | AE9",
+      "Aula 4 - De quadro em quadro – Parte 2 | Conteúdos: Leitura de história em quadrinhos.; Humor em história em quadrinhos. | Habilidades: EF06LP11, EF69LP30 | AE9",
+      "Aula 5 - Entre balões e onomatopeias – Parte 1 | Conteúdos: Tipos de balões e onomatopeias.; Onomatopeia e interjeição. | Habilidades: EF06LP11 | AE12",
+      "Aula 6 - Entre balões e onomatopeias – Parte 2 | Conteúdos: Tipos de balões e onomatopeias.; Onomatopeia e interjeição. | Habilidades: EF06LP11 | AE12",
+      "Aula 7 - Detetives da informação – Parte 1 | Conteúdos: Leitura de verbete de dicionário.; Ordem alfabética. | Habilidades: EF06LP11 | AE9",
+      "Aula 8 - Detetives da informação – Parte 2 | Conteúdos: Leitura de verbete de dicionário.; Concordância verbal e nominal. | Habilidades: EF69LP30, EF06LP11 | AE15",
+      "Aula 9 - Verbetes: pequenos textos, grandes descobertas – Parte 1 | Conteúdos: Características de verbetes de dicionário.; Concordância verbal e nominal. | Habilidades: EF06LP03, EF06LP12, EF67LP22 | AE9",
+      "Aula 10 - Verbetes: pequenos textos, grandes descobertas – Parte 2 | Conteúdos: Inferências em verbetes de dicionário.; Sinônimos e antônimos. | Habilidades: EF67LP22 | AE9",
+      "Aula 11 - A arte de dizer com suas palavras | Conteúdos: Como parafrasear.; Sinônimos e antônimos. | Habilidades: EF67LP22 | AE9",
+      "Aula 12 - O dono das palavras leva o crédito | Conteúdos: Formas de citação em textos.; Pontuação: uso de aspas. | Habilidades: EF67LP22 | AE9",
+      "Aula 13 - Atalhos para a informação – Parte 1 | Conteúdos: Resumo a partir de esquemas e notas.; Paragrafação. | Habilidades: EF67LP22 | AE9",
+      "Aula 14 - Atalhos para a informação – Parte 2 | Conteúdos: Paragrafação.; Como usar citações para resumir. | Habilidades: EF67LP22 | AE9",
+      "Aula 15 - As muitas vozes da língua portuguesa – Parte 1 | Conteúdos: Texto jornalístico sobre variações linguísticas. | Habilidades: EF69LP55 | AE14",
+      "Aula 16 - As muitas vozes da língua portuguesa – Parte 2 | Conteúdos: Variação linguística em textos de diferentes gêneros. | Habilidades: EF69LP55, EF69LP03A, EF06LP12 | AE14",
+      "Aula 17 - As muitas vozes da língua portuguesa – Parte 3 | Conteúdos: Variação linguística em textos de gêneros diversos.; Conceito de norma-padrão. | Habilidades: EF67LP03 | AE14",
+      "Aula 18 - As muitas vozes da língua portuguesa – Parte 4 | Conteúdos: Variação linguística em textos de gêneros diversos.; Conceito de norma-padrão. | Habilidades: EF67LP03 | AE14",
+      "Aula 19 - Muitos jeitos de noticiar – Parte 1 | Conteúdos: Leitura de notícia.; Discurso direto e indireto em textos jornalísticos. | Habilidades: EF67LP03 | AE1",
+      "Aula 20 - Muitos jeitos de noticiar – Parte 2 | Conteúdos: Leitura de notícia.; Discurso direto e indireto em textos jornalísticos. | Habilidades: EF67LP03 | AE1",
+      "Aula 21 - Palavras que contam fatos – Parte 1 | Conteúdos: Comparação de textos jornalísticos: seleção lexical.; Sinônimos, antônimos, homônimos. | Habilidades: EF67LP03 | AE11",
+      "Aula 22 - Palavras que contam fatos – Parte 2 | Conteúdos: Comparação de textos jornalísticos.; Uso de terceira pessoa. | Habilidades: EF67LP06 | AE9",
+      "Aula 23 - Ler para rir – Parte 1 | Conteúdos: Piadas e anedotas. | Habilidades: EF67LP8 | AE5",
+      "Aula 24 - Ler para rir – Parte 2 | Conteúdos: Piadas e anedotas.; Ortografia. | Habilidades: EF67LP8 | AE9"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Os sentidos da notícia - Parte 1 | Conteúdos: - Leitura de notícia.; Ler e compreender uma notícia.; Analisar como as escolhas lexicais e recursos multissemióticos ajudam a | Habilidades: EF07LP01, EF69LP16A | AE1 - Reconhecer diferentes propostas editoriais, analisando o tratamento dado ao fato noticiado.",
       "Aula 2 - Os sentidos da notícia - Parte 2 | Conteúdos: - Conjunção.; Identificar efeitos de sentido provocados pelo uso de conjunções em; Explicar a relação de sentido estabelecida por uma dada conjunção. | Habilidades: EF07LP11A, EF07LP11B | AE2 - Identificar usos adequados de regras gramaticais, aplicando conhecimentos linguísticos na leitura e escrita de textos.",
@@ -1115,6 +1961,84 @@ function criarFormularioFundamental() {
       "Aula 26 - O jornalismoem imagens - Parte 2 | Conteúdos: Aula; Recursos gráfico-visuais em; Gráficos e infográficos. | Habilidades: EF07LP01",
       "Aula 27 - Carta do leitor - Parte 1 | Conteúdos: Aula complementar; Leitura de carta do leitor.; Elementos composicionais | Habilidades: EF69LP06",
       "Aula 28 - Carta do leitor - Parte 2 | Conteúdos: Aula complementar; Operadores; Interpretar efeitos de sentido provocados pelo uso de operadores | Habilidades: EF07LP10"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Aventuras em um pequeno grande universo – Parte 1 | Conteúdos: Leitura de conto de texto infantojuvenil. | Habilidades: EF67LP28 | AE5",
+      "Aula 2 - Aventuras em um pequeno grande universo – Parte 2 | Conteúdos: Ortografia. | Habilidades: EF67LP32 | AE9",
+      "Aula 3 - Reescrevendo narrativas – Parte 1 | Conteúdos: Leitura de conto.; Reescrita textual. | Habilidades: EF67LP28 | AE5",
+      "Aula 4 - Reescrevendo narrativas – Parte 2 | Conteúdos: Pontuação. | Habilidades: EF67LP28 | AE9",
+      "Aula 5 - Um documento que veio para proteger – Parte 1 | Conteúdos: Leitura de texto normativo.; Numerais. | Habilidades: EF69LP22A | AE8",
+      "Aula 6 - Um documento que veio para proteger – Parte 2 | Conteúdos: Leitura de texto normativo.; Paralelismo sintático. | Habilidades: EF69LP22A | AE8",
+      "Aula 7 - Um espaço de respeito e combinados – Parte 1 | Conteúdos: Leitura de regimento escolar. | Habilidades: EF69LP22A | AE8",
+      "Aula 8 - Um espaço de respeito e combinados – Parte 2 | Conteúdos: Leitura de regimento escolar.; Crase. | Habilidades: EF69LP22A | AE8",
+      "Aula 9 - Uma história clássica – Parte 1 | Conteúdos: Leitura de mito.; Estratégias para evitar repetição de palavras. | Habilidades: EF67LP28 | AE5",
+      "Aula 10 - Uma história clássica – Parte 2 | Conteúdos: Ortografia (S e SS). | Habilidades: EF67LP28 | AE9",
+      "Aula 11 - Rindo e aprendendo – Parte 1 | Conteúdos: Leitura de tirinhas. | Habilidades: EF69LP05A | AE12",
+      "Aula 12 - Rindo e aprendendo – Parte 2 | Conteúdos: Leitura de memes.; Clichês.; Uso de hífen em prefixos. | Habilidades: EF69LP05A | AE12",
+      "Aula 13 - Comum ou criativo? – Parte 1 | Conteúdos: Clichês.; Uso de \"mas\" e de \"mais\". | Habilidades: EF69LP05A | AE12",
+      "Aula 14 - Comum ou criativo? – Parte 2 | Conteúdos: Uso de \"mas\" e de \"mais\". | Habilidades: EF69LP05A | AE9",
+      "Aula 15 - Histórias de mistério – Parte 1 | Conteúdos: Leitura de conto de mistério. | Habilidades: EF67LP28 | AE5",
+      "Aula 16 - Histórias de mistério – Parte 2 | Conteúdos: Sujeito e predicado.; Sujeito simples e composto. | Habilidades: EF67LP28, EF06LP11 | AE5",
+      "Aula 17 - O povo conta – Parte 1 | Conteúdos: Leitura de conto popular. | Habilidades: EF67LP28, EF06LP07A | AE9",
+      "Aula 18 - O povo conta – Parte 2 | Conteúdos: Orações e períodos. | Habilidades: EF67LP28 | AE5",
+      "Aula 19 - A sabedoria das lendas indígenas – Parte 1 | Conteúdos: Leitura de lenda indígena. | Habilidades: EF67LP28 | AE9",
+      "Aula 20 - A sabedoria das lendas indígenas – Parte 2 | Conteúdos: Uso de vírgula para separar orações. | Habilidades: EF67LP28 | AE5",
+      "Aula 21 - O mundo dos mitos – Parte 1 | Conteúdos: Leitura de mito. | Habilidades: EF67LP28 | AE9",
+      "Aula 22 - O mundo dos mitos – Parte 2 | Conteúdos: Coesão referencial: uso de substantivos e pronomes. | Habilidades: EF06LP11 | AE9",
+      "Aula 23 - Arrepios literários – Parte 1 | Conteúdos: Leitura de conto de terror. | Habilidades: EF67LP28, EF06LP11 | AE5",
+      "Aula 24 - Arrepios literários – Parte 2 | Conteúdos: Ortografia: acentuação em hiatos e ditongos. | Habilidades: EF06LP11 | AE4"
+    ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - Prefácio: porta de entrada – Parte 1 | Conteúdos: Elementos dos livros: prefácio. | Habilidades: EF69LP45, EF07LP07 | AE10",
+      "Aula 2 - Prefácio: porta de entrada – Parte 2 | Conteúdos: Frase e oração.; Introdução aos tipos de sujeito. | Habilidades: EF69LP45, EF07LP07 | AE2",
+      "Aula 3 - Orelha de livro: um convite à leitura – Parte 1 | Conteúdos: Leitura de sinopse. | Habilidades: EF69LP45 | AE10",
+      "Aula 4 - Orelha de livro: um convite à leitura – Parte 2 | Conteúdos: Predicado e complementos. | Habilidades: EF69LP45 | AE10",
+      "Aula 5 - Textos que apresentam obras – Parte 1 | Conteúdos: Leitura de resenha crítica. | Habilidades: EF69LP45 | AE10",
+      "Aula 6 - Textos que apresentam obras – Parte 2 | Conteúdos: Aposto. | Habilidades: EF69LP45 | AE2",
+      "Aula 7 - Um mundo de aventuras – Parte 1 | Conteúdos: Narrativa de aventura. | Habilidades: EF69LP47, EF07LP12 | AE6",
+      "Aula 8 - Um mundo de aventuras – Parte 2 | Conteúdos: Coesão: substituições lexicais e pronominais. | Habilidades: EF69LP45, EF07LP10, EF67LP27 | AE2",
+      "Aula 9 - Escrita na internet: postagens de blogs | Conteúdos: Postagem de blogs.; Modalização. | Habilidades: EF07LP11A, EF07LP11B | AE10",
+      "Aula 10 - Vídeos que conectam | Conteúdos: Vlog.; Registro formal × informal. | Habilidades: EF07LP11B | AE2",
+      "Aula 11 - A magia em palavras cantadas – Parte 1 | Conteúdos: Leitura de canção. | Habilidades: EF07LP11B | AE8",
+      "Aula 12 - A magia em palavras cantadas – Parte 2 | Conteúdos: Orações coordenadas sindéticas e assindéticas.; Conjunções coordenativas. | Habilidades: EF07LP11B | AE2",
+      "Aula 13 - Marcas culturais na nossa língua – Parte 1 | Conteúdos: Marca cultural na variação linguística. | Habilidades: EF69LP55, EF69LP44 | AE11",
+      "Aula 14 - Marcas culturais na nossa língua – Parte 2 | Conteúdos: Variação linguística em canções populares. | Habilidades: EF07LP05A, EF07LP05B | AE11",
+      "Aula 15 - Arte popular em versos – Parte 1 | Conteúdos: Leitura de cordel. | Habilidades: EF07LP05C, EF69LP44 | AE9",
+      "Aula 16 - Arte popular em versos – Parte 2 | Conteúdos: Verbos transitivos e intransitivos. | Habilidades: EF07LP09 | AE2",
+      "Aula 17 - Poesia cantada – Parte 1 | Conteúdos: Repente e embolada.; Marcas de oralidade. | Habilidades: EF07LP09 | AE9",
+      "Aula 18 - Poesia cantada – Parte 2 | Conteúdos: Efeitos de sentido de advérbios. | Habilidades: EF07LP09 | AE2",
+      "Aula 19 - Descomplicando a ciência – Parte 1 | Conteúdos: Artigo de divulgação científica. | Habilidades: EF69LP42 | AE12",
+      "Aula 20 - Descomplicando a ciência – Parte 2 | Conteúdos: Usos da vírgula em orações coordenadas. | Habilidades: EF69LP42, EF69LP37 | AE12",
+      "Aula 21 - Da ideia ao vídeo – Parte 1 | Conteúdos: Características de roteiro para vlog científico. | Habilidades: EF07LP03, EF67LP03 | AE2",
+      "Aula 22 - Da ideia ao vídeo – Parte 2 | Conteúdos: Características de roteiro para vlog científico. | Habilidades: EF07LP06B, EF07LP06C | AE12",
+      "Aula 23 - Notícias em foco – Parte 1 | Conteúdos: Prefixos e sufixos.; Leitura e comparação de textos jornalísticos. | Habilidades: EF07LP06C | AE4",
+      "Aula 24 - Notícias em foco – Parte 2 | Conteúdos: Avaliação de confiabilidade em texto jornalístico-midiático.; Concordância verbal. | Habilidades: EF07LP06C | AE2"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Entre o verbal e o não verbal: construção de sentidos – Parte 1 | Conteúdos: Leitura de romance multimodal. | Habilidades: EF69LP44 | AE9",
+      "Aula 2 - Entre o verbal e o não verbal: construção de sentidos – Parte 2 | Conteúdos: Ortografia: uso de G/J e da letra H. | Habilidades: EF07LP10 | AE2",
+      "Aula 3 - Real ou imaginário? – Parte 1 | Conteúdos: Leitura de conto fantástico. | Habilidades: EF69LP44 | AE9",
+      "Aula 4 - Real ou imaginário? – Parte 2 | Conteúdos: Transitividade verbal.; Leitura de texto biográfico. | Habilidades: EF07LP05A, EF07LP05B, EF07LP05C | AE2",
+      "Aula 5 - Histórias que marcaram – Parte 1 | Conteúdos: Leitura de texto biográfico. | Habilidades: EF69LP44 | AE9",
+      "Aula 6 - Histórias que marcaram – Parte 2 | Conteúdos: Concordância nominal.; Uso dos porquês. | Habilidades: EF07LP10 | AE2",
+      "Aula 7 - Uma história em vários ângulos – Parte 1 | Conteúdos: Relação entre textos. | Habilidades: EF67LP27, EF07LP07 | AE8",
+      "Aula 8 - Uma história em vários ângulos – Parte 2 | Conteúdos: Estrutura básica da oração. | Habilidades: EF69LP55 | AE2",
+      "Aula 9 - A língua que falamos – Parte 1 | Conteúdos: Relação entre textos com variedades linguísticas. | Habilidades: EF69LP55, EF69LP05A | AE11",
+      "Aula 10 - A língua que falamos – Parte 2 | Conteúdos: Relação entre textos com variedades linguísticas. | Habilidades: EF07LP07 | AE11",
+      "Aula 11 - Escrita digital – Parte 1 | Conteúdos: Internetês × norma-padrão. | Habilidades: EF07LP07 | AE11",
+      "Aula 12 - Escrita digital – Parte 2 | Conteúdos: Adequação de uso da língua ao contexto de comunicação.; Internetês × norma-padrão.; Estrutura básica da oração. | Habilidades: EF07LP07 | AE5",
+      "Aula 13 - A voz da notícia – Parte 1 | Conteúdos: Estudo de jornais radiofônicos. | Habilidades: EF69LP19 | AE5",
+      "Aula 14 - A voz da notícia – Parte 2 | Conteúdos: Texto-base para produção radiofônica.; Jornal radiofônico. | Habilidades: EF07LP03, EF69LP19, EF69LP10, EF69LP44, EF07LP09 | AE5",
+      "Aula 15 - Por trás das câmeras do telejornalismo – Parte 1 | Conteúdos: Estudo de jornais televisivos. | Habilidades: EF07LP09 | AE5",
+      "Aula 16 - Por trás das câmeras do telejornalismo – Parte 2 | Conteúdos: Produção de notícia para telejornal. | Habilidades: EF07LP09 | AE2",
+      "Aula 17 - Autores indígenas – Parte 1 | Conteúdos: Leitura de texto de autor indígena. | Habilidades: EF07LP09 | AE9",
+      "Aula 18 - Autores indígenas – Parte 2 | Conteúdos: Adjetivos e locuções adjetivas.; Advérbios e locuções adverbiais. | Habilidades: EF07LP09 | AE2",
+      "Aula 19 - Proteção por escrito – Parte 1 | Conteúdos: Leitura de texto normativo. | Habilidades: EF69LP22A, EF07LP03 | AE13",
+      "Aula 20 - Proteção por escrito – Parte 2 | Conteúdos: Derivação prefixal e sufixal de palavras. | Habilidades: EF67LP27 | AE2",
+      "Aula 21 - Mesclando gêneros – Parte 1 | Conteúdos: Relação entre textos. | Habilidades: EF67LP27, EF67LP28 | AE8",
+      "Aula 22 - Mesclando gêneros – Parte 2 | Conteúdos: Relação entre textos.; Leitura de narrativa de aventura. | Habilidades: EF07LP12 | AE8",
+      "Aula 23 - Páginas de aventura – Parte 1 | Conteúdos: Coesão textual: uso de substantivos e pronomes. | Habilidades: EF07LP12 | AE6",
+      "Aula 24 - Páginas de aventura – Parte 2 | Conteúdos: Coesão textual: uso de substantivos e pronomes. | Habilidades: EF07LP12 | AE2"
     ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Campanhas que chamam para ação! - Parte 1 | Conteúdos: - Leitura de cartaz de campanha.; Identificar elementos da linguagem verbal e não verbal e; Reconhecer caráter apelativo do texto e perceber as | Habilidades: EF69LP02A, EF69LP04A | AE1 - Identificar os efeitos de sentido que fortalecem a persuasão nos textos publicitários.",
@@ -1176,6 +2100,58 @@ function criarFormularioFundamental() {
       "Aula 27 - Falar é uma arte - Parte 1 | Conteúdos: Aula; Roteiro para exposição oral.; Identificar as características e a função de exposições orais no | Habilidades: EF69LP29",
       "Aula 28 - Falar é uma arte - Parte 2 | Conteúdos: Aula; Exposição oral.; Praticar exposição oral, divulgando conhecimentos aprendidos no | Habilidades: EF69LP29"
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - A anatomia do jornal – Parte 1 | Conteúdos: Editorias de jornais impressos.; Editorias de jornais digitais e de sites noticiosos. | Habilidades: EF08LP01A, EF08LP05A, EF08LP05B, EF08LP05C | AE7",
+      "Aula 2 - A anatomia do jornal – Parte 2 | Conteúdos: Formação de palavras. | Habilidades: EF08LP01C, EF08LP01D | AE2",
+      "Aula 3 - Decodificando textos: uma missão diária – Parte 1 | Conteúdos: Leitura e comparação de notícias sobre o mesmo assunto. | Habilidades: EF08LP04A, EF08LP16B | AE7",
+      "Aula 4 - Decodificando textos: uma missão diária – Parte 2 | Conteúdos: Concordância verbal e nominal. | Habilidades: EF08LP16A, EF69LP42 | AE2",
+      "Aula 5 - Argumentos que convencem – Parte 1 | Conteúdos: Leitura de carta aberta. | Habilidades: EF08LP14A | AE11",
+      "Aula 6 - Argumentos que convencem – Parte 2 | Conteúdos: Advérbios.; Sinais de pontuação em textos argumentativos. | Habilidades: EF08LP14A | AE11",
+      "Aula 7 - Por trás das cortinas do jornalismo | Conteúdos: Artigo de divulgação científica. | Habilidades: EF08LP14A | AE11",
+      "Aula 8 - Manual crítico para ler textos jornalísticos | Conteúdos: Estratégias de leitura crítica para textos jornalísticos.; Recursos e impessoalização.; Índice de indeterminação do sujeito. | Habilidades: EF08LP14A | AE9",
+      "Aula 9 - Bastidores midiáticos – Parte 1 | Conteúdos: Oralidade. | Habilidades: EF89LP01A | AE7",
+      "Aula 10 - Bastidores midiáticos – Parte 2 | Conteúdos: Pronomes demonstrativos.; Argumentos e contra-argumentos. | Habilidades: EF08LP15, EF89LP04A | AE2",
+      "Aula 11 - Duelo de ideias – Parte 1 | Conteúdos: Argumentos e contra-argumentos.; Leitura de textos jornalísticos. | Habilidades: EF89LP04B, EF69LP15 | AE2",
+      "Aula 12 - Duelo de ideias – Parte 2 | Conteúdos: Discurso direto e discurso indireto.; Discurso indireto livre. | Habilidades: EF89LP05 | AE12",
+      "Aula 13 - Missão: reportar palavras – Parte 1 | Conteúdos: Leitura de história em quadrinhos. | Habilidades: EF69LP05A | AE12",
+      "Aula 14 - Missão: reportar palavras – Parte 2 | Conteúdos: Leitura de história em quadrinhos. | Habilidades: EF69LP05A | AE7",
+      "Aula 15 - Anatomia dos quadrinhos – Parte 1 | Conteúdos: Leitura de história em quadrinhos. | Habilidades: EF69LP05A | AE5",
+      "Aula 16 - Anatomia dos quadrinhos – Parte 2 | Conteúdos: Figura de linguagem: onomatopeia.; Ortografia: a gente × agente. | Habilidades: EF89LP37 | AE5",
+      "Aula 17 - De quadro em quadro – Parte 1 | Conteúdos: Leitura de tirinha.; Figuras de linguagem. | Habilidades: EF89LP37 | AE5",
+      "Aula 18 - De quadro em quadro – Parte 2 | Conteúdos: Verbos impessoais. | Habilidades: EF08LP14A | AE2",
+      "Aula 19 - De uma cabeça para o mundo – Parte 1 | Conteúdos: Vlog. | Habilidades: EF69LP45 | AE7",
+      "Aula 20 - De uma cabeça para o mundo – Parte 2 | Conteúdos: Verbos: modo subjuntivo. | Habilidades: EF08LP04A | AE2",
+      "Aula 21 - Entre falas e rubricas – Parte 1 | Conteúdos: Leitura de texto dramático.; Verbos: pretérito perfeito e pretérito imperfeito. | Habilidades: EF89LP34A | AE8",
+      "Aula 22 - Entre falas e rubricas – Parte 2 | Conteúdos: Verbos: pretérito perfeito e pretérito imperfeito. | Habilidades: EF08LP04A | AE2",
+      "Aula 23 - Do papel ao palco – Parte 1 | Conteúdos: Roteiro de peça teatral.; Interjeições.; Uso dos pronomes eu/mim. | Habilidades: EF89LP34A | AE8",
+      "Aula 24 - Do papel ao palco – Parte 2 | Conteúdos: Apresentação de esquete teatral. | Habilidades: EF08LP04A | AE2"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Narrativas cotidianas – Parte 1 | Conteúdos: Leitura de crônica.; Regência verbal. | Habilidades: EF69LP44, EF08LP04A | AE4",
+      "Aula 2 - Narrativas cotidianas – Parte 2 | Conteúdos: Leitura de conto popular. | Habilidades: EF69LP44, EF08LP04A | AE2",
+      "Aula 3 - Narrativas populares – Parte 1 | Conteúdos: Encontro vocálico.; Conto fantástico. | Habilidades: EF69LP44 | AE4",
+      "Aula 4 - Narrativas populares – Parte 2 | Conteúdos: Acentuação: monossílabos tônicos, oxítonas e paroxítonas. | Habilidades: EF08LP04A | AE2",
+      "Aula 5 - Mundos fantásticos – Parte 1 | Conteúdos: Leitura de poema. | Habilidades: EF69LP44, EF08LP04A | AE4",
+      "Aula 6 - Mundos fantásticos – Parte 2 | Conteúdos: Escolhas estilísticas.; Acentuação: proparoxítonas. | Habilidades: EF08LP04A | AE2",
+      "Aula 7 - Versos com intenções – Parte 1 | Conteúdos: Leitura de poema. | Habilidades: EF08LP04A | AE8",
+      "Aula 8 - Versos com intenções – Parte 2 | Conteúdos: Leitura de poema. | Habilidades: EF08LP04A | AE2",
+      "Aula 9 - Pensar e argumentar – Parte 1 | Conteúdos: Artigo de opinião. | Habilidades: EF89LP03 | AE7",
+      "Aula 10 - Pensar e argumentar – Parte 2 | Conteúdos: Regência verbal. | Habilidades: EF08LP04A | AE2",
+      "Aula 11 - Brincar com sentidos – Parte 1 | Conteúdos: Leitura de paródia. | Habilidades: EF89LP32 | AE3",
+      "Aula 12 - Brincar com sentidos – Parte 2 | Conteúdos: Palavras compostas. | Habilidades: EF08LP05A, EF08LP05B, EF08LP05C | AE2",
+      "Aula 13 - Histórias que encantam – Parte 1 | Conteúdos: Leitura de trecho de narrativa.; Termos da oração. | Habilidades: EF69LP47, EF08LP06 | AE8",
+      "Aula 14 - Histórias que encantam – Parte 2 | Conteúdos: Leitura de letra de canção.; Concordância nominal e verbal. | Habilidades: EF08LP06 | AE2",
+      "Aula 15 - Nas entrelinhas da melodia – Parte 1 | Conteúdos: Leitura de letra de canção. | Habilidades: EF69LP44 | AE4",
+      "Aula 16 - Nas entrelinhas da melodia – Parte 2 | Conteúdos: Concordância nominal e verbal. | Habilidades: EF08LP04A | AE2",
+      "Aula 17 - Vozes que transformam – Parte 1 | Conteúdos: Leitura de manifesto. | Habilidades: EF69LP22A, EF08LP08A | AE13",
+      "Aula 18 - Vozes que transformam – Parte 2 | Conteúdos: Verbos nas vozes ativa, passiva e reflexiva. | Habilidades: EF08LP08B, EF89LP06A, EF89LP06B | AE2",
+      "Aula 19 - Cartazes que impactam e convencem – Parte 1 | Conteúdos: Leitura de campanha de conscientização. | Habilidades: EF08LP09A, EF89LP33A, EF89LP33B | AE1",
+      "Aula 20 - Cartazes que impactam e convencem – Parte 2 | Conteúdos: Adjetivos, locuções e expressões adjetivas. | Habilidades: EF08LP10A | AE2",
+      "Aula 21 - Palavras de incentivo e reflexão – Parte 1 | Conteúdos: Histórias reais: relato pessoal. | Habilidades: EF08LP10A | AE4",
+      "Aula 22 - Palavras de incentivo e reflexão – Parte 2 | Conteúdos: Advérbios e locuções adverbiais. | Habilidades: EF08LP10A | AE6",
+      "Aula 23 - Falar e ouvir: discutir para construir – Parte 1 | Conteúdos: Debate regrado. | Habilidades: EF89LP12 | AE14",
+      "Aula 24 - Falar e ouvir: discutir para construir – Parte 2 | Conteúdos: Debate regrado. | Habilidades: EF89LP12 | AE14"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - Memórias não são só memórias - Parte 1 | Conteúdos: - Leitura de memórias. - Ler e compreender texto de memórias.; Localizar informação explicitamente declarada.; Fazer conexões simples entre informações adjacentes.",
       "Aula 2 - Memórias não são só memórias - Parte 2 | Conteúdos: - Verbos - Identificar verbos e analisar seu uso em contexto.; Analisar os sentidos dos verbos no texto, valendo-se de conhecimentos",
@@ -1235,6 +2211,58 @@ function criarFormularioFundamental() {
       "Aula 26 - Conectados- Parte 2 | Conteúdos: Aula complementar - Conectivos. - Analisar posts de redes sociais, observando a relação das imagens; Reconhecer, nos textos, o uso de conectivos e analisar efeitos de | Habilidades: EF08LP04A",
       "Aula 27 - Uma narrativa pode moldar uma imagem? - Parte 1 | Conteúdos: Aula complementar; Texto de ficção.; Foco narrativo. | Habilidades: EF69LP47",
       "Aula 28 - Uma narrativa pode moldar uma imagem? - Parte 2 | Conteúdos: Aula complementar; Modo e tempo verbal. - Identificar em texto ficcional verbos em diferentes tempos e modos.; Analisar efeitos de sentido decorrentes do uso de diferentes tempos e | Habilidades: EF69LP47"
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Explorando a intertextualidade: sentidos e conexões – Parte 1 | Conteúdos: Intertextualidade em canções. | Habilidades: EF89LP32 | AE3",
+      "Aula 2 - Explorando a intertextualidade: sentidos e conexões – Parte 2 | Conteúdos: Derivação sufixal. | Habilidades: EF89LP32 | AE3",
+      "Aula 3 - Versos que envolvem – Parte 1 | Conteúdos: Leitura de poema.; Figura de linguagem: anáfora. | Habilidades: EF89LP37, EF69LP48 | AE3",
+      "Aula 4 - Versos que envolvem – Parte 2 | Conteúdos: Poema.; Figuras de linguagem. | Habilidades: EF69LP48, EF89LP33A, EF89LP33B | AE3",
+      "Aula 5 - Pequenas histórias, grandes mensagens – Parte 1 | Conteúdos: Leitura de miniconto. | Habilidades: EF89LP33C, EF69LP56 | AE3",
+      "Aula 6 - Pequenas histórias, grandes mensagens – Parte 2 | Conteúdos: Usos da vírgula. | Habilidades: EF89LP33A, EF89LP33B | AE3",
+      "Aula 7 - Tramas das novelas literárias – Parte 1 | Conteúdos: Leitura de novela. | Habilidades: EF89LP33A | AE1",
+      "Aula 8 - Tramas das novelas literárias – Parte 2 | Conteúdos: Leitura de novela.; Colocação pronominal. | Habilidades: EF89LP33B, EF89LP33C | AE1",
+      "Aula 9 - Tramas das novelas literárias – Parte 3 | Conteúdos: Leitura de novela.; Colocação pronominal. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 10 - Tramas das novelas literárias – Parte 4 | Conteúdos: Conjunções. | Habilidades: EF09LP08A | AE2",
+      "Aula 11 - Um mundo visual – Parte 1 | Conteúdos: Leitura de história em quadrinhos. | Habilidades: EF69LP03D | AE10",
+      "Aula 12 - Um mundo visual – Parte 2 | Conteúdos: Leitura de história em quadrinhos.; Figura de linguagem: onomatopeia. | Habilidades: EF69LP03D | AE10",
+      "Aula 13 - Humor e mensagem – Parte 1 | Conteúdos: Leitura de charge.; Figura de linguagem: ironia. | Habilidades: EF69LP05 | AE10",
+      "Aula 14 - Humor e mensagem – Parte 2 | Conteúdos: Leitura de charge.; Ortografia: uso de \"mau\"/\"mal\" e de acento circunflexo. | Habilidades: EF69LP56 | AE2",
+      "Aula 15 - A voz da internet – Parte 1 | Conteúdos: Leitura de post de blog. | Habilidades: EF89LP04A, EF89LP04B | AE8",
+      "Aula 16 - A voz da internet – Parte 2 | Conteúdos: Leitura de post de blog.; Ortografia: SC, SÇ ou Ç. | Habilidades: EF89LP04A, EF89LP04B | AE8",
+      "Aula 17 - Entre análises e opiniões – Parte 1 | Conteúdos: Leitura de resenha crítica. | Habilidades: EF89LP04B, EF69LP16A, EF69LP16B | AE4",
+      "Aula 18 - Entre análises e opiniões – Parte 2 | Conteúdos: Advérbios e locuções adverbiais. | Habilidades: EF69LP56 | AE2",
+      "Aula 19 - Conhecimento ao alcance de todos – Parte 1 | Conteúdos: Texto de divulgação científica. | Habilidades: EF69LP33 | AE7",
+      "Aula 20 - Conhecimento ao alcance de todos – Parte 2 | Conteúdos: Texto de divulgação científica.; Pronomes relativos. | Habilidades: EF69LP56 | AE2",
+      "Aula 21 - Conhecimento ao alcance de todos – Parte 3 | Conteúdos: Texto de divulgação científica.; Ortografia: siglas. | Habilidades: EF69LP33 | AE7",
+      "Aula 22 - Conhecimento ao alcance de todos – Parte 4 | Conteúdos: Texto de divulgação científica.; Ortografia: abreviaturas. | Habilidades: EF69LP33 | AE7",
+      "Aula 23 - Garantias fundamentais – Parte 1 | Conteúdos: Texto normativo: Estatuto da Juventude. | Habilidades: EF89LP17 | AE5",
+      "Aula 24 - Garantias fundamentais – Parte 2 | Conteúdos: Texto normativo: Estatuto da Juventude.; Vocabulário: polissemia e homonímia. | Habilidades: EF89LP17 | AE5"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - Regras também fazem arte – Parte 1 | Conteúdos: Leitura de poema de forma fixa. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 2 - Regras também fazem arte – Parte 2 | Conteúdos: Leitura de poema de forma fixa.; Divisão silábica e escansão. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 3 - Poemas para ver – Parte 1 | Conteúdos: Leitura de poema visual. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 4 - Poemas para ver – Parte 2 | Conteúdos: Leitura de poema visual.; Ortografia: uso do S após consoante e dígrafos. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 5 - A arte da representação – Parte 1 | Conteúdos: Leitura de texto dramático. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE3",
+      "Aula 6 - A arte da representação – Parte 2 | Conteúdos: Variação linguística. | Habilidades: EF69LP56 | AE3",
+      "Aula 7 - Desafios da juventude em histórias marcantes – Parte 1 | Conteúdos: Leitura de romance juvenil. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 8 - Desafios da juventude em histórias marcantes – Parte 2 | Conteúdos: Ortografia: uso dos porquês. | Habilidades: EF69LP56 | AE2",
+      "Aula 9 - Capítulos que fazem história – Parte 1 | Conteúdos: Leitura de romance clássico. | Habilidades: EF89LP33A, EF89LP33B, EF89LP33C | AE1",
+      "Aula 10 - Capítulos que fazem história – Parte 2 | Conteúdos: Crase. | Habilidades: EF69LP56 | AE2",
+      "Aula 11 - Quem disse o quê? – Parte 1 | Conteúdos: Leitura de texto jornalístico. | Habilidades: EF09LP01A, EF09LP01B | AE4",
+      "Aula 12 - Quem disse o quê? – Parte 2 | Conteúdos: Citações. | Habilidades: EF89LP05, EF89LP04A | AE8",
+      "Aula 13 - Diálogos sob atenção – Parte 1 | Conteúdos: Leitura de entrevista. | Habilidades: EF89LP04B, EF89LP05 | AE8",
+      "Aula 14 - Diálogos sob atenção – Parte 2 | Conteúdos: Discurso direto e indireto. | Habilidades: EF69LP11 | AE4",
+      "Aula 15 - Diálogos que geram histórias – Parte 1 | Conteúdos: Entrevista oral. | Habilidades: EF69LP11 | AE4",
+      "Aula 16 - Diálogos que geram histórias – Parte 2 | Conteúdos: Marcas de oralidade. | Habilidades: EF69LP11 | AE4",
+      "Aula 17 - Pensar e compartilhar – Parte 1 | Conteúdos: Leitura de resenha. | Habilidades: EF89LP03, EF89LP04A, EF89LP04B | AE4",
+      "Aula 18 - Pensar e compartilhar – Parte 2 | Conteúdos: Concordância nominal e verbal. | Habilidades: EF69LP56 | AE2",
+      "Aula 19 - Entre direitos e deveres – Parte 1 | Conteúdos: Leitura do Estatuto da Pessoa Idosa. | Habilidades: EF89LP17 | AE5",
+      "Aula 20 - Entre direitos e deveres – Parte 2 | Conteúdos: Acentuação: paroxítonas e proparoxítonas. | Habilidades: EF69LP56 | AE2",
+      "Aula 21 - Palavras que humanizam, textos que protegem – Parte 1 | Conteúdos: Leitura da Declaração dos Direitos Humanos. | Habilidades: EF89LP17 | AE5",
+      "Aula 22 - Palavras que humanizam, textos que protegem – Parte 2 | Conteúdos: Leitura da Declaração dos Direitos Humanos.; Pontuação: vírgula e ponto e vírgula. | Habilidades: EF69LP56 | AE2",
+      "Aula 23 - Estruturando o pensamento | Conteúdos: Leitura de mapa conceitual. | Habilidades: EF69LP33 | AE10",
+      "Aula 24 - Desafio do mundo real | Conteúdos: Análise e resolução de situações-problema. | Habilidades: EF69LP56 | AE8"
     ]
   },
   "Matemática": {
@@ -1306,6 +2334,70 @@ function criarFormularioFundamental() {
       "Aula 31 - Aula de revisão: representaçãoe comparação de frações - Aula complementar | Conteúdos: Comparação de frações com diferentes denominadores,; Comparar frações com denominadores diferentes; Utilizar a reta numérica como recurso para comparar | Habilidades: EF06MA07, EF06MA09",
       "Aula 32 - Aula de revisão: adição e subtraçãode frações - Aula complementar | Conteúdos: Identificação de frações equivalentes para igualar; Adição e subtração de frações com denominadores diferentes.; Estratégias de cálculo mental e escrito com frações. | Habilidades: EF06MA10, EF06MA19, EF06MA20"
     ],
+    "6º Ano — 3º Bimestre": [
+      "Aula 1 - Representando números racionais na forma decimal | Conteúdos: Conversão de frações em números decimais por meio da divisão.; Representação visual de frações e números decimais. | Habilidades: EF06MA08 | AE11",
+      "Aula 2 - Composição e decomposição de números decimais | Conteúdos: Valor posicional dos algarismos em números decimais.; Composição e decomposição de números decimais.; Conversão entre frações com denominadores 10, 100 e 1000 e números decimais. | Habilidades: EF06MA08 | AE11",
+      "Aula 3 - Números decimais na reta numérica | Conteúdos: Representação de números racionais positivos (decimais e frações) na reta numérica.; Equivalência entre frações e números decimais.; Estimativas, arredondamentos e comparações de valores na reta. | Habilidades: EF06MA08, EF06MA11 | AE11",
+      "Aula 4 - Resolução de problemas - Números decimais | Conteúdos: Resolução de problemas envolvendo números racionais na forma decimal. | Habilidades: EF06MA11 | AE11",
+      "Aula 5 - Revisão: Números decimais | Conteúdos: Representação de números racionais positivos (decimais e frações) na reta numérica. | Habilidades: EF06MA11 | AE11",
+      "Aula 6 - Comparação e ordenação de números decimais | Conteúdos: Estratégias de comparação e ordenação de números decimais.; Estimativas e arredondamentos para verificar a razoabilidade de respostas. | Habilidades: EF06MA11 | AE11",
+      "Aula 7 - Estratégias de adição e subtração com números decimais | Conteúdos: Adição e subtração com números decimais.; Valor posicional dos algarismos em números decimais. | Habilidades: EF06MA11 | AE11",
+      "Aula 8 - Resolução de problemas - Adição e subtração com números decimais | Conteúdos: Problemas envolvendo adição e subtração com números decimais. | Habilidades: EF06MA11 | AE11",
+      "Aula 9 - Aula de verificação - Números racionais na forma decimal e operações com números decimais | Conteúdos: Representação de números racionais positivos (decimais e frações) na reta numérica.; Adição e subtração com números decimais. | Habilidades: EF06MA11 | AE11",
+      "Aula 10 - Revisão: Adição e subtração de números decimais | Conteúdos: Estratégias de comparação e ordenação de números decimais.; Estimativas e arredondamentos. | Habilidades: EF06MA11 | AE11",
+      "Aula 11 - Explorando adições e subtrações com números decimais | Conteúdos: Adição e subtração com números decimais, com alinhamento da vírgula.; Estratégias de cálculo mental, estimativas e uso de algoritmos. | Habilidades: EF06MA11 | AE11",
+      "Aula 12 - Multiplicação com números decimais – Parte 1 | Conteúdos: Multiplicação de número natural por número decimal.; Multiplicação de número decimal por 10, 100 e 1000.; Valor posicional dos algarismos e posição da vírgula. | Habilidades: EF06MA11 | AE11",
+      "Aula 13 - Multiplicação com números decimais – Parte 2 | Conteúdos: Multiplicação de número decimal por outro número decimal.; Estratégias de cálculo: decomposição, estimativa, cálculo direto e uso da calculadora. | Habilidades: EF06MA11 | AE11",
+      "Aula 14 - Resolução de problemas envolvendo multiplicação com números decimais | Conteúdos: Resolução de problemas envolvendo multiplicações com números decimais. | Habilidades: EF06MA11 | AE11",
+      "Aula 15 - Revisão: Forma fracionária e forma decimal | Conteúdos: Representação de números racionais nas formas fracionária e decimal. | Habilidades: EF06MA08 | AE11",
+      "Aula 16 - Potenciação de números racionais | Conteúdos: Potenciação de números decimais e frações.; Relação entre multiplicação sucessiva e potenciação.; Estratégias de cálculo com números racionais positivos. | Habilidades: EF06MA11 | AE11",
+      "Aula 17 - Divisão com números decimais | Conteúdos: Divisão de número decimal por outro número decimal.; Divisão de número natural por número decimal.; Divisão de número decimal por número natural. | Habilidades: EF06MA11 | AE11",
+      "Aula 18 - Resolução de problemas envolvendo divisões com números decimais | Conteúdos: Divisão de número decimal por outro número decimal.; Divisão de número natural por número decimal.; Divisão de número decimal por número natural. | Habilidades: EF06MA11 | AE11",
+      "Aula 19 - Aula de verificação - Operações com números decimais | Conteúdos: Multiplicação de número natural por número decimal.; Multiplicação de número decimal por 10, 100 e 1000.; Divisão de número decimal por outro número decimal. | Habilidades: EF06MA11 | AE11",
+      "Aula 20 - Revisão: Potenciação | Conteúdos: Potenciação de números decimais e frações. | Habilidades: EF06MA11 | AE11",
+      "Aula 21 - Frações com denominador igual a 100 | Conteúdos: Frações com denominador 100 como representação de porcentagens.; Equivalência entre frações, números decimais e porcentagens.; Associação de porcentagens comuns (10%, 25%, 50%, 75%, 100%) a partes do todo. | Habilidades: EF06MA13 | AE12",
+      "Aula 22 - Estratégias de cálculos de porcentagem – Parte 1 | Conteúdos: Representação de porcentagens como frações equivalentes (ex.: 25% = 1/4).; Multiplicação de frações por números decimais para calcular porcentagens. | Habilidades: EF06MA13 | AE12",
+      "Aula 23 - Estratégias de cálculos de porcentagem – Parte 2 | Conteúdos: Representação decimal de porcentagens (ex.: 25% = 0,25; 50% = 0,5).; Cálculo de porcentagens por meio da multiplicação entre números decimais. | Habilidades: EF06MA13 | AE12",
+      "Aula 24 - Resolução de problemas - Estratégias de cálculo de porcentagem | Conteúdos: Representação de porcentagens como frações e números decimais.; Multiplicação de frações e decimais por valores numéricos para calcular porcentagens. | Habilidades: EF06MA13 | AE12",
+      "Aula 25 - Revisão: Porcentagem | Conteúdos: Associação de porcentagens comuns (10%, 25%, 50%, 75%, 100%) a partes do todo. | Habilidades: EF06MA13 | AE12",
+      "Aula 26 - Acréscimos simples | Conteúdos: Representação decimal de porcentagens aplicadas a acréscimos.; Cálculo de acréscimos simples por meio da multiplicação de decimais. | Habilidades: EF06MA13 | AE12",
+      "Aula 27 - Decréscimos simples | Conteúdos: Representação decimal de porcentagens aplicadas a decréscimos.; Cálculo de decréscimos simples por meio da multiplicação de decimais. | Habilidades: EF06MA13 | AE12",
+      "Aula 28 - Resolução de problemas - Acréscimos e decréscimos simples | Conteúdos: Cálculo de acréscimos simples por meio da multiplicação de decimais.; Cálculo de decréscimos simples por meio da multiplicação de decimais. | Habilidades: EF06MA13 | AE12",
+      "Aula 29 - Aula de verificação - Estratégias de cálculo de porcentagem | Conteúdos: Multiplicação de frações por números decimais para calcular porcentagens.; Cálculo de porcentagens por meio da multiplicação entre números decimais. | Habilidades: EF06MA13 | AE12",
+      "Aula 30 - Revisão: Cálculo de porcentagem | Conteúdos: Cálculo de porcentagens por meio da multiplicação entre números decimais. | Habilidades: EF06MA13 | AE12"
+    ],
+    "6º Ano — 4º Bimestre": [
+      "Aula 1 - Sólidos geométricos em situações do cotidiano | Conteúdos: Identificação de sólidos geométricos: cilindros, cones, pirâmides, prismas.; Classificação dos sólidos: distinção entre poliedros e corpos redondos. | Habilidades: EF05MA16, EF06MA17 | AE13",
+      "Aula 2 - Elementos dos sólidos geométricos | Conteúdos: Identificação de sólidos geométricos.; Classificação dos sólidos. | Habilidades: EF05MA16, EF06MA17 | AE13",
+      "Aula 3 - Explorando características de prismas e pirâmides | Conteúdos: Elementos que constituem os prismas e pirâmides (faces, arestas e vértices).; Características dos prismas e das pirâmides. | Habilidades: EF06MA17 | AE13",
+      "Aula 4 - Resolução de problemas - Prismas e pirâmides | Conteúdos: Características dos prismas e das pirâmides.; Comparação entre prismas e pirâmides. | Habilidades: EF06MA17 | AE13",
+      "Aula 5 - Revisão: Características de prismas e pirâmides | Conteúdos: Comparação entre prismas e pirâmides. | Habilidades: EF06MA17 | AE13",
+      "Aula 6 - A forma planificada de prismas e pirâmides | Conteúdos: Associação de prismas e pirâmides a suas planificações.; Reconhecimento, nomeação e comparação dos polígonos que formam as faces. | Habilidades: EF06MA17 | AE13",
+      "Aula 7 - Explorando características de cilindros e cones | Conteúdos: Características dos corpos redondos.; Associação de cilindros e cones com prismas e pirâmides. | Habilidades: EF06MA17 | AE13",
+      "Aula 8 - Resolução de problemas - Prismas, pirâmides, cilindros e cones | Conteúdos: Associação de prismas e pirâmides a suas planificações.; Associação de cilindros e cones com prismas e pirâmides. | Habilidades: EF05MA16, EF06MA17 | AE13",
+      "Aula 9 - Aula de verificação - Figuras geométricas espaciais | Conteúdos: Identificação de sólidos geométricos.; Classificação dos sólidos.; Elementos que constituem os prismas e pirâmides. | Habilidades: EF06MA24 | AE14",
+      "Aula 10 - Revisão: Figuras geométricas espaciais e suas planificações | Conteúdos: Elementos que constituem os prismas, pirâmides e corpos redondos.; Características dos sólidos geométricos. | Habilidades: EF06MA24 | AE14",
+      "Aula 11 - Unidades de medida por toda parte | Conteúdos: Grandezas e unidades de medida: identificação das unidades convencionais.; Instrumentos e técnicas de medição. | Habilidades: EF06MA24 | AE14",
+      "Aula 12 - Medidas de comprimento | Conteúdos: Unidades de medida de comprimento.; Conversão entre unidades.; Instrumentos e técnicas de medição. | Habilidades: EF06MA24 | AE14",
+      "Aula 13 - Medidas de massa | Conteúdos: Unidades de medida de massa.; Conversão simples entre unidades.; Instrumentos e técnicas de medição. | Habilidades: EF06MA24 | AE14",
+      "Aula 14 - Resolução de problemas - Medidas de comprimento e de massa | Conteúdos: Unidades de medida de massa.; Conversão simples entre unidades.; Unidades de medida de comprimento. | Habilidades: EF06MA24 | AE14",
+      "Aula 15 - Revisão: Conversão de unidades de medida de comprimento | Conteúdos: Conversão entre unidades de medida de comprimento. | Habilidades: EF06MA24 | AE14",
+      "Aula 16 - Medidas de capacidade | Conteúdos: Unidades de medida de capacidade.; Relações entre unidades de capacidade.; Instrumentos de medição de capacidade. | Habilidades: EF06MA24 | AE14",
+      "Aula 17 - Medidas de tempo | Conteúdos: Unidades de medida de tempo.; Conversão entre unidades temporais.; Cálculo de intervalos temporais. | Habilidades: EF06MA24 | AE14",
+      "Aula 18 - Resolução de problemas - Medidas de capacidade e de tempo | Conteúdos: Unidades de medida de capacidade e de tempo.; Instrumentos de medição.; Conversão entre unidades de medida. | Habilidades: EF06MA24 | AE14",
+      "Aula 19 - Aula de verificação - Grandezas e medidas (comprimento, massa, capacidade e tempo) | Conteúdos: Grandezas e medidas: comprimento, massa, capacidade e tempo.; Sistema de unidades e conversão entre múltiplos e submúltiplos. | Habilidades: EF06MA24 | AE14",
+      "Aula 20 - Revisão: Grandezas e conversão de unidades | Conteúdos: Grandezas e medidas: comprimento, massa, tempo e capacidade.; Conversão entre unidades de medida em diferentes grandezas. | Habilidades: EF06MA24 | AE14",
+      "Aula 21 - Medindo superfícies | Conteúdos: Conceito de área.; Medição em malha quadriculada.; Comparação de superfícies. | Habilidades: EF06MA24 | AE16",
+      "Aula 22 - Área de quadrados e retângulos | Conteúdos: Cálculo de áreas em malha quadriculada.; Relação entre dimensões e área.; Resolução de problemas com áreas. | Habilidades: EF06MA03, EF06MA24 | AE15",
+      "Aula 23 - Área de triângulos | Conteúdos: Cálculo de áreas triangulares em malha quadriculada.; Decomposição de figuras.; Relação entre triângulos e retângulos. | Habilidades: EF06MA24 | AE16",
+      "Aula 24 - Resolução de problemas, envolvendo áreas de retângulos e triângulos | Conteúdos: Cálculo de áreas de quadrados, retângulos e triângulos.; Potências com expoente 2. | Habilidades: EF06MA03, EF06MA24 | AE15",
+      "Aula 25 - Revisão: Área de quadrados, retângulos e triângulos | Conteúdos: Cálculo de área de figuras planas: quadrado, retângulo e triângulo.; Interpretação de figuras em malhas quadriculadas. | Habilidades: EF06MA03, EF06MA24 | AE16",
+      "Aula 26 - Volume de cubos - Parte 1 | Conteúdos: Volume como grandeza associada a sólidos geométricos.; Empilhamento e contagem.; Potência com expoente 3. | Habilidades: EF06MA24 | AE17",
+      "Aula 27 - Volume de cubos - Parte 2 | Conteúdos: Volume como grandeza associada a sólidos geométricos.; Unidades de medida de área e de volume.; Potências de expoente 2 e 3. | Habilidades: EF06MA24 | AE15",
+      "Aula 28 - Resolução de problemas envolvendo volume | Conteúdos: Determinação do volume de sólidos por meio do empilhamento de cubos.; Volume de um cubo.; Unidades de medida de volume. | Habilidades: EF06MA03, EF06MA24 | AE17",
+      "Aula 29 - Aula de verificação - Área em malhas quadriculadas e volume por empilhamento | Conteúdos: Área de figuras em malhas quadriculadas.; Comparação de áreas.; Volume de sólidos por empilhamento de cubos. | Habilidades: EF06MA24 | AE17",
+      "Aula 30 - Revisão: Volume por empilhamento | Conteúdos: Volume de sólidos por empilhamento de blocos.; Uso de unidades de medida de volume. | Habilidades: EF06MA24 | AE17"
+    ],
     "7º Ano — 1º Bimestre": [
       "Aula 1 - Resolução de problemas envolvendo adição e subtração com números naturais | Conteúdos: Adição e subtração com números naturais.; Reta numérica.; Compreender procedimentos de cálculo mental e escrito | Habilidades: EF07MA01 | AE1 - Resolver problemas que envolvam múltiplos e divisores de números naturais, em contextos reais.",
       "Aula 2 - Resolução de problemas envolvendo multiplicação com números naturais - Parte 1 | Conteúdos: Estratégias de cálculo mental e escrito envolvendo; Reta numérica.; Compreender procedimentos de cálculo mental e escrito | Habilidades: EF07MA01 | AE1 - Resolver problemas que envolvam múltiplos e divisores de números naturais, em contextos reais.",
@@ -1373,6 +2465,70 @@ function criarFormularioFundamental() {
       "Aula 30 - Revisão: cálculo de áreas por decomposição | Conteúdos: Cálculo de área de quadriláteros (paralelogramo,; Decompor paralelogramos em triângulos e retângulos para auxiliar; Decompor losangos e trapézios em polígonos conhecidos para | Habilidades: EF07MA32 | AE8 - Resolver problemas de cálculo de áreas de figuras planas, por meio da decomposição em quadrados, retângulos e triângulos, utilizando a equivalência entre áreas e estabelec...",
       "Aula 31 - Aula de revisão: adição e subtraçãocom números racionais - Aula complementar | Conteúdos: Resolução de problemas envolvendo adição e; Resolver problemas com adição e subtração de números racionais; Realizar operações de adição e subtração com números decimais | Habilidades: EF07MA12",
       "Aula 32 - Aula de revisão: multiplicação e divisão com números racionais - Aula complementar | Conteúdos: Estratégias de cálculo de multiplicação com; Estratégias de cálculo de divisão com números; Realizar operações de multiplicação e divisão entre números | Habilidades: EF07MA11, EF07MA12, EF06MA16B, EF06MA16A, EF07MA19, EF07MA32, EF07MA31"
+    ],
+    "7º Ano — 3º Bimestre": [
+      "Aula 1 - A linguagem algébrica e a área de triângulos | Conteúdos: Expressão algébrica para o cálculo da área de triângulos.; Significado das letras como variáveis. | Habilidades: EF07MA13 | AE9",
+      "Aula 2 - A linguagem algébrica e a área de retângulos | Conteúdos: Expressões algébricas para o cálculo da área de retângulos e quadrados.; Uso de potências. | Habilidades: EF07MA13 | AE9",
+      "Aula 3 - Letras para expressar generalidades | Conteúdos: Uso de letras para expressar relações entre grandezas.; Diferença entre variável e incógnita. | Habilidades: EF07MA13 | AE9",
+      "Aula 4 - Resolução de problemas envolvendo a linguagem algébrica | Conteúdos: Construção e interpretação de expressões algébricas em contextos reais. | Habilidades: EF07MA13 | AE9",
+      "Aula 5 - Revisão: linguagem algébrica | Conteúdos: Expressão algébrica para o cálculo da área de triângulos.; Expressões algébricas para o cálculo da área de retângulos e quadrados. | Habilidades: EF07MA13 | AE9",
+      "Aula 6 - A regra de formação em sequências numéricas | Conteúdos: Identificação de regularidades em sequências numéricas.; Reconhecimento de regras de formação por adição, subtração ou múltiplos. | Habilidades: EF07MA15 | AE10",
+      "Aula 7 - Calculando termos futuros em uma sequência numérica | Conteúdos: Identificação de regularidades em sequências numéricas.; Construção de expressões algébricas para calcular termos futuros. | Habilidades: EF07MA15 | AE10",
+      "Aula 8 - Resolução de problemas envolvendo linguagem algébrica e sequências numéricas | Conteúdos: Construção de expressões algébricas para calcular termos futuros.; Uso de variáveis para representar a posição de um termo. | Habilidades: EF07MA15 | AE10",
+      "Aula 9 - Aula de verificação - Linguagem algébrica | Conteúdos: Construção e interpretação de expressões algébricas em contextos reais.; Construção de expressões algébricas para calcular termos futuros. | Habilidades: EF07MA15 | AE9",
+      "Aula 10 - Revisão: sequências numéricas | Conteúdos: Identificação de regularidades em sequências numéricas. | Habilidades: EF07MA15 | AE10",
+      "Aula 11 - Princípios de equivalência | Conteúdos: Igualdade matemática como relação de equilíbrio entre dois membros.; Transformações que preservam a igualdade. | Habilidades: EF06MA14 | AE11",
+      "Aula 12 - Explorando igualdades envolvendo a multiplicação | Conteúdos: Exploração da igualdade matemática em situações de adição e subtração.; Determinação de valores desconhecidos. | Habilidades: EF06MA14 | AE11",
+      "Aula 13 - Conhecendo as equações do 1º grau | Conteúdos: Representação de situações do cotidiano por meio de equações do 1º grau.; Compreensão da variável como símbolo. | Habilidades: EF07MA13 | AE11",
+      "Aula 14 - Resolução de problemas envolvendo igualdades | Conteúdos: Compreensão da variável como símbolo que representa um valor desconhecido.; Interpretação de equações simples na forma ax + b = c. | Habilidades: EF07MA18 | AE11",
+      "Aula 15 - Revisão: Propriedades da igualdade | Conteúdos: Determinação de valores desconhecidos em igualdades envolvendo adição, subtração e multiplicação. | Habilidades: EF06MA14, EF07MA18 | AE11",
+      "Aula 16 - A solução de equações do 1º grau – Parte 1 | Conteúdos: Resolução de equações do 1º grau com números inteiros.; Aplicação das propriedades da igualdade. | Habilidades: EF07MA18 | AE11",
+      "Aula 17 - A solução de equações do 1º grau – Parte 2 | Conteúdos: Resolução de equações do 1º grau com números racionais (frações e decimais).; Aplicação das propriedades da igualdade. | Habilidades: EF07MA18 | AE11",
+      "Aula 18 - Resolução de problemas envolvendo equações do 1º grau | Conteúdos: Resolução de equações do 1º grau com números racionais (frações e decimais). | Habilidades: EF07MA18 | AE11",
+      "Aula 19 - Aula de verificação - Equações do 1º grau | Conteúdos: Resolução de equações do 1º grau com números inteiros.; Resolução de equações do 1º grau com números racionais. | Habilidades: EF07MA18 | AE11",
+      "Aula 20 - Revisão: Equações polinomiais do 1° grau | Conteúdos: Resolução de equações do 1º grau com números inteiros.; Resolução de equações polinomiais do 1º grau na forma ax + b = c. | Habilidades: EF07MA18 | AE11",
+      "Aula 21 - Reconhecendo outros formatos de equações do 1° grau | Conteúdos: Aplicação das propriedades da igualdade: adição, subtração, multiplicação e divisão.; Compreensão da variável como representação de uma quantidade desconhecida. | Habilidades: EF07MA18 | AE11",
+      "Aula 22 - Estratégias de resolução de equações do 1º grau – Parte 1 | Conteúdos: Manipulação algébrica para isolar a variável em equações do 1º grau.; Verificação da solução por substituição. | Habilidades: EF07MA18 | AE11",
+      "Aula 23 - Estratégias de resolução de equações do 1º grau – Parte 2 | Conteúdos: Aplicação das operações inversas na resolução de equações do 1º grau.; Organização dos passos para isolar a variável. | Habilidades: EF07MA18 | AE11",
+      "Aula 24 - Resolução de problemas envolvendo equações do 1º grau – Parte 1 | Conteúdos: Manipulação algébrica de equações do 1º grau com números racionais.; Aplicação das propriedades da igualdade para simplificação. | Habilidades: EF07MA18 | AE11",
+      "Aula 25 - Revisão: equações do 1° grau em diferentes formatos | Conteúdos: Resolução de equações polinomiais do 1º grau na forma ax + b = c. | Habilidades: EF07MA18 | AE11",
+      "Aula 26 - Modelagem algébrica de problemas do 1º grau – Parte 1 | Conteúdos: Equações do 1º grau com uma incógnita.; Interpretação de situações-problema envolvendo medidas e áreas. | Habilidades: EF07MA18 | AE11",
+      "Aula 27 - Modelagem algébrica de problemas do 1º grau – Parte 2 | Conteúdos: Manipulação algébrica de equações do 1º grau com números racionais.; Aplicação das propriedades da igualdade para simplificação. | Habilidades: EF07MA18 | AE11",
+      "Aula 28 - Resolução de problemas envolvendo equações do 1º grau – Parte 2 | Conteúdos: Equações do 1º grau com uma incógnita.; Interpretação de situações-problema envolvendo medidas, área e perímetro. | Habilidades: EF07MA18 | AE11",
+      "Aula 29 - Aula de verificação - Resolução de problemas do 1º grau | Conteúdos: Aplicação das operações inversas na resolução de equações do 1º grau.; Organização dos passos para isolar a variável. | Habilidades: EF07MA18 | AE11",
+      "Aula 30 - Revisão: Modelos matemáticos com equações do 1° grau | Conteúdos: Representação de situações-problema por meio de equações do 1º grau com uma incógnita.; Aplicação das propriedades da igualdade. | Habilidades: EF07MA18 | AE11"
+    ],
+    "7º Ano — 4º Bimestre": [
+      "Aula 1 - Explorando o conceito de ângulo | Conteúdos: Ângulo como elemento geométrico.; Classificação de ângulos.; Ângulos de figuras poligonais. | Habilidades: EF07MA27 | AE12",
+      "Aula 2 - Triângulos e suas particularidades | Conteúdos: Classificação quanto aos lados.; Classificação quanto aos ângulos.; Propriedade angular dos triângulos. | Habilidades: EF07MA27 | AE12",
+      "Aula 3 - Ângulos complementares e suplementares | Conteúdos: Ângulos suplementares.; Ângulos complementares.; Relações angulares do triângulo. | Habilidades: EF07MA27 | AE12",
+      "Aula 4 - Resolução de problemas - Ângulos complementares e suplementares | Conteúdos: Ângulos suplementares.; Ângulos complementares.; Relações angulares do triângulo. | Habilidades: EF07MA27 | AE12",
+      "Aula 5 - Revisão: Classificação e propriedades dos triângulos | Conteúdos: Classificação quanto aos lados.; Classificação quanto aos ângulos.; Propriedade angular dos triângulos. | Habilidades: EF07MA27 | AE12",
+      "Aula 6 - Triângulos e ângulos | Conteúdos: Ângulos internos e externos.; Relações angulares no triângulo.; Equações do 1º grau. | Habilidades: EF07MA27 | AE12",
+      "Aula 7 - Quadriláteros e ângulos | Conteúdos: Ângulos internos e externos.; Relações angulares.; Equações do 1º grau. | Habilidades: EF07MA27 | AE12",
+      "Aula 8 - Resolução de problemas - Triângulos, quadriláteros e ângulos | Conteúdos: Relação entre os ângulos internos e externos de triângulos e quadriláteros. | Habilidades: EF07MA27 | AE12",
+      "Aula 9 - Aula de verificação - Triângulos, quadriláteros e ângulos | Conteúdos: Ângulos internos e externos de triângulos e quadriláteros.; Relações angulares.; Equações do 1º grau. | Habilidades: EF07MA27 | AE12",
+      "Aula 10 - Revisão: Relações angulares em quadriláteros | Conteúdos: Ângulos internos e externos de quadriláteros.; Relações angulares.; Equações do 1º grau. | Habilidades: EF07MA27 | AE13",
+      "Aula 11 - Razões em situações do cotidiano | Conteúdos: Conceito de razão.; Organização de dados em tabelas.; Constante de proporcionalidade. | Habilidades: EF07MA17 | AE13",
+      "Aula 12 - Entendendo a proporção | Conteúdos: Conceito de proporção.; Propriedade fundamental das proporções. | Habilidades: EF07MA17 | AE13",
+      "Aula 13 - Grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Constante de proporcionalidade.; Estratégias de cálculo mental. | Habilidades: EF07MA17 | AE13",
+      "Aula 14 - Resolução de problemas - Proporção e grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais. | Habilidades: EF07MA17 | AE13",
+      "Aula 15 - Revisão: Grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Constante de proporcionalidade.; Estratégias de cálculo mental. | Habilidades: EF07MA17 | AE13",
+      "Aula 16 - Grandezas inversamente proporcionais | Conteúdos: Grandezas inversamente proporcionais. | Habilidades: EF07MA17 | AE13",
+      "Aula 17 - Regra de três simples | Conteúdos: Grandezas diretamente e inversamente proporcionais.; Regra de três simples.; Equação do 1º grau. | Habilidades: EF07MA17 | AE13",
+      "Aula 18 - Resolução de problemas - Regra de três simples | Conteúdos: Grandezas diretamente e inversamente proporcionais.; Regra de três simples. | Habilidades: EF07MA17 | AE13",
+      "Aula 19 - Aula de verificação - Grandezas diretamente e inversamente proporcionais | Conteúdos: Grandezas diretamente e inversamente proporcionais.; Regra de três simples.; Equação do 1º grau. | Habilidades: EF07MA17 | AE13",
+      "Aula 20 - Revisão: Grandezas diretamente e inversamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Grandezas inversamente proporcionais.; Situações-problema envolvendo proporcionalidade. | Habilidades: EF07MA17, EF07MA02 | AE13",
+      "Aula 21 - Explorando porcentagens | Conteúdos: Porcentagens como frações e decimais.; Relação entre divisão, fração e porcentagem. | Habilidades: EF07MA02 | AE14",
+      "Aula 22 - Estratégias de cálculo com porcentagens – Parte 1 | Conteúdos: Porcentagens como frações e decimais.; Conversão entre formas fracionárias, decimais e percentuais.; Operações com frações. | Habilidades: EF07MA02 | AE14",
+      "Aula 23 - Estratégias de cálculo com porcentagens – Parte 2 | Conteúdos: Porcentagens como frações e decimais.; Conversão entre formas fracionárias, decimais e percentuais.; Operações com decimais. | Habilidades: EF07MA02 | AE14",
+      "Aula 24 - Resolução de problemas - Estratégias de cálculo de porcentagens | Conteúdos: Porcentagem e suas diferentes representações (fração e decimal).; Cálculo de porcentagem em situações do cotidiano. | Habilidades: EF07MA02 | AE14",
+      "Aula 25 - Revisão: Representações equivalentes e cálculo de porcentagem | Conteúdos: Representações equivalentes: fração, decimal e porcentagem.; Situações-problema envolvendo porcentagem. | Habilidades: EF07MA02 | AE14",
+      "Aula 26 - Acréscimos percentuais simples | Conteúdos: Acréscimo percentual simples.; Representação de acréscimos por meio de decimais.; Cálculo de acréscimo. | Habilidades: EF07MA02 | AE14",
+      "Aula 27 - Decréscimos percentuais simples | Conteúdos: Decréscimo percentual simples.; Representação de decréscimo por meio de decimais.; Cálculo de decréscimo. | Habilidades: EF07MA02 | AE14",
+      "Aula 28 - Resolução de problemas - Acréscimos e decréscimos percentuais simples | Conteúdos: Acréscimos e decréscimos percentuais.; Cálculo de porcentagem. | Habilidades: EF07MA02 | AE14",
+      "Aula 29 - Aula de verificação - Porcentagem: acréscimos e decréscimos | Conteúdos: Porcentagem como frações e decimais.; Acréscimo percentual simples.; Decréscimo percentual simples. | Habilidades: EF07MA02 | AE14",
+      "Aula 30 - Revisão: Acréscimos e decréscimos percentuais | Conteúdos: Acréscimos e decréscimos percentuais.; Situações-problema envolvendo porcentagem. | Habilidades: EF07MA02 | AE14"
     ],
     "8º Ano — 1º Bimestre": [
       "Aula 1 - Os números racionais no cotidiano | Conteúdos: Reconhecimento dos números racionais no; Reta numérica.; Reconhecer números positivos e negativos. | Habilidades: EF07MA10, EF07MA03 | AE1 - Resolver problemas que envolvam cálculos com números racionais, inclusive potências de expoentes inteiros, utilizando propriedades operatórias.",
@@ -1442,6 +2598,70 @@ function criarFormularioFundamental() {
       "Aula 31 - Aula de revisão: Valor numérico de expressões algébricas - Aula complementar | Conteúdos: Substituição de variáveis por valores numéricos.; Cálculo do valor numérico de expressões algébricas.; Operações com números racionais. | Habilidades: EF08MA06",
       "Aula 32 - Aula de revisão: Simplificação de expressões algébricas - Aula complementar | Conteúdos: Adição e subtração de expressões algébricas.; Multiplicação de expressões algébricas por números; Resolver problemas envolvendo a adição e subtração de | Habilidades: EF08MA06, EF07MA18, EF08MA07"
     ],
+    "8º Ano — 3º Bimestre": [
+      "Aula 1 - Explorando a equivalência entre áreas de figuras planas | Conteúdos: Conceito de área.; Unidades de medida para área.; Decomposição de figuras planas em quadrados, retângulos e triângulos. | Habilidades: EF07MA32, EF08MA19 | AE6",
+      "Aula 2 - Estratégias para o cálculo da área de triângulos, retângulos e paralelogramos | Conteúdos: Expressões de cálculo da área de triângulos.; Relação entre a área do triângulo e a área de retângulos e paralelogramos. | Habilidades: EF07MA33 | AE6",
+      "Aula 3 - Estratégias para o cálculo da área de quadriláteros | Conteúdos: Distinção entre unidades de comprimento.; Expressões de cálculo de área de quadriláteros. | Habilidades: EF07MA33 | AE6",
+      "Aula 4 - Resolução de problemas envolvendo a área de triângulos e quadriláteros | Conteúdos: Expressões de cálculo da área de triângulos e quadriláteros.; Relação entre a área do triângulo e a área de retângulos e paralelogramos. | Habilidades: EF07MA33 | AE6",
+      "Aula 5 - Revisão: área de figuras planas | Conteúdos: Expressões de cálculo de área de triângulos e quadriláteros. | Habilidades: EF07MA33 | AE6",
+      "Aula 6 - Cálculo do comprimento da circunferência | Conteúdos: Definição do número π.; Fórmulas para cálculo do comprimento da circunferência. | Habilidades: EF07MA33 | AE6",
+      "Aula 7 - Estratégias para o cálculo da área de círculos | Conteúdos: O número π.; Fórmula para o cálculo da área do círculo. | Habilidades: EF07MA33 | AE6",
+      "Aula 8 - Resolução de problemas envolvendo a área de círculos | Conteúdos: O número π.; Fórmula para o cálculo da área do círculo. | Habilidades: EF08MA19, EF05MA21, EF07MA30 | AE6",
+      "Aula 9 - Aula de verificação - Área de figuras geométricas planas | Conteúdos: Expressões de cálculo da área de triângulos.; O número π.; Expressões para o cálculo da área do círculo. | Habilidades: EF07MA30 | AE6",
+      "Aula 10 - Revisão: área de polígonos e do círculo | Conteúdos: Cálculo áreas de quadriláteros, triângulos e círculos e o comprimento de circunferências. | Habilidades: EF07MA30 | AE7",
+      "Aula 11 - Reconhecendo a grandeza volume | Conteúdos: Conceito de volume como espaço ocupado.; Medição de volume por empilhamento de cubos.; Relação entre volume e capacidade e unidades usuais. | Habilidades: EF07MA30 | AE7",
+      "Aula 12 - Volume de blocos retangulares – Parte 1 | Conteúdos: Cálculo do volume de um bloco retangular. | Habilidades: EF07MA30 | AE7",
+      "Aula 13 - Volume de blocos retangulares – Parte 2 | Conteúdos: Cálculo do volume de um cubo. | Habilidades: EF07MA30 | AE7",
+      "Aula 14 - Resolução de problemas envolvendo volume de blocos retangulares | Conteúdos: Cálculo do volume de um bloco retangular (incluindo cubos). | Habilidades: EF07MA30 | AE7",
+      "Aula 15 - Revisão: volume de blocos retangulares | Conteúdos: Cálculo do volume de um bloco retangular. | Habilidades: EF08MA20 | AE7",
+      "Aula 16 - Medidas de capacidade e de volume – Parte 1 | Conteúdos: Estabelecimento da relação entre medidas de capacidade e de volume: 1 metro cúbico e 1000 litros, 1 decímetro cúbico e 1 litro. | Habilidades: EF08MA20 | AE7",
+      "Aula 17 - Medidas de capacidade e de volume – Parte 2 | Conteúdos: Cálculo da capacidade de recipientes cujo formato é semelhante a um bloco retangular, incluindo cubos. | Habilidades: EF08MA20 | AE7",
+      "Aula 18 - Resolução de problemas envolvendo medidas de capacidade e de volume | Conteúdos: Resolução de problemas envolvendo a relação entre volume e capacidade. | Habilidades: EF08MA20 | AE7",
+      "Aula 19 - Aula de verificação - Volume e capacidade | Conteúdos: Cálculo da capacidade de recipientes cujo formato é semelhante a um bloco retangular.; Resolução de problemas envolvendo a relação entre volume e capacidade. | Habilidades: EF08MA20 | AE7",
+      "Aula 20 - Revisão: volume e capacidade | Conteúdos: Resolução de problemas envolvendo a relação entre volume e capacidade. | Habilidades: EF08MA20 | AE7",
+      "Aula 21 - Explorando problemas de contagem | Conteúdos: Problemas de contagem com dois conjuntos.; Diagrama de árvore.; Tabelas de dupla entrada para contagem de possibilidades. | Habilidades: EF05MA09 | AE8",
+      "Aula 22 - Aplicações do princípio multiplicativo | Conteúdos: Princípio multiplicativo. | Habilidades: EF08MA03, EF05MA22 | AE8",
+      "Aula 23 - Os possíveis resultados de um experimento aleatório | Conteúdos: Experimentos aleatórios e espaço amostral.; Aplicação do princípio multiplicativo. | Habilidades: EF08MA03 | AE9",
+      "Aula 24 - Resolução de problemas de contagem com princípio multiplicativo | Conteúdos: Aplicação do princípio multiplicativo. | Habilidades: EF08MA03 | AE8",
+      "Aula 25 - Revisão: princípio multiplicativo | Conteúdos: Aplicação do princípio multiplicativo. | Habilidades: EF08MA03 | AE8",
+      "Aula 26 - Cálculo da probabilidade de eventos – Parte 1 | Conteúdos: Cálculo de probabilidade de eventos equiprováveis.; Representação de probabilidade em formas fracionárias e decimais. | Habilidades: EF08MA03 | AE9",
+      "Aula 27 - Cálculo da probabilidade de eventos – Parte 2 | Conteúdos: Representação de probabilidade em formas fracionárias e decimais.; Propriedade da soma das probabilidades do espaço amostral. | Habilidades: EF08MA22 | AE9",
+      "Aula 28 - Resolução de problemas - Princípio multiplicativo e cálculos de probabilidade | Conteúdos: Cálculo de probabilidade de eventos equiprováveis.; Representação de probabilidade em formas fracionárias e decimais. | Habilidades: EF08MA22 | AE9",
+      "Aula 29 - Aula de verificação - Princípio multiplicativo e cálculos de probabilidade | Conteúdos: Aplicação do princípio multiplicativo.; Cálculo de probabilidade de eventos equiprováveis.; Representação de probabilidade em formas fracionárias e decimais. | Habilidades: EF08MA03, EF08MA22 | AE9",
+      "Aula 30 - Revisão: eventos equiprováveis | Conteúdos: Cálculo de probabilidade de eventos equiprováveis.; Representação de probabilidade em formas fracionárias e decimais. | Habilidades: EF08MA22 | AE9"
+    ],
+    "8º Ano — 4º Bimestre": [
+      "Aula 1 - Analisando dados de pesquisas no cotidiano | Conteúdos: Leitura e interpretação de dados apresentados em gráficos e tabelas.; Identificação de variáveis, frequências e elementos constitutivos dos gráficos. | Habilidades: EF06MA32 | AE10",
+      "Aula 2 - A amplitude e moda de um conjunto de dados | Conteúdos: Identificação da moda e amplitude em conjuntos de dados apresentados em tabelas e gráficos.; Compreensão da amplitude como medida de dispersão dos dados. | Habilidades: EF08MA25 | AE10",
+      "Aula 3 - Média aritmética simples | Conteúdos: Média aritmética como medida de tendência central.; Cálculo da média aritmética a partir de dados apresentados em gráficos e tabelas. | Habilidades: EF07MA35 | AE10",
+      "Aula 4 - Resolução de problemas envolvendo amplitude, média aritmética e moda de um conjunto de dados - Parte 1 | Conteúdos: Identificação da moda em conjuntos de dados.; Cálculo e interpretação da moda, média e amplitude. | Habilidades: EF08MA25 | AE10",
+      "Aula 5 - Revisão: gráficos, tabelas, moda e média aritmética | Conteúdos: Leitura e interpretação de dados.; Identificação de variáveis, frequências.; Identificação da média e moda. | Habilidades: EF08MA25 | AE10",
+      "Aula 6 - Resolução de problemas envolvendo amplitude, média aritmética e moda de um conjunto de dados - Parte 2 | Conteúdos: Média aritmética como medida de tendência central.; Situações-problema envolvendo moda e média aritmética simples. | Habilidades: EF08MA25 | AE10",
+      "Aula 7 - Práticas de pesquisa - Parte 1 | Conteúdos: Planejamento e realização de pesquisas.; Pesquisa amostral e pesquisa censitária. | Habilidades: EF07MA36 | AE10",
+      "Aula 8 - Práticas de pesquisa - Parte 2 | Conteúdos: Organização dos resultados de uma pesquisa em tabelas e gráficos.; Interpretação e comunicação dos resultados de uma pesquisa. | Habilidades: EF07MA36 | AE10",
+      "Aula 9 - Aula de verificação - Média aritmética e moda utilizando gráficos e tabelas | Conteúdos: Identificação da moda em conjuntos de dados.; Cálculo da média aritmética a partir de dados.; Interpretação de dados e resolução de problemas. | Habilidades: EF08MA25 | AE10",
+      "Aula 10 - Revisão: situações-problema envolvendo média aritmética e moda | Conteúdos: Média aritmética como medida de tendência central.; Situações-problema envolvendo moda e média aritmética simples. | Habilidades: EF08MA25 | AE10",
+      "Aula 11 - A linguagem algébrica para relacionar grandezas | Conteúdos: Reconhecimento de padrões numéricos em tabelas.; Construção de sentenças algébricas para expressar relações entre grandezas. | Habilidades: EF07MA17 | AE11",
+      "Aula 12 - Formas de representar a variação de proporcionalidade direta | Conteúdos: Representação da proporcionalidade direta por meio de tabelas, sentenças algébricas e gráficos.; Construção de expressões algébricas. | Habilidades: EF08MA12 | AE11",
+      "Aula 13 - Formas de representar a variação de proporcionalidade inversa | Conteúdos: Representação da proporcionalidade inversa por meio de tabelas, sentenças algébricas e gráficos.; Construção de expressões algébricas para representar relações inversas. | Habilidades: EF08MA12 | AE11",
+      "Aula 14 - Resolução de problemas - Representações da variação proporcional | Conteúdos: Representação da proporcionalidade direta e inversa por meio de tabelas, sentenças algébricas e gráficos. | Habilidades: EF08MA12 | AE11",
+      "Aula 15 - Revisão: Expressões algébricas e relações proporcionais | Conteúdos: Construção de expressões algébricas para representar relações entre grandezas. | Habilidades: EF08MA12 | AE11",
+      "Aula 16 - Grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Regra de três simples.; Proporcionalidade. | Habilidades: EF08MA13 | AE11",
+      "Aula 17 - Grandezas inversamente proporcionais | Conteúdos: Proporcionalidade.; Grandezas inversamente proporcionais.; Regra de três simples. | Habilidades: EF08MA13 | AE11",
+      "Aula 18 - Resolução de problemas - Grandezas diretamente e inversamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Grandezas inversamente proporcionais. | Habilidades: EF08MA13 | AE11",
+      "Aula 19 - Aula de verificação - Grandezas diretamente e inversamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Grandezas inversamente proporcionais. | Habilidades: EF08MA13 | AE11",
+      "Aula 20 - Revisão: Regra de três simples e grandezas diretamente e inversamente proporcionais | Conteúdos: Regra de três simples.; Grandezas diretamente proporcionais.; Grandezas inversamente proporcionais. | Habilidades: EF08MA13 | AE11",
+      "Aula 21 - Explorando o conceito de porcentagem | Conteúdos: Porcentagem como fração com denominador 100.; Relação entre porcentagem, fração e número decimal. | Habilidades: EF06MA13 | AE12",
+      "Aula 22 - Estratégias de cálculo de porcentagem – Parte 1 | Conteúdos: Cálculo de porcentagens simples por meio de estratégias pessoais e cálculo mental.; Associação entre porcentagens e frações equivalentes. | Habilidades: EF07MA02 | AE12",
+      "Aula 23 - Estratégias de cálculo de porcentagem – Parte 2 | Conteúdos: Aplicação da regra de três simples para o cálculo de porcentagens.; Cálculo de acréscimos e decréscimos percentuais. | Habilidades: EF08MA04 | AE12",
+      "Aula 24 - Resolução de problemas envolvendo o cálculo de porcentagens | Conteúdos: Cálculo de porcentagens simples por meio de estratégias pessoais e cálculo mental.; Aplicação da regra de três simples. | Habilidades: EF08MA04 | AE12",
+      "Aula 25 - Revisão: Porcentagem e frações equivalentes | Conteúdos: Associação entre porcentagens e frações equivalentes. | Habilidades: EF08MA04 | AE12",
+      "Aula 26 - Acréscimos percentuais simples e sucessivos | Conteúdos: Cálculo de acréscimos percentuais simples em contextos reais.; Aplicação de acréscimos percentuais sucessivos. | Habilidades: EF08MA04 | AE12",
+      "Aula 27 - Decréscimos percentuais simples e sucessivos | Conteúdos: Cálculo de decréscimos percentuais simples em valores monetários e outras grandezas.; Aplicação de decréscimos sucessivos. | Habilidades: EF08MA04 | AE12",
+      "Aula 28 - Resolução de problemas envolvendo acréscimos e decréscimos percentuais | Conteúdos: Aplicação de acréscimos percentuais sucessivos.; Aplicação de decréscimos sucessivos. | Habilidades: EF08MA04 | AE12",
+      "Aula 29 - Aula de verificação - Cálculos envolvendo porcentagens | Conteúdos: Aplicação da regra de três simples para o cálculo de porcentagens.; Cálculo de acréscimos e decréscimos percentuais. | Habilidades: EF08MA04 | AE12",
+      "Aula 30 - Revisão: Acréscimos e decréscimos percentuais sucessivos | Conteúdos: Aplicação de acréscimos percentuais sucessivos.; Aplicação de decréscimos percentuais sucessivos. | Habilidades: EF08MA04 | AE12"
+    ],
     "9º Ano — 1º Bimestre": [
       "Aula 1 - Reconhecimento e comparação de números racionais | Conteúdos: Comparação entre números racionais (forma; Representação de números racionais na reta; Reconhecer números positivos e negativos. | Habilidades: EF09MA04 | AE1 - Resolver problemas envolvendo cálculos de potenciação e radiciação com números racionais, utilizando as propriedades operatórias.",
       "Aula 2 - Multiplicação com números racionais | Conteúdos: Multiplicação com números racionais positivos e; Resolver problemas relacionados à multiplicação de números | Habilidades: EF09MA04 | AE1 - Resolver problemas envolvendo cálculos de potenciação e radiciação com números racionais, utilizando as propriedades operatórias.",
@@ -1509,6 +2729,70 @@ function criarFormularioFundamental() {
       "Aula 30 - Revisão: Expressões algébricas | Conteúdos: Cálculo do valor numérico de expressões com; Utilizar as propriedades das operações para interpretar e resolver | Habilidades: EF08MA06 | AE7 - Resolver problemas envolvendo os números reais, realizando operações e representando esses números na reta numérica.",
       "Aula 31 - Aula de revisão: Modelagem geométrica com o teorema de Pitágoras - Aula complementar | Conteúdos: Modelagem geométrica com triângulos retângulos.; Aplicação do Teorema de Pitágoras em situações; Relação entre potenciação e radiciação no contexto | Habilidades: EF09MA14",
       "Aula 32 - Aula de revisão: Semelhança de triângulos e teorema de Pitágoras - Aula complementar | Conteúdos: Semelhança de triângulos e proporção entre as; Aplicação do Teorema de Pitágoras na resolução de; Aplicar a semelhança de triângulos retângulos para resolver | Habilidades: EF09MA14, EF09MA02, EF09MA04"
+    ],
+    "9º Ano — 3º Bimestre": [
+      "Aula 1 - Variável e incógnita - Explorando problemas em que um dos termos tem valor desconhecido | Conteúdos: Variáveis e incógnitas. | Habilidades: EF07MA18 | AE8",
+      "Aula 2 - Propriedades da igualdade e resolução de equações polinomiais do 1º grau | Conteúdos: Propriedades da igualdade.; Resolução de equações polinomiais de 1º grau. | Habilidades: EF07MA18 | AE8",
+      "Aula 3 - Resolução de problemas envolvendo equações polinomiais do 1º grau – Parte 1 | Conteúdos: Resolução de equações polinomiais de 1º grau. | Habilidades: EF07MA18 | AE8",
+      "Aula 4 - Resolução de problemas envolvendo equações polinomiais do 1º grau – Parte 2 | Conteúdos: Resolução de equações polinomiais de 1º grau. | Habilidades: EF07MA18 | AE8",
+      "Aula 5 - Revisão: equações polinomiais do 1º grau | Conteúdos: Resolução de equações polinomiais de 1º grau.; Resolução de equações polinomiais de 2º grau incompletas. | Habilidades: EF07MA18 | AE8",
+      "Aula 6 - Explorando equações polinomiais do 2º grau | Conteúdos: Equações polinomiais de 2º grau incompletas. | Habilidades: EF08MA09 | AE8",
+      "Aula 7 - Resolução de problemas envolvendo equações polinomiais do 2º grau incompletas – Parte 1 | Conteúdos: Resolução de equações polinomiais de 2º grau incompletas.; Cálculo de raiz quadrada. | Habilidades: EF08MA09 | AE8",
+      "Aula 8 - Resolução de problemas envolvendo equações polinomiais de 2º grau incompletas – Parte 2 | Conteúdos: Resolução de equações polinomiais de 2º grau incompletas. | Habilidades: EF08MA09 | AE8",
+      "Aula 9 - Aula de verificação - Equações polinomiais do 1º e 2º graus incompletas | Conteúdos: Resolução de equações polinomiais de 1º grau.; Resolução de equações polinomiais de 2º grau incompletas. | Habilidades: EF07MA18, EF08MA09 | AE8",
+      "Aula 10 - Revisão: problemas envolvendo equações polinomiais do 1º grau | Conteúdos: Resolução de equações polinomiais de 2º grau incompletas. | Habilidades: EF08MA09 | AE8",
+      "Aula 11 - Reconhecendo equações polinomiais do 2º grau completas | Conteúdos: Fatoração de expressões algébricas.; Equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 12 - Investigando produtos notáveis – Parte 1 | Conteúdos: Produtos notáveis.; Resolução de equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 13 - Investigando produtos notáveis – Parte 2 | Conteúdos: Produtos notáveis.; Resolução de equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 14 - Resolução de equações polinomiais do 2º grau por meio de fatoração | Conteúdos: Produtos notáveis.; Resolução de equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 15 - Revisão: fatoração de trinômio quadrado perfeito | Conteúdos: Produtos notáveis.; Resolução de equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 16 - Investigando a fórmula resolutiva para equações polinomiais do 2º grau | Conteúdos: Equações polinomiais de 2º grau completas.; Fórmula resolutiva para equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 17 - Resolução de equações polinomiais do 2º grau por meio da fórmula resolutiva | Conteúdos: Equações polinomiais de 2º grau completas.; Fórmula resolutiva para equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 18 - Resolução de problemas envolvendo equações polinomiais do 2º grau por meio da fórmula resolutiva | Conteúdos: Equações polinomiais de 2º grau completas.; Fórmula resolutiva para equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 19 - Aula de verificação - Equações polinomiais do 2° grau | Conteúdos: Equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 20 - Revisão: resolução de equações do 2º grau pela fórmula resolutiva | Conteúdos: Equações polinomiais de 2º grau completas.; Fórmula resolutiva para equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 21 - Discussão das soluções de equações polinomiais do 2º grau | Conteúdos: Equações polinomiais de 2º grau completas. | Habilidades: EF09MA09 | AE8",
+      "Aula 22 - Resolução de equações polinomiais do 2º grau por meio das relações de soma e produto das raízes | Conteúdos: Resolução de equações por soma e produto. | Habilidades: EF09MA09 | AE8",
+      "Aula 23 - Resolução de equações polinomiais do 2º grau por meio de estratégias diversas | Conteúdos: Resolução de equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 24 - Resolução de problemas envolvendo equações polinomiais do 2º grau por meio de estratégias pessoais diversas | Conteúdos: Resolução de equações polinomiais de 2º grau. | Habilidades: EF09MA09 | AE8",
+      "Aula 25 - Revisão: problemas envolvendo soma e produto das raízes de uma equação do 2º grau | Conteúdos: Resolução de equações por soma e produto. | Habilidades: EF09MA09 | AE8",
+      "Aula 26 - Resolução de problemas envolvendo equações do 1º e 2º graus – Parte 1 | Conteúdos: Equações polinomiais de 1º grau.; Equações polinomiais de 2º grau. | Habilidades: EF09MA09, EF08MA09, EF07MA18 | AE8",
+      "Aula 27 - Resolução de problemas envolvendo equações do 1º e 2º graus – Parte 2 | Conteúdos: Equações polinomiais de 1º grau.; Equações polinomiais de 2º grau. | Habilidades: EF09MA09, EF08MA09, EF07MA18 | AE8",
+      "Aula 28 - Resolução de problemas envolvendo equações do 1º e 2º graus – Parte 3 | Conteúdos: Equações polinomiais de 1º grau.; Equações polinomiais de 2º grau. | Habilidades: EF09MA09, EF08MA09, EF07MA18 | AE8",
+      "Aula 29 - Aula de verificação - Problemas envolvendo equações polinomiais do 1º e 2º graus | Conteúdos: Equações polinomiais de 1º grau.; Equações polinomiais de 2º grau. | Habilidades: EF09MA09, EF08MA09, EF07MA18 | AE8",
+      "Aula 30 - Revisão: problemas envolvendo, simultaneamente, equações do 1º e 2º graus | Conteúdos: Equações polinomiais de 1º grau.; Equações polinomiais de 2º grau. | Habilidades: EF09MA09, EF07MA18 | AE8"
+    ],
+    "9º Ano — 4º Bimestre": [
+      "Aula 1 - Diferenciando área e perímetro | Conteúdos: Área e perímetro. | Habilidades: EF08MA19 | AE9",
+      "Aula 2 - Área de triângulos e quadriláteros | Conteúdos: Cálculo de área de triângulos e quadriláteros. | Habilidades: EF08MA19 | AE9",
+      "Aula 3 - Área de figuras geométricas planas por decomposição em triângulos e quadriláteros | Conteúdos: Cálculo de área de figuras geométricas planas que possam ser decompostas em triângulos e quadriláteros. | Habilidades: EF08MA19 | AE9",
+      "Aula 4 - Resolução de problemas envolvendo cálculo de área de figuras que possam ser decompostas em triângulos e quadriláteros | Conteúdos: Cálculo de área de figuras geométricas planas que possam ser decompostas em triângulos e quadriláteros. | Habilidades: EF08MA19 | AE9",
+      "Aula 5 - Revisão: Área de figuras planas por decomposição | Conteúdos: Cálculo de área de figuras geométricas planas que possam ser decompostas em triângulos e quadriláteros.; Área da circunferência e do setor circular. | Habilidades: EF08MA19 | AE9",
+      "Aula 6 - O número π | Conteúdos: Número π e comprimento da circunferência. | Habilidades: EF07MA33 | AE9",
+      "Aula 7 - Cálculo de área e comprimento de círculos e setores circulares | Conteúdos: Área e comprimento da circunferência e do setor circular. | Habilidades: EF09MA11, EF08MA19, EF07MA33, EF07MA34 | AE9",
+      "Aula 8 - Resolução de problemas envolvendo cálculo de área e perímetro de círculos e setores circulares | Conteúdos: Área e comprimento da circunferência e do setor circular. | Habilidades: EF09MA11 | AE9",
+      "Aula 9 - Aula de verificação - Área e perímetro de figuras geométricas planas | Conteúdos: Área e perímetro de figuras geométricas planas. | Habilidades: EF09MA11 | AE10",
+      "Aula 10 - Revisão: Área do círculo e do setor circular | Conteúdos: Área e comprimento da circunferência e do setor circular. | Habilidades: EF09MA11 | AE10",
+      "Aula 11 - Sorte ou azar? | Conteúdos: Noções de probabilidade.; Probabilidade experimental. | Habilidades: EF09MA11 | AE10",
+      "Aula 12 - Conceito de probabilidade | Conteúdos: Conceito de probabilidade. | Habilidades: EF06MA30 | AE10",
+      "Aula 13 - Cálculo de probabilidade com espaços amostrais equiprováveis | Conteúdos: Probabilidade em espaços amostrais equiprováveis. | Habilidades: EF09MA20, EF08MA22 | AE10",
+      "Aula 14 - Resolução de problemas envolvendo noções de probabilidade | Conteúdos: Probabilidade em espaços amostrais equiprováveis. | Habilidades: EF09MA20 | AE10",
+      "Aula 15 - Revisão: Probabilidade em espaços equiprováveis | Conteúdos: Probabilidade em espaços amostrais equiprováveis. | Habilidades: EF09MA20 | AE10",
+      "Aula 16 - Cálculo de probabilidade a partir da construção do espaço amostral | Conteúdos: Espaço amostral e cálculo de probabilidade. | Habilidades: EF09MA20 | AE10",
+      "Aula 17 - Reconhecimento de eventos dependentes e independentes | Conteúdos: Eventos dependentes e independentes. | Habilidades: EF09MA20 | AE10",
+      "Aula 18 - Resolução de problemas envolvendo cálculo de probabilidade por meio de estratégias diversas | Conteúdos: Cálculo de probabilidade. | Habilidades: EF09MA20 | AE10",
+      "Aula 19 - Aula de verificação - Cálculo de probabilidades | Conteúdos: Cálculo de probabilidade. | Habilidades: EF08MA22, EF09MA20 | AE10",
+      "Aula 20 - Revisão: Probabilidades | Conteúdos: Cálculo de probabilidade. | Habilidades: EF08MA12, EF09MA08 | AE10",
+      "Aula 21 - O que é proporcionalidade? | Conteúdos: Proporcionalidade.; Variação entre grandezas. | Habilidades: EF08MA12 | AE11",
+      "Aula 22 - Grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais. | Habilidades: EF08MA12 | AE11",
+      "Aula 23 - Problemas envolvendo escala | Conteúdos: Escala. | Habilidades: EF08MA12 | AE11",
+      "Aula 24 - Resolução de problemas envolvendo grandezas diretamente proporcionais | Conteúdos: Grandezas diretamente proporcionais.; Escala. | Habilidades: EF08MA12 | AE11",
+      "Aula 25 - Revisão: Grandezas diretamente proporcionais e escala | Conteúdos: Grandezas diretamente proporcionais.; Escala. | Habilidades: EF08MA12 | AE11",
+      "Aula 26 - Grandezas inversamente proporcionais | Conteúdos: Grandezas inversamente proporcionais. | Habilidades: EF08MA12 | AE11",
+      "Aula 27 - Problemas envolvendo divisão em partes proporcionais e proporcionalidade direta ou inversa entre mais de duas grandezas | Conteúdos: Divisão em partes proporcionais.; Proporcionalidade direta ou inversa entre mais de duas grandezas. | Habilidades: EF09MA08 | AE11",
+      "Aula 28 - Resolução de problemas envolvendo proporcionalidade | Conteúdos: Grandezas inversamente proporcionais.; Divisão em partes proporcionais.; Proporcionalidade direta ou inversa entre mais de duas grandezas. | Habilidades: EF09MA08 | AE11",
+      "Aula 29 - Aula de verificação - Proporcionalidade | Conteúdos: Grandezas diretamente e inversamente proporcionais.; Divisão em partes proporcionais. | Habilidades: EF09MA08 | AE11",
+      "Aula 30 - Revisão: Proporcionalidade inversa e divisão proporcional | Conteúdos: Grandezas inversamente proporcionais.; Divisão em partes proporcionais. | Habilidades: EF09MA08 | AE11"
     ]
   }
 };
@@ -1519,12 +2803,62 @@ function criarFormularioFundamental() {
   ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Matemática - 9º Ano"] = { semCurriculo: true };
 
   const ANOS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano"];
-  const BIMESTRES = ["1º Bimestre", "2º Bimestre"];
+  // 3º e 4º Bimestre ainda não têm Escopo-Sequência cadastrado (só 1º/2º
+  // vieram dos PDFs AF_V2) — os componentes já ficam preparados para
+  // recebê-los; até lá, esses bimestres simplesmente não aparecem como
+  // opção (ver bimestresValidosDoAno_).
+  const BIMESTRES = ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"];
   const TURMAS = ["A", "B", "C", "D", "E", "F"].map(function(letra) {
     return "Turma " + letra;
   });
 
   const COMPONENTES = Object.keys(ESCOPOS_POR_COMPONENTE).sort();
+
+  // Um bloco é "real" quando tem aulas de fato cadastradas.
+  function ehBlocoReal_(aulas) {
+    return !!aulas && aulas.length > 0;
+  }
+
+  function bimestresValidosDoAno_(escopo, ano) {
+    return BIMESTRES.filter(function(bimestre) {
+      return ehBlocoReal_(escopo[ano + " — " + bimestre]);
+    });
+  }
+
+  // Um componente "nunca recebeu dado nenhum" quando não tem nenhum bloco
+  // real em nenhum ano — nesse caso ele continua aparecendo em todos os
+  // anos (com campo de texto livre) para não sumir da lista de escolha.
+  function escopoTemAlgumDadoReal_(escopo) {
+    return ANOS.some(function(ano) {
+      return bimestresValidosDoAno_(escopo, ano).length > 0;
+    });
+  }
+
+  // Alguns componentes (Orientação de Estudo...) só existem para um ano
+  // específico — isso já vem embutido no nome, ex.: "... - 6º Ano".
+  function anoRestritoDoComponente_(componente) {
+    for (var i = 0; i < ANOS.length; i++) {
+      if (componente.slice(-ANOS[i].length - 3) === " - " + ANOS[i]) {
+        return ANOS[i];
+      }
+    }
+    return null;
+  }
+
+  // Componentes oferecidos para um ano: os que têm Escopo-Sequência real
+  // para ele, os restritos a esse ano específico (Orientação de Estudo...),
+  // os sem Currículo Priorizado sem restrição de ano, e os que ainda não
+  // têm dado algum cadastrado (placeholder).
+  function componentesValidosDoAno_(componentes, ano) {
+    return componentes.filter(function(componente) {
+      var restrito = anoRestritoDoComponente_(componente);
+      if (restrito) return restrito === ano;
+      var escopo = ESCOPOS_POR_COMPONENTE[componente];
+      if (escopo.semCurriculo) return true;
+      if (bimestresValidosDoAno_(escopo, ano).length > 0) return true;
+      return !escopoTemAlgumDadoReal_(escopo);
+    });
+  }
 
   const ESTRATEGIAS = [
     "Aula expositiva dialogada",
@@ -1581,71 +2915,125 @@ function criarFormularioFundamental() {
     .setHelpText("Ex.: Maria da Silva")
     .setRequired(true);
 
-  const itemComponente = form.addListItem()
-    .setTitle("Componente curricular *")
-    .setRequired(true);
-
-  itemComponente.setChoiceValues(COMPONENTES);
-
-  form.addListItem()
-    .setTitle("Ano *")
-    .setRequired(true)
-    .setChoiceValues(ANOS);
-
-  form.addCheckboxItem()
-    .setTitle("Turma(s) *")
-    .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
-    .setChoiceValues(TURMAS)
-    .setRequired(true);
-
-  form.addListItem()
-    .setTitle("Bimestre *")
-    .setRequired(true)
-    .setChoiceValues(BIMESTRES);
-
   form.addTextItem()
     .setTitle("Data prevista para a(s) aula(s)")
     .setHelpText("Ex.: 03/06/2026 ou 03/06 a 07/06/2026");
 
-  const secoesPorComponente = {};
+  // ══════════════════════════════════════════════════════════════════════════
+  // SEÇÕES 2 a 6 — ANO → TURMA → COMPONENTE → BIMESTRE → ESCOPO-SEQUÊNCIA
+  //
+  // O Google Forms só ramifica a página seguinte a partir da resposta da
+  // pergunta imediatamente anterior — por isso a árvore de navegação
+  // precisa aninhar Ano dentro de Componente dentro de Bimestre, mesmo
+  // pedindo as perguntas nessa ordem ao respondente (ver mesmo padrão em
+  // planejamento_medio.gs):
+  //   • Ano (2): pergunta única, sempre feita — leva a uma página por ano
+  //     contendo Turma e Componente.
+  //   • Turma (3): checkbox simples, não ramifica.
+  //   • Componente (4): só são oferecidos, para o ano escolhido, os
+  //     componentes com Escopo-Sequência real para ele
+  //     (componentesValidosDoAno_), os restritos a esse ano específico
+  //     (Orientação de Estudo...), e os que ainda não têm dado algum
+  //     cadastrado (para não sumirem da lista).
+  //   • Bimestre (5): só são oferecidos os bimestres com aulas reais
+  //     (bimestresValidosDoAno_) para o ano/componente escolhidos — hoje
+  //     só 1º/2º têm dado; 3º/4º aparecem assim que forem cadastrados.
+  //   • Escopo-Sequência (6): checkbox das aulas do componente+bimestre
+  //     escolhidos (ou campo de texto livre quando não há currículo
+  //     priorizado ou dado cadastrado).
+  //   • Toda página "folha" é registrada em paginasFinais_ e, ao final,
+  //     redirecionada para a Seção 7 (Estratégias e Recursos).
+  // ══════════════════════════════════════════════════════════════════════════
 
-  COMPONENTES.forEach(function(componente) {
+  const paginasFinais_ = [];
+
+  function construirBlocoBimestreEscopo_(ano, componente, paginaAtual) {
     var escopo = ESCOPOS_POR_COMPONENTE[componente];
+    var semCurriculo = !!escopo.semCurriculo;
+    var bimestresValidos = semCurriculo ? [] : bimestresValidosDoAno_(escopo, ano);
 
-    var secao = form.addPageBreakItem()
-      .setTitle("Aulas e Objetivos - " + componente)
-      .setHelpText(
-        escopo && !escopo.semCurriculo
-          ? "Selecione as aulas do Escopo-Sequência que você planeja trabalhar neste período."
-          : "Descreva as aulas e os objetivos previstos para este período."
-      );
-
-    secoesPorComponente[componente] = secao;
-
-    if (escopo && !escopo.semCurriculo) {
-      ANOS.forEach(function(ano) {
-        BIMESTRES.forEach(function(bimestre) {
-          var blocoLabel = ano + " — " + bimestre;
-          var aulas = escopo[blocoLabel];
-
-          if (aulas && aulas.length) {
-            form.addCheckboxItem()
-              .setTitle("Aulas - " + blocoLabel)
-              .setHelpText("Marque as aulas que fazem parte deste planejamento.")
-              .setChoiceValues(aulas);
-          }
-        });
-      });
-    } else {
+    if (semCurriculo || bimestresValidos.length === 0) {
+      form.addListItem().setTitle("Bimestre *").setRequired(true).setChoiceValues(BIMESTRES);
       form.addParagraphTextItem()
-        .setTitle("Aulas e objetivos planejados *")
-        .setHelpText("Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos.")
-        .setRequired(true);
+        .setTitle("Aulas e objetivos planejados" + (semCurriculo ? " *" : ""))
+        .setHelpText(
+          semCurriculo
+            ? "Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos."
+            : "O Escopo-Sequência para " + componente + " — " + ano + " ainda não foi inserido no sistema. " +
+              "Descreva as aulas e conteúdos previstos."
+        )
+        .setRequired(semCurriculo);
+      paginasFinais_.push(paginaAtual);
+      return;
     }
+
+    if (bimestresValidos.length === 1) {
+      var chaveUnica = ano + " — " + bimestresValidos[0];
+      form.addCheckboxItem()
+        .setTitle("Aulas — " + chaveUnica)
+        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+        .setChoiceValues(escopo[chaveUnica]);
+      paginasFinais_.push(paginaAtual);
+      return;
+    }
+
+    var itemBimestre = form.addListItem()
+      .setTitle("Bimestre *")
+      .setHelpText("Selecione o bimestre para ver as aulas de " + componente + " — " + ano + ".")
+      .setRequired(true);
+
+    var escolhasBimestre = bimestresValidos.map(function(bimestre) {
+      var chave = ano + " — " + bimestre;
+      var paginaBimestre = form.addPageBreakItem().setTitle("Aulas — " + componente + " — " + chave);
+      form.addCheckboxItem()
+        .setTitle("Aulas — " + chave)
+        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+        .setChoiceValues(escopo[chave]);
+      paginasFinais_.push(paginaBimestre);
+      return itemBimestre.createChoice(bimestre, paginaBimestre);
+    });
+    itemBimestre.setChoices(escolhasBimestre);
+  }
+
+  var itemAno = form.addListItem()
+    .setTitle("Ano *")
+    .setHelpText("Selecione o ano da turma para ver a Turma e o Componente correspondentes.")
+    .setRequired(true);
+
+  var escolhasAno = ANOS.map(function(ano) {
+    var paginaAno = form.addPageBreakItem()
+      .setTitle("Turma e Componente — " + ano);
+
+    form.addCheckboxItem()
+      .setTitle("Turma(s) *")
+      .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
+      .setChoiceValues(TURMAS)
+      .setRequired(true);
+
+    var itemComponente = form.addListItem()
+      .setTitle("Componente curricular *")
+      .setHelpText("Selecione o componente para ver o Bimestre e o Escopo-Sequência correspondentes.")
+      .setRequired(true);
+
+    var componentesValidos = componentesValidosDoAno_(COMPONENTES, ano);
+    var escolhasComponente = componentesValidos.map(function(componente) {
+      var paginaComponente = form.addPageBreakItem()
+        .setTitle("Bimestre e Escopo — " + componente + " — " + ano);
+      construirBlocoBimestreEscopo_(ano, componente, paginaComponente);
+      return itemComponente.createChoice(componente, paginaComponente);
+    });
+    itemComponente.setChoices(escolhasComponente);
+
+    return itemAno.createChoice(ano, paginaAno);
   });
+  itemAno.setChoices(escolhasAno);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SEÇÃO 7 — ESTRATÉGIAS DIDÁTICAS E RECURSOS
+  // ══════════════════════════════════════════════════════════════════════════
 
   var secaoEstrategias = form.addPageBreakItem()
-    .setTitle("2. Estratégias Didáticas e Recursos")
+    .setTitle("7. Estratégias Didáticas e Recursos")
     .setHelpText("Como você vai conduzir e apoiar a aprendizagem?");
 
   form.addCheckboxItem()
@@ -1666,7 +3054,7 @@ function criarFormularioFundamental() {
     .setRequired(true);
 
   form.addPageBreakItem()
-    .setTitle("3. Avaliação dos Objetivos de Aprendizagem")
+    .setTitle("8. Avaliação dos Objetivos de Aprendizagem")
     .setHelpText("Reflita sobre como será verificado o alcance dos objetivos previstos.");
 
   form.addCheckboxItem()
@@ -1694,13 +3082,12 @@ function criarFormularioFundamental() {
     .setTitle("Observações / adaptações curriculares")
     .setHelpText("Registre adaptações, recomposição de aprendizagem ou outras observações relevantes.");
 
-  var choicesComponente = COMPONENTES.map(function(componente) {
-    return itemComponente.createChoice(componente, secoesPorComponente[componente]);
-  });
-  itemComponente.setChoices(choicesComponente);
-
-  COMPONENTES.forEach(function(componente) {
-    secoesPorComponente[componente].setGoToPage(secaoEstrategias);
+  // Toda página "folha" (onde as aulas do Escopo-Sequência ou o texto livre
+  // aparecem de fato) redireciona para Estratégias ao terminar. Páginas
+  // intermediárias (que só perguntam Ano, Componente ou Bimestre) já têm
+  // sua navegação definida pelas escolhas do respectivo item.
+  paginasFinais_.forEach(function(pagina) {
+    pagina.setGoToPage(secaoEstrategias);
   });
 
   var url = form.getPublishedUrl();

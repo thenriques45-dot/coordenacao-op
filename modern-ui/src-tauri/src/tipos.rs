@@ -728,21 +728,24 @@ pub(crate) struct GerarPlanejamentosLoteResultado {
     pub(crate) erros: Vec<String>,
 }
 
-// Configuração: até 4 planilhas (segmento × semestre) + versão do currículo.
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub(crate) struct ParPlanejamento {
-    #[serde(default)]
-    pub(crate) sem1: String,
-    #[serde(default)]
-    pub(crate) sem2: String,
-}
-
+// Configuração: uma planilha de respostas por segmento + versão do currículo.
+// Cada segmento já cobre o ano letivo inteiro (1º ao 4º bimestre) num só
+// Forms, então não há mais separação por semestre.
+// Anos Iniciais fica de fora por enquanto — sem Currículo Priorizado próprio.
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub(crate) struct ConfigPlanejamento {
     #[serde(default)]
-    pub(crate) fundamental: ParPlanejamento,
+    pub(crate) anos_finais: String,
     #[serde(default)]
-    pub(crate) medio: ParPlanejamento,
+    pub(crate) medio: String,
     #[serde(default)]
     pub(crate) versao: String,
+    // Datas de corte (YYYY-MM-DD) usadas para decidir qual semestre a
+    // bolinha de status das turmas está acompanhando: até o prazo do 1º
+    // semestre, avalia a entrega dos bimestres 1 e 2; depois, passa a
+    // avaliar os bimestres 3 e 4.
+    #[serde(default)]
+    pub(crate) prazo_1_semestre: String,
+    #[serde(default)]
+    pub(crate) prazo_2_semestre: String,
 }
