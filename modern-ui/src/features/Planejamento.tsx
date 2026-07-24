@@ -416,8 +416,9 @@ export function TelaPlanejamento({ turmas, onVoltar }: { turmas: TurmaResumo[]; 
                 <ol style={textoPassoStyle}>
                   <li>Acesse <em>script.google.com</em> e crie um novo projeto.</li>
                   <li>Apague o conteúdo padrão e <em>cole</em> o script copiado.</li>
-                  <li>Clique em <em>Executar</em> (▶) — o editor já seleciona a única função do script — e autorize as permissões.</li>
-                  <li>O link do formulário aparece no <em>Registro de execução</em> (Ctrl+Enter).</li>
+                  <li>Selecione a função principal (<em>criarFormulario</em> ou <em>criarFormularioFundamental</em>), clique em <em>Executar</em> (▶) e autorize as permissões.</li>
+                  <li>O formulário é montado em etapas: se uma execução não bastar, o script agenda sozinho a continuação (~1 min) — acompanhe pelo menu <em>Execuções</em>, sem executar de novo.</li>
+                  <li>O link do formulário aparece no registro da última execução concluída.</li>
                 </ol>
               </div>
             </div>

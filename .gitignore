@@ -19,6 +19,7 @@ AppDir/
 backups/
 *.AppImage
 *.spec
+/EXEMPLO_*.docx
 dados/**
 !dados/imagens/
 !dados/imagens/**

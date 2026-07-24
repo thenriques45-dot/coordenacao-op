@@ -3,12 +3,28 @@
  * Secretaria de Educação do Estado de São Paulo
  *
  * COMO USAR:
- * 1. Acesse script.google.com e crie um novo projeto ou abra o script existente.
- * 2. Cole todo este código no editor.
- * 3. Para atualizar um Forms já criado, preencha ID_FORMULARIO_EXISTENTE.
- * 4. Clique em "Executar" na função criarFormularioFundamental.
- * 5. Autorize as permissões solicitadas.
- * 6. O link do Forms atualizado aparecerá no Log (Ctrl+Enter).
+ * 1. Acesse script.google.com e crie um novo projeto
+ * 2. Apague o conteúdo padrão e cole todo este código no editor
+ * 3. Selecione a função criarFormularioFundamental e clique em "Executar" (▶)
+ * 4. Autorize as permissões solicitadas (Formulários e acionadores — os
+ *    acionadores servem para o script continuar o trabalho sozinho)
+ * 5. O formulário é montado em etapas. Se uma execução não bastar, o script
+ *    agenda sozinho a continuação para ~1 minuto depois — acompanhe pelo
+ *    menu "Execuções" à esquerda; NÃO é preciso executar de novo
+ * 6. Ao concluir, o link do Forms aparece no log da última execução
+ *
+ * PARA ATUALIZAR UM FORMS JÁ CRIADO:
+ * — O formulário criado por este projeto fica memorizado: executar
+ *   criarFormularioFundamental de novo atualiza o mesmo Forms (as respostas
+ *   já recebidas são preservadas; as perguntas são recriadas)
+ * — Para atualizar um Forms criado fora deste projeto, preencha
+ *   ID_FORMULARIO_EXISTENTE abaixo com o ID (o trecho longo da URL de edição)
+ *
+ * FUNÇÕES AUXILIARES (lista de funções do editor):
+ * — resetarCriacaoFormulario: cancela uma montagem em andamento (limpa o
+ *   progresso salvo e os acionadores de continuação)
+ * — desvincularFormularioSalvo: faz o script esquecer o Forms memorizado;
+ *   a próxima execução criará um formulário novo do zero
  *
  * Escopos extraídos dos PDFs AF_V2 enviados (só 1º e 2º Bimestre por
  * enquanto — 3º e 4º ainda pendentes de cadastro):
@@ -24,54 +40,12 @@
  */
 
 const ID_FORMULARIO_EXISTENTE = "";
+
 const TITULO_FORMULARIO = "Planejamento Docente - Ensino Fundamental Anos Finais";
 
-function obterFormulario_() {
-  if (
-    ID_FORMULARIO_EXISTENTE &&
-    ID_FORMULARIO_EXISTENTE !== "COLE_AQUI_O_ID_DO_FORMULARIO"
-  ) {
-    return FormApp.openById(ID_FORMULARIO_EXISTENTE);
-  }
+// ─── DADOS DO ESCOPO-SEQUÊNCIA ──────────────────────────────────────────────
 
-  return FormApp.create(TITULO_FORMULARIO);
-}
-
-function limparItensFormulario_(form) {
-  var itens = form.getItems();
-
-  itens.forEach(function(item) {
-    try {
-      if (item.getType() === FormApp.ItemType.PAGE_BREAK) {
-        item.asPageBreakItem().setGoToPage(FormApp.PageNavigationType.CONTINUE);
-      }
-    } catch (erro) {
-      Logger.log("Não foi possível limpar navegação de uma seção: " + erro);
-    }
-  });
-
-  itens.forEach(function(item) {
-    try {
-      if (item.getType() === FormApp.ItemType.LIST) {
-        item.asListItem().setChoiceValues(["Temporário"]);
-      } else if (item.getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
-        item.asMultipleChoiceItem().setChoiceValues(["Temporário"]);
-      } else if (item.getType() === FormApp.ItemType.CHECKBOX) {
-        item.asCheckboxItem().setChoiceValues(["Temporário"]);
-      }
-    } catch (erro) {
-      Logger.log("Não foi possível limpar alternativas de um item: " + erro);
-    }
-  });
-
-  itens = form.getItems();
-  for (var i = itens.length - 1; i >= 0; i--) {
-    form.deleteItem(itens[i]);
-  }
-}
-
-function criarFormularioFundamental() {
-  const ESCOPOS_POR_COMPONENTE = {
+const ESCOPOS_POR_COMPONENTE = {
   "Arte": {
     "6º Ano — 1º Bimestre": [
       "Aula 1 - Descobrindo o Frevo | Conteúdos: Danças Populares Brasileiras.; Origens das Danças.; Variação de Tempo. | Habilidades: EF06AR09, EF06AR10, EF06AR11 | AE1 - Diferenciar movimentos coreográficos em danças folclóricas de diferentes épocas.",
@@ -2797,111 +2771,385 @@ function criarFormularioFundamental() {
   }
 };
 
-  ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Língua Portuguesa - 6º Ano"] = { semCurriculo: true };
-  ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Matemática - 6º Ano"] = { semCurriculo: true };
-  ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Língua Portuguesa - 9º Ano"] = { semCurriculo: true };
-  ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Matemática - 9º Ano"] = { semCurriculo: true };
+ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Língua Portuguesa - 6º Ano"] = { semCurriculo: true };
+ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Matemática - 6º Ano"] = { semCurriculo: true };
+ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Língua Portuguesa - 9º Ano"] = { semCurriculo: true };
+ESCOPOS_POR_COMPONENTE["Orientação de Estudo em Matemática - 9º Ano"] = { semCurriculo: true };
 
-  const ANOS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano"];
-  // 3º e 4º Bimestre ainda não têm Escopo-Sequência cadastrado (só 1º/2º
-  // vieram dos PDFs AF_V2) — os componentes já ficam preparados para
-  // recebê-los; até lá, esses bimestres simplesmente não aparecem como
-  // opção (ver bimestresValidosDoAno_).
-  const BIMESTRES = ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"];
-  const TURMAS = ["A", "B", "C", "D", "E", "F"].map(function(letra) {
-    return "Turma " + letra;
+// ─── LISTAS AUXILIARES ──────────────────────────────────────────────────────
+
+const COMPONENTES = Object.keys(ESCOPOS_POR_COMPONENTE).sort(function (a, b) {
+  return a.localeCompare(b, "pt-BR");
+});
+const ANOS = ["6º Ano", "7º Ano", "8º Ano", "9º Ano"];
+// 3º e 4º Bimestre ainda não têm Escopo-Sequência cadastrado (só 1º/2º
+// vieram dos PDFs AF_V2) — os componentes já ficam preparados para
+// recebê-los; até lá, esses bimestres simplesmente não aparecem como
+// opção (ver bimestresValidosDoAno_).
+const BIMESTRES = ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"];
+const TURMAS = ["A", "B", "C", "D", "E", "F"].map(function (letra) {
+  return "Turma " + letra;
+});
+
+const ESTRATEGIAS = [
+  "Aula expositiva dialogada",
+  "Discussão em grupo / roda de conversa",
+  "Seminário",
+  "Estudo de texto / leitura comentada",
+  "Resolução de exercícios",
+  "Trabalho em duplas ou trios",
+  "Pesquisa orientada",
+  "Produção escrita",
+  "Análise de imagem / mapa / fonte histórica",
+  "Debate estruturado",
+  "Gamificação / dinâmica lúdica",
+  "Projeto interdisciplinar",
+  "Uso de vídeo / documentário",
+  "Uso de plataforma digital",
+  "Outra estratégia",
+];
+
+const RECURSOS = [
+  "Livro didático / material impresso da Rede",
+  "Slides do material digital",
+  "Vídeo",
+  "Quadro e giz / quadro branco",
+  "Computador / notebook",
+  "Projetor / TV",
+  "Celular / tablet dos estudantes",
+  "Texto complementar impresso",
+  "Imagem / mapa / obra de arte",
+  "Podcast / áudio",
+  "Jogo / material manipulativo",
+  "Plataforma digital",
+  "Laboratório",
+  "Espaço externo à sala de aula",
+];
+
+const INSTRUMENTOS_AVALIACAO = [
+  "Observação do desempenho em atividades",
+  "Atividade escrita",
+  "Prova / avaliação somativa",
+  "Apresentação oral / seminário",
+  "Trabalho em grupo",
+  "Produção criativa",
+  "Autoavaliação dos estudantes",
+  "Avaliação por pares",
+  "Portfólio",
+  "Prova Paulista",
+  "Outro instrumento",
+];
+
+// Um bloco é "real" quando tem aulas de fato cadastradas.
+function ehBlocoReal_(aulas) {
+  return !!aulas && aulas.length > 0;
+}
+
+function bimestresValidosDoAno_(escopo, ano) {
+  return BIMESTRES.filter(function (bimestre) {
+    return ehBlocoReal_(escopo[ano + " — " + bimestre]);
   });
+}
 
-  const COMPONENTES = Object.keys(ESCOPOS_POR_COMPONENTE).sort();
+// Um componente "nunca recebeu dado nenhum" quando não tem nenhum bloco
+// real em nenhum ano — nesse caso ele continua aparecendo em todos os
+// anos (com campo de texto livre) para não sumir da lista de escolha.
+function escopoTemAlgumDadoReal_(escopo) {
+  return ANOS.some(function (ano) {
+    return bimestresValidosDoAno_(escopo, ano).length > 0;
+  });
+}
 
-  // Um bloco é "real" quando tem aulas de fato cadastradas.
-  function ehBlocoReal_(aulas) {
-    return !!aulas && aulas.length > 0;
-  }
-
-  function bimestresValidosDoAno_(escopo, ano) {
-    return BIMESTRES.filter(function(bimestre) {
-      return ehBlocoReal_(escopo[ano + " — " + bimestre]);
-    });
-  }
-
-  // Um componente "nunca recebeu dado nenhum" quando não tem nenhum bloco
-  // real em nenhum ano — nesse caso ele continua aparecendo em todos os
-  // anos (com campo de texto livre) para não sumir da lista de escolha.
-  function escopoTemAlgumDadoReal_(escopo) {
-    return ANOS.some(function(ano) {
-      return bimestresValidosDoAno_(escopo, ano).length > 0;
-    });
-  }
-
-  // Alguns componentes (Orientação de Estudo...) só existem para um ano
-  // específico — isso já vem embutido no nome, ex.: "... - 6º Ano".
-  function anoRestritoDoComponente_(componente) {
-    for (var i = 0; i < ANOS.length; i++) {
-      if (componente.slice(-ANOS[i].length - 3) === " - " + ANOS[i]) {
-        return ANOS[i];
-      }
+// Alguns componentes (Orientação de Estudo...) só existem para um ano
+// específico — isso já vem embutido no nome, ex.: "... - 6º Ano".
+function anoRestritoDoComponente_(componente) {
+  for (var i = 0; i < ANOS.length; i++) {
+    if (componente.slice(-ANOS[i].length - 3) === " - " + ANOS[i]) {
+      return ANOS[i];
     }
-    return null;
+  }
+  return null;
+}
+
+// Componentes oferecidos para um ano: os que têm Escopo-Sequência real
+// para ele, os restritos a esse ano específico (Orientação de Estudo...),
+// os sem Currículo Priorizado sem restrição de ano, e os que ainda não
+// têm dado algum cadastrado (placeholder).
+function componentesValidosDoAno_(componentes, ano) {
+  return componentes.filter(function (componente) {
+    var restrito = anoRestritoDoComponente_(componente);
+    if (restrito) return restrito === ano;
+    var escopo = ESCOPOS_POR_COMPONENTE[componente];
+    if (escopo.semCurriculo) return true;
+    if (bimestresValidosDoAno_(escopo, ano).length > 0) return true;
+    return !escopoTemAlgumDadoReal_(escopo);
+  });
+}
+
+// ─── EXECUÇÃO EM ETAPAS ─────────────────────────────────────────────────────
+// O Apps Script encerra qualquer execução em ~6 minutos. Como o formulário
+// tem centenas de itens, tanto a limpeza quanto a criação são divididas em
+// etapas retomáveis: o progresso fica em ScriptProperties e, quando o tempo
+// de uma execução acaba, um acionador agenda a continuação automática.
+//
+// TEMPO_LIMITE_MS marca quando parar de INICIAR trabalho novo; a folga até
+// os ~6 minutos reais absorve o término da etapa atômica em andamento.
+
+const TEMPO_LIMITE_MS = 210 * 1000; // 3,5 min
+
+const PROP_ETAPA     = "PLANEJAMENTO_EF_ETAPA";
+const PROP_INDICE    = "PLANEJAMENTO_EF_INDICE";
+const PROP_FORM_ID   = "PLANEJAMENTO_EF_FORM_ID";
+const PROP_NAVEGACAO = "PLANEJAMENTO_EF_NAVEGACAO";
+
+const FUNCAO_PRINCIPAL = "criarFormularioFundamental";
+
+const ETAPAS = [
+  "limpeza_navegacao",
+  "limpeza_alternativas",
+  "limpeza_exclusao",
+  "criacao_base",
+].concat(ANOS.map(function (ano, indice) {
+  return "criacao_ano_" + indice;
+})).concat([
+  "criacao_final",
+]);
+
+function criarFormularioFundamental() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    Logger.log(
+      "Já existe uma execução em andamento (provavelmente a continuação " +
+      "automática). Acompanhe pelo menu Execuções."
+    );
+    return;
   }
 
-  // Componentes oferecidos para um ano: os que têm Escopo-Sequência real
-  // para ele, os restritos a esse ano específico (Orientação de Estudo...),
-  // os sem Currículo Priorizado sem restrição de ano, e os que ainda não
-  // têm dado algum cadastrado (placeholder).
-  function componentesValidosDoAno_(componentes, ano) {
-    return componentes.filter(function(componente) {
-      var restrito = anoRestritoDoComponente_(componente);
-      if (restrito) return restrito === ano;
-      var escopo = ESCOPOS_POR_COMPONENTE[componente];
-      if (escopo.semCurriculo) return true;
-      if (bimestresValidosDoAno_(escopo, ano).length > 0) return true;
-      return !escopoTemAlgumDadoReal_(escopo);
-    });
+  try {
+    var inicio = Date.now();
+    var props = PropertiesService.getScriptProperties();
+
+    removerGatilhosContinuacao_();
+    // Rede de segurança: se esta execução for interrompida à força pelo
+    // Apps Script, o serviço ainda continua sozinho mais tarde.
+    agendarContinuacao_(8 * 60 * 1000);
+
+    var form = obterFormulario_(props);
+    var etapa = props.getProperty(PROP_ETAPA);
+
+    if (!etapa || ETAPAS.indexOf(etapa) === -1) {
+      etapa = form.getItems().length > 0 ? ETAPAS[0] : "criacao_base";
+      props.setProperty(PROP_ETAPA, etapa);
+      props.setProperty(PROP_INDICE, "0");
+      props.deleteProperty(PROP_NAVEGACAO);
+      Logger.log(
+        form.getItems().length > 0
+          ? "Formulário existente: limpando os itens antigos antes de recriar."
+          : "Formulário vazio: iniciando a montagem."
+      );
+    }
+
+    while (true) {
+      etapa = props.getProperty(PROP_ETAPA);
+      Logger.log("Etapa: " + etapa);
+
+      if (!executarEtapa_(form, etapa, props, inicio)) {
+        removerGatilhosContinuacao_();
+        agendarContinuacao_(60 * 1000);
+        Logger.log(
+          "Tempo desta execução esgotado. A continuação foi agendada " +
+          "automaticamente para ~1 minuto — acompanhe pelo menu Execuções; " +
+          "não é preciso executar de novo."
+        );
+        return;
+      }
+
+      var proxima = ETAPAS[ETAPAS.indexOf(etapa) + 1];
+      if (!proxima) {
+        return concluir_(form, props);
+      }
+
+      props.setProperty(PROP_ETAPA, proxima);
+      props.setProperty(PROP_INDICE, "0");
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Cancela uma montagem em andamento: limpa o progresso salvo e os
+// acionadores de continuação. O Forms memorizado é mantido.
+function resetarCriacaoFormulario() {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty(PROP_ETAPA);
+  props.deleteProperty(PROP_INDICE);
+  props.deleteProperty(PROP_NAVEGACAO);
+  removerGatilhosContinuacao_();
+  Logger.log("Progresso e acionadores limpos. Execute criarFormularioFundamental para recomeçar.");
+}
+
+// Faz o script esquecer o Forms memorizado: a próxima execução de
+// criarFormularioFundamental criará um formulário novo do zero.
+function desvincularFormularioSalvo() {
+  resetarCriacaoFormulario();
+  PropertiesService.getScriptProperties().deleteProperty(PROP_FORM_ID);
+  Logger.log("Formulário desvinculado. A próxima execução criará um Forms novo.");
+}
+
+function obterFormulario_(props) {
+  if (
+    ID_FORMULARIO_EXISTENTE &&
+    ID_FORMULARIO_EXISTENTE !== "COLE_AQUI_O_ID_DO_FORMULARIO"
+  ) {
+    return FormApp.openById(ID_FORMULARIO_EXISTENTE);
   }
 
-  const ESTRATEGIAS = [
-    "Aula expositiva dialogada",
-    "Discussão em grupo / roda de conversa",
-    "Seminário",
-    "Estudo de texto / leitura comentada",
-    "Resolução de exercícios",
-    "Trabalho em duplas ou trios",
-    "Pesquisa orientada",
-    "Produção escrita",
-    "Análise de imagem / mapa / fonte histórica",
-    "Debate estruturado",
-    "Gamificação / dinâmica lúdica",
-    "Projeto interdisciplinar",
-    "Uso de vídeo / documentário",
-    "Uso de plataforma digital",
-    "Outra estratégia",
-  ];
+  var idSalvo = props.getProperty(PROP_FORM_ID);
+  if (idSalvo) {
+    try {
+      return FormApp.openById(idSalvo);
+    } catch (erro) {
+      Logger.log("O formulário memorizado não está mais acessível; criando um novo. (" + erro + ")");
+      props.deleteProperty(PROP_FORM_ID);
+    }
+  }
 
-  const RECURSOS = [
-    "Livro didático / material impresso da Rede",
-    "Slides do material digital",
-    "Vídeo",
-    "Quadro e giz / quadro branco",
-    "Computador / notebook",
-    "Projetor / TV",
-    "Celular / tablet dos estudantes",
-    "Texto complementar impresso",
-    "Imagem / mapa / obra de arte",
-    "Podcast / áudio",
-    "Jogo / material manipulativo",
-    "Plataforma digital",
-    "Laboratório",
-    "Espaço externo à sala de aula",
-  ];
+  var form = FormApp.create(TITULO_FORMULARIO);
+  props.setProperty(PROP_FORM_ID, form.getId());
+  return form;
+}
 
-  const form = obterFormulario_();
-  limparItensFormulario_(form);
+function removerGatilhosContinuacao_() {
+  ScriptApp.getProjectTriggers().forEach(function (gatilho) {
+    if (gatilho.getHandlerFunction() === FUNCAO_PRINCIPAL) {
+      ScriptApp.deleteTrigger(gatilho);
+    }
+  });
+}
+
+function agendarContinuacao_(atrasoMs) {
+  ScriptApp.newTrigger(FUNCAO_PRINCIPAL).timeBased().after(atrasoMs).create();
+}
+
+// Executa uma etapa. Devolve true quando ela terminou; false quando o tempo
+// acabou no meio (o progresso já ficou salvo para a próxima execução).
+function executarEtapa_(form, etapa, props, inicio) {
+  function restaTempo() {
+    return Date.now() - inicio < TEMPO_LIMITE_MS;
+  }
+
+  if (etapa === "limpeza_navegacao")    return limparNavegacao_(form, props, restaTempo);
+  if (etapa === "limpeza_alternativas") return limparAlternativas_(form, props, restaTempo);
+  if (etapa === "limpeza_exclusao")     return excluirItens_(form, restaTempo);
+  if (etapa === "criacao_base")         return criarBase_(form, props, restaTempo);
+  if (etapa === "criacao_final")        return criarFinalENavegacao_(form, props, restaTempo);
+
+  if (etapa.indexOf("criacao_ano_") === 0) {
+    var ano = ANOS[parseInt(etapa.slice("criacao_ano_".length), 10)];
+    return criarBlocoAno_(form, props, ano, restaTempo);
+  }
+
+  throw new Error("Etapa desconhecida: " + etapa);
+}
+
+// ─── LIMPEZA (para atualizar um Forms já preenchido) ────────────────────────
+// Antes de excluir, as navegações e as alternativas com salto de página
+// precisam ser desfeitas — o Forms não deixa apagar uma página que ainda é
+// destino de alguma escolha.
+
+function limparNavegacao_(form, props, restaTempo) {
+  var itens = form.getItems();
+  var indice = parseInt(props.getProperty(PROP_INDICE) || "0", 10);
+
+  for (; indice < itens.length; indice++) {
+    if (!restaTempo()) {
+      props.setProperty(PROP_INDICE, String(indice));
+      return false;
+    }
+    try {
+      if (itens[indice].getType() === FormApp.ItemType.PAGE_BREAK) {
+        itens[indice].asPageBreakItem().setGoToPage(FormApp.PageNavigationType.CONTINUE);
+      }
+    } catch (erro) {
+      Logger.log("Aviso ao limpar navegação do item " + indice + ": " + erro);
+    }
+  }
+  return true;
+}
+
+function limparAlternativas_(form, props, restaTempo) {
+  var itens = form.getItems();
+  var indice = parseInt(props.getProperty(PROP_INDICE) || "0", 10);
+
+  for (; indice < itens.length; indice++) {
+    if (!restaTempo()) {
+      props.setProperty(PROP_INDICE, String(indice));
+      return false;
+    }
+    try {
+      var tipo = itens[indice].getType();
+      if (tipo === FormApp.ItemType.LIST) {
+        itens[indice].asListItem().setChoiceValues(["Temporário"]);
+      } else if (tipo === FormApp.ItemType.MULTIPLE_CHOICE) {
+        itens[indice].asMultipleChoiceItem().setChoiceValues(["Temporário"]);
+      } else if (tipo === FormApp.ItemType.CHECKBOX) {
+        itens[indice].asCheckboxItem().setChoiceValues(["Temporário"]);
+      }
+    } catch (erro) {
+      Logger.log("Aviso ao limpar alternativas do item " + indice + ": " + erro);
+    }
+  }
+  return true;
+}
+
+function excluirItens_(form, restaTempo) {
+  var totalInicial = form.getItems().length;
+  var restantes = totalInicial;
+
+  while (restantes > 0) {
+    if (!restaTempo()) return false;
+    try {
+      form.deleteItem(restantes - 1);
+    } catch (erro) {
+      Logger.log("Aviso ao excluir o item " + (restantes - 1) + ": " + erro);
+    }
+    restantes--;
+  }
+
+  var sobras = form.getItems().length;
+  if (sobras > 0) {
+    if (sobras < totalInicial) return false; // houve progresso; tenta de novo
+    throw new Error(
+      "Não foi possível excluir " + sobras + " itens do formulário antigo. " +
+      "Verifique as permissões e execute criarFormularioFundamental novamente."
+    );
+  }
+  return true;
+}
+
+// ─── CRIAÇÃO ────────────────────────────────────────────────────────────────
+// A ligação entre as etapas (IDs do item de Ano, das páginas de cada ano e
+// das páginas "folha") fica salva em PROP_NAVEGACAO, porque a navegação só
+// pode ser amarrada na etapa final, quando a seção de Estratégias já existe.
+
+function lerNavegacao_(props) {
+  var bruto = props.getProperty(PROP_NAVEGACAO);
+  return bruto
+    ? JSON.parse(bruto)
+    : { anoItemId: 0, paginasAno: {}, paginasFinais: [] };
+}
+
+function salvarNavegacao_(props, navegacao) {
+  props.setProperty(PROP_NAVEGACAO, JSON.stringify(navegacao));
+}
+
+// SEÇÃO 1 — IDENTIFICAÇÃO (e a pergunta de Ano, que ramifica o restante)
+function criarBase_(form, props, restaTempo) {
+  if (!restaTempo()) return false;
 
   form.setTitle(TITULO_FORMULARIO);
   form.setDescription(
-    "Preencha este formulário para registrar o planejamento das aulas do Ensino Fundamental Anos Finais.\n\n" +
-      "Campos marcados com * são obrigatórios."
+    "Preencha este formulário para registrar o planejamento das aulas do Ensino Fundamental Anos Finais."
   );
   form.setCollectEmail(true);
   form.setProgressBar(true);
@@ -2911,144 +3159,170 @@ function criarFormularioFundamental() {
     .setHelpText("Informe seus dados e o contexto da aula planejada.");
 
   form.addTextItem()
-    .setTitle("Nome completo do(a) professor(a) *")
+    .setTitle("Nome completo do(a) professor(a)")
     .setHelpText("Ex.: Maria da Silva")
     .setRequired(true);
 
   form.addTextItem()
     .setTitle("Data prevista para a(s) aula(s)")
-    .setHelpText("Ex.: 03/06/2026 ou 03/06 a 07/06/2026");
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SEÇÕES 2 a 6 — ANO → TURMA → COMPONENTE → BIMESTRE → ESCOPO-SEQUÊNCIA
-  //
-  // O Google Forms só ramifica a página seguinte a partir da resposta da
-  // pergunta imediatamente anterior — por isso a árvore de navegação
-  // precisa aninhar Ano dentro de Componente dentro de Bimestre, mesmo
-  // pedindo as perguntas nessa ordem ao respondente (ver mesmo padrão em
-  // planejamento_medio.gs):
-  //   • Ano (2): pergunta única, sempre feita — leva a uma página por ano
-  //     contendo Turma e Componente.
-  //   • Turma (3): checkbox simples, não ramifica.
-  //   • Componente (4): só são oferecidos, para o ano escolhido, os
-  //     componentes com Escopo-Sequência real para ele
-  //     (componentesValidosDoAno_), os restritos a esse ano específico
-  //     (Orientação de Estudo...), e os que ainda não têm dado algum
-  //     cadastrado (para não sumirem da lista).
-  //   • Bimestre (5): só são oferecidos os bimestres com aulas reais
-  //     (bimestresValidosDoAno_) para o ano/componente escolhidos — hoje
-  //     só 1º/2º têm dado; 3º/4º aparecem assim que forem cadastrados.
-  //   • Escopo-Sequência (6): checkbox das aulas do componente+bimestre
-  //     escolhidos (ou campo de texto livre quando não há currículo
-  //     priorizado ou dado cadastrado).
-  //   • Toda página "folha" é registrada em paginasFinais_ e, ao final,
-  //     redirecionada para a Seção 7 (Estratégias e Recursos).
-  // ══════════════════════════════════════════════════════════════════════════
-
-  const paginasFinais_ = [];
-
-  function construirBlocoBimestreEscopo_(ano, componente, paginaAtual) {
-    var escopo = ESCOPOS_POR_COMPONENTE[componente];
-    var semCurriculo = !!escopo.semCurriculo;
-    var bimestresValidos = semCurriculo ? [] : bimestresValidosDoAno_(escopo, ano);
-
-    if (semCurriculo || bimestresValidos.length === 0) {
-      form.addListItem().setTitle("Bimestre *").setRequired(true).setChoiceValues(BIMESTRES);
-      form.addParagraphTextItem()
-        .setTitle("Aulas e objetivos planejados" + (semCurriculo ? " *" : ""))
-        .setHelpText(
-          semCurriculo
-            ? "Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos."
-            : "O Escopo-Sequência para " + componente + " — " + ano + " ainda não foi inserido no sistema. " +
-              "Descreva as aulas e conteúdos previstos."
+    .setHelpText("Ex.: 03/06/2026  ou  03/06 a 07/06/2026")
+    .setValidation(
+      FormApp.createTextValidation()
+        .setHelpText("Use dd/mm ou dd/mm/aaaa — ex.: 03/06/2026 ou 03/06 a 07/06/2026.")
+        .requireTextMatchesPattern(
+          "\\d{1,2}/\\d{1,2}(/\\d{4})?( a \\d{1,2}/\\d{1,2}(/\\d{4})?)?"
         )
-        .setRequired(semCurriculo);
-      paginasFinais_.push(paginaAtual);
-      return;
-    }
-
-    if (bimestresValidos.length === 1) {
-      var chaveUnica = ano + " — " + bimestresValidos[0];
-      form.addCheckboxItem()
-        .setTitle("Aulas — " + chaveUnica)
-        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
-        .setChoiceValues(escopo[chaveUnica]);
-      paginasFinais_.push(paginaAtual);
-      return;
-    }
-
-    var itemBimestre = form.addListItem()
-      .setTitle("Bimestre *")
-      .setHelpText("Selecione o bimestre para ver as aulas de " + componente + " — " + ano + ".")
-      .setRequired(true);
-
-    var escolhasBimestre = bimestresValidos.map(function(bimestre) {
-      var chave = ano + " — " + bimestre;
-      var paginaBimestre = form.addPageBreakItem().setTitle("Aulas — " + componente + " — " + chave);
-      form.addCheckboxItem()
-        .setTitle("Aulas — " + chave)
-        .setHelpText("Marque as aulas que fazem parte deste planejamento.")
-        .setChoiceValues(escopo[chave]);
-      paginasFinais_.push(paginaBimestre);
-      return itemBimestre.createChoice(bimestre, paginaBimestre);
-    });
-    itemBimestre.setChoices(escolhasBimestre);
-  }
+        .build()
+    );
 
   var itemAno = form.addListItem()
-    .setTitle("Ano *")
+    .setTitle("Ano")
     .setHelpText("Selecione o ano da turma para ver a Turma e o Componente correspondentes.")
     .setRequired(true);
+  itemAno.setChoiceValues(ANOS); // provisório; a navegação é ligada na etapa final
 
-  var escolhasAno = ANOS.map(function(ano) {
-    var paginaAno = form.addPageBreakItem()
-      .setTitle("Turma e Componente — " + ano);
-
-    form.addCheckboxItem()
-      .setTitle("Turma(s) *")
-      .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
-      .setChoiceValues(TURMAS)
-      .setRequired(true);
-
-    var itemComponente = form.addListItem()
-      .setTitle("Componente curricular *")
-      .setHelpText("Selecione o componente para ver o Bimestre e o Escopo-Sequência correspondentes.")
-      .setRequired(true);
-
-    var componentesValidos = componentesValidosDoAno_(COMPONENTES, ano);
-    var escolhasComponente = componentesValidos.map(function(componente) {
-      var paginaComponente = form.addPageBreakItem()
-        .setTitle("Bimestre e Escopo — " + componente + " — " + ano);
-      construirBlocoBimestreEscopo_(ano, componente, paginaComponente);
-      return itemComponente.createChoice(componente, paginaComponente);
-    });
-    itemComponente.setChoices(escolhasComponente);
-
-    return itemAno.createChoice(ano, paginaAno);
+  salvarNavegacao_(props, {
+    anoItemId: itemAno.getId(),
+    paginasAno: {},
+    paginasFinais: [],
   });
-  itemAno.setChoices(escolhasAno);
+  return true;
+}
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // SEÇÃO 7 — ESTRATÉGIAS DIDÁTICAS E RECURSOS
-  // ══════════════════════════════════════════════════════════════════════════
+// SEÇÕES 2 a 6 — ANO → TURMA → COMPONENTE → BIMESTRE → ESCOPO-SEQUÊNCIA
+//
+// O Google Forms só permite ramificar a página seguinte a partir da resposta
+// da pergunta imediatamente anterior — por isso a árvore de navegação aninha
+// as páginas por ano e componente:
+//   • Ano: leva à página do ano (Turma + Componente).
+//   • Turma: checkbox simples, não ramifica.
+//   • Componente: só são oferecidos, para o ano escolhido, os componentes
+//     com Escopo-Sequência real para ele (componentesValidosDoAno_), os
+//     restritos a esse ano (Orientação de Estudo...) e os ainda sem dado.
+//   • Bimestre: só os bimestres com aulas reais — hoje só 1º/2º têm dado;
+//     3º/4º aparecem assim que forem cadastrados. Se houver um único
+//     bimestre válido, a pergunta nem aparece.
+//   • Escopo-Sequência: checkbox das aulas do componente+bimestre escolhidos
+//     (ou campo de texto livre quando não há currículo priorizado).
+//   • Toda página "folha" (onde as aulas ou o texto livre aparecem de fato)
+//     entra em paginasFinais e, na etapa final, é redirecionada para a
+//     Seção 7 (Estratégias e Recursos).
+//
+// Os títulos embutem componente e ano para que cada pergunta vire uma
+// coluna inequívoca na planilha de respostas.
+function criarBlocoAno_(form, props, ano, restaTempo) {
+  if (!restaTempo()) return false;
+
+  var navegacao = lerNavegacao_(props);
+  var paginasFinais = [];
+
+  var paginaAno = form.addPageBreakItem()
+    .setTitle("Turma e Componente — " + ano);
+
+  form.addCheckboxItem()
+    .setTitle("Turma(s) — " + ano)
+    .setHelpText("Selecione todas as turmas para as quais este planejamento se aplica.")
+    .setChoiceValues(TURMAS)
+    .setRequired(true);
+
+  var itemComponente = form.addListItem()
+    .setTitle("Componente curricular — " + ano)
+    .setHelpText("Selecione o componente para ver o Bimestre e o Escopo-Sequência correspondentes.")
+    .setRequired(true);
+
+  var componentesValidos = componentesValidosDoAno_(COMPONENTES, ano);
+  var escolhasComponente = componentesValidos.map(function (componente) {
+    var paginaComponente = form.addPageBreakItem()
+      .setTitle("Bimestre e Escopo — " + componente + " — " + ano);
+    construirBlocoBimestreEscopo_(form, ano, componente, paginaComponente, paginasFinais);
+    return itemComponente.createChoice(componente, paginaComponente);
+  });
+  itemComponente.setChoices(escolhasComponente);
+
+  navegacao.paginasAno[ano] = paginaAno.getId();
+  navegacao.paginasFinais = navegacao.paginasFinais.concat(
+    paginasFinais.map(function (pagina) { return pagina.getId(); })
+  );
+  salvarNavegacao_(props, navegacao);
+  return true;
+}
+
+// Constrói a pergunta de Bimestre (se houver mais de um válido) e o
+// Escopo-Sequência (checkbox de aulas ou texto livre) de um componente já
+// escolhido dentro de um ano, na página atual.
+function construirBlocoBimestreEscopo_(form, ano, componente, paginaAtual, paginasFinais) {
+  var escopo = ESCOPOS_POR_COMPONENTE[componente];
+  var semCurriculo = !!escopo.semCurriculo;
+  var bimestresValidos = semCurriculo ? [] : bimestresValidosDoAno_(escopo, ano);
+
+  if (semCurriculo || bimestresValidos.length === 0) {
+    form.addListItem()
+      .setTitle("Bimestre — " + componente + " — " + ano)
+      .setRequired(true)
+      .setChoiceValues(BIMESTRES);
+    form.addParagraphTextItem()
+      .setTitle("Aulas e objetivos planejados — " + componente + " — " + ano)
+      .setHelpText(
+        semCurriculo
+          ? "Descreva as aulas, os conteúdos e os objetivos de aprendizagem previstos."
+          : "O Escopo-Sequência para " + componente + " — " + ano + " ainda não foi inserido no sistema. " +
+            "Descreva as aulas e conteúdos previstos."
+      )
+      .setRequired(semCurriculo);
+    paginasFinais.push(paginaAtual);
+    return;
+  }
+
+  if (bimestresValidos.length === 1) {
+    var chaveUnica = ano + " — " + bimestresValidos[0];
+    form.addCheckboxItem()
+      .setTitle("Aulas — " + componente + " — " + chaveUnica)
+      .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+      .setChoiceValues(escopo[chaveUnica]);
+    paginasFinais.push(paginaAtual);
+    return;
+  }
+
+  var itemBimestre = form.addListItem()
+    .setTitle("Bimestre — " + componente + " — " + ano)
+    .setHelpText("Selecione o bimestre para ver as aulas de " + componente + " — " + ano + ".")
+    .setRequired(true);
+
+  var escolhasBimestre = bimestresValidos.map(function (bimestre) {
+    var chave = ano + " — " + bimestre;
+    var paginaBimestre = form.addPageBreakItem()
+      .setTitle("Aulas — " + componente + " — " + chave);
+    form.addCheckboxItem()
+      .setTitle("Aulas — " + componente + " — " + chave)
+      .setHelpText("Marque as aulas que fazem parte deste planejamento.")
+      .setChoiceValues(escopo[chave]);
+    paginasFinais.push(paginaBimestre);
+    return itemBimestre.createChoice(bimestre, paginaBimestre);
+  });
+  itemBimestre.setChoices(escolhasBimestre);
+}
+
+// SEÇÕES 7 e 8 — ESTRATÉGIAS/RECURSOS e AVALIAÇÃO + amarração da navegação
+function criarFinalENavegacao_(form, props, restaTempo) {
+  if (!restaTempo()) return false;
 
   var secaoEstrategias = form.addPageBreakItem()
     .setTitle("7. Estratégias Didáticas e Recursos")
     .setHelpText("Como você vai conduzir e apoiar a aprendizagem?");
 
   form.addCheckboxItem()
-    .setTitle("Estratégias didáticas *")
+    .setTitle("Estratégias didáticas")
     .setHelpText("Selecione todas as estratégias previstas para esta aula/sequência.")
     .setChoiceValues(ESTRATEGIAS)
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle("Descreva as estratégias didáticas *")
+    .setTitle("Descreva as estratégias didáticas")
     .setHelpText("Explique como as estratégias selecionadas serão aplicadas.")
     .setRequired(true);
 
   form.addCheckboxItem()
-    .setTitle("Recursos pedagógicos *")
+    .setTitle("Recursos pedagógicos")
     .setHelpText("Selecione os recursos que serão utilizados.")
     .setChoiceValues(RECURSOS)
     .setRequired(true);
@@ -3059,22 +3333,10 @@ function criarFormularioFundamental() {
 
   form.addCheckboxItem()
     .setTitle("Instrumento(s) de avaliação previstos")
-    .setChoiceValues([
-      "Observação do desempenho em atividades",
-      "Atividade escrita",
-      "Prova / avaliação somativa",
-      "Apresentação oral / seminário",
-      "Trabalho em grupo",
-      "Produção criativa",
-      "Autoavaliação dos estudantes",
-      "Avaliação por pares",
-      "Portfólio",
-      "Prova Paulista",
-      "Outro instrumento",
-    ]);
+    .setChoiceValues(INSTRUMENTOS_AVALIACAO);
 
   form.addParagraphTextItem()
-    .setTitle("Como você avaliará o alcance dos objetivos de aprendizagem? *")
+    .setTitle("Como você avaliará o alcance dos objetivos de aprendizagem?")
     .setHelpText("Descreva os critérios e procedimentos de avaliação previstos.")
     .setRequired(true);
 
@@ -3082,15 +3344,38 @@ function criarFormularioFundamental() {
     .setTitle("Observações / adaptações curriculares")
     .setHelpText("Registre adaptações, recomposição de aprendizagem ou outras observações relevantes.");
 
-  // Toda página "folha" (onde as aulas do Escopo-Sequência ou o texto livre
-  // aparecem de fato) redireciona para Estratégias ao terminar. Páginas
-  // intermediárias (que só perguntam Ano, Componente ou Bimestre) já têm
-  // sua navegação definida pelas escolhas do respectivo item.
-  paginasFinais_.forEach(function(pagina) {
-    pagina.setGoToPage(secaoEstrategias);
+  // Amarra a navegação criada nas etapas anteriores:
+  //   • cada ano da pergunta inicial leva à sua página de Turma/Componente;
+  //   • toda página "folha" redireciona para a Seção 7. Páginas intermediárias
+  //     já têm a navegação definida pelas escolhas do respectivo item.
+  var navegacao = lerNavegacao_(props);
+  var itensPorId = {};
+  form.getItems().forEach(function (item) {
+    itensPorId[item.getId()] = item;
   });
 
-  var url = form.getPublishedUrl();
+  var itemAno = itensPorId[navegacao.anoItemId].asListItem();
+  itemAno.setChoices(ANOS.map(function (ano) {
+    return itemAno.createChoice(
+      ano,
+      itensPorId[navegacao.paginasAno[ano]].asPageBreakItem()
+    );
+  }));
+
+  navegacao.paginasFinais.forEach(function (idPagina) {
+    itensPorId[idPagina].asPageBreakItem().setGoToPage(secaoEstrategias);
+  });
+
+  return true;
+}
+
+function concluir_(form, props) {
+  props.deleteProperty(PROP_ETAPA);
+  props.deleteProperty(PROP_INDICE);
+  props.deleteProperty(PROP_NAVEGACAO);
+  removerGatilhosContinuacao_();
+
+  var url     = form.getPublishedUrl();
   var editUrl = form.getEditUrl();
 
   Logger.log("=================================================");
