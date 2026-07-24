@@ -311,6 +311,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.18.0": [
+    "Novo assistente de configuração inicial: além da sincronização, agora também cadastra os dados da instituição e permite criar a primeira turma sem sair do assistente.",
+    "Turmas e Conselho ganham assistentes de configuração próprios (líder de sala, elegível, perfil da turma, aluno destaque, encaminhamentos), acessíveis a qualquer momento — não só no primeiro acesso.",
+    "Encaminhamentos do conselho (a lista de 'outras observações e encaminhamentos' da ATA) deixam de ser fixos: a coordenação pode adicionar, editar, reordenar e remover opções em Configurações. Cada opção tem um número fixo, preservado mesmo ao editar a lista, para não invalidar marcações já feitas em outras turmas.",
+    "Tela 'Configuração de Conselho' reorganizada em acordeão — Perfil da Turma, Aluno destaque, Encaminhamentos e Notas na ATA começam fechados, com um resumo de uma linha, reduzindo a rolagem.",
+    "Scripts de planejamento (Anos Finais e Ensino Médio) passam a montar o Forms em etapas, com continuação automática a cada minuto, evitando o timeout do Apps Script em formulários grandes.",
+  ],
   "2.17.0": [
     "Planejamento dos Professores: cada segmento (Anos Finais e Ensino Médio) agora usa uma única planilha de respostas cobrindo o ano letivo inteiro (1º ao 4º bimestre), em vez de uma planilha por semestre — configuração mais simples do Forms.",
     "Novos prazos de entrega por semestre na tela de Planejamento: defina a data de corte do 1º e do 2º semestre e a bolinha de cada turma passa a indicar entrega completa (verde), parcial (amarelo) ou nenhuma (vermelho), comparando com as disciplinas do mapão.",
