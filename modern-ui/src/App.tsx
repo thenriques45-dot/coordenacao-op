@@ -39,7 +39,7 @@ import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
-import { Configuracoes, type ConfiguracoesApp } from "./features/SettingsPage";
+import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -61,6 +61,26 @@ const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Fin
 function normalizarTiposAtendimento(tipos?: string[] | null) {
   const normalizados = (tipos ?? []).map((tipo) => tipo.trim()).filter(Boolean);
   return normalizados.length ? normalizados : [...TIPOS_ATENDIMENTO_PADRAO];
+}
+
+const ENCAMINHAMENTOS_PADRAO: OpcaoEncaminhamento[] = [
+  "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
+  "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
+  "Dedicar-se mais ao estudo em casa.",
+  "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
+  "Frequência às aulas.",
+  "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
+  "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
+  "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
+  "Recuperação contínua",
+  "Tarefas auxiliares para superação das dificuldades específicas do estudante",
+].map((texto, indice) => ({ numero: indice + 1, texto }));
+
+function normalizarEncaminhamentos(opcoes?: OpcaoEncaminhamento[] | null) {
+  const normalizados = (opcoes ?? [])
+    .map((item) => ({ numero: item.numero, texto: item.texto.trim() }))
+    .filter((item) => item.texto.length > 0);
+  return normalizados.length ? normalizados : [...ENCAMINHAMENTOS_PADRAO];
 }
 
 type Disciplina = {
@@ -105,6 +125,7 @@ type TurmaConfig = {
   elegivel_ativo: boolean;
   elegivel_rotulo: string;
   atendimento_tipos?: string[];
+  encaminhamento_opcoes?: OpcaoEncaminhamento[];
   perfil_turma_ativo?: boolean;
   perfil_turma_criterios?: CriterioPerfil[];
   aluno_destaque_ativo?: boolean;
@@ -581,6 +602,7 @@ export function App() {
     elegivel_ativo: true,
     elegivel_rotulo: "Elegível",
     atendimento_tipos: TIPOS_ATENDIMENTO_PADRAO,
+    encaminhamento_opcoes: ENCAMINHAMENTOS_PADRAO,
     perfil_turma_ativo: false,
     perfil_turma_criterios: [],
     aluno_destaque_ativo: false,
@@ -667,6 +689,7 @@ export function App() {
       elegivel_ativo: c.elegivel_ativo,
       elegivel_rotulo: c.elegivel_rotulo,
       atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos),
+      encaminhamento_opcoes: normalizarEncaminhamentos(c.encaminhamento_opcoes),
       perfil_turma_ativo: c.perfil_turma_ativo ?? false,
       perfil_turma_criterios: c.perfil_turma_criterios ?? [],
       aluno_destaque_ativo: c.aluno_destaque_ativo ?? false,

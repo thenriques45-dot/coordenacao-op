@@ -2,7 +2,8 @@ import { enable as autostartEnable, disable as autostartDisable, isEnabled as au
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import {
   aplicarPadroesDoProvedor,
@@ -41,6 +42,11 @@ export type CriterioDestaque = {
   icone: string;
 };
 
+export type OpcaoEncaminhamento = {
+  numero: number;
+  texto: string;
+};
+
 export type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
@@ -51,6 +57,7 @@ export type ConfiguracoesApp = {
   elegivel_ativo: boolean;
   elegivel_rotulo: string;
   atendimento_tipos: string[];
+  encaminhamento_opcoes: OpcaoEncaminhamento[];
   perfil_turma_ativo: boolean;
   perfil_turma_criterios: CriterioPerfil[];
   aluno_destaque_ativo: boolean;
@@ -65,6 +72,19 @@ export const opcoesModoNotasAta: { valor: ModoNotasAta; rotulo: string }[] = [
   { valor: "todas", rotulo: "Mostrar todas as notas" },
   { valor: "somente_vermelhas", rotulo: "Mostrar apenas notas vermelhas" },
 ];
+
+export const ENCAMINHAMENTOS_PADRAO: OpcaoEncaminhamento[] = [
+  "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
+  "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
+  "Dedicar-se mais ao estudo em casa.",
+  "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
+  "Frequência às aulas.",
+  "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
+  "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
+  "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
+  "Recuperação contínua",
+  "Tarefas auxiliares para superação das dificuldades específicas do estudante",
+].map((texto, indice) => ({ numero: indice + 1, texto }));
 
 type BackupResultado = {
   caminho: string | null;
@@ -123,6 +143,37 @@ function rotuloCiclo(ciclo: string) {
   };
   return rotulos[ciclo] ?? ciclo;
 }
+function pluralizar(quantidade: number, singular: string, plural: string) {
+  return `${quantidade} ${quantidade === 1 ? singular : plural}`;
+}
+
+function SecaoAcordeao({
+  titulo,
+  resumo,
+  aberta,
+  onToggle,
+  children,
+}: {
+  titulo: string;
+  resumo?: string;
+  aberta: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`settings-accordion-item ${aberta ? "open" : ""}`}>
+      <button type="button" className="settings-accordion-header" onClick={onToggle} aria-expanded={aberta}>
+        <span className="settings-accordion-title">
+          <strong>{titulo}</strong>
+          {!aberta && resumo && <span className="settings-accordion-summary">{resumo}</span>}
+        </span>
+        <ChevronDown size={18} className="settings-accordion-chevron" />
+      </button>
+      {aberta && <div className="settings-accordion-body">{children}</div>}
+    </div>
+  );
+}
+
 export function Configuracoes({
   turmas,
   perfilSync,
@@ -148,6 +199,7 @@ export function Configuracoes({
     elegivel_ativo: true,
     elegivel_rotulo: "Elegível",
     atendimento_tipos: ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"],
+    encaminhamento_opcoes: ENCAMINHAMENTOS_PADRAO,
     perfil_turma_ativo: false,
     perfil_turma_criterios: [],
     aluno_destaque_ativo: false,
@@ -168,6 +220,7 @@ export function Configuracoes({
   const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
   const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
+  const [secaoConselhoAberta, setSecaoConselhoAberta] = useState<string | null>(null);
   const [autostartAtivo, setAutostartAtivo] = useState(false);
   const ciclosExistentes = useMemo(() => {
     const ciclos = Array.from(new Set(turmas.map((turma) => turma.ciclo || "Sem ciclo").filter(Boolean)));
@@ -218,6 +271,30 @@ export function Configuracoes({
     setConfig((atual) => ({
       ...atual,
       atendimento_tipos: atual.atendimento_tipos.filter((_, i) => i !== indice),
+    }));
+  }
+
+  function adicionarEncaminhamento() {
+    setConfig((atual) => {
+      const proximoNumero = atual.encaminhamento_opcoes.reduce((max, item) => Math.max(max, item.numero), 0) + 1;
+      return {
+        ...atual,
+        encaminhamento_opcoes: [...atual.encaminhamento_opcoes, { numero: proximoNumero, texto: "" }],
+      };
+    });
+  }
+
+  function atualizarEncaminhamento(indice: number, valor: string) {
+    setConfig((atual) => ({
+      ...atual,
+      encaminhamento_opcoes: atual.encaminhamento_opcoes.map((item, i) => i === indice ? { ...item, texto: valor } : item),
+    }));
+  }
+
+  function removerEncaminhamento(indice: number) {
+    setConfig((atual) => ({
+      ...atual,
+      encaminhamento_opcoes: atual.encaminhamento_opcoes.filter((_, i) => i !== indice),
     }));
   }
 
@@ -791,137 +868,187 @@ export function Configuracoes({
         {secaoConfig === "conselho" && (
         <article className="settings-card">
           <h2>Configuração de Conselho</h2>
-          <p>Configure o Perfil da Turma que aparece no início da lista de alunos no conselho e na ATA gerada.</p>
-          <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
-            <input
-              type="checkbox"
-              checked={config.perfil_turma_ativo}
-              onChange={(e) => setConfig((a) => ({ ...a, perfil_turma_ativo: e.target.checked }))}
-            />
-            Exibir Perfil da Turma no conselho e na ATA
-          </label>
+          <p>Ajustes que aparecem na tela do conselho e na ATA gerada. Clique em cada item para editar.</p>
 
-          {config.perfil_turma_ativo && (
-            <>
-              <h3 style={{ marginBottom: "0.5rem" }}>Critérios de observação</h3>
-              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
-                Cada critério tem três níveis: baixo (vermelho), médio (amarelo) e alto (verde). O coordenador seleciona um nível por critério no conselho.
-              </p>
-              <div className="perfil-criterios-config">
-                {(config.perfil_turma_criterios ?? []).map((criterio, indice) => (
-                  <div key={criterio.id} className="perfil-criterio-config-item">
-                    <div className="perfil-criterio-config-row">
-                      <input
-                        value={criterio.nome}
-                        onChange={(e) => atualizarCriterioPerfil(indice, "nome", e.target.value)}
-                        placeholder="Nome do critério (ex.: Participação nas aulas)"
-                        style={{ flex: 1 }}
-                      />
-                      <button type="button" className="danger-action" onClick={() => removerCriterioPerfil(indice)}>
-                        Remover
-                      </button>
-                    </div>
-                    <div className="perfil-criterio-config-opcoes">
-                      {criterio.opcoes.map((opcao) => (
-                        <label key={opcao.nivel} className={`perfil-opcao-config perfil-opcao-config-${opcao.nivel}`}>
-                          <span>{opcao.nivel === "baixo" ? "Baixo" : opcao.nivel === "medio" ? "Médio" : "Alto"}</span>
-                          <input
-                            value={opcao.label}
-                            onChange={(e) => atualizarCriterioPerfil(indice, "opcao", opcao.nivel, e.target.value)}
-                            placeholder={opcao.nivel === "baixo" ? "Ex.: Raramente" : opcao.nivel === "medio" ? "Ex.: Às vezes" : "Ex.: Sempre"}
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="secondary-action" onClick={adicionarCriterioPerfil} style={{ marginTop: "0.75rem" }}>
-                Adicionar critério
-              </button>
-            </>
-          )}
-
-          <hr style={{ margin: "1.25rem 0", borderColor: "var(--border)" }} />
-
-          <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
-            <input
-              type="checkbox"
-              checked={config.aluno_destaque_ativo}
-              onChange={(e) => setConfig((a) => ({ ...a, aluno_destaque_ativo: e.target.checked }))}
-            />
-            Registrar alunos destaque/superação no conselho e na ATA
-          </label>
-
-          {config.aluno_destaque_ativo && (
-            <>
-              <h3 style={{ marginBottom: "0.5rem" }}>Categorias de destaque</h3>
-              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
-                Cada categoria tem um título e um ícone. No conselho, você digita o nome do aluno que se destaca em cada categoria.
-              </p>
-              <div className="perfil-criterios-config">
-                {(config.aluno_destaque_criterios ?? []).map((criterio, indice) => (
-                  <div key={criterio.id} className="perfil-criterio-config-item">
-                    <div className="perfil-criterio-config-row">
-                      <input
-                        value={criterio.titulo}
-                        onChange={(e) => atualizarCriterioDestaque(indice, "titulo", e.target.value)}
-                        placeholder="Título (ex.: Aluno Destaque, Aluno Superação)"
-                        style={{ flex: 1 }}
-                      />
-                      <button type="button" className="danger-action" onClick={() => removerCriterioDestaque(indice)}>
-                        Remover
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
-                      {["⭐", "🏆", "📈", "↗", "💪", "🎯", "👑", "🌟", "🔝", "🎖"].map((icone) => (
-                        <button
-                          key={icone}
-                          type="button"
-                          onClick={() => atualizarCriterioDestaque(indice, "icone", icone)}
-                          style={{
-                            fontSize: "1.3rem",
-                            padding: "4px 8px",
-                            borderRadius: "6px",
-                            border: criterio.icone === icone ? "2px solid var(--accent)" : "2px solid var(--border)",
-                            background: criterio.icone === icone ? "var(--accent-subtle)" : "transparent",
-                            cursor: "pointer",
-                            lineHeight: 1,
-                          }}
-                          title={icone}
-                        >
-                          {icone}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="secondary-action" onClick={adicionarCriterioDestaque} style={{ marginTop: "0.75rem" }}>
-                Adicionar categoria
-              </button>
-            </>
-          )}
-
-          <hr style={{ margin: "1.25rem 0", borderColor: "var(--border)" }} />
-
-          <h3 style={{ marginBottom: "0.5rem" }}>Notas na ATA</h3>
-          <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
-            Escolha como as notas de cada disciplina aparecem na ATA do conselho.
-          </p>
-          <div className="ata-notas-options">
-            {opcoesModoNotasAta.map((opcao) => (
-              <label key={opcao.valor} className="settings-check-row">
+          <div className="settings-accordion">
+            <SecaoAcordeao
+              titulo="Perfil da Turma"
+              resumo={config.perfil_turma_ativo ? `Ativo · ${pluralizar((config.perfil_turma_criterios ?? []).length, "critério", "critérios")}` : "Desativado"}
+              aberta={secaoConselhoAberta === "perfil-turma"}
+              onToggle={() => setSecaoConselhoAberta((atual) => (atual === "perfil-turma" ? null : "perfil-turma"))}
+            >
+              <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
                 <input
-                  type="radio"
-                  name="modo-notas-ata"
-                  value={opcao.valor}
-                  checked={config.modo_notas_ata === opcao.valor}
-                  onChange={() => setConfig((a) => ({ ...a, modo_notas_ata: opcao.valor }))}
+                  type="checkbox"
+                  checked={config.perfil_turma_ativo}
+                  onChange={(e) => setConfig((a) => ({ ...a, perfil_turma_ativo: e.target.checked }))}
                 />
-                {opcao.rotulo}
+                Exibir Perfil da Turma no conselho e na ATA
               </label>
-            ))}
+
+              {config.perfil_turma_ativo && (
+                <>
+                  <h3 style={{ marginBottom: "0.5rem" }}>Critérios de observação</h3>
+                  <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                    Cada critério tem três níveis: baixo (vermelho), médio (amarelo) e alto (verde). O coordenador seleciona um nível por critério no conselho.
+                  </p>
+                  <div className="perfil-criterios-config">
+                    {(config.perfil_turma_criterios ?? []).map((criterio, indice) => (
+                      <div key={criterio.id} className="perfil-criterio-config-item">
+                        <div className="perfil-criterio-config-row">
+                          <input
+                            value={criterio.nome}
+                            onChange={(e) => atualizarCriterioPerfil(indice, "nome", e.target.value)}
+                            placeholder="Nome do critério (ex.: Participação nas aulas)"
+                            style={{ flex: 1 }}
+                          />
+                          <button type="button" className="danger-action" onClick={() => removerCriterioPerfil(indice)}>
+                            Remover
+                          </button>
+                        </div>
+                        <div className="perfil-criterio-config-opcoes">
+                          {criterio.opcoes.map((opcao) => (
+                            <label key={opcao.nivel} className={`perfil-opcao-config perfil-opcao-config-${opcao.nivel}`}>
+                              <span>{opcao.nivel === "baixo" ? "Baixo" : opcao.nivel === "medio" ? "Médio" : "Alto"}</span>
+                              <input
+                                value={opcao.label}
+                                onChange={(e) => atualizarCriterioPerfil(indice, "opcao", opcao.nivel, e.target.value)}
+                                placeholder={opcao.nivel === "baixo" ? "Ex.: Raramente" : opcao.nivel === "medio" ? "Ex.: Às vezes" : "Ex.: Sempre"}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="secondary-action" onClick={adicionarCriterioPerfil} style={{ marginTop: "0.75rem" }}>
+                    Adicionar critério
+                  </button>
+                </>
+              )}
+            </SecaoAcordeao>
+
+            <SecaoAcordeao
+              titulo="Aluno destaque/superação"
+              resumo={config.aluno_destaque_ativo ? `Ativo · ${pluralizar((config.aluno_destaque_criterios ?? []).length, "categoria", "categorias")}` : "Desativado"}
+              aberta={secaoConselhoAberta === "aluno-destaque"}
+              onToggle={() => setSecaoConselhoAberta((atual) => (atual === "aluno-destaque" ? null : "aluno-destaque"))}
+            >
+              <label className="settings-check-row" style={{ marginBottom: "1rem" }}>
+                <input
+                  type="checkbox"
+                  checked={config.aluno_destaque_ativo}
+                  onChange={(e) => setConfig((a) => ({ ...a, aluno_destaque_ativo: e.target.checked }))}
+                />
+                Registrar alunos destaque/superação no conselho e na ATA
+              </label>
+
+              {config.aluno_destaque_ativo && (
+                <>
+                  <h3 style={{ marginBottom: "0.5rem" }}>Categorias de destaque</h3>
+                  <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                    Cada categoria tem um título e um ícone. No conselho, você digita o nome do aluno que se destaca em cada categoria.
+                  </p>
+                  <div className="perfil-criterios-config">
+                    {(config.aluno_destaque_criterios ?? []).map((criterio, indice) => (
+                      <div key={criterio.id} className="perfil-criterio-config-item">
+                        <div className="perfil-criterio-config-row">
+                          <input
+                            value={criterio.titulo}
+                            onChange={(e) => atualizarCriterioDestaque(indice, "titulo", e.target.value)}
+                            placeholder="Título (ex.: Aluno Destaque, Aluno Superação)"
+                            style={{ flex: 1 }}
+                          />
+                          <button type="button" className="danger-action" onClick={() => removerCriterioDestaque(indice)}>
+                            Remover
+                          </button>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+                          {["⭐", "🏆", "📈", "↗", "💪", "🎯", "👑", "🌟", "🔝", "🎖"].map((icone) => (
+                            <button
+                              key={icone}
+                              type="button"
+                              onClick={() => atualizarCriterioDestaque(indice, "icone", icone)}
+                              style={{
+                                fontSize: "1.3rem",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: criterio.icone === icone ? "2px solid var(--accent)" : "2px solid var(--border)",
+                                background: criterio.icone === icone ? "var(--accent-subtle)" : "transparent",
+                                cursor: "pointer",
+                                lineHeight: 1,
+                              }}
+                              title={icone}
+                            >
+                              {icone}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="secondary-action" onClick={adicionarCriterioDestaque} style={{ marginTop: "0.75rem" }}>
+                    Adicionar categoria
+                  </button>
+                </>
+              )}
+            </SecaoAcordeao>
+
+            <SecaoAcordeao
+              titulo="Encaminhamentos"
+              resumo={pluralizar(config.encaminhamento_opcoes.length, "opção", "opções")}
+              aberta={secaoConselhoAberta === "encaminhamentos"}
+              onToggle={() => setSecaoConselhoAberta((atual) => (atual === "encaminhamentos" ? null : "encaminhamentos"))}
+            >
+              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                Opções disponíveis para marcar por aluno no conselho e listadas em "Outras observações e encaminhamentos" na ATA.
+              </p>
+              <div style={{ display: "grid", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                {config.encaminhamento_opcoes.map((opcao, indice) => (
+                  <div key={opcao.numero} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <span style={{ color: "#667085", fontSize: "0.85rem", minWidth: "1.75rem", textAlign: "right" }}>{opcao.numero}.</span>
+                    <input
+                      value={opcao.texto}
+                      onChange={(event) => atualizarEncaminhamento(indice, event.target.value)}
+                      placeholder="Ex.: Dedicar-se mais ao estudo em casa."
+                      style={{ flex: 1 }}
+                    />
+                    <button type="button" className="danger-action" onClick={() => removerEncaminhamento(indice)}>
+                      Remover
+                    </button>
+                  </div>
+                ))}
+                {!config.encaminhamento_opcoes.length && (
+                  <span style={{ color: "#667085", fontSize: "0.85rem" }}>Nenhum encaminhamento configurado. Adicione ao menos um.</span>
+                )}
+              </div>
+              <button type="button" className="secondary-action" onClick={adicionarEncaminhamento}>Adicionar encaminhamento</button>
+            </SecaoAcordeao>
+
+            <SecaoAcordeao
+              titulo="Notas na ATA"
+              resumo={opcoesModoNotasAta.find((opcao) => opcao.valor === config.modo_notas_ata)?.rotulo}
+              aberta={secaoConselhoAberta === "notas-ata"}
+              onToggle={() => setSecaoConselhoAberta((atual) => (atual === "notas-ata" ? null : "notas-ata"))}
+            >
+              <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>
+                Escolha como as notas de cada disciplina aparecem na ATA do conselho.
+              </p>
+              <div className="ata-notas-options">
+                {opcoesModoNotasAta.map((opcao) => (
+                  <label key={opcao.valor} className="settings-check-row">
+                    <input
+                      type="radio"
+                      name="modo-notas-ata"
+                      value={opcao.valor}
+                      checked={config.modo_notas_ata === opcao.valor}
+                      onChange={() => setConfig((a) => ({ ...a, modo_notas_ata: opcao.valor }))}
+                    />
+                    {opcao.rotulo}
+                  </label>
+                ))}
+              </div>
+            </SecaoAcordeao>
           </div>
 
           <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1.25rem" }}>

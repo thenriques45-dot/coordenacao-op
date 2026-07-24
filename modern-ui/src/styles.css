@@ -3910,6 +3910,62 @@ th:nth-child(3) {
   width: auto;
 }
 
+.settings-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-accordion-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.settings-accordion-header {
+  align-items: center;
+  background: #f8fafc;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  display: flex !important;
+  font-weight: 400;
+  justify-content: space-between;
+  padding: 10px 14px;
+  text-align: left;
+  width: 100%;
+}
+
+.settings-accordion-title {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-accordion-summary {
+  color: #6b6670;
+  font-size: 12.5px;
+}
+
+.settings-accordion-chevron {
+  color: #6b6670;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.settings-accordion-item.open .settings-accordion-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-accordion-item.open .settings-accordion-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.settings-accordion-body {
+  padding: 14px;
+}
+
 .sync-actions-row {
   display: grid;
   gap: 8px;
@@ -6275,6 +6331,24 @@ th:nth-child(3) {
   background: #26232f;
   border-color: #2c2935;
   color: #ececf0;
+}
+
+.theme-dark .settings-accordion-item {
+  border-color: #2c2935;
+}
+
+.theme-dark .settings-accordion-header {
+  background: #26232f;
+  color: #ececf0;
+}
+
+.theme-dark .settings-accordion-item.open .settings-accordion-header {
+  border-bottom-color: #2c2935;
+}
+
+.theme-dark .settings-accordion-summary,
+.theme-dark .settings-accordion-chevron {
+  color: #a8a3b3;
 }
 
 .theme-dark .sync-wizard-grid article span,

@@ -549,31 +549,40 @@ pub(crate) fn escrever_ata_docx(
 
     documento.paragrafo("");
     documento.paragrafo_negrito("Outras observações e encaminhamentos:");
-    let textos = encaminhamentos_textos();
+    let opcoes = &config.encaminhamento_opcoes;
+    let metade = (opcoes.len() + 1) / 2;
     let mut tabela_enc = Vec::new();
-    for indice in 0..5 {
-        let numero_esq = indice + 1;
-        let numero_dir = indice + 6;
-        tabela_enc.push(vec![
-            CelulaDocx::texto(&format!("{numero_esq}."))
+    for indice in 0..metade {
+        let fundo = fundo_linha_encaminhamento(indice);
+        let esq = opcoes.get(indice);
+        let dir = opcoes.get(indice + metade);
+        let mut linha = vec![
+            CelulaDocx::texto(&esq.map(|o| format!("{}.", o.numero)).unwrap_or_default())
                 .centralizada()
-                .fundo_opcional(fundo_numero_encaminhamento(numero_esq))
+                .fundo_opcional(fundo)
                 .tamanho(16),
-            CelulaDocx::texto(textos[indice])
+            CelulaDocx::texto(esq.map(|o| o.texto.as_str()).unwrap_or(""))
                 .alinhada("left")
-                .fundo_opcional(fundo_numero_encaminhamento(numero_esq))
+                .fundo_opcional(fundo)
                 .tamanho(16),
-            CelulaDocx::texto(&format!("{numero_dir}."))
+        ];
+        linha.push(
+            CelulaDocx::texto(&dir.map(|o| format!("{}.", o.numero)).unwrap_or_default())
                 .centralizada()
-                .fundo_opcional(fundo_numero_encaminhamento(numero_dir))
+                .fundo_opcional(fundo)
                 .tamanho(16),
-            CelulaDocx::texto(textos[indice + 5])
+        );
+        linha.push(
+            CelulaDocx::texto(dir.map(|o| o.texto.as_str()).unwrap_or(""))
                 .alinhada("left")
-                .fundo_opcional(fundo_numero_encaminhamento(numero_dir))
+                .fundo_opcional(fundo)
                 .tamanho(16),
-        ]);
+        );
+        tabela_enc.push(linha);
     }
-    documento.tabela_celulas_com_larguras(tabela_enc, &[450, 5050, 450, 5050], true);
+    if !tabela_enc.is_empty() {
+        documento.tabela_celulas_com_larguras(tabela_enc, &[450, 5050, 450, 5050], true);
+    }
 
     documento.paragrafo("");
     documento.paragrafo_negrito("ASSINATURA DOS PROFESSORES:");
@@ -636,8 +645,8 @@ pub(crate) fn larguras_tabela_ata(total_disciplinas: usize) -> Vec<i32> {
     larguras
 }
 
-pub(crate) fn fundo_numero_encaminhamento(numero: usize) -> Option<&'static str> {
-    if matches!(numero, 1 | 3 | 5 | 6 | 8 | 10) {
+pub(crate) fn fundo_linha_encaminhamento(indice: usize) -> Option<&'static str> {
+    if indice % 2 == 0 {
         Some("E6E6E6")
     } else {
         None
@@ -1462,21 +1471,6 @@ pub(crate) fn abreviar_disciplina(disciplina: &str) -> String {
         _ => return maiuscula.chars().take(4).collect(),
     }
     .to_string()
-}
-
-pub(crate) fn encaminhamentos_textos() -> [&'static str; 10] {
-    [
-        "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
-        "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
-        "Dedicar-se mais ao estudo em casa.",
-        "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
-        "Frequência às aulas.",
-        "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
-        "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
-        "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
-        "Recuperação contínua",
-        "Tarefas auxiliares para superação das dificuldades específicas do estudante",
-    ]
 }
 
 pub(crate) fn obter_nota_minima_configurada() -> f64 {

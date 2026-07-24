@@ -78,6 +78,13 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         atendimento_tipos
     };
 
+    let encaminhamento_opcoes = normalizar_opcoes_encaminhamento(&input.encaminhamento_opcoes);
+    let encaminhamento_opcoes = if encaminhamento_opcoes.is_empty() {
+        encaminhamento_opcoes_padrao()
+    } else {
+        encaminhamento_opcoes
+    };
+
     let config = ConfiguracoesApp {
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
@@ -88,6 +95,7 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         elegivel_ativo: input.elegivel_ativo,
         elegivel_rotulo,
         atendimento_tipos,
+        encaminhamento_opcoes,
         perfil_turma_ativo: input.perfil_turma_ativo,
         perfil_turma_criterios: if input.perfil_turma_criterios.is_empty() {
             criterios_perfil_padrao()
@@ -220,6 +228,16 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
     } else {
         atendimento_tipos
     };
+    let encaminhamento_opcoes = dados
+        .get("encaminhamento_opcoes")
+        .and_then(|v| serde_json::from_value::<Vec<OpcaoEncaminhamento>>(v.clone()).ok())
+        .map(|lista| normalizar_opcoes_encaminhamento(&lista))
+        .unwrap_or_default();
+    let encaminhamento_opcoes = if encaminhamento_opcoes.is_empty() {
+        encaminhamento_opcoes_padrao()
+    } else {
+        encaminhamento_opcoes
+    };
 
     ConfiguracoesApp {
         direcao_nome: dados
@@ -252,6 +270,7 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .unwrap_or("Elegível")
             .to_string(),
         atendimento_tipos,
+        encaminhamento_opcoes,
         perfil_turma_ativo: dados.get("perfil_turma_ativo").and_then(Value::as_bool).unwrap_or(false),
         perfil_turma_criterios: dados
             .get("perfil_turma_criterios")
@@ -279,6 +298,43 @@ pub(crate) fn atendimento_tipos_padrao() -> Vec<String> {
         "Financeiro".to_string(),
         "Educação especial".to_string(),
     ]
+}
+
+pub(crate) fn encaminhamento_opcoes_padrao() -> Vec<OpcaoEncaminhamento> {
+    [
+        "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
+        "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
+        "Dedicar-se mais ao estudo em casa.",
+        "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
+        "Frequência às aulas.",
+        "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
+        "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
+        "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
+        "Recuperação contínua",
+        "Tarefas auxiliares para superação das dificuldades específicas do estudante",
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(indice, texto)| OpcaoEncaminhamento { numero: indice as i64 + 1, texto: texto.to_string() })
+    .collect()
+}
+
+// Preserva o `numero` de cada opção (referenciado pelos encaminhamentos já
+// marcados nas turmas salvas) mesmo quando a lista é reordenada, editada ou
+// tem itens adicionados/removidos pela coordenação.
+pub(crate) fn normalizar_opcoes_encaminhamento(opcoes: &[OpcaoEncaminhamento]) -> Vec<OpcaoEncaminhamento> {
+    let mut vistos = BTreeSet::new();
+    let mut saida = Vec::new();
+    for opcao in opcoes {
+        let texto = opcao.texto.trim();
+        if texto.is_empty() || opcao.numero <= 0 {
+            continue;
+        }
+        if vistos.insert(opcao.numero) {
+            saida.push(OpcaoEncaminhamento { numero: opcao.numero, texto: texto.to_string() });
+        }
+    }
+    saida
 }
 
 pub(crate) fn criterios_perfil_padrao() -> Vec<CriterioPerfil> {
@@ -326,6 +382,7 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "elegivel_ativo": config.elegivel_ativo,
         "elegivel_rotulo": config.elegivel_rotulo,
         "atendimento_tipos": config.atendimento_tipos,
+        "encaminhamento_opcoes": config.encaminhamento_opcoes,
         "perfil_turma_ativo": config.perfil_turma_ativo,
         "perfil_turma_criterios": serde_json::to_value(&config.perfil_turma_criterios).unwrap_or_default(),
         "aluno_destaque_ativo": config.aluno_destaque_ativo,

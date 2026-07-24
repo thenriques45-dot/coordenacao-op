@@ -541,6 +541,7 @@ mod tests {
             elegivel_ativo: false,
             elegivel_rotulo: "Elegível".to_string(),
             atendimento_tipos: vec![],
+            encaminhamento_opcoes: encaminhamento_opcoes_padrao(),
             perfil_turma_ativo: false,
             perfil_turma_criterios: vec![],
             aluno_destaque_ativo: false,

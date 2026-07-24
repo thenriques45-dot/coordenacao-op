@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { opcoesModoNotasAta, type ConfiguracoesApp, type CriterioDestaque, type CriterioPerfil } from "./SettingsPage";
 
-const TOTAL_PASSOS = 3;
+function proximoNumeroEncaminhamento(opcoes: { numero: number }[]) {
+  return opcoes.reduce((max, item) => Math.max(max, item.numero), 0) + 1;
+}
+
+const TOTAL_PASSOS = 4;
 const ICONES_DESTAQUE = ["⭐", "🏆", "📈", "↗", "💪", "🎯", "👑", "🌟", "🔝", "🎖"];
 
 export function AssistenteConfigConselho({
@@ -91,6 +95,28 @@ export function AssistenteConfigConselho({
   function removerCriterioDestaque(indice: number) {
     setConfig((atual) =>
       atual ? { ...atual, aluno_destaque_criterios: (atual.aluno_destaque_criterios ?? []).filter((_, i) => i !== indice) } : atual
+    );
+  }
+
+  function adicionarEncaminhamento() {
+    setConfig((atual) =>
+      atual
+        ? { ...atual, encaminhamento_opcoes: [...atual.encaminhamento_opcoes, { numero: proximoNumeroEncaminhamento(atual.encaminhamento_opcoes), texto: "" }] }
+        : atual
+    );
+  }
+
+  function atualizarEncaminhamento(indice: number, valor: string) {
+    setConfig((atual) =>
+      atual
+        ? { ...atual, encaminhamento_opcoes: atual.encaminhamento_opcoes.map((item, i) => (i === indice ? { ...item, texto: valor } : item)) }
+        : atual
+    );
+  }
+
+  function removerEncaminhamento(indice: number) {
+    setConfig((atual) =>
+      atual ? { ...atual, encaminhamento_opcoes: atual.encaminhamento_opcoes.filter((_, i) => i !== indice) } : atual
     );
   }
 
@@ -239,6 +265,39 @@ export function AssistenteConfigConselho({
         )}
 
         {passo === 2 && (
+          <>
+            <span className="eyebrow">Configuração do conselho</span>
+            <h2 id="conselho-wizard-titulo">Encaminhamentos</h2>
+            <p>
+              Opções disponíveis para marcar por aluno no conselho e listadas em "Outras observações e
+              encaminhamentos" na ATA.
+            </p>
+            <div className="perfil-criterios-config">
+              {(config?.encaminhamento_opcoes ?? []).map((opcao, indice) => (
+                <div key={opcao.numero} className="perfil-criterio-config-row" style={{ marginBottom: "0.5rem", alignItems: "center" }}>
+                  <span style={{ color: "#667085", fontSize: "0.85rem", minWidth: "1.75rem", textAlign: "right" }}>{opcao.numero}.</span>
+                  <input
+                    value={opcao.texto}
+                    onChange={(event) => atualizarEncaminhamento(indice, event.target.value)}
+                    placeholder="Ex.: Dedicar-se mais ao estudo em casa."
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button" className="danger-action" onClick={() => removerEncaminhamento(indice)}>
+                    Remover
+                  </button>
+                </div>
+              ))}
+              {!(config?.encaminhamento_opcoes ?? []).length && (
+                <span style={{ color: "#667085", fontSize: "0.85rem" }}>Nenhum encaminhamento configurado. Adicione ao menos um.</span>
+              )}
+            </div>
+            <button type="button" className="secondary-action" onClick={adicionarEncaminhamento} disabled={!config} style={{ marginTop: "0.75rem" }}>
+              Adicionar encaminhamento
+            </button>
+          </>
+        )}
+
+        {passo === 3 && (
           <>
             <span className="eyebrow">Configuração do conselho</span>
             <h2 id="conselho-wizard-titulo">Notas na ATA</h2>

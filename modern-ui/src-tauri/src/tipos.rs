@@ -57,6 +57,12 @@ pub(crate) struct CriterioDestaque {
     pub(crate) icone: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct OpcaoEncaminhamento {
+    pub(crate) numero: i64,
+    pub(crate) texto: String,
+}
+
 #[derive(Serialize)]
 pub(crate) struct ConfiguracoesApp {
     pub(crate) direcao_nome: String,
@@ -68,6 +74,7 @@ pub(crate) struct ConfiguracoesApp {
     pub(crate) elegivel_ativo: bool,
     pub(crate) elegivel_rotulo: String,
     pub(crate) atendimento_tipos: Vec<String>,
+    pub(crate) encaminhamento_opcoes: Vec<OpcaoEncaminhamento>,
     pub(crate) perfil_turma_ativo: bool,
     pub(crate) perfil_turma_criterios: Vec<CriterioPerfil>,
     pub(crate) aluno_destaque_ativo: bool,
@@ -86,6 +93,8 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) elegivel_rotulo: String,
     #[serde(default)]
     pub(crate) atendimento_tipos: Vec<String>,
+    #[serde(default)]
+    pub(crate) encaminhamento_opcoes: Vec<OpcaoEncaminhamento>,
     #[serde(default)]
     pub(crate) perfil_turma_ativo: bool,
     #[serde(default)]

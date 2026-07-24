@@ -17,7 +17,7 @@ import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { AssistenteConfigConselho } from "./ConselhoConfigWizard";
-import type { ConfiguracoesApp } from "./SettingsPage";
+import type { ConfiguracoesApp, OpcaoEncaminhamento } from "./SettingsPage";
 import { FotoAluno } from "./StudentPhoto";
 
 const WIZARD_CONSELHO_KEY = "coordenacaoop:wizard-conselho-visto:v1";
@@ -166,18 +166,18 @@ const situacaoLabel: Record<Disciplina["situacao"], string> = {
   ajustada: "Ajustada",
 };
 
-const encaminhamentos = [
-  "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situacoes problemas",
-  "Confrontar ideias e opinioes, manifestando-se de forma argumentativa",
+const ENCAMINHAMENTOS_PADRAO: OpcaoEncaminhamento[] = [
+  "Dificuldade em ler, interpretar e associar dados, tabelas, figuras, produzir textos e resolver situações problemas",
+  "Confrontar ideias e opiniões, manifestando-se de forma argumentativa",
   "Dedicar-se mais ao estudo em casa.",
-  "Prestar mais atencao as explicacoes do professor, tirar duvidas, realizar as tarefas em aula nos prazos estipulados",
-  "Frequencia as aulas.",
+  "Prestar mais atenção às explicações do professor, tirar dúvidas, realizar as tarefas em aula nos prazos estipulados",
+  "Frequência às aulas.",
   "Acompanhar diariamente, dialogar e orientar o estudante sobre as atividades escolares",
-  "Estabelecer horas de estudo em casa, incentivando o habito de estudar",
-  "Comparecer as reunioes e conversar com professores e coordenadores pedagogicos",
-  "Recuperacao continua",
-  "Tarefas auxiliares para superacao das dificuldades especificas do estudante",
-];
+  "Estabelecer horas de estudo em casa, incentivando o hábito de estudar",
+  "Comparecer às reuniões e conversar com professores e coordenadores pedagógicos",
+  "Recuperação contínua",
+  "Tarefas auxiliares para superação das dificuldades específicas do estudante",
+].map((texto, indice) => ({ numero: indice + 1, texto }));
 
 const opcoesBimestre = [
   { valor: "1", rotulo: "1º bimestre" },
@@ -327,7 +327,7 @@ export function Council({
   aoAtualizarDados,
 }: {
   aluno: Aluno;
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; perfil_turma_ativo?: boolean; perfil_turma_criterios?: CriterioPerfil[]; aluno_destaque_ativo?: boolean; aluno_destaque_criterios?: CriterioDestaque[] };
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; encaminhamento_opcoes?: OpcaoEncaminhamento[]; perfil_turma_ativo?: boolean; perfil_turma_criterios?: CriterioPerfil[]; aluno_destaque_ativo?: boolean; aluno_destaque_criterios?: CriterioDestaque[] };
   alunos: Aluno[];
   totalAlunos: number;
   indiceAluno: number;
@@ -1011,8 +1011,8 @@ export function Council({
               </div>
               {erroEncaminhamento && <div className="inline-edit-error">{erroEncaminhamento}</div>}
               <div className="encaminhamentos-list">
-                {encaminhamentos.map((texto, indice) => {
-                  const codigo = indice + 1;
+                {(turmaConfig.encaminhamento_opcoes?.length ? turmaConfig.encaminhamento_opcoes : ENCAMINHAMENTOS_PADRAO).map((opcao) => {
+                  const codigo = opcao.numero;
                   const selecionado = aluno.encaminhamentos.includes(codigo);
                   return (
                     <button
@@ -1022,7 +1022,7 @@ export function Council({
                       disabled={salvandoEncaminhamento !== null}
                     >
                       <span className="encaminhamento-code">ENC {codigo}</span>
-                      <span>{texto}</span>
+                      <span>{opcao.texto}</span>
                     </button>
                   );
                 })}
