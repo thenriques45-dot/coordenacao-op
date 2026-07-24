@@ -16,7 +16,11 @@ import {
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
+import { AssistenteConfigConselho } from "./ConselhoConfigWizard";
+import type { ConfiguracoesApp } from "./SettingsPage";
 import { FotoAluno } from "./StudentPhoto";
+
+const WIZARD_CONSELHO_KEY = "coordenacaoop:wizard-conselho-visto:v1";
 
 type OpcaoCriterioPerfil = {
   nivel: string;
@@ -1052,6 +1056,7 @@ export function SelecaoConselho({
   turmaConfig,
   bimestreSelecionado,
   aoAtualizarDados,
+  onConfigSalva,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
@@ -1059,12 +1064,20 @@ export function SelecaoConselho({
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
   bimestreSelecionado: string;
   aoAtualizarDados: () => void;
+  onConfigSalva: (config: ConfiguracoesApp) => void;
 }) {
   const [busca, setBusca] = useState("");
   const [pendriveAberto, setPendriveAberto] = useState(false);
   const [mostrarTutorial, setMostrarTutorial] = useState(() => {
     try {
       return localStorage.getItem(TUTORIAL_CONSELHO_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+  const [mostrarConfigWizard, setMostrarConfigWizard] = useState(() => {
+    try {
+      return localStorage.getItem(WIZARD_CONSELHO_KEY) === null;
     } catch {
       return false;
     }
@@ -1078,6 +1091,15 @@ export function SelecaoConselho({
       // Sem localStorage o tutorial apenas volta a aparecer na próxima visita.
     }
     setMostrarTutorial(false);
+  }
+
+  function fecharConfigWizard() {
+    try {
+      localStorage.setItem(WIZARD_CONSELHO_KEY, "sim");
+    } catch {
+      // Sem localStorage o assistente apenas volta a aparecer na próxima visita.
+    }
+    setMostrarConfigWizard(false);
   }
 
   return (
@@ -1171,7 +1193,17 @@ export function SelecaoConselho({
         />
       )}
 
-      {mostrarTutorial && !pendriveAberto && (
+      {mostrarConfigWizard && (
+        <AssistenteConfigConselho
+          onFechar={fecharConfigWizard}
+          onConcluido={(config) => {
+            onConfigSalva(config);
+            fecharConfigWizard();
+          }}
+        />
+      )}
+
+      {!mostrarConfigWizard && mostrarTutorial && !pendriveAberto && (
         <TutorialConselho
           onFechar={fecharTutorial}
           onAbrirPendrive={() => {

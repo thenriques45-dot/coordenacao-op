@@ -1,17 +1,21 @@
 import { ClipboardList, Pencil, Plus, Search, Trash2, Upload, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { ConfiguracoesApp } from "./SettingsPage";
 import { normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
+import { AssistenteConfigTurmas } from "./TurmasConfigWizard";
 
-const CICLOS_TURMA: Record<string, string[]> = {
+const WIZARD_TURMAS_KEY = "coordenacaoop:wizard-turmas-visto:v1";
+
+export const CICLOS_TURMA: Record<string, string[]> = {
   EI: ["Berçário I", "Berçário II", "Maternal I", "Maternal II", "Pré-escola I", "Pré-escola II"],
   EFAI: ["1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano"],
   EFAF: ["6º Ano", "7º Ano", "8º Ano", "9º Ano"],
   EM: ["1ª Série", "2ª Série", "3ª Série"],
 };
 
-const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
+export const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 
-type TurmaResumo = {
+export type TurmaResumo = {
   codigo: string;
   ano: number;
   serie: string | null;
@@ -32,7 +36,7 @@ type TurmaResumo = {
   caminho: string;
 };
 
-type NovaTurmaPayload = {
+export type NovaTurmaPayload = {
   codigo: string;
   ano: number;
   serie: string;
@@ -121,7 +125,7 @@ function rotuloLideranca(lideranca: "lider" | "vice" | null | undefined) {
   return "Não";
 }
 
-function codigoTurma(serie: string, letra: string) {
+export function codigoTurma(serie: string, letra: string) {
   return `${serie} ${letra.trim().toLocaleUpperCase("pt-BR")}`.trim();
 }
 
@@ -194,6 +198,7 @@ export function Turmas({
   onCriarTurma,
   onEditarTurma,
   onExcluirTurma,
+  onConfigSalva,
 }: {
   turmas: TurmaResumo[];
   erroTurmas: string;
@@ -201,7 +206,24 @@ export function Turmas({
   onCriarTurma: (payload: NovaTurmaPayload) => Promise<void>;
   onEditarTurma: (turma: TurmaResumo, payload: NovaTurmaPayload) => Promise<void>;
   onExcluirTurma: (turma: TurmaResumo) => Promise<void>;
+  onConfigSalva: (config: ConfiguracoesApp) => void;
 }) {
+  const [mostrarConfigWizard, setMostrarConfigWizard] = useState(() => {
+    try {
+      return localStorage.getItem(WIZARD_TURMAS_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+
+  function fecharConfigWizard() {
+    try {
+      localStorage.setItem(WIZARD_TURMAS_KEY, "sim");
+    } catch {
+      // Sem localStorage o assistente apenas volta a aparecer na próxima visita.
+    }
+    setMostrarConfigWizard(false);
+  }
   const [busca, setBusca] = useState("");
   const [cicloFiltro, setCicloFiltro] = useState("todos");
   const [criando, setCriando] = useState(false);
@@ -734,6 +756,16 @@ export function Turmas({
             </div>
           </section>
         </div>
+      )}
+
+      {mostrarConfigWizard && (
+        <AssistenteConfigTurmas
+          onFechar={fecharConfigWizard}
+          onConcluido={(config) => {
+            onConfigSalva(config);
+            fecharConfigWizard();
+          }}
+        />
       )}
     </>
   );

@@ -6,10 +6,8 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
-  Cloud,
   FileText,
   Filter,
-  FolderOpen,
   Home,
   Menu,
   Moon,
@@ -22,13 +20,11 @@ import {
   Trash2,
   Upload,
   Usb,
-  UserRound,
   Users,
   X,
 } from "lucide-react";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 import { invokeApp, tauriDisponivel } from "./features/appBridge";
@@ -43,7 +39,8 @@ import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
-import { Configuracoes } from "./features/SettingsPage";
+import { Configuracoes, type ConfiguracoesApp } from "./features/SettingsPage";
+import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
 import {
@@ -663,20 +660,24 @@ export function App() {
     return iniciarMonitorAlertasTarefas();
   }, []);
 
+  function aplicarConfigCarregada(c: ConfiguracoesApp) {
+    setTurmaConfig({
+      lider_ativo: c.lider_ativo,
+      lider_rotulo: c.lider_rotulo,
+      elegivel_ativo: c.elegivel_ativo,
+      elegivel_rotulo: c.elegivel_rotulo,
+      atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos),
+      perfil_turma_ativo: c.perfil_turma_ativo ?? false,
+      perfil_turma_criterios: c.perfil_turma_criterios ?? [],
+      aluno_destaque_ativo: c.aluno_destaque_ativo ?? false,
+      aluno_destaque_criterios: c.aluno_destaque_criterios ?? [],
+    });
+  }
+
   useEffect(() => {
     if (!tauriDisponivel) return;
-    invokeApp<TurmaConfig>("carregar_configuracoes")
-      .then((c) => setTurmaConfig({
-        lider_ativo: c.lider_ativo,
-        lider_rotulo: c.lider_rotulo,
-        elegivel_ativo: c.elegivel_ativo,
-        elegivel_rotulo: c.elegivel_rotulo,
-        atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos),
-        perfil_turma_ativo: c.perfil_turma_ativo ?? false,
-        perfil_turma_criterios: c.perfil_turma_criterios ?? [],
-        aluno_destaque_ativo: c.aluno_destaque_ativo ?? false,
-        aluno_destaque_criterios: c.aluno_destaque_criterios ?? [],
-      }))
+    invokeApp<ConfiguracoesApp>("carregar_configuracoes")
+      .then(aplicarConfigCarregada)
       .catch(() => {});
   }, []);
 
@@ -1231,7 +1232,7 @@ export function App() {
           />
         )}
         {tela === "conselhos" && (
-          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} bimestreSelecionado={bimestreSelecionado} aoAtualizarDados={recarregarDadosTurmas} onSelecionar={(turma) => {
+          <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} bimestreSelecionado={bimestreSelecionado} aoAtualizarDados={recarregarDadosTurmas} onConfigSalva={aplicarConfigCarregada} onSelecionar={(turma) => {
             setTurmaSelecionada(turma);
             navegarPara("conselho");
           }} />
@@ -1265,6 +1266,7 @@ export function App() {
             onCriarTurma={criarTurma}
             onEditarTurma={editarTurma}
             onExcluirTurma={excluirTurma}
+            onConfigSalva={aplicarConfigCarregada}
             onSelecionar={(turma) => {
             setTurmaSelecionada(turma);
             navegarPara("gestao-turma");
@@ -1353,7 +1355,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={(c) => setTurmaConfig({ lider_ativo: c.lider_ativo, lider_rotulo: c.lider_rotulo, elegivel_ativo: c.elegivel_ativo, elegivel_rotulo: c.elegivel_rotulo, atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos), perfil_turma_ativo: c.perfil_turma_ativo ?? false, perfil_turma_criterios: c.perfil_turma_criterios ?? [], aluno_destaque_ativo: c.aluno_destaque_ativo ?? false, aluno_destaque_criterios: c.aluno_destaque_criterios ?? [] })} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
@@ -1442,8 +1444,15 @@ export function App() {
         </div>
       )}
       {!mostrarNovidades && mostrarAssistenteSync && (
-        <AssistenteSincronizacaoGrupo
+        <AssistenteConfiguracaoInicial
           perfil={perfilSync}
+          turmasCount={turmas.length}
+          onCriarTurma={criarTurma}
+          onAbrirTelaTurmas={() => {
+            atualizarPerfilSync({ ...perfilSync, onboarding: "dismissed" });
+            setMostrarAssistenteSync(false);
+            navegarPara("turmas");
+          }}
           onConcluir={(perfil) => {
             atualizarPerfilSync(perfil);
             setMostrarAssistenteSync(false);
@@ -1455,133 +1464,6 @@ export function App() {
         />
       )}
     </main>
-  );
-}
-
-function AssistenteSincronizacaoGrupo({
-  perfil,
-  onConcluir,
-  onDispensar,
-}: {
-  perfil: WorkgroupSyncProfile;
-  onConcluir: (perfil: WorkgroupSyncProfile) => void;
-  onDispensar: () => void;
-}) {
-  const [passo, setPasso] = useState(0);
-  const [rascunho, setRascunho] = useState(perfil);
-  const [erro, setErro] = useState("");
-  const totalPassos = 3;
-
-  async function escolherPasta() {
-    setErro("");
-    try {
-      const selecionado = await abrirDialogoArquivo({
-        directory: true,
-        multiple: false,
-        title: "Escolher pasta compartilhada do grupo de trabalho",
-      });
-      if (typeof selecionado === "string") {
-        setRascunho((atual) => ({ ...atual, syncFolder: selecionado }));
-      }
-    } catch (error) {
-      setErro(`Não foi possível abrir o seletor de pasta: ${String(error)}`);
-    }
-  }
-
-  function finalizar() {
-    if (!rascunho.syncFolder.trim()) {
-      setErro("Escolha a pasta compartilhada antes de finalizar a ativação.");
-      return;
-    }
-    onConcluir({
-      ...rascunho,
-      displayName: rascunho.displayName.trim() || "Coordenação",
-      role: rascunho.role.trim() || "Coordenação pedagógica",
-      syncEnabled: true,
-      onboarding: "enabled",
-    });
-  }
-
-  return (
-    <div className="modal-backdrop">
-      <section className="sync-wizard" role="dialog" aria-modal="true" aria-labelledby="sync-wizard-title">
-        <div className="sync-wizard-progress" aria-label={`Etapa ${passo + 1} de ${totalPassos}`}>
-          {Array.from({ length: totalPassos }).map((_, indice) => (
-            <span key={indice} className={indice <= passo ? "active" : ""} />
-          ))}
-        </div>
-
-        {passo === 0 && (
-          <>
-            <span className="eyebrow">Trabalho em equipe</span>
-            <h2 id="sync-wizard-title">Sincronização de grupo de trabalho</h2>
-            <p>O CoordenacaoOP pode preparar esta instalação para compartilhar dados com outros coordenadores usando uma pasta comum, como o OneDrive da escola.</p>
-            <div className="sync-wizard-grid">
-              <article>
-                <UserRound size={20} />
-                <strong>Perfil identificado</strong>
-                <span>Cada alteração futura poderá registrar quem fez e de qual instalação veio.</span>
-              </article>
-              <article>
-                <Cloud size={20} />
-                <strong>Sem servidor próprio</strong>
-                <span>A pasta compartilhada funciona apenas como transporte dos arquivos de sincronização.</span>
-              </article>
-            </div>
-            <p className="sync-wizard-note">Se preferir decidir depois, este recurso fica em Configurações, na seção Perfil e sincronização.</p>
-          </>
-        )}
-
-        {passo === 1 && (
-          <>
-            <span className="eyebrow">Perfil do coordenador</span>
-            <h2 id="sync-wizard-title">Identifique esta instalação</h2>
-            <p>Esses dados ajudam o grupo a entender a origem das alterações. Eles não substituem login nem enviam dados para servidor externo.</p>
-            <div className="sync-wizard-form">
-              <label>
-                Seu nome
-                <input value={rascunho.displayName} onChange={(event) => setRascunho((atual) => ({ ...atual, displayName: event.target.value }))} placeholder="Ex.: Thiago Henrique" />
-              </label>
-              <label>
-                Função
-                <input value={rascunho.role} onChange={(event) => setRascunho((atual) => ({ ...atual, role: event.target.value }))} />
-              </label>
-              <label>
-                Nome deste dispositivo
-                <input value={rascunho.deviceName} onChange={(event) => setRascunho((atual) => ({ ...atual, deviceName: event.target.value }))} />
-              </label>
-            </div>
-          </>
-        )}
-
-        {passo === 2 && (
-          <>
-            <span className="eyebrow">Pasta compartilhada</span>
-            <h2 id="sync-wizard-title">Escolha a pasta do grupo</h2>
-            <p>Use uma pasta OneDrive compartilhada entre os coordenadores. O ideal é criar uma pasta exclusiva, por exemplo `CoordenacaoOP-Sync`.</p>
-            <div className="sync-folder-picker">
-              <button type="button" onClick={escolherPasta}>
-                <FolderOpen size={18} />
-                Escolher pasta
-              </button>
-              <span>{rascunho.syncFolder || "Nenhuma pasta selecionada"}</span>
-            </div>
-            <p className="sync-wizard-note">Por enquanto o aplicativo salva o perfil e a pasta. A sincronização dos dados será ativada em etapa posterior com segurança contra conflitos.</p>
-            {erro && <div className="notice error">{erro}</div>}
-          </>
-        )}
-
-        <div className="modal-actions">
-          <button type="button" onClick={onDispensar}>Agora não</button>
-          {passo > 0 && <button type="button" onClick={() => setPasso((atual) => atual - 1)}>Voltar</button>}
-          {passo < totalPassos - 1 ? (
-            <button type="button" className="primary-action" onClick={() => setPasso((atual) => atual + 1)}>Próximo</button>
-          ) : (
-            <button type="button" className="primary-action" onClick={finalizar}>Finalizar</button>
-          )}
-        </div>
-      </section>
-    </div>
   );
 }
 

@@ -24,24 +24,24 @@ type TurmaConfiguracoes = {
   ciclo: string | null;
 };
 
-type OpcaoCriterioPerfil = {
+export type OpcaoCriterioPerfil = {
   nivel: string;
   label: string;
 };
 
-type CriterioPerfil = {
+export type CriterioPerfil = {
   id: string;
   nome: string;
   opcoes: OpcaoCriterioPerfil[];
 };
 
-type CriterioDestaque = {
+export type CriterioDestaque = {
   id: string;
   titulo: string;
   icone: string;
 };
 
-type ConfiguracoesApp = {
+export type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
   nota_minima: number;
@@ -58,9 +58,9 @@ type ConfiguracoesApp = {
   modo_notas_ata: ModoNotasAta;
 };
 
-type ModoNotasAta = "x_vermelhas" | "todas" | "somente_vermelhas";
+export type ModoNotasAta = "x_vermelhas" | "todas" | "somente_vermelhas";
 
-const opcoesModoNotasAta: { valor: ModoNotasAta; rotulo: string }[] = [
+export const opcoesModoNotasAta: { valor: ModoNotasAta; rotulo: string }[] = [
   { valor: "x_vermelhas", rotulo: "Mostrar X nas notas vermelhas" },
   { valor: "todas", rotulo: "Mostrar todas as notas" },
   { valor: "somente_vermelhas", rotulo: "Mostrar apenas notas vermelhas" },
