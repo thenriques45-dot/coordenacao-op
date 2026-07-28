@@ -2753,15 +2753,80 @@ h3 {
   margin-top: 28px;
 }
 
-.student-council-note textarea {
+.council-note-bimesters {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 12px;
+}
+
+.council-note-bimester {
   background: #f7f7f9;
   border: 1px solid #d5dbe6;
   border-radius: 8px;
-  color: #101828;
-  min-height: 122px;
   padding: 14px;
-  resize: vertical;
-  width: 100%;
+}
+
+.council-note-bimester h4 {
+  color: #101828;
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+
+.council-note-bimester ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.council-note-bimester li {
+  color: #101828;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.council-note-empty {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 0;
+}
+
+.print-only {
+  display: none;
+}
+
+.print-report-header {
+  margin-bottom: 18px;
+}
+
+.print-report-header p {
+  color: #101828;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .printable-student-report,
+  .printable-student-report * {
+    visibility: visible;
+  }
+
+  .printable-student-report {
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .no-print {
+    display: none !important;
+  }
 }
 
 .student-attendance-section {
@@ -3668,6 +3733,8 @@ th:nth-child(3) {
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
   display: grid;
   gap: 16px;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
   padding: 24px;
   width: min(620px, 100%);
 }
@@ -6464,6 +6531,20 @@ th:nth-child(3) {
 .theme-dark .student-subjects-table th,
 .theme-dark .student-subjects-table td {
   border-bottom-color: #2c2935;
+}
+
+.theme-dark .council-note-bimester {
+  background: #211e28;
+  border-color: #2c2935;
+}
+
+.theme-dark .council-note-bimester h4,
+.theme-dark .council-note-bimester li {
+  color: #ececf0;
+}
+
+.theme-dark .council-note-empty {
+  color: #9b98a8;
 }
 
 .theme-dark .student-subjects-table th {

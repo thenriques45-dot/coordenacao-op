@@ -1,5 +1,5 @@
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
-import { BookOpen, CalendarClock, Copy, FileText, Paperclip, Pencil, Plus, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
+import { BookOpen, CalendarClock, Copy, FileText, Paperclip, Pencil, Plus, Printer, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   assistentePedagogicoDisponivel,
@@ -20,6 +20,7 @@ import {
   type CalendarEvent,
   type KanbanTarefa,
 } from "./management";
+import { ENCAMINHAMENTOS_PADRAO, type OpcaoEncaminhamento } from "./SettingsPage";
 
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
 
@@ -53,6 +54,11 @@ type Disciplina = {
   atribuicaoMedia?: AtribuicaoNota | null;
 };
 
+type EncaminhamentoBimestre = {
+  bimestre: string;
+  codigos: number[];
+};
+
 type Aluno = {
   matricula?: string;
   chamada: number;
@@ -64,6 +70,7 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  encaminhamentosBimestres?: EncaminhamentoBimestre[];
   atendimentos?: AtendimentoAluno[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
@@ -383,7 +390,7 @@ export function GestaoTurma({
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[] };
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[]; encaminhamento_opcoes?: OpcaoEncaminhamento[] };
   nomeAlunoInicial?: string | null;
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
@@ -570,6 +577,7 @@ export function GestaoTurma({
           onVoltar={() => setAlunoAberto(null)}
           catalogoDeficiencias={catalogoDeficiencias}
           tiposAtendimento={turmaConfig.atendimento_tipos ?? []}
+          encaminhamentoOpcoes={turmaConfig.encaminhamento_opcoes?.length ? turmaConfig.encaminhamento_opcoes : ENCAMINHAMENTOS_PADRAO}
           onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
           onSalvarAtendimento={onSalvarAtendimento}
           tarefas={tarefasKanban}
@@ -784,6 +792,7 @@ function AlunoDetalheGestao({
   onVoltar,
   catalogoDeficiencias,
   tiposAtendimento,
+  encaminhamentoOpcoes,
   onSalvarEducacaoEspecial,
   onSalvarAtendimento,
   tarefas,
@@ -796,6 +805,7 @@ function AlunoDetalheGestao({
   onVoltar: () => void;
   catalogoDeficiencias: string[];
   tiposAtendimento: string[];
+  encaminhamentoOpcoes: OpcaoEncaminhamento[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
   onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
   tarefas: KanbanTarefa[];
@@ -1177,7 +1187,13 @@ function AlunoDetalheGestao({
             <p>RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}</p>
           </div>
         </div>
-        <div className="student-profile-actions">
+        <div className="student-profile-actions no-print">
+          {aba === "desempenho" && (
+          <button type="button" className="secondary-action" onClick={() => window.print()}>
+            <Printer size={16} />
+            Imprimir notas e parecer
+          </button>
+          )}
           {(podeGerarRelatorioIa || podeUsarPromptManual) && (
           <button type="button" className="ai-report-action" onClick={onGerarRelatorioClick}>
             <Sparkles size={17} />
@@ -1264,6 +1280,15 @@ function AlunoDetalheGestao({
         </article>
       </section>
 
+      <div className="printable-student-report">
+      <div className="print-only print-report-header">
+        <h2>{aluno.nome}</h2>
+        <p>
+          {turmaLabel ? `Turma: ${turmaLabel} | ` : ""}
+          RA: {aluno.matricula ?? "-"} | Média: {formatarMediaGlobal(mediaAluno)} | Frequência: {formatarPercentual(aluno.frequencia)}
+        </p>
+      </div>
+
       <section className="student-subjects-section">
         <h3>Notas por Disciplina</h3>
         <div className="student-subjects-table-wrap">
@@ -1313,9 +1338,33 @@ function AlunoDetalheGestao({
       </section>
 
       <section className="student-council-note">
-        <h3>Parecer do Conselho - {bimestreAtual}º Bimestre</h3>
-        <textarea placeholder="Digite aqui as observações e deliberações do conselho de classe..." />
+        <h3>Parecer do Conselho</h3>
+        <div className="council-note-bimesters">
+          {[1, 2, 3, 4].map((indice) => {
+            const codigos = (aluno.encaminhamentosBimestres ?? []).find(
+              (item) => Number.parseInt(item.bimestre, 10) === indice
+            )?.codigos ?? [];
+            const textos = codigos
+              .map((codigo) => encaminhamentoOpcoes.find((opcao) => opcao.numero === codigo)?.texto)
+              .filter((texto): texto is string => Boolean(texto));
+            return (
+              <div className="council-note-bimester" key={indice}>
+                <h4>{indice}º Bimestre</h4>
+                {textos.length ? (
+                  <ul>
+                    {textos.map((texto, indiceTexto) => (
+                      <li key={indiceTexto}>{texto}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="council-note-empty">Nenhum encaminhamento registrado.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
+      </div>
       </>
       )}
 

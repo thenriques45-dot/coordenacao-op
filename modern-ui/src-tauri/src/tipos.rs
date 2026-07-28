@@ -349,10 +349,17 @@ pub(crate) struct AlunoDetalhe {
     pub(crate) comentario_educacao_especial: Option<String>,
     pub(crate) frequencia_percentual: Option<f64>,
     pub(crate) encaminhamentos: Vec<i64>,
+    pub(crate) encaminhamentos_bimestres: Vec<EncaminhamentosBimestre>,
     pub(crate) deliberado: bool,
     pub(crate) atendimentos: Vec<AtendimentoAluno>,
     pub(crate) diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     pub(crate) disciplinas: Vec<DisciplinaDetalhe>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct EncaminhamentosBimestre {
+    pub(crate) bimestre: String,
+    pub(crate) codigos: Vec<i64>,
 }
 
 #[derive(Serialize)]

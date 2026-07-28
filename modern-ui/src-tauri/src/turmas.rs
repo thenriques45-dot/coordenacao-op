@@ -1496,6 +1496,7 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
             comentario_educacao_especial,
             frequencia_percentual,
             encaminhamentos: extrair_encaminhamentos(&info, &bimestre),
+            encaminhamentos_bimestres: extrair_encaminhamentos_bimestres(&info),
             deliberado: extrair_aluno_deliberado(&info, &bimestre),
             atendimentos: extrair_atendimentos_aluno(&info),
             diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
@@ -1584,6 +1585,16 @@ pub(crate) fn extrair_encaminhamentos(info: &Value, bimestre: &str) -> Vec<i64> 
     codigos.sort_unstable();
     codigos.dedup();
     codigos
+}
+
+pub(crate) fn extrair_encaminhamentos_bimestres(info: &Value) -> Vec<EncaminhamentosBimestre> {
+    ["1", "2", "3", "4"]
+        .into_iter()
+        .map(|periodo| EncaminhamentosBimestre {
+            bimestre: periodo.to_string(),
+            codigos: extrair_encaminhamentos(info, periodo),
+        })
+        .collect()
 }
 
 pub(crate) fn extrair_aluno_deliberado(info: &Value, bimestre: &str) -> bool {

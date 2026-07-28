@@ -177,6 +177,7 @@ type Aluno = {
   comentarioEducacaoEspecial?: string | null;
   frequencia: number | null;
   encaminhamentos: number[];
+  encaminhamentosBimestres?: EncaminhamentosBimestreApi[];
   deliberado: boolean;
   atendimentos?: AtendimentoAlunoApi[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagemApi | null;
@@ -241,10 +242,16 @@ type AlunoApi = {
   comentario_educacao_especial: string | null;
   frequencia_percentual: number | null;
   encaminhamentos: number[];
+  encaminhamentos_bimestres: EncaminhamentosBimestreApi[];
   deliberado: boolean;
   atendimentos: AtendimentoAlunoApi[];
   diagnostico_aprendizagem: DiagnosticoAprendizagemApi | null;
   disciplinas: DisciplinaApi[];
+};
+
+type EncaminhamentosBimestreApi = {
+  bimestre: string;
+  codigos: number[];
 };
 
 type DiagnosticoAprendizagemApi = {
@@ -311,6 +318,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.19.0": [
+    "O campo 'Parecer do Conselho' na ficha do aluno agora mostra os encaminhamentos já marcados no Conselho, organizados por bimestre (1º ao 4º) — sem precisar trocar de tela para consultar o que foi combinado em cada bimestre.",
+    "Novo botão 'Imprimir notas e parecer' na ficha do aluno: gera uma impressão com a tabela de notas por disciplina e o parecer por bimestre, pronta para entregar ou arquivar.",
+    "Corrigido: os assistentes de configuração (Conselho, Turmas, Setup inicial) podiam ficar com os botões de navegação fora da tela quando havia muitos itens cadastrados, sem forma de rolar, salvar ou fechar. Agora rolam normalmente.",
+  ],
   "2.18.0": [
     "Novo assistente de configuração inicial: além da sincronização, agora também cadastra os dados da instituição e permite criar a primeira turma sem sair do assistente.",
     "Turmas e Conselho ganham assistentes de configuração próprios (líder de sala, elegível, perfil da turma, aluno destaque, encaminhamentos), acessíveis a qualquer momento — não só no primeiro acesso.",
@@ -650,6 +662,7 @@ export function App() {
       comentarioEducacaoEspecial: aluno.comentario_educacao_especial,
       frequencia: aluno.frequencia_percentual,
       encaminhamentos: aluno.encaminhamentos,
+      encaminhamentosBimestres: aluno.encaminhamentos_bimestres ?? [],
       deliberado: aluno.deliberado,
       atendimentos: aluno.atendimentos ?? [],
       diagnosticoAprendizagem: aluno.diagnostico_aprendizagem,
