@@ -847,7 +847,11 @@ pub(crate) fn levantar_elegiveis_recuperacao_turma(
         // disciplinas lançadas não pesa igual a um com muitas.
         let mut total_notas = 0usize;
         let mut notas_vermelhas = 0usize;
-        let mut disciplinas_vermelhas = Vec::new();
+        // Agrupa por disciplina em vez de uma entrada por bimestre vermelho,
+        // para não repetir o nome da disciplina quando ela está vermelha em
+        // mais de um bimestre (ex.: "Matemática (1º e 2º bim.)" em vez de
+        // duas linhas separadas).
+        let mut disciplinas_vermelhas_mapa: BTreeMap<String, Vec<&str>> = BTreeMap::new();
         // Notas por disciplina dentro de cada par de recuperação: a prova só
         // substitui uma nota do 1º/2º bimestre OU do 3º/4º — nunca cruzando os
         // dois semestres. O aluno faz até duas provas de recuperação por ano,
@@ -873,11 +877,10 @@ pub(crate) fn levantar_elegiveis_recuperacao_turma(
                 total_notas += 1;
                 if nota < nota_minima {
                     notas_vermelhas += 1;
-                    disciplinas_vermelhas.push(format!(
-                        "{} ({}º bim.)",
-                        formatar_rotulo_turma_texto(&disciplina),
-                        bimestre
-                    ));
+                    disciplinas_vermelhas_mapa
+                        .entry(formatar_rotulo_turma_texto(&disciplina))
+                        .or_default()
+                        .push(bimestre);
                 }
 
                 let (mapa, posicao) = match bimestre {
@@ -951,6 +954,13 @@ pub(crate) fn levantar_elegiveis_recuperacao_turma(
                 });
             }
         }
+
+        let disciplinas_vermelhas: Vec<String> = disciplinas_vermelhas_mapa
+            .into_iter()
+            .map(|(disciplina, bimestres)| {
+                format!("{disciplina} ({})", formatar_bimestres_lista(&bimestres))
+            })
+            .collect();
 
         registros.push(AlunoElegivelRecuperacaoRelatorio {
             numero,
@@ -1257,8 +1267,13 @@ pub(crate) fn escrever_relatorio_elegiveis_recuperacao_docx(
         if !sugestoes.is_empty() {
             documento.quebra_pagina();
             documento.paragrafo_negrito(&format!("{turma} - Sugestão de substituição de nota após a recuperação"));
-            documento.paragrafo("A prova de recuperação substitui apenas uma nota do par 1º/2º bimestre ou do par 3º/4º bimestre de cada disciplina — o aluno faz até duas provas por ano, uma para cada semestre. Cada disciplina está em sua própria página para ser repassada ao professor responsável.");
+            documento.paragrafo("A prova de recuperação substitui apenas uma nota do par 1º/2º bimestre ou do par 3º/4º bimestre de cada disciplina — o aluno faz até duas provas por ano, uma para cada semestre. As sugestões estão agrupadas por disciplina para facilitar o repasse ao professor responsável.");
 
+            // O primeiro bloco de semestre com conteúdo continua na mesma
+            // página do texto introdutório acima — só os blocos seguintes
+            // começam página nova. Evita uma página só com o título e o
+            // parágrafo explicativo.
+            let mut primeiro_bloco_semestre = true;
             for (rotulo_semestre, sugestoes_semestre) in [
                 (
                     "Recuperação do 1º semestre (substitui 1º ou 2º bimestre)",
@@ -1279,12 +1294,15 @@ pub(crate) fn escrever_relatorio_elegiveis_recuperacao_docx(
                     continue;
                 }
 
-                documento.quebra_pagina();
+                if !primeiro_bloco_semestre {
+                    documento.quebra_pagina();
+                }
+                primeiro_bloco_semestre = false;
                 documento.paragrafo_negrito(rotulo_semestre);
 
-                // Agrupado por disciplina, uma página por disciplina, em vez
-                // de uma tabela única com todas misturadas: cada professor
-                // recebe só a página da própria disciplina.
+                // Agrupado por disciplina em tabelas separadas (sem página
+                // própria para cada uma — são poucos alunos, então cabe
+                // tudo seguido) para facilitar o repasse ao professor.
                 let mut por_disciplina: BTreeMap<&str, Vec<&SugestaoSubstituicaoRelatorio>> =
                     BTreeMap::new();
                 for sugestao in sugestoes_semestre {
@@ -1296,9 +1314,9 @@ pub(crate) fn escrever_relatorio_elegiveis_recuperacao_docx(
 
                 for (indice_disciplina, (disciplina, itens)) in por_disciplina.iter().enumerate() {
                     if indice_disciplina > 0 {
-                        documento.quebra_pagina();
+                        documento.paragrafo("");
                     }
-                    documento.paragrafo_negrito(&format!("Disciplina: {disciplina}"));
+                    documento.paragrafo_negrito(&format!("Disciplina: {disciplina} - {turma}"));
                     let mut linhas_sugestao = vec![vec![
                         CelulaDocx::cabecalho("Nº"),
                         CelulaDocx::cabecalho("Aluno"),
@@ -1891,6 +1909,22 @@ pub(crate) fn formatar_media_docx(valor: Option<f64>) -> String {
 
 pub(crate) fn formatar_percentual_docx(valor: f64) -> String {
     format!("{}%", valor.round() as i64)
+}
+
+pub(crate) fn formatar_bimestres_lista(bimestres: &[&str]) -> String {
+    match bimestres {
+        [] => String::new(),
+        [unico] => format!("{unico}º bim."),
+        _ => {
+            let (ultimo, resto) = bimestres.split_last().unwrap();
+            let resto_fmt = resto
+                .iter()
+                .map(|bimestre| format!("{bimestre}º"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{resto_fmt} e {ultimo}º bim.")
+        }
+    }
 }
 
 pub(crate) fn formatar_numero_sem_decimal(valor: f64) -> String {
