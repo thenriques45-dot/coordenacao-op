@@ -37,6 +37,7 @@ export type KanbanTarefa = {
   descricao: string;
   etiquetas: string[];
   responsavel: string;
+  responsaveis?: string[];
   dataInicio?: string;
   prazo: string;
   prioridade: KanbanPrioridade;
@@ -322,7 +323,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
           origemId: tarefa.id,
           tipo: "tarefa" as const,
           titulo: tarefa.titulo,
-          descricao: tarefa.responsavel,
+          descricao: formatarResponsaveisTarefa(tarefa),
           data,
           cor: colunasKanbanPadrao.find((c) => c.id === tarefa.status)?.cor ?? "#2f78ff",
           prioridade: tarefa.prioridade,
@@ -374,6 +375,17 @@ export function obterVinculosTarefa(tarefa: KanbanTarefa) {
 
 export function formatarVinculosTarefa(tarefa: KanbanTarefa) {
   return obterVinculosTarefa(tarefa).join(", ");
+}
+
+export function obterResponsaveisTarefa(tarefa: KanbanTarefa) {
+  return deduplicarVinculos([
+    ...(Array.isArray(tarefa.responsaveis) ? tarefa.responsaveis : []),
+    tarefa.responsavel ?? "",
+  ]);
+}
+
+export function formatarResponsaveisTarefa(tarefa: KanbanTarefa) {
+  return obterResponsaveisTarefa(tarefa).join(", ");
 }
 
 export function obterVinculosEvento(evento: CalendarEvent) {
@@ -433,7 +445,7 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
   const texto = [
     tarefa.titulo,
     tarefa.descricao,
-    tarefa.responsavel,
+    ...obterResponsaveisTarefa(tarefa),
     ...obterVinculosTarefa(tarefa),
     ...(tarefa.etiquetas ?? []),
     evento?.titulo ?? "",

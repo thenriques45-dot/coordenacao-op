@@ -23,3 +23,8 @@ backups/
 dados/**
 !dados/imagens/
 !dados/imagens/**
+# app_base_dir() cai aqui quando `cargo run`/`cargo test` roda com cwd em
+# modern-ui/src-tauri (ex.: via tauri dev) — nao e o mesmo caminho do
+# padrao "dados/**" acima, entao precisa de entrada propria.
+modern-ui/src-tauri/dados/
+modern-ui/src-tauri/config/

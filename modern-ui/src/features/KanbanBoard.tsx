@@ -26,8 +26,10 @@ import {
   coresKanban,
   filtrarSugestoesFuzzy,
   formatarDataCurta,
+  formatarResponsaveisTarefa,
   formatarVinculosTarefa,
   normalizarTextoGestao,
+  obterResponsaveisTarefa,
   obterVinculosEvento,
   obterVinculosTarefa,
   ordenarPorPrazoECriacao,
@@ -347,6 +349,11 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     6,
   );
 
+  const sugestoesResponsavel = useMemo(() => {
+    return Array.from(new Set(membrosParaCards.map((membro) => membro.displayName).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [membrosParaCards]);
+
   const sugestoesVinculo = useMemo(() => {
     const itens = new Set<string>();
     turmas.forEach((turma) => {
@@ -438,7 +445,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       titulo: tarefa.titulo,
       descricao: tarefa.descricao,
       etiquetas: tarefa.etiquetas.join(", "),
-      responsavel: tarefa.responsavel,
+      responsavel: formatarResponsaveisTarefa(tarefa),
       dataInicio: tarefa.dataInicio ?? "",
       prazo: tarefa.prazo,
       prioridade: tarefa.prioridade,
@@ -565,6 +572,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
 
     const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
     const vinculos = separarVinculos(novaTarefa.vinculo);
+    const responsaveis = separarVinculos(novaTarefa.responsavel);
     const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
     // Só guarda dataInicio se for anterior ao prazo.
     const dataInicio = novaTarefa.dataInicio && novaTarefa.dataInicio < prazo ? novaTarefa.dataInicio : undefined;
@@ -581,7 +589,8 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         titulo,
         descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
         etiquetas,
-        responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+        responsavel: responsaveis[0] || "Coordenação",
+        responsaveis: responsaveis.length ? responsaveis : undefined,
         dataInicio,
         prazo,
         prioridade: novaTarefa.prioridade,
@@ -606,7 +615,8 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       titulo,
       descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
       etiquetas,
-      responsavel: novaTarefa.responsavel.trim() || "Coordenação",
+      responsavel: responsaveis[0] || "Coordenação",
+      responsaveis: responsaveis.length ? responsaveis : undefined,
       dataInicio,
       prazo,
       prioridade: novaTarefa.prioridade,
@@ -751,7 +761,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
           }}
         >
           <strong>{previewArraste.tarefa.titulo}</strong>
-          <span>{previewArraste.tarefa.responsavel || "Coordenação"}</span>
+          <span>{formatarResponsaveisTarefa(previewArraste.tarefa) || "Coordenação"}</span>
           <small>{formatarDataCurta(previewArraste.tarefa.prazo)}</small>
         </div>
       )}
@@ -875,7 +885,12 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                 <div className="kanban-task-tab-panel">
                   <label>
                     Responsável
-                    <input value={novaTarefa.responsavel} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, responsavel: event.target.value }))} />
+                    <VinculosPicker
+                      valor={novaTarefa.responsavel}
+                      sugestoes={sugestoesResponsavel}
+                      onChange={(v) => setNovaTarefa((atual) => ({ ...atual, responsavel: v }))}
+                      placeholder="Selecionar coordenador(es)"
+                    />
                   </label>
                   <div className="kanban-form-grid">
                     <label>
@@ -1114,7 +1129,8 @@ function KanbanTaskCard({
   const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
   const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
-  const membroResponsavel = membros.find((membro) => normalizarTextoGestao(tarefa.responsavel) === normalizarTextoGestao(membro.displayName));
+  const responsaveis = obterResponsaveisTarefa(tarefa);
+  const membroResponsavel = membros.find((membro) => responsaveis.some((nome) => normalizarTextoGestao(nome) === normalizarTextoGestao(membro.displayName)));
   const usarAvatarPerfil = Boolean(membroResponsavel?.avatarDataUrl);
   const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
@@ -1270,7 +1286,7 @@ function KanbanTaskCard({
               ? <span className="kanban-assignee-initials">{iniciaisPerfil(membroResponsavel.displayName)}</span>
               : <UserRound size={14} />
           )}
-          {tarefa.responsavel}
+          {responsaveis.join(", ")}
         </span>
         <span>
           <CalendarDays size={14} />

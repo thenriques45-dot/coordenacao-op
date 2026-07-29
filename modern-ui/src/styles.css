@@ -3862,42 +3862,93 @@ th:nth-child(3) {
   border: 1px solid #e5ebef;
   border-radius: 8px;
   display: grid;
-  gap: 6px;
+  gap: 2px;
   padding: 8px;
+}
+
+.settings-nav-group {
+  border-top: 2px solid transparent;
+  display: grid;
+  gap: 2px;
+  padding-top: 14px;
+}
+
+.settings-nav-group:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.settings-nav-group.active {
+  border-top-color: #e8202a;
+}
+
+.settings-nav-group-title {
+  align-items: center;
+  color: #344054;
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 8px;
+  letter-spacing: 0.03em;
+  padding: 0 12px 8px;
+  text-transform: uppercase;
+}
+
+.settings-nav-group-title::before {
+  background: #cfd6e3;
+  border-radius: 999px;
+  content: "";
+  height: 6px;
+  width: 6px;
+}
+
+.settings-nav-group.active .settings-nav-group-title {
+  color: #e8202a;
+}
+
+.settings-nav-group.active .settings-nav-group-title::before {
+  background: #e8202a;
 }
 
 .settings-nav button {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
-  color: #344054;
+  border-radius: 9px;
+  color: #101828;
   cursor: pointer;
   display: grid;
-  gap: 3px;
-  padding: 12px;
+  gap: 2px;
+  padding: 9px 12px 9px 20px;
   text-align: left;
 }
 
 .settings-nav button:hover {
-  background: #ffffff;
-  border-color: #e5ebef;
+  background: #f4f3f0;
 }
 
 .settings-nav button.active {
-  background: #ffffff;
-  border-color: #cfd6e3;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  background: #fdeceb;
+  box-shadow: none;
 }
 
 .settings-nav strong {
   color: #101828;
   font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-nav button.active strong {
+  color: #e8202a;
 }
 
 .settings-nav span {
-  color: #6b6670;
+  color: #98a2b3;
   font-size: 12px;
   line-height: 1.35;
+}
+
+.settings-nav button.active span {
+  color: #c9575c;
 }
 
 .settings-content {
@@ -3975,62 +4026,6 @@ th:nth-child(3) {
 .settings-check-row input {
   min-height: 0;
   width: auto;
-}
-
-.settings-accordion {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.settings-accordion-item {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.settings-accordion-header {
-  align-items: center;
-  background: #f8fafc;
-  border: none;
-  border-radius: 0;
-  cursor: pointer;
-  display: flex !important;
-  font-weight: 400;
-  justify-content: space-between;
-  padding: 10px 14px;
-  text-align: left;
-  width: 100%;
-}
-
-.settings-accordion-title {
-  align-items: baseline;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.settings-accordion-summary {
-  color: #6b6670;
-  font-size: 12.5px;
-}
-
-.settings-accordion-chevron {
-  color: #6b6670;
-  flex-shrink: 0;
-  transition: transform 0.15s ease;
-}
-
-.settings-accordion-item.open .settings-accordion-chevron {
-  transform: rotate(180deg);
-}
-
-.settings-accordion-item.open .settings-accordion-header {
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.settings-accordion-body {
-  padding: 14px;
 }
 
 .sync-actions-row {
@@ -4373,7 +4368,8 @@ th:nth-child(3) {
   gap: 6px;
 }
 
-.report-controls select {
+.report-controls select,
+.report-controls input {
   background: #ffffff;
   border: 1px solid #d5dbe6;
   border-radius: 8px;
@@ -6400,24 +6396,6 @@ th:nth-child(3) {
   color: #ececf0;
 }
 
-.theme-dark .settings-accordion-item {
-  border-color: #2c2935;
-}
-
-.theme-dark .settings-accordion-header {
-  background: #26232f;
-  color: #ececf0;
-}
-
-.theme-dark .settings-accordion-item.open .settings-accordion-header {
-  border-bottom-color: #2c2935;
-}
-
-.theme-dark .settings-accordion-summary,
-.theme-dark .settings-accordion-chevron {
-  color: #a8a3b3;
-}
-
 .theme-dark .sync-wizard-grid article span,
 .theme-dark .sync-wizard-note,
 .theme-dark .sync-folder-picker span {
@@ -6430,14 +6408,32 @@ th:nth-child(3) {
   color: #ececf0;
 }
 
+.theme-dark .settings-nav-group-title {
+  color: #c8c4d4;
+}
+
+.theme-dark .settings-nav-group-title::before {
+  background: #34313d;
+}
+
+.theme-dark .settings-nav-group.active .settings-nav-group-title {
+  color: #e8202a;
+}
+
+.theme-dark .settings-nav-group.active .settings-nav-group-title::before {
+  background: #e8202a;
+}
+
 .theme-dark .settings-nav button {
   color: #c8c4d4;
 }
 
-.theme-dark .settings-nav button:hover,
+.theme-dark .settings-nav button:hover {
+  background: #26232f;
+}
+
 .theme-dark .settings-nav button.active {
-  background: #211e28;
-  border-color: #2c2935;
+  background: #33191c;
   box-shadow: none;
 }
 
@@ -6445,8 +6441,16 @@ th:nth-child(3) {
   color: #ececf0;
 }
 
+.theme-dark .settings-nav button.active strong {
+  color: #e8202a;
+}
+
 .theme-dark .settings-nav span {
   color: #9a96a4;
+}
+
+.theme-dark .settings-nav button.active span {
+  color: #c9575c;
 }
 
 .theme-dark .ai-provider-options button.selected {
@@ -6775,6 +6779,7 @@ th:nth-child(3) {
 .theme-dark .import-notes-controls select,
 .theme-dark .csv-repair-cell select,
 .theme-dark .report-controls select,
+.theme-dark .report-controls input,
 .theme-dark .sync-wizard-form input,
 .theme-dark .settings-card select,
 .theme-dark .settings-card input {
@@ -8334,4 +8339,59 @@ th:nth-child(3) {
 .theme-dark .council-actions button.primary-action:hover {
   background: #c01620;
   border-color: #c01620;
+}
+
+/* ── Patch: correções de tema escuro (colar no final de styles.css) ── */
+
+/* 1. Campo de nota editável — o seletor certo, não o nome torto anterior */
+.theme-dark .editable-grade-cell input {
+  background: #211e28;
+  border-color: #e8202a;
+  color: #ececf0;
+}
+
+/* 2. Texto em negrito dentro do seletor de arquivo do Kanban */
+.theme-dark .kanban-file-picker strong {
+  color: #ececf0;
+}
+
+/* 3. Botões de opção de documento (conselho) */
+.theme-dark .document-options button {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #ececf0;
+}
+
+.theme-dark .document-options button.selected {
+  background: #173526;
+  border-color: #2d8054;
+}
+
+/* 4. Botão "Cancelar" ao criar turma */
+.theme-dark .create-class-actions button {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #ececf0;
+}
+
+/* 5. Cronômetro do modo reunião */
+.theme-dark .meeting-timer {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #ececf0;
+}
+
+/* 6. Popover de histórico de notas */
+.theme-dark .grade-history-popover {
+  background: #1a1820;
+  border-color: #2c2935;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.45);
+}
+
+.theme-dark .grade-history-popover strong {
+  color: #ececf0;
+}
+
+.theme-dark .grade-history-popover span {
+  color: #9a96a4;
 }

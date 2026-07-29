@@ -7,6 +7,7 @@ import {
   diferencaDias,
   formatarDataCurta,
   formatarDataLonga,
+  formatarResponsaveisTarefa,
   formatarVinculosTarefa,
   KANBAN_UPDATED_EVENT,
   montarLinhaDoTempo,
@@ -223,7 +224,7 @@ export function Dashboard({
                 <div>
                   <strong>{item.titulo}</strong>
                   <span>{item.descricao}</span>
-                  <small>{item.responsavel} · {formatarDataCurta(item.prazo)}</small>
+                  <small>{formatarResponsaveisTarefa(item)} · {formatarDataCurta(item.prazo)}</small>
                 </div>
                 <em>{rotuloPrioridade(item.prioridade)}</em>
               </button>

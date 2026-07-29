@@ -158,6 +158,7 @@ fn main() {
             docx::listar_documentos_conselho,
             docx::abrir_documento_conselho,
             docx::gerar_relatorio_alunos_criticos,
+            docx::gerar_relatorio_elegiveis_recuperacao,
             docx::gerar_relatorio_alteracoes_notas,
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,

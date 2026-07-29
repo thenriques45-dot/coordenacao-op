@@ -494,6 +494,20 @@ pub(crate) struct RelatorioAlteracoesNotasResultado {
 }
 
 #[derive(Deserialize)]
+pub(crate) struct RelatorioElegiveisRecuperacaoInput {
+    pub(crate) serie: Option<String>,
+    pub(crate) limiar_percentual: Option<f64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct RelatorioElegiveisRecuperacaoResultado {
+    pub(crate) caminho: String,
+    pub(crate) pasta: String,
+    pub(crate) turmas: usize,
+    pub(crate) alunos: usize,
+}
+
+#[derive(Deserialize)]
 pub(crate) struct AtendimentoAlunoInput {
     pub(crate) id: Option<String>,
     pub(crate) parent_id: Option<String>,

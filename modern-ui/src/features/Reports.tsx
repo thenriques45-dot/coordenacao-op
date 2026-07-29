@@ -1,4 +1,4 @@
-import { BarChart3, BookMarked, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, BookMarked, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -21,6 +21,13 @@ type RelatorioAlteracoesNotasResultado = {
   turmas: number;
   pendentes: number;
   alteradas: number;
+};
+
+type RelatorioElegiveisRecuperacaoResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  alunos: number;
 };
 
 type RelatorioAtendimentoContagem = {
@@ -197,6 +204,7 @@ function rotuloSerie(valor?: string | null) {
 }
 export function RelatoriosMenu({
   onAbrirCriticos,
+  onAbrirElegiveisRecuperacao,
   onAbrirAlteracoesNotas,
   onAbrirAtendimentos,
   onAbrirPei,
@@ -205,6 +213,7 @@ export function RelatoriosMenu({
   onAbrirProvaPaulista,
 }: {
   onAbrirCriticos: () => void;
+  onAbrirElegiveisRecuperacao: () => void;
   onAbrirAlteracoesNotas: () => void;
   onAbrirAtendimentos: () => void;
   onAbrirPei: () => void;
@@ -245,6 +254,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Relatório de Alunos Críticos</strong>
             <span>Lista estudantes por turma com excesso de faltas ou situação crítica por notas.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirElegiveisRecuperacao}>
+          <AlertTriangle size={26} />
+          <div>
+            <strong>Elegíveis à Prova de Recuperação</strong>
+            <span>Lista alunos com X% ou mais de notas vermelhas (limiar ajustável, 50% padrão) somando todos os bimestres e sugere qual nota trocar após a recuperação.</span>
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={onAbrirAlteracoesNotas}>
@@ -399,6 +415,128 @@ export function RelatorioAlunosCriticos({ turmas, onVoltar }: { turmas: TurmaRes
 
         <div className="report-actions">
           <button className="primary-action" onClick={gerarRelatorioCriticos} disabled={processando || !turmas.length}>
+            {processando ? "Gerando..." : "Gerar relatório"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir relatório
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
+export function RelatorioElegiveisRecuperacao({ turmas, onVoltar }: { turmas: TurmaResumoRelatorio[]; onVoltar: () => void }) {
+  const [serie, setSerie] = useState("todas");
+  const [limiarPercentual, setLimiarPercentual] = useState(50);
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioElegiveisRecuperacaoResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+  const series = useMemo(() => {
+    const unicas = new Set<string>();
+    turmas.forEach((turma) => {
+      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
+      if (rotulo.trim()) unicas.add(rotulo.trim());
+    });
+    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
+  }, [turmas]);
+
+  useEffect(() => {
+    if (serie !== "todas" && !series.includes(serie)) {
+      setSerie("todas");
+    }
+  }, [serie, series]);
+
+  function gerarRelatorio() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invokeApp<RelatorioElegiveisRecuperacaoResultado>("gerar_relatorio_elegiveis_recuperacao", {
+      input: {
+        serie: serie === "todas" ? null : serie,
+        limiar_percentual: limiarPercentual,
+      },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPastaRelatorios() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Elegíveis à Prova de Recuperação</h1>
+          <p>Lista os estudantes com {limiarPercentual}% ou mais de notas vermelhas, somando as disciplinas de todos os bimestres lançados, e sugere ao professor qual nota (1º/2º ou 3º/4º bimestre) a prova de recuperação deve substituir.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Elegíveis à recuperação</h2>
+            <p>O relatório é dividido por turma e mostra o percentual de notas vermelhas de cada aluno considerando o 1º ao 4º bimestre. Para os elegíveis, aponta qual nota a recuperação substitui em cada disciplina: se só um bimestre do par (1º/2º ou 3º/4º) está vermelho, sugere direto; se os dois estão, sugere o menor.</p>
+          </div>
+          <AlertTriangle size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Turmas
+            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
+              <option value="todas">Todas as salas</option>
+              {series.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Elegível com % de vermelhas a partir de
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={limiarPercentual}
+              onChange={(event) => {
+                const valor = Number(event.target.value);
+                setLimiarPercentual(Number.isFinite(valor) ? valor : 50);
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || !turmas.length || limiarPercentual <= 0 || limiarPercentual > 100}>
             {processando ? "Gerando..." : "Gerar relatório"}
           </button>
           {resultado && (

@@ -36,7 +36,7 @@ import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
-import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
+import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioElegiveisRecuperacao, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento } from "./features/SettingsPage";
@@ -53,7 +53,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-elegiveis-recuperacao" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -318,6 +318,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.20.0": [
+    "Novo relatório 'Elegíveis à Prova de Recuperação': lista, por turma, os alunos com um percentual configurável de notas vermelhas (50% por padrão, ajustável na própria tela) somando todos os bimestres, e aponta qual nota o professor deve substituir após a recuperação — 1º ou 2º bimestre, e 3º ou 4º, separados por página e por disciplina para facilitar a entrega a cada professor.",
+    "Tela de Configurações reorganizada: a navegação passa a ter 2 níveis fixos (Institucional, Conselho, Perfil & Sincronização, Sistema) em vez de uma lista com 7 itens soltos. As 4 seções do Conselho (Perfil da turma, Aluno destaque, Encaminhamentos, Notas na ATA) e 'Perfil e sincronização' viram destinos diretos, sem precisar abrir um acordeão dentro de outro.",
+    "Quadro Kanban: o campo Responsável passa a aceitar mais de um coordenador do grupo de trabalho (ou o próprio nome, quando não há grupo configurado), com o mesmo seletor usado em Vínculos.",
+    "Corrigidos casos de texto ilegível no tema escuro: nota editável nas tabelas, seletor de arquivo do Kanban, opções de documento do conselho, botão de cancelar ao criar turma, cronômetro do modo reunião e popover de histórico de notas.",
+  ],
   "2.19.0": [
     "O campo 'Parecer do Conselho' na ficha do aluno agora mostra os encaminhamentos já marcados no Conselho, organizados por bimestre (1º ao 4º) — sem precisar trocar de tela para consultar o que foi combinado em cada bimestre.",
     "Novo botão 'Imprimir notas e parecer' na ficha do aluno: gera uma impressão com a tabela de notas por disciplina e o parecer por bimestre, pronta para entregar ou arquivar.",
@@ -1207,7 +1213,7 @@ export function App() {
               </div>
             )}
           </div>
-          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-alteracoes-notas" || tela === "pei" || tela === "planejamento"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-elegiveis-recuperacao" || tela === "relatorio-alteracoes-notas" || tela === "pei" || tela === "planejamento"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -1404,6 +1410,7 @@ export function App() {
         {tela === "relatorios" && (
           <RelatoriosMenu
             onAbrirCriticos={() => navegarPara("relatorio-criticos")}
+            onAbrirElegiveisRecuperacao={() => navegarPara("relatorio-elegiveis-recuperacao")}
             onAbrirAlteracoesNotas={() => navegarPara("relatorio-alteracoes-notas")}
             onAbrirAtendimentos={() => navegarPara("relatorio-atendimentos")}
             onAbrirPei={() => navegarPara("pei")}
@@ -1413,13 +1420,14 @@ export function App() {
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-elegiveis-recuperacao" && <RelatorioElegiveisRecuperacao turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-alteracoes-notas" && <RelatorioAlteracoesNotas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
+        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-elegiveis-recuperacao" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {buscaGlobalAberta && (
         <BuscaGlobal
@@ -1580,6 +1588,7 @@ function Placeholder({ tela }: { tela: Tela }) {
     calendario: "Calendário",
     relatorios: "Relatórios",
     "relatorio-criticos": "Relatório de Alunos Críticos",
+    "relatorio-elegiveis-recuperacao": "Elegíveis à Prova de Recuperação",
     "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
     "relatorio-atendimentos": "Relatórios de Atendimento",
     "relatorio-tarefas": "Relatório de Tarefas Realizadas",

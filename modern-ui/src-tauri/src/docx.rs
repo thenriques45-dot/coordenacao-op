@@ -168,6 +168,67 @@ pub(crate) fn gerar_relatorio_alunos_criticos(
 }
 
 #[tauri::command(async)]
+pub(crate) fn gerar_relatorio_elegiveis_recuperacao(
+    input: RelatorioElegiveisRecuperacaoInput,
+) -> Result<RelatorioElegiveisRecuperacaoResultado, String> {
+    let _dados = travar_dados();
+    // Limiar de elegibilidade: o usuário pode ajustar na tela do relatório;
+    // 50% é o padrão e também a rede de segurança para valores inválidos.
+    let limiar = input
+        .limiar_percentual
+        .filter(|valor| valor.is_finite() && *valor > 0.0 && *valor <= 100.0)
+        .unwrap_or(50.0);
+    let serie_filtro = input
+        .serie
+        .as_deref()
+        .map(formatar_rotulo_turma_texto)
+        .filter(|serie| !serie.trim().is_empty());
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut blocos = Vec::new();
+    for (_, turma) in turmas {
+        if let Some(serie) = &serie_filtro {
+            let serie_turma = turma
+                .serie
+                .as_deref()
+                .map(formatar_rotulo_turma_texto)
+                .unwrap_or_default();
+            if serie_turma != *serie {
+                continue;
+            }
+        }
+
+        let (registros, sugestoes) = levantar_elegiveis_recuperacao_turma(&turma, limiar);
+        if !registros.is_empty() {
+            blocos.push((rotulo_turma(&turma), registros, sugestoes));
+        }
+    }
+
+    let total_alunos = blocos.iter().map(|(_, alunos, _)| alunos.len()).sum::<usize>();
+    let pasta = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("elegiveis_recuperacao");
+    fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
+    let escopo = serie_filtro
+        .as_deref()
+        .map(sanitizar_segmento)
+        .unwrap_or_else(|| "todas_as_turmas".to_string());
+    let arquivo = pasta.join(format!(
+        "relatorio_elegiveis_recuperacao_{}_{}.docx",
+        escopo,
+        Local::now().format("%Y%m%d_%H%M%S")
+    ));
+    escrever_relatorio_elegiveis_recuperacao_docx(&arquivo, serie_filtro.as_deref(), limiar, &blocos)?;
+
+    Ok(RelatorioElegiveisRecuperacaoResultado {
+        caminho: arquivo.to_string_lossy().to_string(),
+        pasta: pasta.to_string_lossy().to_string(),
+        turmas: blocos.len(),
+        alunos: total_alunos,
+    })
+}
+
+#[tauri::command(async)]
 pub(crate) fn gerar_relatorio_alteracoes_notas(
     input: RelatorioAlteracoesNotasInput,
 ) -> Result<RelatorioAlteracoesNotasResultado, String> {
@@ -662,6 +723,29 @@ pub(crate) struct AlunoCriticoRelatorio {
     pub(crate) motivos: Vec<String>,
 }
 
+pub(crate) struct AlunoElegivelRecuperacaoRelatorio {
+    pub(crate) numero: String,
+    pub(crate) nome: String,
+    pub(crate) ra: String,
+    pub(crate) total_notas: usize,
+    pub(crate) notas_vermelhas: usize,
+    pub(crate) percentual_vermelhas: f64,
+    pub(crate) disciplinas_vermelhas: Vec<String>,
+}
+
+pub(crate) struct SugestaoSubstituicaoRelatorio {
+    pub(crate) numero: String,
+    pub(crate) nome: String,
+    pub(crate) ra: String,
+    pub(crate) disciplina: String,
+    pub(crate) bimestre_repor: String,
+    pub(crate) nota_repor: f64,
+    // Nota do outro bimestre do mesmo par (1º/2º ou 3º/4º), quando lançada.
+    // Ausente quando esse bimestre ainda não tem nota — mesmo assim a
+    // substituição é sugerida, já que só existe uma nota vermelha no par.
+    pub(crate) outro: Option<(String, f64)>,
+}
+
 pub(crate) struct AlteracaoNotaRelatorio {
     pub(crate) numero: String,
     pub(crate) nome: String,
@@ -739,6 +823,161 @@ pub(crate) fn levantar_alunos_criticos_turma(
         (numero_a, a.nome.clone()).cmp(&(numero_b, b.nome.clone()))
     });
     registros
+}
+
+pub(crate) fn levantar_elegiveis_recuperacao_turma(
+    turma: &TurmaArquivo,
+    limiar_percentual: f64,
+) -> (Vec<AlunoElegivelRecuperacaoRelatorio>, Vec<SugestaoSubstituicaoRelatorio>) {
+    let nota_minima = obter_nota_minima_configurada();
+    let mut registros = Vec::new();
+    let mut sugestoes = Vec::new();
+    let Some(alunos) = &turma.alunos else {
+        return (registros, sugestoes);
+    };
+
+    for (matricula, info) in alunos {
+        if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+            continue;
+        }
+
+        // Soma as notas de todas as disciplinas lançadas em todos os bimestres
+        // (1º a 4º) num único total, em vez de calcular o percentual de cada
+        // bimestre isoladamente e depois combinar. Um bimestre com poucas
+        // disciplinas lançadas não pesa igual a um com muitas.
+        let mut total_notas = 0usize;
+        let mut notas_vermelhas = 0usize;
+        let mut disciplinas_vermelhas = Vec::new();
+        // Notas por disciplina dentro de cada par de recuperação: a prova só
+        // substitui uma nota do 1º/2º bimestre OU do 3º/4º — nunca cruzando os
+        // dois semestres. O aluno faz até duas provas de recuperação por ano,
+        // uma para cada par.
+        let mut notas_par_1_2: BTreeMap<String, (Option<f64>, Option<f64>)> = BTreeMap::new();
+        let mut notas_par_3_4: BTreeMap<String, (Option<f64>, Option<f64>)> = BTreeMap::new();
+
+        for bimestre in ["1", "2", "3", "4"] {
+            let medias = objeto_bimestre(info, "medias", bimestre);
+            let ajustes = objeto_bimestre(info, "ajustes_medias_conselho", bimestre);
+            let mut disciplinas = BTreeSet::new();
+            if let Some(medias) = medias {
+                disciplinas.extend(medias.keys().cloned());
+            }
+            if let Some(ajustes) = ajustes {
+                disciplinas.extend(ajustes.keys().cloned());
+            }
+
+            for disciplina in disciplinas {
+                let Some(nota) = nota_vigente_disciplina(info, bimestre, &disciplina) else {
+                    continue;
+                };
+                total_notas += 1;
+                if nota < nota_minima {
+                    notas_vermelhas += 1;
+                    disciplinas_vermelhas.push(format!(
+                        "{} ({}º bim.)",
+                        formatar_rotulo_turma_texto(&disciplina),
+                        bimestre
+                    ));
+                }
+
+                let (mapa, posicao) = match bimestre {
+                    "1" => (&mut notas_par_1_2, 0),
+                    "2" => (&mut notas_par_1_2, 1),
+                    "3" => (&mut notas_par_3_4, 0),
+                    _ => (&mut notas_par_3_4, 1),
+                };
+                let entrada = mapa.entry(disciplina.clone()).or_insert((None, None));
+                if posicao == 0 {
+                    entrada.0 = Some(nota);
+                } else {
+                    entrada.1 = Some(nota);
+                }
+            }
+        }
+
+        if total_notas == 0 {
+            continue;
+        }
+
+        // A sugestão de substituição só vale para quem é elegível (limiar
+        // configurável, 50% por padrão): só esses alunos farão a prova de
+        // recuperação, então só eles têm nota a ser substituída.
+        let percentual_vermelhas = notas_vermelhas as f64 / total_notas as f64 * 100.0;
+        if percentual_vermelhas < limiar_percentual {
+            continue;
+        }
+
+        let numero = info
+            .get("numero_chamada")
+            .and_then(Value::as_i64)
+            .map(|numero| numero.to_string())
+            .unwrap_or_else(|| "-".to_string());
+        let nome = info
+            .get("nome")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+
+        // Se só uma das duas notas do par está vermelha, a substituição é
+        // óbvia (o professor não precisa escolher). Só quando as duas estão
+        // vermelhas é que a prova substitui a menor delas — a outra continua
+        // vermelha mesmo após a recuperação.
+        for (rotulo_a, rotulo_b, mapa) in [("1", "2", &notas_par_1_2), ("3", "4", &notas_par_3_4)] {
+            for (disciplina, (nota_a, nota_b)) in mapa {
+                let vermelha_a = nota_a.is_some_and(|valor| valor < nota_minima);
+                let vermelha_b = nota_b.is_some_and(|valor| valor < nota_minima);
+
+                let (bimestre_repor, nota_repor, outro) = match (vermelha_a, vermelha_b) {
+                    (false, false) => continue,
+                    (true, false) => (rotulo_a, nota_a.unwrap(), nota_b.map(|v| (rotulo_b.to_string(), v))),
+                    (false, true) => (rotulo_b, nota_b.unwrap(), nota_a.map(|v| (rotulo_a.to_string(), v))),
+                    (true, true) => {
+                        if nota_a.unwrap() <= nota_b.unwrap() {
+                            (rotulo_a, nota_a.unwrap(), Some((rotulo_b.to_string(), nota_b.unwrap())))
+                        } else {
+                            (rotulo_b, nota_b.unwrap(), Some((rotulo_a.to_string(), nota_a.unwrap())))
+                        }
+                    }
+                };
+
+                sugestoes.push(SugestaoSubstituicaoRelatorio {
+                    numero: numero.clone(),
+                    nome: nome.clone(),
+                    ra: matricula.clone(),
+                    disciplina: formatar_rotulo_turma_texto(disciplina),
+                    bimestre_repor: bimestre_repor.to_string(),
+                    nota_repor,
+                    outro,
+                });
+            }
+        }
+
+        registros.push(AlunoElegivelRecuperacaoRelatorio {
+            numero,
+            nome,
+            ra: matricula.clone(),
+            total_notas,
+            notas_vermelhas,
+            percentual_vermelhas,
+            disciplinas_vermelhas,
+        });
+    }
+
+    registros.sort_by(|a, b| {
+        let numero_a = a.numero.parse::<i64>().unwrap_or(i64::MAX);
+        let numero_b = b.numero.parse::<i64>().unwrap_or(i64::MAX);
+        (numero_a, a.nome.clone()).cmp(&(numero_b, b.nome.clone()))
+    });
+    sugestoes.sort_by(|a, b| {
+        let numero_a = a.numero.parse::<i64>().unwrap_or(i64::MAX);
+        let numero_b = b.numero.parse::<i64>().unwrap_or(i64::MAX);
+        (numero_a, a.nome.clone(), a.disciplina.clone()).cmp(&(
+            numero_b,
+            b.nome.clone(),
+            b.disciplina.clone(),
+        ))
+    });
+    (registros, sugestoes)
 }
 
 pub(crate) fn levantar_alteracoes_notas_turma(
@@ -950,6 +1189,148 @@ pub(crate) fn escrever_relatorio_alunos_criticos_docx(
             ]);
         }
         documento.tabela_celulas_com_larguras(linhas, &[420, 2500, 1250, 780, 2100, 4050], true);
+    }
+
+    documento.salvar(caminho)
+}
+
+pub(crate) fn escrever_relatorio_elegiveis_recuperacao_docx(
+    caminho: &Path,
+    serie: Option<&str>,
+    limiar_percentual: f64,
+    blocos: &[(
+        String,
+        Vec<AlunoElegivelRecuperacaoRelatorio>,
+        Vec<SugestaoSubstituicaoRelatorio>,
+    )],
+) -> Result<(), String> {
+    let mut documento = DocumentoDocx::new();
+    documento.titulo_ata("ELEGÍVEIS À PROVA DE RECUPERAÇÃO");
+    let escopo = serie.unwrap_or("Todas as turmas");
+    documento.paragrafo_negrito(&format!(
+        "Escopo: {escopo} | Considerando o 1º ao 4º bimestre | Gerado em {}",
+        Local::now().format("%d/%m/%Y %H:%M")
+    ));
+    documento.paragrafo(&format!(
+        "Critério: alunos com {} ou mais de notas vermelhas (abaixo da média mínima configurada), somando as disciplinas lançadas em todos os bimestres — só esses alunos farão a prova de recuperação, então só eles têm sugestão de qual nota substituir.",
+        formatar_percentual_docx(limiar_percentual)
+    ));
+
+    if blocos.is_empty() {
+        documento.caixa_aviso("Nenhum aluno elegível encontrado para o escopo selecionado.");
+        return documento.salvar(caminho);
+    }
+
+    for (indice, (turma, alunos, sugestoes)) in blocos.iter().enumerate() {
+        if indice > 0 {
+            documento.quebra_pagina();
+        }
+        documento.paragrafo_negrito(&format!("{turma} - {} aluno(s)", alunos.len()));
+        let mut linhas = vec![vec![
+            CelulaDocx::cabecalho("Nº"),
+            CelulaDocx::cabecalho("Aluno"),
+            CelulaDocx::cabecalho("RA"),
+            CelulaDocx::cabecalho("% Vermelhas"),
+            CelulaDocx::cabecalho("Disciplinas vermelhas"),
+        ]];
+        for aluno in alunos {
+            linhas.push(vec![
+                CelulaDocx::texto(&aluno.numero),
+                CelulaDocx::texto(&aluno.nome).alinhada("left"),
+                CelulaDocx::texto(&aluno.ra),
+                CelulaDocx::texto(&format!(
+                    "{} ({}/{})",
+                    formatar_percentual_docx(aluno.percentual_vermelhas),
+                    aluno.notas_vermelhas,
+                    aluno.total_notas
+                )),
+                CelulaDocx::texto(&if aluno.disciplinas_vermelhas.is_empty() {
+                    "-".to_string()
+                } else {
+                    aluno.disciplinas_vermelhas.join(", ")
+                })
+                .alinhada("left"),
+            ]);
+        }
+        documento.tabela_celulas_com_larguras(linhas, &[420, 2500, 1250, 1500, 5430], true);
+
+        if !sugestoes.is_empty() {
+            documento.quebra_pagina();
+            documento.paragrafo_negrito(&format!("{turma} - Sugestão de substituição de nota após a recuperação"));
+            documento.paragrafo("A prova de recuperação substitui apenas uma nota do par 1º/2º bimestre ou do par 3º/4º bimestre de cada disciplina — o aluno faz até duas provas por ano, uma para cada semestre. Cada disciplina está em sua própria página para ser repassada ao professor responsável.");
+
+            for (rotulo_semestre, sugestoes_semestre) in [
+                (
+                    "Recuperação do 1º semestre (substitui 1º ou 2º bimestre)",
+                    sugestoes
+                        .iter()
+                        .filter(|s| s.bimestre_repor == "1" || s.bimestre_repor == "2")
+                        .collect::<Vec<_>>(),
+                ),
+                (
+                    "Recuperação do 2º semestre (substitui 3º ou 4º bimestre)",
+                    sugestoes
+                        .iter()
+                        .filter(|s| s.bimestre_repor == "3" || s.bimestre_repor == "4")
+                        .collect::<Vec<_>>(),
+                ),
+            ] {
+                if sugestoes_semestre.is_empty() {
+                    continue;
+                }
+
+                documento.quebra_pagina();
+                documento.paragrafo_negrito(rotulo_semestre);
+
+                // Agrupado por disciplina, uma página por disciplina, em vez
+                // de uma tabela única com todas misturadas: cada professor
+                // recebe só a página da própria disciplina.
+                let mut por_disciplina: BTreeMap<&str, Vec<&SugestaoSubstituicaoRelatorio>> =
+                    BTreeMap::new();
+                for sugestao in sugestoes_semestre {
+                    por_disciplina
+                        .entry(sugestao.disciplina.as_str())
+                        .or_default()
+                        .push(sugestao);
+                }
+
+                for (indice_disciplina, (disciplina, itens)) in por_disciplina.iter().enumerate() {
+                    if indice_disciplina > 0 {
+                        documento.quebra_pagina();
+                    }
+                    documento.paragrafo_negrito(&format!("Disciplina: {disciplina}"));
+                    let mut linhas_sugestao = vec![vec![
+                        CelulaDocx::cabecalho("Nº"),
+                        CelulaDocx::cabecalho("Aluno"),
+                        CelulaDocx::cabecalho("RA"),
+                        CelulaDocx::cabecalho("Bimestre a repor"),
+                        CelulaDocx::cabecalho("Nota a repor"),
+                        CelulaDocx::cabecalho("Outro bimestre"),
+                    ]];
+                    for sugestao in itens {
+                        linhas_sugestao.push(vec![
+                            CelulaDocx::texto(&sugestao.numero),
+                            CelulaDocx::texto(&sugestao.nome).alinhada("left"),
+                            CelulaDocx::texto(&sugestao.ra),
+                            CelulaDocx::texto(&format!("{}º bim.", sugestao.bimestre_repor)),
+                            CelulaDocx::texto(&formatar_media_docx(Some(sugestao.nota_repor))),
+                            CelulaDocx::texto(&match &sugestao.outro {
+                                Some((bimestre, nota)) => format!(
+                                    "{bimestre}º bim.: {}",
+                                    formatar_media_docx(Some(*nota))
+                                ),
+                                None => "Sem nota lançada".to_string(),
+                            }),
+                        ]);
+                    }
+                    documento.tabela_celulas_com_larguras(
+                        linhas_sugestao,
+                        &[420, 2900, 1250, 1900, 1600, 3030],
+                        true,
+                    );
+                }
+            }
+        }
     }
 
     documento.salvar(caminho)
