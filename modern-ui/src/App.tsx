@@ -320,12 +320,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
-  "2.21.0": [
+  "2.21.1": [
     "Planejamento e PEI ganham um Web App próprio, criado e republicado automaticamente pelo CoordenacaoOP (autorização única com sua conta Google) — sem precisar mais colar script no Apps Script nem compartilhar planilha manualmente. O caminho manual antigo (script/Forms) continua disponível como alternativa, na aba 'Manual' de cada tela.",
     "No Web App do PEI, o professor escolhe a própria turma e só vê os alunos elegíveis dela — turmas sem nenhum aluno elegível nem aparecem na lista — e o componente curricular já vem filtrado pelas disciplinas reais daquele aluno.",
     "Os dois Web Apps têm impressão/PDF sem precisar de nenhuma autorização extra, cópia por e-mail opcional para o professor e um botão para enviar outro planejamento/PEI sem recarregar a página.",
     "PEI e Planejamento viram itens próprios do menu lateral, em vez de cards dentro de Relatórios.",
     "Os prazos de entrega por semestre (1º/2º bimestre e 3º/4º) saem do Planejamento e passam a ser configuração da instituição, ajustável em Configurações → Instituição ou no assistente inicial — os valores já configurados são migrados automaticamente. O indicador de status do PEI passa a seguir esses mesmos prazos, em vez de depender de médias já importadas.",
+    "Quem não conseguir usar 'Criar automaticamente' por causa do limite de usuários de teste do Google pode agora configurar seu próprio client OAuth, sem precisar recompilar o app — veja o tutorial 'Configurar_Client_OAuth_Proprio.md' no repositório.",
   ],
   "2.20.0": [
     "Novo relatório 'Elegíveis à Prova de Recuperação': lista, por turma, os alunos com um percentual configurável de notas vermelhas (50% por padrão, ajustável na própria tela) somando todos os bimestres, e aponta qual nota o professor deve substituir após a recuperação — 1º ou 2º bimestre, e 3º ou 4º, separados por página e por disciplina para facilitar a entrega a cada professor.",

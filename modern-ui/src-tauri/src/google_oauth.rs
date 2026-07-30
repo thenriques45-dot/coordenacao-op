@@ -50,9 +50,45 @@ const KEYRING_CONTA: &str = "refresh_token";
 // verificação do Google, há um teto de ~100 usuários únicos autorizando ao
 // longo do tempo (os escopos de Apps Script contam como sensíveis). Vale a
 // pena reavaliar isso caso o uso cresça além de um punhado de escolas.
-const GOOGLE_OAUTH_CLIENT_ID: &str =
+//
+// Coordenadores que preferirem não depender desse teto compartilhado podem
+// criar o próprio client OAuth no Google Cloud e colar os valores em
+// config/google_oauth.json (ver credenciais_oauth() abaixo) — o app usa esse
+// arquivo quando presente e cai no client compartilhado quando ele não existe
+// ou está incompleto.
+const GOOGLE_OAUTH_CLIENT_ID_PADRAO: &str =
     "573335387735-m2qo6ctt5e7ave75mo07m26ict0vo8d5.apps.googleusercontent.com";
-const GOOGLE_OAUTH_CLIENT_SECRET: &str = "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";
+const GOOGLE_OAUTH_CLIENT_SECRET_PADRAO: &str = "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";
+
+struct CredenciaisOAuth {
+    client_id: String,
+    client_secret: String,
+}
+
+/// Lê config/google_oauth.json (client_id/client_secret próprios do
+/// coordenador), se existir e ambos os campos estiverem preenchidos; caso
+/// contrário, usa o client compartilhado embutido no binário.
+fn credenciais_oauth() -> CredenciaisOAuth {
+    if let Some(credenciais) = ler_credenciais_proprias() {
+        return credenciais;
+    }
+    CredenciaisOAuth {
+        client_id: GOOGLE_OAUTH_CLIENT_ID_PADRAO.to_string(),
+        client_secret: GOOGLE_OAUTH_CLIENT_SECRET_PADRAO.to_string(),
+    }
+}
+
+fn ler_credenciais_proprias() -> Option<CredenciaisOAuth> {
+    let caminho = config_dir().ok()?.join("google_oauth.json");
+    let texto = std::fs::read_to_string(caminho).ok()?;
+    let valor: serde_json::Value = serde_json::from_str(&texto).ok()?;
+    let client_id = valor.get("client_id")?.as_str()?.trim().to_string();
+    let client_secret = valor.get("client_secret")?.as_str()?.trim().to_string();
+    if client_id.is_empty() || client_secret.is_empty() {
+        return None;
+    }
+    Some(CredenciaisOAuth { client_id, client_secret })
+}
 
 // ── PKCE ──────────────────────────────────────────────────────────────────
 
@@ -175,11 +211,12 @@ fn trocar_code_por_token(
     code_verifier: &str,
     redirect_uri: &str,
 ) -> Result<TokenResponse, String> {
+    let credenciais = credenciais_oauth();
     let client = reqwest::blocking::Client::new();
     let params = [
         ("code", code),
-        ("client_id", GOOGLE_OAUTH_CLIENT_ID),
-        ("client_secret", GOOGLE_OAUTH_CLIENT_SECRET),
+        ("client_id", credenciais.client_id.as_str()),
+        ("client_secret", credenciais.client_secret.as_str()),
         ("redirect_uri", redirect_uri),
         ("grant_type", "authorization_code"),
         ("code_verifier", code_verifier),
@@ -199,11 +236,12 @@ fn trocar_code_por_token(
 }
 
 fn renovar_access_token(refresh_token: &str) -> Result<String, String> {
+    let credenciais = credenciais_oauth();
     let client = reqwest::blocking::Client::new();
     let params = [
         ("refresh_token", refresh_token),
-        ("client_id", GOOGLE_OAUTH_CLIENT_ID),
-        ("client_secret", GOOGLE_OAUTH_CLIENT_SECRET),
+        ("client_id", credenciais.client_id.as_str()),
+        ("client_secret", credenciais.client_secret.as_str()),
         ("grant_type", "refresh_token"),
     ];
     let resposta = client
@@ -238,6 +276,7 @@ fn carregar_refresh_token() -> Option<String> {
 // ── Fluxo interativo completo (abre navegador, aguarda callback) ──────────
 
 fn autorizar_interativamente() -> Result<String, String> {
+    let credenciais = credenciais_oauth();
     let (listener, porta) = iniciar_listener_loopback().map_err(|err| err.to_string())?;
     let redirect_uri = format!("http://127.0.0.1:{porta}/callback");
 
@@ -247,7 +286,7 @@ fn autorizar_interativamente() -> Result<String, String> {
 
     let mut serializer = url::form_urlencoded::Serializer::new(String::new());
     serializer
-        .append_pair("client_id", GOOGLE_OAUTH_CLIENT_ID)
+        .append_pair("client_id", &credenciais.client_id)
         .append_pair("redirect_uri", &redirect_uri)
         .append_pair("response_type", "code")
         .append_pair("scope", ESCOPOS_GOOGLE)

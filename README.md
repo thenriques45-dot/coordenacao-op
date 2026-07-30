@@ -82,3 +82,5 @@ As contribuições para o projeto seguem o [Acordo de Licença de Contribuição
 - Contribuição: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Código de conduta: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - Release e autoatualização: [RELEASE.md](RELEASE.md)
+- Manual de uso: [Manual_CoordenacaoOP.md](docs/manual_usuario/Manual_CoordenacaoOP.md)
+- Criar seu próprio client OAuth do Google (Planejamento/PEI): [Configurar_Client_OAuth_Proprio.md](docs/manual_usuario/Configurar_Client_OAuth_Proprio.md)
