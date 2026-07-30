@@ -320,7 +320,7 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
-  "2.21.1": [
+  "2.21.2": [
     "Planejamento e PEI ganham um Web App próprio, criado e republicado automaticamente pelo CoordenacaoOP (autorização única com sua conta Google) — sem precisar mais colar script no Apps Script nem compartilhar planilha manualmente. O caminho manual antigo (script/Forms) continua disponível como alternativa, na aba 'Manual' de cada tela.",
     "No Web App do PEI, o professor escolhe a própria turma e só vê os alunos elegíveis dela — turmas sem nenhum aluno elegível nem aparecem na lista — e o componente curricular já vem filtrado pelas disciplinas reais daquele aluno.",
     "Os dois Web Apps têm impressão/PDF sem precisar de nenhuma autorização extra, cópia por e-mail opcional para o professor e um botão para enviar outro planejamento/PEI sem recarregar a página.",

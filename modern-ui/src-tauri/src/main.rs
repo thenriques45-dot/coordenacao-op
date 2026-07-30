@@ -559,6 +559,8 @@ mod tests {
             aluno_destaque_ativo: false,
             aluno_destaque_criterios: vec![],
             modo_notas_ata: modo_notas_ata_padrao(),
+            prazo_1_semestre: String::new(),
+            prazo_2_semestre: String::new(),
         };
         escrever_ata_docx(&ata, &dados, "1", "Texto base da ata", &config_teste).unwrap();
         escrever_relatorio_professores_docx(&relatorio, &dados, "1").unwrap();
