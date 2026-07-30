@@ -484,6 +484,19 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
                 mas preserva as respostas já recebidas. Os passos manuais abaixo continuam disponíveis como
                 alternativa (ex.: se a Apps Script API estiver bloqueada no seu domínio Google).
               </p>
+              <p style={{ ...textoPassoStyle, marginTop: "0.5rem" }}>
+                <strong>Se o Google mostrar "Acesso bloqueado" ou "app não verificado"</strong> ao autorizar, sua
+                conta não está liberada no client compartilhado do CoordenacaoOP (limite de contas de teste do
+                Google). Veja o tutorial{" "}
+                <a
+                  href="https://github.com/thenriques45-dot/coordenacao-op/blob/main/docs/manual_usuario/Configurar_Client_OAuth_Proprio.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Configurar_Client_OAuth_Proprio.md
+                </a>{" "}
+                para criar seu próprio client OAuth (gratuito, ~10-15 min) e usar sem esse limite.
+              </p>
               <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" className={config.webapp_url ? "secondary-action" : "primary-action"} onClick={criarWebAppAutomatico} disabled={criandoWebApp}>
                   <Sparkles size={14} />{" "}
@@ -525,6 +538,14 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
                     <code>autorizarEnvioEmail</code> no menu de funções, clique em <em>Executar</em> (▶) e autorize
                     "Enviar e-mail em seu nome". Sem esse passo, o planejamento continua sendo salvo normalmente —
                     só a cópia por e-mail não sai.
+                  </p>
+                  <p style={{ ...textoPassoStyle, marginTop: "0.6rem" }}>
+                    <strong>Se o link parar de abrir para outras pessoas</strong> depois de republicar (aparecer uma
+                    tela de "Acesso negado"/"Você precisa de permissão" do Google), é uma falha conhecida da própria
+                    API do Google ao atualizar implantações existentes. Abra{" "}
+                    <a href="https://script.google.com/home" target="_blank" rel="noreferrer">script.google.com/home</a>,
+                    entre no projeto, vá em <em>Implantar → Gerenciar implantações</em>, edite a implantação ativa e
+                    confirme/resalve com <em>"Quem pode acessar"</em> em <em>"Qualquer pessoa"</em> — a URL não muda.
                   </p>
                 </div>
               )}

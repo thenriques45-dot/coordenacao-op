@@ -320,6 +320,10 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.21.3": [
+    "Corrigido: a bolinha de status do PEI podia acusar 'crítico' (vermelho) mesmo com vários PEIs recebidos, quando a carga horária do 3º/4º bimestre ainda não tinha sido importada para o aluno — agora, sem esse dado, ela cai num indicador simples (recebeu algo ou não) em vez de um falso vermelho.",
+    "Telas de Planejamento e PEI ganham avisos na aba Automático: o que fazer se o Google mostrar 'Acesso bloqueado'/'app não verificado' ao autorizar (link direto pro tutorial de client próprio), e o que fazer se o link parar de abrir para outras pessoas depois de republicar (falha conhecida da API do Google ao atualizar implantações — resolvida resalvando a implantação pelo editor do Apps Script).",
+  ],
   "2.21.2": [
     "Planejamento e PEI ganham um Web App próprio, criado e republicado automaticamente pelo CoordenacaoOP (autorização única com sua conta Google) — sem precisar mais colar script no Apps Script nem compartilhar planilha manualmente. O caminho manual antigo (script/Forms) continua disponível como alternativa, na aba 'Manual' de cada tela.",
     "No Web App do PEI, o professor escolhe a própria turma e só vê os alunos elegíveis dela — turmas sem nenhum aluno elegível nem aparecem na lista — e o componente curricular já vem filtrado pelas disciplinas reais daquele aluno.",
