@@ -62,6 +62,8 @@ export type ConfiguracoesApp = {
   aluno_destaque_ativo: boolean;
   aluno_destaque_criterios: CriterioDestaque[];
   modo_notas_ata: ModoNotasAta;
+  prazo_1_semestre: string;
+  prazo_2_semestre: string;
 };
 
 export type ModoNotasAta = "x_vermelhas" | "todas" | "somente_vermelhas";
@@ -179,6 +181,8 @@ export function Configuracoes({
     aluno_destaque_ativo: false,
     aluno_destaque_criterios: [],
     modo_notas_ata: "x_vermelhas",
+    prazo_1_semestre: "",
+    prazo_2_semestre: "",
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -846,6 +850,14 @@ export function Configuracoes({
           <label>
             Média mínima
             <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
+          </label>
+          <label>
+            Prazo do 1º semestre (bimestres 1º e 2º)
+            <input type="date" value={config.prazo_1_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_1_semestre: event.target.value }))} />
+          </label>
+          <label>
+            Prazo do 2º semestre (bimestres 3º e 4º)
+            <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
           </label>
           <div className="settings-file-group">
             <span>Cabeçalho da ata</span>

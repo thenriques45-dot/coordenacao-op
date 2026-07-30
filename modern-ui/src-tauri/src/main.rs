@@ -1,10 +1,14 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+mod apps_script_api;
+mod apps_script_webapp_conteudo;
+mod apps_script_webapp_pei_conteudo;
 mod backup;
 mod config;
 mod conselho_pendrive;
 mod docx;
 mod fotos;
+mod google_oauth;
 mod ia;
 mod importador_alunos;
 mod importador_mapao;
@@ -13,6 +17,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod sheets_api;
 mod shell;
 mod sync;
 mod tipos;
@@ -23,9 +28,10 @@ mod turmas;
 // módulos autocontidos, cujos itens ninguém referencia pela raiz.
 #[allow(unused_imports)]
 pub(crate) use {
-    backup::*, config::*, conselho_pendrive::*, docx::*, fotos::*, ia::*, importador_alunos::*,
+    apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
+    conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_mapao::*, infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    shell::*, sync::*, tipos::*, turmas::*,
+    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
 use tauri::{
@@ -174,6 +180,10 @@ fn main() {
             pei::abrir_pei_docx,
             pei::gerar_peis_lote,
             pei::listar_alunos_elegiveis_com_disciplinas,
+            pei::salvar_config_pei,
+            pei::carregar_config_pei,
+            pei::buscar_peis,
+            apps_script_api::provisionar_pei_automatico,
             turmas::listar_disciplinas_turma,
             pendencias::gerar_relatorio_pendencias,
             pendencias::gerar_relatorio_pendencia_lancamento,
@@ -196,7 +206,8 @@ fn main() {
             planejamento::obter_script_planejamento,
             planejamento::versao_script_planejamento,
             planejamento::abrir_planejamento_docx,
-            planejamento::gerar_planejamentos_lote
+            planejamento::gerar_planejamentos_lote,
+            apps_script_api::provisionar_planejamento_automatico
         ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar a nova interface do CoordenacaoOP");

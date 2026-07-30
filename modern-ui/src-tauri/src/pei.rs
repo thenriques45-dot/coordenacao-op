@@ -78,6 +78,138 @@ pub(crate) fn carregar_url_pei() -> Result<String, String> {
 }
 
 #[tauri::command]
+pub(crate) fn salvar_config_pei(config: ConfigPei) -> Result<(), String> {
+    let _dados = travar_dados();
+    let pasta = data_dir().map_err(|e| e.to_string())?.join("pei");
+    fs::create_dir_all(&pasta).map_err(|e| e.to_string())?;
+    let texto = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    escrever_json_atomicamente(&pasta.join("config.json"), &texto).map_err(|e| e.to_string())
+}
+
+// Mesmo arquivo físico usado por salvar_url_pei/carregar_url_pei (formato
+// antigo: a URL crua, sem aspas, como todo o conteúdo do arquivo — ver
+// salvar_url_pei acima). Migração: tenta decodificar como ConfigPei; se
+// falhar (arquivo antigo, texto puro), trata o conteúdo inteiro como
+// url_legado em vez de descartar a URL já configurada.
+#[tauri::command]
+pub(crate) fn carregar_config_pei() -> Result<ConfigPei, String> {
+    let caminho = data_dir()
+        .map_err(|e| e.to_string())?
+        .join("pei")
+        .join("config.json");
+    if !caminho.exists() {
+        return Ok(ConfigPei::default());
+    }
+    let texto = fs::read_to_string(caminho).map_err(|e| e.to_string())?;
+    let aparado = texto.trim();
+    if aparado.is_empty() {
+        return Ok(ConfigPei::default());
+    }
+    if let Ok(config) = serde_json::from_str::<ConfigPei>(aparado) {
+        return Ok(config);
+    }
+    Ok(ConfigPei {
+        url_legado: aparado.to_string(),
+        ..Default::default()
+    })
+}
+
+// Esquema fixo (12 colunas, ver sheets_api::CABECALHO_RESPOSTAS_PEI) escrito
+// pelo Web App próprio — mapeamento direto por coluna, sem decomposição
+// (diferente das "aulas" de Planejamento): o cliente já entrega os campos
+// prontos.
+pub(crate) fn parsear_valores_sheets_pei(valores: Vec<Vec<String>>) -> Vec<RegistroPei> {
+    const COLUNAS: usize = 12;
+    valores
+        .into_iter()
+        .map(|mut linha| {
+            linha.resize(COLUNAS, String::new());
+            // Mesma extração de dígito do parser legado (parsear_csv_pei):
+            // o resto do app (matriz por bimestre, BIMESTRES = ["1".."4"])
+            // espera só o número, não o texto "1º Bimestre" por extenso.
+            let bimestre_raw = linha[7].trim();
+            let bimestre: String = bimestre_raw.chars().filter(|c| c.is_ascii_digit()).collect();
+            let bimestre = if bimestre.is_empty() { bimestre_raw.to_string() } else { bimestre };
+            RegistroPei {
+                timestamp: linha[0].trim().to_string(),
+                email: linha[1].trim().to_string(),
+                professor: linha[2].trim().to_string(),
+                nome_estudante_completo: linha[3].trim().to_string(),
+                nome_aluno: linha[4].trim().to_string(),
+                turma_aluno: linha[5].trim().to_string(),
+                disciplina: linha[6].trim().to_string(),
+                bimestre,
+                conteudos: linha[8].trim().to_string(),
+                estrategias: linha[9].trim().to_string(),
+                instrumentos: linha[10].trim().to_string(),
+                recursos: linha[11].trim().to_string(),
+            }
+        })
+        .collect()
+}
+
+// Une o PEI legado (CSV público do Forms) com o caminho automático (Sheets
+// API autenticada). Falha isolada por fonte — mesmo padrão de
+// planejamento::buscar_planejamentos. Roda numa thread OS dedicada porque o
+// caminho automático usa OAuth (reqwest::blocking + eventual TcpListener de
+// reautorização), inseguro dentro do runtime async do Tauri.
+#[tauri::command(async)]
+pub(crate) fn buscar_peis(
+    url_legado: Option<String>,
+    planilha_automatica_id: Option<String>,
+) -> Result<Vec<RegistroPei>, String> {
+    std::thread::spawn(move || buscar_peis_interno(url_legado, planilha_automatica_id))
+        .join()
+        .map_err(|_| "Falha interna ao buscar os PEIs.".to_string())?
+}
+
+fn buscar_peis_interno(
+    url_legado: Option<String>,
+    planilha_automatica_id: Option<String>,
+) -> Result<Vec<RegistroPei>, String> {
+    let url_legado = url_legado.map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
+    let planilha_automatica_id = planilha_automatica_id
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty());
+
+    if url_legado.is_none() && planilha_automatica_id.is_none() {
+        return Err(
+            "Nenhuma planilha configurada. Informe um link ou crie o Web App automaticamente."
+                .to_string(),
+        );
+    }
+
+    let mut todos = Vec::new();
+    let mut erros = Vec::new();
+
+    if let Some(url) = url_legado {
+        match buscar_pei_planilha(url) {
+            Ok(mut regs) => todos.append(&mut regs),
+            Err(e) => erros.push(e),
+        }
+    }
+
+    if let Some(planilha_id) = planilha_automatica_id {
+        let intervalo = format!("{}!A2:L", sheets_api::ABA_RESPOSTAS);
+        match obter_access_token().and_then(|token| {
+            sheets_api::buscar_planilha_valores_autenticado(&token, &planilha_id, &intervalo)
+        }) {
+            Ok(valores) => todos.extend(parsear_valores_sheets_pei(valores)),
+            Err(e) => erros.push(format!("Planilha automática: {e}")),
+        }
+    }
+
+    if todos.is_empty() {
+        return Err(if erros.is_empty() {
+            "Nenhum PEI encontrado nas planilhas configuradas.".to_string()
+        } else {
+            erros.join(" | ")
+        });
+    }
+    Ok(todos)
+}
+
+#[tauri::command]
 pub(crate) fn abrir_pei_docx(nome_aluno: String, disciplina: String, bimestre: String) -> Result<(), String> {
     let caminho = data_dir()
         .map_err(|e| e.to_string())?
@@ -185,20 +317,6 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
                 continue;
             }
 
-            // Detecta bimestres que já têm pelo menos uma média importada.
-            let bimestres_com_medias: Vec<String> = ["1", "2", "3", "4"]
-                .iter()
-                .filter(|&&bim| {
-                    info.get("medias")
-                        .and_then(Value::as_object)
-                        .and_then(|m| m.get(bim))
-                        .and_then(Value::as_object)
-                        .map(|obj| !obj.is_empty())
-                        .unwrap_or(false)
-                })
-                .map(|b| b.to_string())
-                .collect();
-
             let nome = info
                 .get("nome")
                 .and_then(Value::as_str)
@@ -211,7 +329,6 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
                 turma: rotulo_turma(turma),
                 disciplinas: disciplinas.clone(),
                 disciplinas_por_bimestre: disciplinas_por_bimestre.clone(),
-                bimestres_com_medias,
             });
         }
     }

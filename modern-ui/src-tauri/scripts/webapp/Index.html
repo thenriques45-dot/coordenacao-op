@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root {
+    color-scheme: light;
+    --accent: #1a73e8;
+    --accent-dark: #1557b0;
+    --accent-soft: #e8f0fe;
+    --texto: #202124;
+    --texto-sec: #5f6368;
+    --borda: #dde1e6;
+    --fundo: #eef1f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    color: var(--texto);
+    background: var(--fundo);
+  }
+  .cabecalho {
+    background: linear-gradient(135deg, var(--accent) 0%, #6c9bf0 100%);
+    color: #fff;
+    margin: 0 -1rem 1.4rem;
+    padding: 1.6rem 1.25rem 1.5rem;
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.25);
+  }
+  .cabecalho h1 { font-size: 1.35rem; margin: 0 0 0.2rem; }
+  .cabecalho p { margin: 0; opacity: 0.92; font-size: 0.9rem; }
+  p.sub { color: var(--texto-sec); margin: 0 0 1.25rem; font-size: 0.9rem; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--borda);
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1.1rem;
+    box-shadow: 0 1px 3px rgba(30, 41, 59, 0.06);
+    transition: box-shadow 0.15s ease;
+  }
+  .card h2 {
+    font-size: 1rem;
+    margin: 0 0 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--texto);
+  }
+  .card h2 .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  label { display: block; font-weight: 600; font-size: 0.85rem; margin: 0.8rem 0 0.35rem; color: #3c4043; }
+  label:first-of-type { margin-top: 0; }
+  select, input[type="text"], input[type="email"], textarea {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: #fff;
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { min-height: 5rem; resize: vertical; }
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 0.4rem 0.8rem;
+  }
+  .checkbox-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    transition: background 0.12s ease;
+  }
+  .checkbox-item:hover { background: #f4f6fa; }
+  .checkbox-item input { margin-top: 0.2rem; accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+  .checkbox-item:has(input:checked) { background: var(--accent-soft); }
+  .oculto { display: none !important; }
+  button.primario {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button.primario:hover:not(:disabled) { background: var(--accent-dark); }
+  button.primario:active:not(:disabled) { transform: scale(0.98); }
+  button.primario:disabled { background: #9aa0a6; cursor: not-allowed; }
+  .segmento-escolha { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+  .segmento-escolha button {
+    flex: 1;
+    min-width: 190px;
+    padding: 1.1rem 0.9rem;
+    border: 2px solid var(--borda);
+    border-radius: 12px;
+    background: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--texto);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  }
+  .segmento-escolha button:hover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
+  .status { font-size: 0.88rem; margin-top: 0.7rem; padding: 0.5rem 0.7rem; border-radius: 8px; }
+  .status.erro { color: #a50e0e; background: #fce8e6; }
+  .status.ok { color: #0d652d; background: #e6f4ea; }
+  .rodape-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.1rem; flex-wrap: wrap; gap: 0.6rem; }
+  .link-voltar { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.88rem; padding: 0.4rem 0; }
+  .concluido {
+    text-align: center;
+    padding: 1rem 0.5rem 0.4rem;
+  }
+  .concluido .icone-ok {
+    width: 3rem; height: 3rem; border-radius: 50%;
+    background: #e6f4ea; color: #0d652d;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; margin: 0 auto 0.7rem;
+  }
+  #resumo-impressao {
+    text-align: left;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--borda);
+  }
+  #resumo-impressao h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
+  #resumo-impressao h3 { font-size: 0.9rem; margin: 0.8rem 0 0.2rem; color: #3c4043; }
+  #resumo-impressao p, #resumo-impressao li { font-size: 0.88rem; color: var(--texto); }
+  #resumo-impressao table { font-size: 0.88rem; }
+  @media print {
+    body * { visibility: hidden; }
+    #resumo-impressao, #resumo-impressao * { visibility: visible; }
+    #resumo-impressao { position: absolute; top: 0; left: 0; width: 100%; border: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cabecalho">
+  <h1>Planejamento Docente</h1>
+  <p>CoordenacaoOP — preencha o planejamento de aulas do bimestre.</p>
+</div>
+
+<div id="tela-segmento" class="card">
+  <h2><span class="badge">1</span>Selecione o segmento</h2>
+  <div class="segmento-escolha">
+    <button type="button" onclick="escolherSegmento('anos_finais')">Anos Finais (6º ao 9º ano)</button>
+    <button type="button" onclick="escolherSegmento('medio')">Ensino Médio</button>
+  </div>
+  <p id="status-carregando" class="status oculto">Carregando dados do segmento...</p>
+</div>
+
+<form id="tela-formulario" class="oculto" onsubmit="return false;">
+
+  <div class="card">
+    <h2><span class="badge">2</span>Identificação</h2>
+    <label for="campo-professor">Nome completo do(a) professor(a)</label>
+    <input type="text" id="campo-professor" required>
+
+    <label for="campo-email">E-mail (opcional — receba uma cópia do que enviar)</label>
+    <input type="email" id="campo-email" placeholder="seuemail@escola.sp.gov.br">
+
+    <label for="campo-unidade">
+      <span id="rotulo-unidade">Série</span>
+    </label>
+    <select id="campo-unidade" onchange="aoMudarUnidade()" required></select>
+  </div>
+
+  <div id="card-turma-componente" class="card oculto">
+    <h2><span class="badge">3</span>Turma(s) e componente</h2>
+    <label>Turma(s) (marque todas às quais este planejamento se aplica)</label>
+    <div id="grade-turmas" class="checkbox-grid"></div>
+
+    <label for="campo-componente">Componente curricular</label>
+    <select id="campo-componente" onchange="aoMudarComponente()" required></select>
+  </div>
+
+  <div id="card-bimestre" class="card oculto">
+    <h2><span class="badge">4</span>Bimestre</h2>
+    <select id="campo-bimestre" onchange="aoMudarBimestre()" required></select>
+  </div>
+
+  <div id="card-aulas" class="card oculto">
+    <h2><span class="badge">5</span>Aulas e objetivos planejados</h2>
+    <div id="bloco-aulas-checkbox" class="oculto">
+      <p class="sub" style="margin-bottom:0.5rem">Marque as aulas que fazem parte deste planejamento.</p>
+      <div id="grade-aulas" class="checkbox-grid" style="grid-template-columns: 1fr;"></div>
+    </div>
+    <div id="bloco-aulas-livre" class="oculto">
+      <label for="campo-aulas-livre">Descreva as aulas, conteúdos e objetivos de aprendizagem previstos</label>
+      <textarea id="campo-aulas-livre"></textarea>
+    </div>
+  </div>
+
+  <div id="card-final" class="card oculto">
+    <h2><span class="badge">6</span>Estratégias, recursos e avaliação</h2>
+    <label>Estratégias didáticas</label>
+    <div id="grade-estrategias" class="checkbox-grid"></div>
+    <label for="campo-estrategias-desc">Descreva como as estratégias serão aplicadas</label>
+    <textarea id="campo-estrategias-desc"></textarea>
+
+    <label>Recursos pedagógicos</label>
+    <div id="grade-recursos" class="checkbox-grid"></div>
+
+    <label>Instrumento(s) de avaliação previstos</label>
+    <div id="grade-instrumentos" class="checkbox-grid"></div>
+
+    <label for="campo-como-avaliara">Como você avaliará o alcance dos objetivos de aprendizagem?</label>
+    <textarea id="campo-como-avaliara" required></textarea>
+
+    <label for="campo-observacoes">Observações / adaptações curriculares</label>
+    <textarea id="campo-observacoes"></textarea>
+
+    <div class="rodape-nav">
+      <button type="button" class="link-voltar" onclick="location.reload()">← Recomeçar do zero</button>
+      <button type="button" class="primario" id="botao-enviar" onclick="enviarPlanejamento()">Enviar planejamento</button>
+    </div>
+    <div id="bloco-status-envio"></div>
+  </div>
+
+</form>
+
+<script>
+var ESTADO = {
+  segmento: null,
+  dados: null,        // resposta de obterDadosSegmento
+  unidade: null,
+  componente: null,
+  bimestre: null,
+  ultimoPayload: null, // guardado para o botão "Baixar PDF" após o envio
+};
+
+function normalizarNomeCliente(texto) {
+  if (!texto) return "";
+  var comAcento = "ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ";
+  var semAcento = "AAAAAAAAAAEEEEEEEEIIIIIIIIOOOOOOOOOOUUUUUUUUCcNn";
+  var resultado = "";
+  for (var i = 0; i < texto.length; i++) {
+    var ch = texto.charAt(i);
+    var pos = comAcento.indexOf(ch);
+    resultado += (pos !== -1 ? semAcento.charAt(pos) : ch).toUpperCase();
+  }
+  return resultado.trim().replace(/\s+/g, " ");
+}
+
+function ehBlocoReal(aulas, verificaPlaceholder) {
+  if (!aulas || aulas.length === 0) return false;
+  if (verificaPlaceholder && aulas.length === 1 && aulas[0].indexOf("[Aguardando dados") === 0) return false;
+  return true;
+}
+
+function bimestresValidosCliente(escopoComponente, unidade, bimestres, verificaPlaceholder) {
+  return bimestres.filter(function (bimestre) {
+    return ehBlocoReal(escopoComponente[unidade + " — " + bimestre], verificaPlaceholder);
+  });
+}
+
+function escolherSegmento(segmento) {
+  ESTADO.segmento = segmento;
+  document.getElementById("status-carregando").classList.remove("oculto");
+  document.querySelector("#tela-segmento .segmento-escolha").style.opacity = "0.5";
+  google.script.run
+    .withSuccessHandler(aoReceberDadosSegmento)
+    .withFailureHandler(function (erro) {
+      var el = document.getElementById("status-carregando");
+      el.textContent = "Erro ao carregar: " + (erro.message || erro);
+      el.className = "status erro";
+    })
+    .obterDadosSegmento(segmento);
+}
+
+function aoReceberDadosSegmento(dados) {
+  ESTADO.dados = dados;
+  document.getElementById("tela-segmento").classList.add("oculto");
+  document.getElementById("tela-formulario").classList.remove("oculto");
+  document.getElementById("rotulo-unidade").textContent = dados.rotuloUnidade;
+
+  var selectUnidade = document.getElementById("campo-unidade");
+  selectUnidade.innerHTML = '<option value="">Selecione...</option>';
+  dados.unidades.forEach(function (unidade) {
+    var opt = document.createElement("option");
+    opt.value = unidade;
+    opt.textContent = unidade;
+    selectUnidade.appendChild(opt);
+  });
+}
+
+function aoMudarUnidade() {
+  var unidade = document.getElementById("campo-unidade").value;
+  ESTADO.unidade = unidade || null;
+  ["card-turma-componente", "card-bimestre", "card-aulas", "card-final"].forEach(function (id) {
+    document.getElementById(id).classList.add("oculto");
+  });
+  if (!unidade) return;
+
+  var dados = ESTADO.dados;
+
+  var grade = document.getElementById("grade-turmas");
+  grade.innerHTML = "";
+  (dados.turmasPorUnidade[unidade] || []).forEach(function (turma) {
+    var id = "turma-" + turma.replace(/\s+/g, "-");
+    var div = document.createElement("div");
+    div.className = "checkbox-item";
+    div.innerHTML = '<input type="checkbox" id="' + id + '" value="' + turma + '"><label for="' + id + '" style="font-weight:400;margin:0">' + turma + "</label>";
+    grade.appendChild(div);
+  });
+  if (grade.innerHTML === "") {
+    grade.innerHTML = '<p class="sub">Nenhuma turma cadastrada para esta unidade — o planejamento ainda pode ser enviado.</p>';
+  }
+
+  var selectComponente = document.getElementById("campo-componente");
+  selectComponente.innerHTML = '<option value="">Selecione...</option>';
+  (dados.componentesPorUnidade[unidade] || []).forEach(function (componente) {
+    var opt = document.createElement("option");
+    opt.value = componente;
+    opt.textContent = componente;
+    selectComponente.appendChild(opt);
+  });
+
+  document.getElementById("card-turma-componente").classList.remove("oculto");
+}
+
+function aoMudarComponente() {
+  var componente = document.getElementById("campo-componente").value;
+  ESTADO.componente = componente || null;
+  document.getElementById("card-bimestre").classList.add("oculto");
+  document.getElementById("card-aulas").classList.add("oculto");
+  document.getElementById("card-final").classList.add("oculto");
+  if (!componente) return;
+
+  var dados = ESTADO.dados;
+  var escopo = dados.escopos[componente];
+  var selectBimestre = document.getElementById("campo-bimestre");
+  selectBimestre.innerHTML = "";
+
+  if (escopo.semCurriculo) {
+    // Sem Escopo-Sequência: pula direto para o texto livre, sem bimestre.
+    montarBlocoAulas([], true);
+    document.getElementById("card-final").classList.remove("oculto");
+    return;
+  }
+
+  var validos = bimestresValidosCliente(escopo, ESTADO.unidade, dados.bimestres, dados.verificaPlaceholder);
+  if (validos.length === 0) {
+    // Componente sem dado real nesta unidade ainda: texto livre.
+    montarBlocoAulas([], true);
+    document.getElementById("card-final").classList.remove("oculto");
+    return;
+  }
+
+  if (validos.length === 1) {
+    ESTADO.bimestre = validos[0];
+    montarBlocoAulas(escopo[ESTADO.unidade + " — " + validos[0]], false);
+    document.getElementById("card-final").classList.remove("oculto");
+    return;
+  }
+
+  validos.forEach(function (bimestre) {
+    var opt = document.createElement("option");
+    opt.value = bimestre;
+    opt.textContent = bimestre;
+    selectBimestre.appendChild(opt);
+  });
+  selectBimestre.value = "";
+  selectBimestre.insertAdjacentHTML("afterbegin", '<option value="">Selecione...</option>');
+  document.getElementById("card-bimestre").classList.remove("oculto");
+}
+
+function aoMudarBimestre() {
+  var bimestre = document.getElementById("campo-bimestre").value;
+  ESTADO.bimestre = bimestre || null;
+  document.getElementById("card-aulas").classList.add("oculto");
+  document.getElementById("card-final").classList.add("oculto");
+  if (!bimestre) return;
+
+  var escopo = ESTADO.dados.escopos[ESTADO.componente];
+  var aulas = escopo[ESTADO.unidade + " — " + bimestre] || [];
+  montarBlocoAulas(aulas, false);
+  document.getElementById("card-final").classList.remove("oculto");
+}
+
+function montarBlocoAulas(aulas, forcarLivre) {
+  var usaLivre = forcarLivre || aulas.length === 0;
+  document.getElementById("bloco-aulas-checkbox").classList.toggle("oculto", usaLivre);
+  document.getElementById("bloco-aulas-livre").classList.toggle("oculto", !usaLivre);
+  document.getElementById("card-aulas").classList.remove("oculto");
+
+  var grade = document.getElementById("grade-aulas");
+  grade.innerHTML = "";
+  aulas.forEach(function (aula, indice) {
+    var id = "aula-" + indice;
+    var div = document.createElement("div");
+    div.className = "checkbox-item";
+    div.innerHTML = '<input type="checkbox" id="' + id + '" value="' + indice + '"><label for="' + id + '" style="font-weight:400;margin:0">' + aula + "</label>";
+    grade.appendChild(div);
+  });
+
+  montarGradeSimples("grade-estrategias", ESTADO.dados.estrategias, "estrategia");
+  montarGradeSimples("grade-recursos", ESTADO.dados.recursos, "recurso");
+  montarGradeSimples("grade-instrumentos", ESTADO.dados.instrumentos, "instrumento");
+}
+
+function montarGradeSimples(idGrade, itens, prefixo) {
+  var grade = document.getElementById(idGrade);
+  if (grade.dataset.montado === "1") return;
+  grade.innerHTML = "";
+  itens.forEach(function (item, indice) {
+    var id = prefixo + "-" + indice;
+    var div = document.createElement("div");
+    div.className = "checkbox-item";
+    div.innerHTML = '<input type="checkbox" id="' + id + '" value="' + item.replace(/"/g, "&quot;") + '"><label for="' + id + '" style="font-weight:400;margin:0">' + item + "</label>";
+    grade.appendChild(div);
+  });
+  grade.dataset.montado = "1";
+}
+
+function valoresMarcados(idGrade) {
+  return Array.prototype.slice
+    .call(document.getElementById(idGrade).querySelectorAll("input[type=checkbox]:checked"))
+    .map(function (el) { return el.value; });
+}
+
+function enviarPlanejamento() {
+  var professor = document.getElementById("campo-professor").value.trim();
+  var comoAvaliara = document.getElementById("campo-como-avaliara").value.trim();
+  if (!professor || !ESTADO.unidade || !ESTADO.componente || !comoAvaliara) {
+    exibirStatusEnvio("Preencha professor, unidade, componente e como você avaliará antes de enviar.", true);
+    return;
+  }
+
+  var turmas = Array.prototype.slice
+    .call(document.getElementById("grade-turmas").querySelectorAll("input[type=checkbox]:checked"))
+    .map(function (el) { return el.value; });
+
+  var aulas;
+  if (document.getElementById("bloco-aulas-livre").classList.contains("oculto")) {
+    aulas = Array.prototype.slice
+      .call(document.getElementById("grade-aulas").querySelectorAll("input[type=checkbox]:checked"))
+      .map(function (el) {
+        var indice = parseInt(el.value, 10);
+        var escopo = ESTADO.dados.escopos[ESTADO.componente];
+        var lista = escopo[ESTADO.unidade + " — " + ESTADO.bimestre] || [];
+        return lista[indice];
+      })
+      .filter(Boolean);
+  } else {
+    aulas = [document.getElementById("campo-aulas-livre").value.trim()].filter(Boolean);
+  }
+
+  var estrategiasSelecionadas = valoresMarcados("grade-estrategias");
+  var descEstrategias = document.getElementById("campo-estrategias-desc").value.trim();
+  var estrategiasFinal = estrategiasSelecionadas.concat(descEstrategias ? [descEstrategias] : []).join("\n");
+
+  var payload = {
+    segmento: ESTADO.segmento,
+    professor: professor,
+    email: document.getElementById("campo-email").value.trim(),
+    unidade: ESTADO.unidade,
+    turmas: turmas,
+    componente: ESTADO.componente,
+    bimestre: (ESTADO.bimestre || "").replace(/\D/g, ""),
+    aulas: aulas,
+    estrategias: estrategiasFinal,
+    recursos: valoresMarcados("grade-recursos").join("\n"),
+    instrumentos: valoresMarcados("grade-instrumentos").join("\n"),
+    avaliacao: comoAvaliara,
+    observacoes: document.getElementById("campo-observacoes").value.trim(),
+  };
+
+  ESTADO.ultimoPayload = payload;
+  document.getElementById("botao-enviar").disabled = true;
+  exibirStatusEnvio("Enviando...", false);
+  google.script.run
+    .withSuccessHandler(function (resultado) {
+      exibirConclusao(resultado);
+    })
+    .withFailureHandler(function (erro) {
+      exibirStatusEnvio("Erro ao enviar: " + (erro.message || erro), true);
+      document.getElementById("botao-enviar").disabled = false;
+    })
+    .registrarPlanejamento(payload);
+}
+
+function escaparHtml(texto) {
+  var div = document.createElement("div");
+  div.textContent = texto == null ? "" : String(texto);
+  return div.innerHTML;
+}
+
+// Monta um resumo legível do que foi enviado — mostrado na tela de conclusão
+// e usado como o conteúdo real da impressão (window.print(), ver @media
+// print no <style>). Sem depender de nenhum serviço do Apps Script além do
+// que já usamos para salvar a resposta.
+function montarResumoImpressao(payload, rotuloUnidade) {
+  function secao(titulo, conteudo) {
+    if (!conteudo) return "";
+    return "<h3>" + titulo + "</h3><p style=\"white-space:pre-wrap\">" + escaparHtml(conteudo) + "</p>";
+  }
+
+  var linhas = [
+    ["Professor(a)", payload.professor],
+    ["Segmento", payload.segmento === "medio" ? "Ensino Médio" : "Anos Finais"],
+    [rotuloUnidade || "Unidade", payload.unidade],
+    ["Turma(s)", (payload.turmas || []).join(", ")],
+    ["Componente", payload.componente],
+    ["Bimestre", payload.bimestre ? payload.bimestre + "º" : ""],
+  ];
+
+  var html = "<h2>Plano de Ensino</h2><table>";
+  linhas.forEach(function (par) {
+    if (!par[1]) return;
+    html +=
+      "<tr><td style=\"font-weight:600; padding:0.2rem 0.6rem 0.2rem 0; vertical-align:top; white-space:nowrap\">" +
+      escaparHtml(par[0]) +
+      ":</td><td style=\"padding:0.2rem 0\">" +
+      escaparHtml(par[1]) +
+      "</td></tr>";
+  });
+  html += "</table>";
+
+  html += "<h3>Aulas e objetivos planejados</h3>";
+  if ((payload.aulas || []).length > 0) {
+    html += "<ul>" + payload.aulas.map(function (a) { return "<li>" + escaparHtml(a) + "</li>"; }).join("") + "</ul>";
+  } else {
+    html += "<p>—</p>";
+  }
+
+  html += secao("Estratégias didáticas", payload.estrategias);
+  html += secao("Recursos pedagógicos", payload.recursos);
+  html += secao("Instrumentos de avaliação previstos", payload.instrumentos);
+  html += secao("Como avaliará", payload.avaliacao);
+  html += secao("Observações / adaptações curriculares", payload.observacoes);
+
+  return html;
+}
+
+function exibirStatusEnvio(mensagem, erro) {
+  document.getElementById("bloco-status-envio").innerHTML =
+    '<p class="status' + (erro ? " erro" : "") + '">' + mensagem + "</p>";
+}
+
+function exibirConclusao(resultado) {
+  var avisoEmail = "";
+  if (resultado && resultado.emailSolicitado && !resultado.emailEnviado) {
+    avisoEmail =
+      '<p class="status erro" style="margin-top:0.6rem">Planejamento salvo, mas não foi possível enviar a cópia por e-mail: ' +
+      (resultado.avisoEmail || "erro desconhecido") +
+      "</p>";
+  }
+  var resumoHtml = montarResumoImpressao(ESTADO.ultimoPayload, ESTADO.dados && ESTADO.dados.rotuloUnidade);
+
+  document.getElementById("bloco-status-envio").innerHTML =
+    '<div class="concluido">' +
+    '<div class="icone-ok">✓</div>' +
+    "<p class=\"status ok\" style=\"display:inline-block\">Planejamento enviado com sucesso!</p>" +
+    avisoEmail +
+    '<div style="margin-top:0.8rem; display:flex; gap:0.6rem; justify-content:center; flex-wrap:wrap">' +
+    '<button type="button" onclick="window.print()">Imprimir / Salvar em PDF</button>' +
+    '<button type="button" class="primario" onclick="prepararNovoEnvio()">Enviar outro planejamento</button>' +
+    "</div>" +
+    '<div id="resumo-impressao">' + resumoHtml + "</div>" +
+    "</div>";
+  document.getElementById("botao-enviar").disabled = false;
+}
+
+// Reseta a seleção (turma/componente/bimestre/aulas/textos) mantendo o
+// segmento e os dados já carregados — evita recarregar a página inteira.
+function prepararNovoEnvio() {
+  document.getElementById("bloco-status-envio").innerHTML = "";
+  document.getElementById("campo-unidade").value = "";
+  ["card-turma-componente", "card-bimestre", "card-aulas", "card-final"].forEach(function (id) {
+    document.getElementById(id).classList.add("oculto");
+  });
+  ESTADO.unidade = null;
+  ESTADO.componente = null;
+  ESTADO.bimestre = null;
+
+  document.getElementById("campo-aulas-livre").value = "";
+  document.getElementById("campo-estrategias-desc").value = "";
+  document.getElementById("campo-como-avaliara").value = "";
+  document.getElementById("campo-observacoes").value = "";
+
+  ["grade-turmas", "grade-aulas", "grade-estrategias", "grade-recursos", "grade-instrumentos"].forEach(function (idGrade) {
+    document.getElementById(idGrade).querySelectorAll("input[type=checkbox]").forEach(function (el) {
+      el.checked = false;
+    });
+  });
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+</script>
+
+</body>
+</html>

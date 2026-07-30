@@ -105,6 +105,8 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         aluno_destaque_ativo: input.aluno_destaque_ativo,
         aluno_destaque_criterios: input.aluno_destaque_criterios,
         modo_notas_ata: input.modo_notas_ata,
+        prazo_1_semestre: input.prazo_1_semestre.trim().to_string(),
+        prazo_2_semestre: input.prazo_2_semestre.trim().to_string(),
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
@@ -239,6 +241,36 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
         encaminhamento_opcoes
     };
 
+    let mut prazo_1_semestre = dados
+        .get("prazo_1_semestre")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let mut prazo_2_semestre = dados
+        .get("prazo_2_semestre")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    // Migração: essas datas viviam em ConfigPlanejamento (planejamento/config.json)
+    // antes de existirem aqui. Lido como Value cru, sem depender do struct
+    // ConfigPlanejamento (que perde esses campos) — não apaga o arquivo antigo.
+    // Autolimitante: assim que o usuário salvar Configurações uma vez, o valor
+    // passa a residir em configuracoes.json e este bloco nunca mais é acionado.
+    if prazo_1_semestre.is_empty() && prazo_2_semestre.is_empty() {
+        if let Ok(pasta) = data_dir() {
+            if let Ok(texto) = fs::read_to_string(pasta.join("planejamento").join("config.json")) {
+                if let Ok(legado) = serde_json::from_str::<Value>(&texto) {
+                    if let Some(p1) = legado.get("prazo_1_semestre").and_then(Value::as_str) {
+                        prazo_1_semestre = p1.to_string();
+                    }
+                    if let Some(p2) = legado.get("prazo_2_semestre").and_then(Value::as_str) {
+                        prazo_2_semestre = p2.to_string();
+                    }
+                }
+            }
+        }
+    }
+
     ConfiguracoesApp {
         direcao_nome: dados
             .get("direcao_nome")
@@ -287,6 +319,8 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .filter(|valor| modo_notas_ata_valido(valor))
             .map(str::to_string)
             .unwrap_or_else(modo_notas_ata_padrao),
+        prazo_1_semestre,
+        prazo_2_semestre,
     }
 }
 
@@ -388,6 +422,8 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "aluno_destaque_ativo": config.aluno_destaque_ativo,
         "aluno_destaque_criterios": serde_json::to_value(&config.aluno_destaque_criterios).unwrap_or_default(),
         "modo_notas_ata": config.modo_notas_ata,
+        "prazo_1_semestre": config.prazo_1_semestre,
+        "prazo_2_semestre": config.prazo_2_semestre,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())

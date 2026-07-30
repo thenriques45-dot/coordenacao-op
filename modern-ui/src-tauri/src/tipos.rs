@@ -80,6 +80,11 @@ pub(crate) struct ConfiguracoesApp {
     pub(crate) aluno_destaque_ativo: bool,
     pub(crate) aluno_destaque_criterios: Vec<CriterioDestaque>,
     pub(crate) modo_notas_ata: String,
+    // Datas de corte (YYYY-MM-DD) usadas para decidir qual semestre está
+    // ativo (1º/2º bimestre ou 3º/4º) — usado pelo Planejamento e pelo PEI
+    // para colorir seus indicadores de status de entrega.
+    pub(crate) prazo_1_semestre: String,
+    pub(crate) prazo_2_semestre: String,
 }
 
 #[derive(Deserialize)]
@@ -105,6 +110,10 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) aluno_destaque_criterios: Vec<CriterioDestaque>,
     #[serde(default = "modo_notas_ata_padrao")]
     pub(crate) modo_notas_ata: String,
+    #[serde(default)]
+    pub(crate) prazo_1_semestre: String,
+    #[serde(default)]
+    pub(crate) prazo_2_semestre: String,
 }
 
 #[derive(Deserialize)]
@@ -720,7 +729,6 @@ pub(crate) struct AlunoElegiveisComDisciplinas {
     pub(crate) turma: String,
     pub(crate) disciplinas: Vec<String>,
     pub(crate) disciplinas_por_bimestre: BTreeMap<String, Vec<String>>,
-    pub(crate) bimestres_com_medias: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -728,6 +736,36 @@ pub(crate) struct GerarPeisLoteResultado {
     pub(crate) pasta: String,
     pub(crate) arquivos: usize,
     pub(crate) erros: Vec<String>,
+}
+
+// Configuração do PEI: caminho manual (Forms legado, URL crua) + caminho
+// automático (Web App + planilha via OAuth), mesmo modelo de
+// ConfigPlanejamento. `url_legado` assume o valor do antigo config.json
+// (que guardava só a URL como texto puro) na migração — ver
+// pei::carregar_config_pei.
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub(crate) struct ConfigPei {
+    #[serde(default)]
+    pub(crate) url_legado: String,
+    #[serde(default)]
+    pub(crate) planilha_automatica_id: String,
+    #[serde(default)]
+    pub(crate) webapp_url: String,
+    #[serde(default)]
+    pub(crate) apps_script_projeto_id: String,
+    #[serde(default)]
+    pub(crate) apps_script_deployment_id: String,
+}
+
+// Retorno de provisionar_pei_automatico: os recursos criados/reaproveitados
+// no Google (planilha, projeto Apps Script, implantação).
+#[derive(Serialize, Clone)]
+pub(crate) struct ProvisionamentoPeiResultado {
+    pub(crate) webapp_url: String,
+    pub(crate) planilha_id: String,
+    pub(crate) planilha_url: String,
+    pub(crate) apps_script_projeto_id: String,
+    pub(crate) apps_script_deployment_id: String,
 }
 
 // Um registro já processado = um Plano de Ensino por turma.
@@ -770,12 +808,35 @@ pub(crate) struct ConfigPlanejamento {
     pub(crate) medio: String,
     #[serde(default)]
     pub(crate) versao: String,
-    // Datas de corte (YYYY-MM-DD) usadas para decidir qual semestre a
-    // bolinha de status das turmas está acompanhando: até o prazo do 1º
-    // semestre, avalia a entrega dos bimestres 1 e 2; depois, passa a
-    // avaliar os bimestres 3 e 4.
+    // Caminho automático (Web App + planilha criados via OAuth), aditivo ao
+    // caminho manual acima — os dois convivem, buscar_planejamentos une os
+    // registros das duas fontes. Todos com default para não quebrar configs
+    // já salvos em produção antes desta etapa.
     #[serde(default)]
-    pub(crate) prazo_1_semestre: String,
+    pub(crate) planilha_automatica_id: String,
     #[serde(default)]
-    pub(crate) prazo_2_semestre: String,
+    pub(crate) webapp_url: String,
+    #[serde(default)]
+    pub(crate) apps_script_projeto_id: String,
+    #[serde(default)]
+    pub(crate) apps_script_deployment_id: String,
+    // Componentes que o coordenador confirma manualmente para uma série/ano
+    // mesmo sem dado real nas turmas importadas (ex.: "Sociologia" para 1ª e
+    // 2ª Série, hoje só chega via mapão de expansão/itinerário que o
+    // importador ainda não reconhece).
+    #[serde(default)]
+    pub(crate) componentes_extras_medio: std::collections::BTreeMap<String, Vec<String>>,
+    #[serde(default)]
+    pub(crate) componentes_extras_anos_finais: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+// Retorno de provisionar_planejamento_automatico: os três recursos criados/
+// reaproveitados no Google (planilha, projeto Apps Script, implantação).
+#[derive(Serialize, Clone)]
+pub(crate) struct ProvisionamentoPlanejamentoResultado {
+    pub(crate) webapp_url: String,
+    pub(crate) planilha_id: String,
+    pub(crate) planilha_url: String,
+    pub(crate) apps_script_projeto_id: String,
+    pub(crate) apps_script_deployment_id: String,
 }

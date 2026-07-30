@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  :root {
+    color-scheme: light;
+    --accent: #1a73e8;
+    --accent-dark: #1557b0;
+    --accent-soft: #e8f0fe;
+    --texto: #202124;
+    --texto-sec: #5f6368;
+    --borda: #dde1e6;
+    --fundo: #eef1f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 0 1rem 3rem;
+    color: var(--texto);
+    background: var(--fundo);
+  }
+  .cabecalho {
+    background: linear-gradient(135deg, var(--accent) 0%, #6c9bf0 100%);
+    color: #fff;
+    margin: 0 -1rem 1.4rem;
+    padding: 1.6rem 1.25rem 1.5rem;
+    border-radius: 0 0 18px 18px;
+    box-shadow: 0 4px 16px rgba(26, 115, 232, 0.25);
+  }
+  .cabecalho h1 { font-size: 1.35rem; margin: 0 0 0.2rem; }
+  .cabecalho p { margin: 0; opacity: 0.92; font-size: 0.9rem; }
+  p.sub { color: var(--texto-sec); margin: 0 0 1.25rem; font-size: 0.9rem; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--borda);
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1.1rem;
+    box-shadow: 0 1px 3px rgba(30, 41, 59, 0.06);
+    transition: box-shadow 0.15s ease;
+  }
+  .card h2 {
+    font-size: 1rem;
+    margin: 0 0 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--texto);
+  }
+  .card h2 .badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  label { display: block; font-weight: 600; font-size: 0.85rem; margin: 0.8rem 0 0.35rem; color: #3c4043; }
+  label:first-of-type { margin-top: 0; }
+  select, input[type="text"], input[type="email"], textarea {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1.5px solid var(--borda);
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: #fff;
+  }
+  select:focus, input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { min-height: 5rem; resize: vertical; }
+  .oculto { display: none !important; }
+  button.primario {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1.4rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button.primario:hover:not(:disabled) { background: var(--accent-dark); }
+  button.primario:active:not(:disabled) { transform: scale(0.98); }
+  button.primario:disabled { background: #9aa0a6; cursor: not-allowed; }
+  .status { font-size: 0.88rem; margin-top: 0.7rem; padding: 0.5rem 0.7rem; border-radius: 8px; }
+  .status.erro { color: #a50e0e; background: #fce8e6; }
+  .status.ok { color: #0d652d; background: #e6f4ea; }
+  .status.aviso { color: #7a4f01; background: #fef7e0; }
+  .rodape-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.1rem; flex-wrap: wrap; gap: 0.6rem; }
+  .link-voltar { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.88rem; padding: 0.4rem 0; }
+  .concluido {
+    text-align: center;
+    padding: 1rem 0.5rem 0.4rem;
+  }
+  .concluido .icone-ok {
+    width: 3rem; height: 3rem; border-radius: 50%;
+    background: #e6f4ea; color: #0d652d;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; margin: 0 auto 0.7rem;
+  }
+  #resumo-impressao {
+    text-align: left;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--borda);
+  }
+  #resumo-impressao h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
+  #resumo-impressao h3 { font-size: 0.9rem; margin: 0.8rem 0 0.2rem; color: #3c4043; }
+  #resumo-impressao p, #resumo-impressao li { font-size: 0.88rem; color: var(--texto); }
+  #resumo-impressao table { font-size: 0.88rem; }
+  @media print {
+    body * { visibility: hidden; }
+    #resumo-impressao, #resumo-impressao * { visibility: visible; }
+    #resumo-impressao { position: absolute; top: 0; left: 0; width: 100%; border: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cabecalho">
+  <h1>Plano Educacional Individualizado (PEI)</h1>
+  <p>CoordenacaoOP — só aparecem aqui as turmas com alunos elegíveis.</p>
+</div>
+
+<div id="tela-turma" class="card">
+  <h2><span class="badge">1</span>Selecione sua turma</h2>
+  <p id="status-carregando" class="status">Carregando turmas...</p>
+  <select id="campo-turma" class="oculto" onchange="aoMudarTurma()"></select>
+  <p id="aviso-sem-turmas" class="status aviso oculto">Nenhuma turma com aluno elegível encontrada.</p>
+</div>
+
+<form id="tela-formulario" class="oculto" onsubmit="return false;">
+
+  <div class="card">
+    <h2><span class="badge">2</span>Identificação</h2>
+    <label for="campo-professor">Nome completo do(a) professor(a)</label>
+    <input type="text" id="campo-professor" required>
+
+    <label for="campo-email">E-mail (opcional — receba uma cópia do que enviar)</label>
+    <input type="email" id="campo-email" placeholder="seuemail@escola.sp.gov.br">
+  </div>
+
+  <div class="card">
+    <h2><span class="badge">3</span>Aluno elegível</h2>
+    <label for="campo-aluno">Estudante (apenas alunos elegíveis desta turma)</label>
+    <select id="campo-aluno" onchange="aoMudarAluno()" required></select>
+  </div>
+
+  <div id="card-componente-bimestre" class="card oculto">
+    <h2><span class="badge">4</span>Componente e bimestre</h2>
+    <label for="campo-componente">Componente curricular</label>
+    <select id="campo-componente" onchange="aoMudarComponenteOuBimestre()" required></select>
+
+    <label for="campo-bimestre">Bimestre</label>
+    <select id="campo-bimestre" onchange="aoMudarComponenteOuBimestre()" required></select>
+  </div>
+
+  <div id="card-plano" class="card oculto">
+    <h2><span class="badge">5</span>Plano do bimestre</h2>
+    <label for="campo-conteudos">Quais conteúdos e habilidades do Currículo serão desenvolvidos no bimestre?</label>
+    <textarea id="campo-conteudos" required></textarea>
+
+    <label for="campo-estrategias">Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados?</label>
+    <textarea id="campo-estrategias"></textarea>
+
+    <label for="campo-instrumentos">Quais instrumentos serão utilizados para acompanhar o aprendizado do estudante?</label>
+    <textarea id="campo-instrumentos"></textarea>
+
+    <label for="campo-recursos">Quais vídeos, livros, jogos, exercícios etc. podem ser indicados?</label>
+    <textarea id="campo-recursos"></textarea>
+
+    <div class="rodape-nav">
+      <button type="button" class="link-voltar" onclick="location.reload()">← Recomeçar do zero</button>
+      <button type="button" class="primario" id="botao-enviar" onclick="enviarPei()">Enviar PEI</button>
+    </div>
+    <div id="bloco-status-envio"></div>
+  </div>
+
+</form>
+
+<script>
+var ESTADO = {
+  dados: null,       // resposta de obterDadosPei
+  turma: null,
+  aluno: null,        // {nome, disciplinas}
+  ultimoPayload: null,
+};
+
+function aoCarregar() {
+  google.script.run
+    .withSuccessHandler(aoReceberDados)
+    .withFailureHandler(function (erro) {
+      var el = document.getElementById("status-carregando");
+      el.textContent = "Erro ao carregar: " + (erro.message || erro);
+      el.className = "status erro";
+    })
+    .obterDadosPei();
+}
+
+function aoReceberDados(dados) {
+  ESTADO.dados = dados;
+  document.getElementById("status-carregando").classList.add("oculto");
+
+  var turmas = dados.turmas || [];
+  if (turmas.length === 0) {
+    document.getElementById("aviso-sem-turmas").classList.remove("oculto");
+    return;
+  }
+
+  var selectTurma = document.getElementById("campo-turma");
+  selectTurma.innerHTML = '<option value="">Selecione...</option>';
+  turmas.forEach(function (turma) {
+    var opt = document.createElement("option");
+    opt.value = turma;
+    opt.textContent = turma;
+    selectTurma.appendChild(opt);
+  });
+  selectTurma.classList.remove("oculto");
+}
+
+function aoMudarTurma() {
+  var turma = document.getElementById("campo-turma").value;
+  ESTADO.turma = turma || null;
+  document.getElementById("tela-formulario").classList.add("oculto");
+  ["card-componente-bimestre", "card-plano"].forEach(function (id) {
+    document.getElementById(id).classList.add("oculto");
+  });
+  if (!turma) return;
+
+  // Toda turma listada aqui já tem ao menos um elegível — filtrado em
+  // DadosPeiReais.gs (construir_dados_pei_gs), não precisa checar de novo.
+  var elegiveis = (ESTADO.dados.elegiveisPorTurma || {})[turma] || [];
+  var selectAluno = document.getElementById("campo-aluno");
+  selectAluno.innerHTML = '<option value="">Selecione...</option>';
+  elegiveis.forEach(function (aluno, indice) {
+    var opt = document.createElement("option");
+    opt.value = String(indice);
+    opt.textContent = aluno.nome;
+    selectAluno.appendChild(opt);
+  });
+  document.getElementById("campo-aluno").value = "";
+  document.getElementById("tela-formulario").classList.remove("oculto");
+}
+
+function aoMudarAluno() {
+  var indice = document.getElementById("campo-aluno").value;
+  document.getElementById("card-componente-bimestre").classList.add("oculto");
+  document.getElementById("card-plano").classList.add("oculto");
+  if (indice === "") {
+    ESTADO.aluno = null;
+    return;
+  }
+
+  var elegiveis = (ESTADO.dados.elegiveisPorTurma || {})[ESTADO.turma] || [];
+  ESTADO.aluno = elegiveis[parseInt(indice, 10)] || null;
+  if (!ESTADO.aluno) return;
+
+  var disciplinas = (ESTADO.aluno.disciplinas && ESTADO.aluno.disciplinas.length > 0)
+    ? ESTADO.aluno.disciplinas
+    : ESTADO.dados.componentesFixos;
+
+  var selectComponente = document.getElementById("campo-componente");
+  selectComponente.innerHTML = '<option value="">Selecione...</option>';
+  disciplinas.forEach(function (componente) {
+    var opt = document.createElement("option");
+    opt.value = componente;
+    opt.textContent = componente;
+    selectComponente.appendChild(opt);
+  });
+
+  var selectBimestre = document.getElementById("campo-bimestre");
+  selectBimestre.innerHTML = '<option value="">Selecione...</option>';
+  (ESTADO.dados.bimestres || []).forEach(function (bimestre) {
+    var opt = document.createElement("option");
+    opt.value = bimestre;
+    opt.textContent = bimestre;
+    selectBimestre.appendChild(opt);
+  });
+
+  document.getElementById("card-componente-bimestre").classList.remove("oculto");
+}
+
+function aoMudarComponenteOuBimestre() {
+  var componente = document.getElementById("campo-componente").value;
+  var bimestre = document.getElementById("campo-bimestre").value;
+  document.getElementById("card-plano").classList.toggle("oculto", !(componente && bimestre));
+}
+
+function enviarPei() {
+  var professor = document.getElementById("campo-professor").value.trim();
+  var componente = document.getElementById("campo-componente").value;
+  var bimestre = document.getElementById("campo-bimestre").value;
+  var conteudos = document.getElementById("campo-conteudos").value.trim();
+  if (!professor || !ESTADO.aluno || !componente || !bimestre || !conteudos) {
+    exibirStatusEnvio("Preencha professor, aluno, componente, bimestre e os conteúdos antes de enviar.", true);
+    return;
+  }
+
+  var payload = {
+    professor: professor,
+    email: document.getElementById("campo-email").value.trim(),
+    nomeAluno: ESTADO.aluno.nome,
+    turmaAluno: ESTADO.turma,
+    nomeEstudanteCompleto: ESTADO.aluno.nome + " - " + ESTADO.turma,
+    disciplina: componente,
+    bimestre: bimestre.replace(/\D/g, ""),
+    conteudos: conteudos,
+    estrategias: document.getElementById("campo-estrategias").value.trim(),
+    instrumentos: document.getElementById("campo-instrumentos").value.trim(),
+    recursos: document.getElementById("campo-recursos").value.trim(),
+  };
+
+  ESTADO.ultimoPayload = payload;
+  document.getElementById("botao-enviar").disabled = true;
+  exibirStatusEnvio("Enviando...", false);
+  google.script.run
+    .withSuccessHandler(function (resultado) {
+      exibirConclusao(resultado);
+    })
+    .withFailureHandler(function (erro) {
+      exibirStatusEnvio("Erro ao enviar: " + (erro.message || erro), true);
+      document.getElementById("botao-enviar").disabled = false;
+    })
+    .registrarPei(payload);
+}
+
+function escaparHtml(texto) {
+  var div = document.createElement("div");
+  div.textContent = texto == null ? "" : String(texto);
+  return div.innerHTML;
+}
+
+// Monta um resumo legível do que foi enviado — mostrado na tela de conclusão
+// e usado como o conteúdo real da impressão (window.print(), ver @media
+// print no <style>).
+function montarResumoImpressao(payload) {
+  function secao(titulo, conteudo) {
+    if (!conteudo) return "";
+    return "<h3>" + titulo + "</h3><p style=\"white-space:pre-wrap\">" + escaparHtml(conteudo) + "</p>";
+  }
+
+  var linhas = [
+    ["Professor(a)", payload.professor],
+    ["Aluno", payload.nomeAluno],
+    ["Turma", payload.turmaAluno],
+    ["Componente", payload.disciplina],
+    ["Bimestre", payload.bimestre ? payload.bimestre + "º" : ""],
+  ];
+
+  var html = "<h2>Plano Educacional Individualizado (PEI)</h2><table>";
+  linhas.forEach(function (par) {
+    if (!par[1]) return;
+    html +=
+      "<tr><td style=\"font-weight:600; padding:0.2rem 0.6rem 0.2rem 0; vertical-align:top; white-space:nowrap\">" +
+      escaparHtml(par[0]) +
+      ":</td><td style=\"padding:0.2rem 0\">" +
+      escaparHtml(par[1]) +
+      "</td></tr>";
+  });
+  html += "</table>";
+
+  html += secao("Conteúdos e habilidades", payload.conteudos);
+  html += secao("Estratégias e recursos de acessibilidade", payload.estrategias);
+  html += secao("Instrumentos de acompanhamento", payload.instrumentos);
+  html += secao("Recursos indicados", payload.recursos);
+
+  return html;
+}
+
+function exibirStatusEnvio(mensagem, erro) {
+  document.getElementById("bloco-status-envio").innerHTML =
+    '<p class="status' + (erro ? " erro" : "") + '">' + mensagem + "</p>";
+}
+
+function exibirConclusao(resultado) {
+  var avisoEmail = "";
+  if (resultado && resultado.emailSolicitado && !resultado.emailEnviado) {
+    avisoEmail =
+      '<p class="status erro" style="margin-top:0.6rem">PEI salvo, mas não foi possível enviar a cópia por e-mail: ' +
+      (resultado.avisoEmail || "erro desconhecido") +
+      "</p>";
+  }
+  var resumoHtml = montarResumoImpressao(ESTADO.ultimoPayload);
+
+  document.getElementById("bloco-status-envio").innerHTML =
+    '<div class="concluido">' +
+    '<div class="icone-ok">✓</div>' +
+    "<p class=\"status ok\" style=\"display:inline-block\">PEI enviado com sucesso!</p>" +
+    avisoEmail +
+    '<div style="margin-top:0.8rem; display:flex; gap:0.6rem; justify-content:center; flex-wrap:wrap">' +
+    '<button type="button" onclick="window.print()">Imprimir / Salvar em PDF</button>' +
+    '<button type="button" class="primario" onclick="prepararNovoEnvio()">Enviar outro PEI</button>' +
+    "</div>" +
+    '<div id="resumo-impressao">' + resumoHtml + "</div>" +
+    "</div>";
+  document.getElementById("botao-enviar").disabled = false;
+}
+
+// Reseta a seleção (aluno/componente/bimestre/textos) mantendo a turma e os
+// dados já carregados — evita recarregar a página inteira, útil para
+// preencher o PEI de vários alunos elegíveis da mesma turma em seguida.
+function prepararNovoEnvio() {
+  document.getElementById("bloco-status-envio").innerHTML = "";
+  document.getElementById("campo-aluno").value = "";
+  ["card-componente-bimestre", "card-plano"].forEach(function (id) {
+    document.getElementById(id).classList.add("oculto");
+  });
+  ESTADO.aluno = null;
+
+  document.getElementById("campo-conteudos").value = "";
+  document.getElementById("campo-estrategias").value = "";
+  document.getElementById("campo-instrumentos").value = "";
+  document.getElementById("campo-recursos").value = "";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+aoCarregar();
+</script>
+
+</body>
+</html>

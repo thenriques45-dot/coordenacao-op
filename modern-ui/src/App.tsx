@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  BookMarked,
   BookOpen,
   CalendarDays,
   Check,
@@ -11,6 +12,7 @@ import {
   Home,
   Menu,
   Moon,
+  NotebookPen,
   Pencil,
   Plus,
   Settings,
@@ -318,6 +320,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.21.0": [
+    "Planejamento e PEI ganham um Web App próprio, criado e republicado automaticamente pelo CoordenacaoOP (autorização única com sua conta Google) — sem precisar mais colar script no Apps Script nem compartilhar planilha manualmente. O caminho manual antigo (script/Forms) continua disponível como alternativa, na aba 'Manual' de cada tela.",
+    "No Web App do PEI, o professor escolhe a própria turma e só vê os alunos elegíveis dela — turmas sem nenhum aluno elegível nem aparecem na lista — e o componente curricular já vem filtrado pelas disciplinas reais daquele aluno.",
+    "Os dois Web Apps têm impressão/PDF sem precisar de nenhuma autorização extra, cópia por e-mail opcional para o professor e um botão para enviar outro planejamento/PEI sem recarregar a página.",
+    "PEI e Planejamento viram itens próprios do menu lateral, em vez de cards dentro de Relatórios.",
+    "Os prazos de entrega por semestre (1º/2º bimestre e 3º/4º) saem do Planejamento e passam a ser configuração da instituição, ajustável em Configurações → Instituição ou no assistente inicial — os valores já configurados são migrados automaticamente. O indicador de status do PEI passa a seguir esses mesmos prazos, em vez de depender de médias já importadas.",
+  ],
   "2.20.0": [
     "Novo relatório 'Elegíveis à Prova de Recuperação': lista, por turma, os alunos com um percentual configurável de notas vermelhas (50% por padrão, ajustável na própria tela) somando todos os bimestres, e aponta qual nota o professor deve substituir após a recuperação — 1º ou 2º bimestre, e 3º ou 4º, separados por página e por disciplina para facilitar a entrega a cada professor.",
     "Tela de Configurações reorganizada: a navegação passa a ter 2 níveis fixos (Institucional, Conselho, Perfil & Sincronização, Sistema) em vez de uma lista com 7 itens soltos. As 4 seções do Conselho (Perfil da turma, Aluno destaque, Encaminhamentos, Notas na ATA) e 'Perfil e sincronização' viram destinos diretos, sem precisar abrir um acordeão dentro de outro.",
@@ -1196,6 +1205,8 @@ export function App() {
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
+          <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
+          <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
               className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" ? "active" : ""}`}
@@ -1213,7 +1224,7 @@ export function App() {
               </div>
             )}
           </div>
-          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-elegiveis-recuperacao" || tela === "relatorio-alteracoes-notas" || tela === "pei" || tela === "planejamento"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-criticos" || tela === "relatorio-elegiveis-recuperacao" || tela === "relatorio-alteracoes-notas"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -1413,8 +1424,6 @@ export function App() {
             onAbrirElegiveisRecuperacao={() => navegarPara("relatorio-elegiveis-recuperacao")}
             onAbrirAlteracoesNotas={() => navegarPara("relatorio-alteracoes-notas")}
             onAbrirAtendimentos={() => navegarPara("relatorio-atendimentos")}
-            onAbrirPei={() => navegarPara("pei")}
-            onAbrirPlanejamento={() => navegarPara("planejamento")}
             onAbrirTarefas={() => navegarPara("relatorio-tarefas")}
             onAbrirProvaPaulista={() => navegarPara("relatorio-prova-paulista")}
           />
@@ -1425,8 +1434,8 @@ export function App() {
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
-        {tela === "pei" && <TelaPEI onVoltar={() => navegarPara("relatorios")} />}
-        {tela === "planejamento" && <TelaPlanejamento turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "pei" && <TelaPEI />}
+        {tela === "planejamento" && <TelaPlanejamento turmas={turmas} />}
         {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-elegiveis-recuperacao" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {buscaGlobalAberta && (

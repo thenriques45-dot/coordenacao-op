@@ -1,6 +1,7 @@
-import { BookMarked, ClipboardList, FileText, FolderOpen, RefreshCw, Settings, X } from "lucide-react";
+import { BookMarked, ClipboardList, Copy, ExternalLink, FileText, FolderOpen, RefreshCw, Settings, Sparkles, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
+import { semestreAtivo, type PrazosSemestre } from "./semestre";
 
 type RegistroPei = {
   timestamp: string;
@@ -17,13 +18,36 @@ type RegistroPei = {
   recursos: string;
 };
 
+type ConfigPei = {
+  url_legado: string;
+  planilha_automatica_id: string;
+  webapp_url: string;
+  apps_script_projeto_id: string;
+  apps_script_deployment_id: string;
+};
+
+type ProvisionamentoPeiResultado = {
+  webapp_url: string;
+  planilha_id: string;
+  planilha_url: string;
+  apps_script_projeto_id: string;
+  apps_script_deployment_id: string;
+};
+
+const CONFIG_PEI_PADRAO: ConfigPei = {
+  url_legado: "",
+  planilha_automatica_id: "",
+  webapp_url: "",
+  apps_script_projeto_id: "",
+  apps_script_deployment_id: "",
+};
+
 type AlunoElegivelComDisciplinas = {
   matricula: string;
   nome: string;
   turma: string;
   disciplinas: string[];
   disciplinas_por_bimestre: Record<string, string[]>;
-  bimestres_com_medias: string[];
 };
 
 type GerarPeisLoteResultado = {
@@ -32,7 +56,6 @@ type GerarPeisLoteResultado = {
   erros: string[];
 };
 
-const PEI_URL_KEY = "coordenacaoop:pei-url-planilha";
 const PEI_ULTIMA_BUSCA_KEY = "coordenacaoop:pei-ultima-busca";
 const PEI_REGISTROS_KEY = "coordenacaoop:pei-registros-cache";
 
@@ -55,31 +78,25 @@ function normalizarDisciplina(nome: string) {
     .replace(/[̀-ͯ]/g, "");
 }
 
-const BIMESTRES_ORDEM = ["1", "2", "3", "4"];
-
-/** Bimestre atual = primeiro que ainda não tem médias importadas. */
-function bimestreAtualDoAluno(aluno: AlunoElegivelComDisciplinas): string {
-  for (const b of BIMESTRES_ORDEM) {
-    if (!aluno.bimestres_com_medias.includes(b)) return b;
-  }
-  return "4";
-}
-
 /**
- * Verifica se todos os PEIs esperados até o bimestre atual estão entregues.
- * Verde: todos entregues. Amarelo: algum entregue. Sem indicador: nenhum.
+ * Verifica se todos os PEIs esperados no semestre ativo (mesma regra de
+ * datas do Planejamento — ver semestre.ts) estão entregues. Verde: todos
+ * entregues. Amarelo: algum entregue. Vermelho: nenhum. Sem prazo
+ * configurado ainda, cai num indicador simples (recebeu algo ou não).
  */
 function statusPeiAluno(
   aluno: AlunoElegivelComDisciplinas,
-  peis: RegistroPei[]
+  peis: RegistroPei[],
+  semestre: ReturnType<typeof semestreAtivo>
 ): "adequado" | "atencao" | "critico" {
-  const bimAtual = bimestreAtualDoAluno(aluno);
-  const bimestresAVerificar = BIMESTRES_ORDEM.slice(0, BIMESTRES_ORDEM.indexOf(bimAtual) + 1);
+  if (!semestre) {
+    return peis.length > 0 ? "atencao" : "critico";
+  }
 
   let esperado = 0;
   let encontrado = 0;
 
-  for (const b of bimestresAVerificar) {
+  for (const b of semestre.bimestres) {
     const disciplinas = aluno.disciplinas_por_bimestre[b] ?? [];
     for (const d of disciplinas) {
       esperado++;
@@ -120,10 +137,10 @@ const estiloTextoPassoPEI: React.CSSProperties = {
   color: "var(--text-secondary)",
 };
 
-export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
-  const [url, setUrl] = useState("");
-  const [urlEditando, setUrlEditando] = useState("");
+export function TelaPEI() {
+  const [config, setConfig] = useState<ConfigPei>(CONFIG_PEI_PADRAO);
   const [configAberta, setConfigAberta] = useState(false);
+  const [abaConfig, setAbaConfig] = useState<"automatico" | "manual">("automatico");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
   const [ultimaBusca, setUltimaBusca] = useState(
@@ -137,22 +154,21 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
   const [statusGeracao, setStatusGeracao] = useState("");
   const [pastaGeral, setPastaGeral] = useState("");
   const [gerandoPend, setGerandoPend] = useState(false);
+  const [criandoWebApp, setCriandoWebApp] = useState(false);
+  const [erroWebApp, setErroWebApp] = useState("");
+  const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
 
-  // Carrega URL salva em disco (inclusa no sync institucional) com fallback para localStorage.
   useEffect(() => {
-    invokeApp<string>("carregar_url_pei")
-      .then((urlDisco) => {
-        const urlFinal = urlDisco.trim() || localStorage.getItem(PEI_URL_KEY) || "";
-        setUrl(urlFinal);
-        setUrlEditando(urlFinal);
-        setConfigAberta(!urlFinal);
+    invokeApp<ConfigPei>("carregar_config_pei")
+      .then((c) => {
+        const cfg = { ...CONFIG_PEI_PADRAO, ...c };
+        setConfig(cfg);
+        setConfigAberta(!cfg.url_legado.trim() && !cfg.webapp_url.trim());
       })
-      .catch(() => {
-        const urlLocal = localStorage.getItem(PEI_URL_KEY) || "";
-        setUrl(urlLocal);
-        setUrlEditando(urlLocal);
-        setConfigAberta(!urlLocal);
-      });
+      .catch(() => setConfigAberta(true));
+    invokeApp<PrazosSemestre>("carregar_configuracoes")
+      .then((c) => setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -167,6 +183,8 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
     gerarLote(registros);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registros]);
+
+  const semestre = useMemo(() => semestreAtivo(prazos), [prazos]);
 
   const registrosPorAluno = useMemo(() => {
     const mapa = new Map<string, RegistroPei[]>();
@@ -205,29 +223,61 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
     return indice;
   }, [registrosDoAluno]);
 
-  function buscarPlanilha() {
-    const urlFinal = urlEditando.trim();
-    if (!urlFinal) {
-      setErro("Informe o link da planilha do Google Sheets.");
+  function atualizarUrlLegado(valor: string) {
+    setConfig((c) => ({ ...c, url_legado: valor }));
+  }
+
+  function salvarConfig(): Promise<void> {
+    return invokeApp("salvar_config_pei", { config }).then(() => {});
+  }
+
+  function carregarPeis() {
+    const urlLegado = config.url_legado.trim();
+    if (!urlLegado && !config.planilha_automatica_id.trim()) {
+      setErro("Informe o link de uma planilha ou crie o Web App automaticamente.");
       return;
     }
     setCarregando(true);
     setErro("");
-    invokeApp<RegistroPei[]>("buscar_pei_planilha", { url: urlFinal })
+    salvarConfig().catch(() => {})
+      .then(() => invokeApp<RegistroPei[]>("buscar_peis", {
+        urlLegado: urlLegado || null,
+        planilhaAutomaticaId: config.planilha_automatica_id.trim() || null,
+      }))
       .then((dados) => {
         setRegistros(dados);
-        setUrl(urlFinal);
         const agora = new Date().toLocaleString("pt-BR");
         setUltimaBusca(agora);
-        localStorage.setItem(PEI_URL_KEY, urlFinal);
         localStorage.setItem(PEI_ULTIMA_BUSCA_KEY, agora);
         localStorage.setItem(PEI_REGISTROS_KEY, JSON.stringify(dados));
-        // Salva também em disco para entrar no sync institucional.
-        invokeApp("salvar_url_pei", { url: urlFinal }).catch(() => {});
         setConfigAberta(false);
       })
       .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
       .finally(() => setCarregando(false));
+  }
+
+  async function criarWebAppPeiAutomatico() {
+    setCriandoWebApp(true);
+    setErroWebApp("");
+    try {
+      const resultado = await invokeApp<ProvisionamentoPeiResultado>(
+        "provisionar_pei_automatico",
+        { config }
+      );
+      const novaConfig: ConfigPei = {
+        ...config,
+        planilha_automatica_id: resultado.planilha_id,
+        webapp_url: resultado.webapp_url,
+        apps_script_projeto_id: resultado.apps_script_projeto_id,
+        apps_script_deployment_id: resultado.apps_script_deployment_id,
+      };
+      setConfig(novaConfig);
+      await invokeApp("salvar_config_pei", { config: novaConfig }).catch(() => {});
+    } catch (err) {
+      setErroWebApp(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCriandoWebApp(false);
+    }
   }
 
   function gerarLote(recs: RegistroPei[]) {
@@ -309,9 +359,6 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
     <>
       <header className="topbar council-topbar">
         <div>
-          <button className="back-link" style={{ marginBottom: "0.25rem" }} onClick={onVoltar}>
-            ← Voltar para Relatórios
-          </button>
           <span className="eyebrow">
             {alunoSelecionado
               ? `${alunoSelecionado.turma} — ${alunoSelecionado.nome}`
@@ -352,7 +399,7 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
         </div>
       </header>
 
-      {/* Diálogo modal de configuração e tutorial */}
+      {/* Diálogo modal de configuração */}
       {configAberta && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setConfigAberta(false); }}>
           <section
@@ -372,99 +419,183 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
             </div>
 
             <p style={{ marginBottom: "1rem" }}>
-              O programa lê as respostas de um formulário Google Forms vinculado a uma planilha compartilhada.
-              Se já tiver o link, cole abaixo. Se ainda precisar criar o formulário, siga os três passos.
+              Os PEIs são coletados por um Web App próprio (recomendado) — só aparecem as turmas com aluno
+              elegível — ou, alternativamente, por um Google Forms criado manualmente.
             </p>
 
-            {/* Campo de URL — no topo */}
-            <div style={{ background: "var(--surface-elevated, var(--surface))", border: "1px solid var(--border)", borderRadius: "8px", padding: "0.85rem 1rem", marginBottom: "1.5rem" }}>
-              <label style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", fontSize: "0.9rem" }}>
-                Link da planilha de respostas
-              </label>
-              <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-                <input
-                  type="url"
-                  value={urlEditando}
-                  onChange={(e) => setUrlEditando(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && buscarPlanilha()}
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  style={{ flex: 1 }}
-                />
-                <button className="primary-action" onClick={buscarPlanilha} disabled={carregando} style={{ whiteSpace: "nowrap" }}>
-                  <RefreshCw size={14} />
-                  {carregando ? "Buscando…" : "Carregar"}
-                </button>
-              </div>
-              {ultimaBusca && (
-                <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", marginTop: "0.4rem" }}>
-                  Última atualização: {ultimaBusca} · {registros.length} PEI(s) carregado(s)
-                </p>
-              )}
-              {erro && <div className="notice error" style={{ marginTop: "0.5rem" }}>{erro}</div>}
+            <div style={{ display: "flex", gap: "0.4rem", borderBottom: "1px solid var(--border-color, #333)", marginBottom: "1.1rem" }}>
+              <button
+                type="button"
+                onClick={() => setAbaConfig("automatico")}
+                style={{
+                  padding: "0.5rem 0.9rem", border: "none", borderBottom: abaConfig === "automatico" ? "2px solid var(--accent)" : "2px solid transparent",
+                  background: "none", fontWeight: abaConfig === "automatico" ? 700 : 500, cursor: "pointer",
+                }}
+              >
+                Automático (recomendado)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAbaConfig("manual")}
+                style={{
+                  padding: "0.5rem 0.9rem", border: "none", borderBottom: abaConfig === "manual" ? "2px solid var(--accent)" : "2px solid transparent",
+                  background: "none", fontWeight: abaConfig === "manual" ? 700 : 500, cursor: "pointer",
+                }}
+              >
+                Manual (Forms legado)
+              </button>
             </div>
 
-            {/* Passo 1 */}
-            <div style={estiloPassoPEI}>
-              <div style={estiloNumPassoPEI}>1</div>
-              <div style={{ flex: 1 }}>
-                <strong>Criar o formulário no Google Forms</strong>
+            {abaConfig === "automatico" && (
+              <div style={{ border: "1px solid var(--border-color, #333)", borderRadius: "10px", padding: "0.9rem 1rem", marginBottom: "1.2rem" }}>
+                <strong>Criação automática</strong>
                 <p style={estiloTextoPassoPEI}>
-                  Acesse <em>forms.google.com</em> e crie um novo formulário. Ative a coleta de e-mail
-                  (ícone de engrenagem → <em>Coletar endereço de e-mail</em>). Adicione as perguntas
-                  abaixo <strong>nesta ordem e com estes títulos</strong> (o programa os detecta pelo conteúdo):
+                  Cria (ou atualiza) o Web App e a planilha de respostas automaticamente via OAuth, sem precisar
+                  criar Forms nem compartilhar planilha nenhuma. Só aparecem as turmas com aluno elegível — o
+                  professor escolhe a própria turma e só vê os alunos elegíveis dela. Republicar reflete
+                  mudanças de turmas/elegíveis mas preserva as respostas já recebidas.
                 </p>
-                <ol style={{ margin: "0.5rem 0 0", padding: "0 0 0 1.2rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
-                  {[
-                    ["Nome do Professor", "resposta curta"],
-                    ["Nome do Estudante", "resposta curta — formato: NOME COMPLETO - TURMA PERÍODO  (ex: JOÃO SILVA - 7° ANO A TARDE)"],
-                    ["Componente Curricular", "resposta curta"],
-                    ["Bimestre", "múltipla escolha: 1º Bimestre · 2º Bimestre · 3º Bimestre · 4º Bimestre"],
-                    ["Quais conteúdos e habilidades do Currículo da Rede Estadual Paulista serão desenvolvidos no bimestre?", "parágrafo"],
-                    ["Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados para favorecer o acesso, a participação e a aprendizagem do estudante?", "parágrafo"],
-                    ["Quais instrumentos serão utilizados para acompanhar o aprendizado do estudante de forma inclusiva e individualizada?", "parágrafo"],
-                    ["Quais vídeos, livros, jogos, exercícios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?", "parágrafo"],
-                  ].map(([titulo, tipo], i) => (
-                    <li key={i} style={{ fontSize: "0.84rem", lineHeight: 1.45 }}>
-                      <span>{titulo}</span>
-                      <span style={{ marginLeft: "0.4rem", fontSize: "0.74rem", color: "var(--text-secondary)", background: "var(--border)", borderRadius: "4px", padding: "0.05rem 0.35rem", whiteSpace: "nowrap" }}>
-                        {tipo}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                  <button type="button" className={config.webapp_url ? "secondary-action" : "primary-action"} onClick={criarWebAppPeiAutomatico} disabled={criandoWebApp}>
+                    <Sparkles size={14} />{" "}
+                    {criandoWebApp
+                      ? "Aguardando autorização no navegador..."
+                      : config.webapp_url
+                        ? "Atualizar turmas / republicar"
+                        : "Criar automaticamente"}
+                  </button>
+                </div>
+                {config.webapp_url && (
+                  <div style={{ marginTop: "0.6rem", display: "grid", gap: "0.5rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "0.5rem" }}>
+                      <button type="button" className="primary-action" style={{ justifyContent: "center" }} onClick={() => invokeApp("abrir_url", { url: config.webapp_url }).catch(() => {})}>
+                        <ExternalLink size={14} /> Abrir PEI
+                      </button>
+                      <button type="button" className="secondary-action" style={{ justifyContent: "center" }} onClick={() => navigator.clipboard.writeText(config.webapp_url)}>
+                        <Copy size={14} /> Copiar link para compartilhar
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-action"
+                        style={{ justifyContent: "center" }}
+                        onClick={() =>
+                          invokeApp("abrir_url", {
+                            url: `https://docs.google.com/spreadsheets/d/${config.planilha_automatica_id}/edit`,
+                          }).catch(() => {})
+                        }
+                      >
+                        <FileText size={14} /> Abrir planilha de respostas
+                      </button>
+                    </div>
+                    <p style={{ ...estiloTextoPassoPEI, marginTop: "0.1rem" }}>
+                      <strong>Passo único, opcional:</strong> se quiser que os professores recebam uma cópia por
+                      e-mail ao enviar o PEI, é preciso autorizar o envio uma vez por Web App (o Google não aceita
+                      isso vindo só da autorização automática). Abra{" "}
+                      <a href="https://script.google.com/home" target="_blank" rel="noreferrer">script.google.com/home</a>,
+                      entre no projeto <em>"PEI — CoordenacaoOP"</em>, selecione a função{" "}
+                      <code>autorizarEnvioEmail</code> no menu de funções, clique em <em>Executar</em> (▶) e autorize
+                      "Enviar e-mail em seu nome". Sem esse passo, o PEI continua sendo salvo normalmente — só a
+                      cópia por e-mail não sai.
+                    </p>
+                  </div>
+                )}
+                {erroWebApp && <p style={{ ...estiloTextoPassoPEI, color: "var(--danger, #ef4444)", marginTop: "0.45rem" }}>{erroWebApp}</p>}
               </div>
-            </div>
+            )}
 
-            {/* Passo 2 */}
-            <div style={estiloPassoPEI}>
-              <div style={estiloNumPassoPEI}>2</div>
-              <div style={{ flex: 1 }}>
-                <strong>Vincular o formulário a uma planilha</strong>
-                <ol style={estiloTextoPassoPEI}>
-                  <li>No formulário, clique na aba <em>Respostas</em>.</li>
-                  <li>Clique no ícone de planilha do Google Sheets (ou em <em>Vincular planilhas</em>).</li>
-                  <li>Escolha <em>Criar uma nova planilha</em> e confirme.</li>
-                  <li>A planilha de respostas será criada automaticamente e atualizada a cada envio.</li>
-                </ol>
-              </div>
-            </div>
+            {abaConfig === "manual" && (
+              <>
+                {/* Campo de URL — no topo */}
+                <div style={{ background: "var(--surface-elevated, var(--surface))", border: "1px solid var(--border)", borderRadius: "8px", padding: "0.85rem 1rem", marginBottom: "1.5rem" }}>
+                  <label style={{ display: "block", fontWeight: 600, marginBottom: "0.4rem", fontSize: "0.9rem" }}>
+                    Link da planilha de respostas
+                  </label>
+                  <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+                    <input
+                      type="url"
+                      value={config.url_legado}
+                      onChange={(e) => atualizarUrlLegado(e.target.value)}
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                </div>
 
-            {/* Passo 3 */}
-            <div style={{ ...estiloPassoPEI, marginBottom: "1.25rem" }}>
-              <div style={estiloNumPassoPEI}>3</div>
-              <div style={{ flex: 1 }}>
-                <strong>Compartilhar a planilha e colar o link aqui</strong>
-                <ol style={estiloTextoPassoPEI}>
-                  <li>Abra a planilha de respostas no Google Sheets.</li>
-                  <li>Clique em <em>Compartilhar</em> (canto superior direito).</li>
-                  <li>Em <em>Acesso geral</em>, selecione <em>Qualquer pessoa com o link</em> como <em>Leitor</em>.</li>
-                  <li>Copie o link e cole no campo abaixo.</li>
-                </ol>
-              </div>
-            </div>
+                {/* Passo 1 */}
+                <div style={estiloPassoPEI}>
+                  <div style={estiloNumPassoPEI}>1</div>
+                  <div style={{ flex: 1 }}>
+                    <strong>Criar o formulário no Google Forms</strong>
+                    <p style={estiloTextoPassoPEI}>
+                      Acesse <em>forms.google.com</em> e crie um novo formulário. Ative a coleta de e-mail
+                      (ícone de engrenagem → <em>Coletar endereço de e-mail</em>). Adicione as perguntas
+                      abaixo <strong>nesta ordem e com estes títulos</strong> (o programa os detecta pelo conteúdo):
+                    </p>
+                    <ol style={{ margin: "0.5rem 0 0", padding: "0 0 0 1.2rem", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                      {[
+                        ["Nome do Professor", "resposta curta"],
+                        ["Nome do Estudante", "resposta curta — formato: NOME COMPLETO - TURMA PERÍODO  (ex: JOÃO SILVA - 7° ANO A TARDE)"],
+                        ["Componente Curricular", "resposta curta"],
+                        ["Bimestre", "múltipla escolha: 1º Bimestre · 2º Bimestre · 3º Bimestre · 4º Bimestre"],
+                        ["Quais conteúdos e habilidades do Currículo da Rede Estadual Paulista serão desenvolvidos no bimestre?", "parágrafo"],
+                        ["Quais estratégias, intervenções pedagógicas e recursos de acessibilidade serão utilizados para favorecer o acesso, a participação e a aprendizagem do estudante?", "parágrafo"],
+                        ["Quais instrumentos serão utilizados para acompanhar o aprendizado do estudante de forma inclusiva e individualizada?", "parágrafo"],
+                        ["Quais vídeos, livros, jogos, exercícios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?", "parágrafo"],
+                      ].map(([titulo, tipo], i) => (
+                        <li key={i} style={{ fontSize: "0.84rem", lineHeight: 1.45 }}>
+                          <span>{titulo}</span>
+                          <span style={{ marginLeft: "0.4rem", fontSize: "0.74rem", color: "var(--text-secondary)", background: "var(--border)", borderRadius: "4px", padding: "0.05rem 0.35rem", whiteSpace: "nowrap" }}>
+                            {tipo}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
 
-            <div className="modal-actions" style={{ marginTop: "0.5rem" }}>
+                {/* Passo 2 */}
+                <div style={estiloPassoPEI}>
+                  <div style={estiloNumPassoPEI}>2</div>
+                  <div style={{ flex: 1 }}>
+                    <strong>Vincular o formulário a uma planilha</strong>
+                    <ol style={estiloTextoPassoPEI}>
+                      <li>No formulário, clique na aba <em>Respostas</em>.</li>
+                      <li>Clique no ícone de planilha do Google Sheets (ou em <em>Vincular planilhas</em>).</li>
+                      <li>Escolha <em>Criar uma nova planilha</em> e confirme.</li>
+                      <li>A planilha de respostas será criada automaticamente e atualizada a cada envio.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {/* Passo 3 */}
+                <div style={{ ...estiloPassoPEI, marginBottom: "1.25rem" }}>
+                  <div style={estiloNumPassoPEI}>3</div>
+                  <div style={{ flex: 1 }}>
+                    <strong>Compartilhar a planilha e colar o link acima</strong>
+                    <ol style={estiloTextoPassoPEI}>
+                      <li>Abra a planilha de respostas no Google Sheets.</li>
+                      <li>Clique em <em>Compartilhar</em> (canto superior direito).</li>
+                      <li>Em <em>Acesso geral</em>, selecione <em>Qualquer pessoa com o link</em> como <em>Leitor</em>.</li>
+                      <li>Copie o link e cole no campo acima.</li>
+                    </ol>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {ultimaBusca && (
+              <p style={{ fontSize: "0.76rem", color: "var(--text-secondary)", margin: "0 0 0.5rem" }}>
+                Última atualização: {ultimaBusca} · {registros.length} PEI(s) carregado(s)
+              </p>
+            )}
+            {erro && <div className="notice error" style={{ marginBottom: "0.5rem" }}>{erro}</div>}
+
+            <div className="modal-actions" style={{ marginTop: "0.5rem", gap: "0.6rem" }}>
               <button onClick={() => setConfigAberta(false)}>Fechar</button>
+              <button onClick={() => salvarConfig().catch((e) => setErro(String(e)))}>Salvar</button>
+              <button className="primary-action" onClick={carregarPeis} disabled={carregando}>
+                <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar PEIs"}
+              </button>
             </div>
           </section>
         </div>
@@ -490,7 +621,7 @@ export function TelaPEI({ onVoltar }: { onVoltar: () => void }) {
               const chave = normalizarNome(aluno.nome);
               const peis = registrosPorAluno.get(chave) ?? [];
               const ativo = alunoSelecionado?.matricula === aluno.matricula;
-              const status = statusPeiAluno(aluno, peis);
+              const status = statusPeiAluno(aluno, peis, semestre);
               return (
                 <button
                   key={aluno.matricula}

@@ -274,6 +274,90 @@ pub(crate) fn split_checkbox(texto: &str) -> Vec<String> {
         .collect()
 }
 
+// Esquema fixo (13 colunas, ver sheets_api::CABECALHO_RESPOSTAS) escrito pelo
+// Web App próprio — ao contrário do CSV do Forms, aqui o cliente já entrega
+// estratégias/recursos/instrumentos prontos (concatenados), então só as
+// aulas (coluna H, JSON array bruto) precisam da mesma decomposição que
+// `parsear_csv_planejamento` já faz via parse_aula_planejamento.
+pub(crate) fn parsear_valores_sheets_planejamento(valores: Vec<Vec<String>>) -> Vec<RegistroPlanejamento> {
+    const COLUNAS: usize = 13;
+    let mut registros = Vec::new();
+
+    for linha in valores {
+        let mut linha = linha;
+        linha.resize(COLUNAS, String::new());
+
+        let professor = linha[2].trim().to_string();
+        let ano = linha[3].trim().to_string();
+        let turmas_raw = linha[4].trim();
+        let disciplina = linha[5].trim().to_string();
+        let bimestre: String = linha[6].chars().filter(|c| c.is_ascii_digit()).collect();
+        let bimestre = if bimestre.is_empty() { linha[6].trim().to_string() } else { bimestre };
+
+        let aulas_json = linha[7].trim();
+        let aulas: Vec<String> = serde_json::from_str(aulas_json).unwrap_or_default();
+        let mut unis: Vec<String> = Vec::new();
+        let mut objs: Vec<String> = Vec::new();
+        let mut habs: Vec<String> = Vec::new();
+        for aula in &aulas {
+            let (u, o, h) = parse_aula_planejamento(aula);
+            if !u.is_empty() && !unis.contains(&u) {
+                unis.push(u);
+            }
+            for item in split_itens_planejamento(&o) {
+                objs.push(item);
+            }
+            for cod in h.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()) {
+                if !habs.contains(&cod) {
+                    habs.push(cod);
+                }
+            }
+        }
+        // Sem currículo (aula única = texto livre digitado pelo professor):
+        // vai inteiro para "objetos de conhecimento", igual ao parser legado.
+        let (unidade_tematica, objetos_conhecimento, habilidades) = if unis.is_empty() && objs.is_empty() && aulas.len() == 1 {
+            (String::new(), aulas[0].clone(), String::new())
+        } else {
+            (unis.join("\n"), objs.join("\n"), habs.join("\n"))
+        };
+
+        let estrategias = linha[8].trim().to_string();
+        let recursos = linha[9].trim().to_string();
+        let verificacao_objetivo = linha[10].trim().to_string();
+        let avaliacao = linha[11].trim().to_string();
+        let adaptacao_curricular = linha[12].trim().to_string();
+
+        let turmas: Vec<String> = turmas_raw
+            .split(';')
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty())
+            .collect();
+        let turmas_legivel = turmas.join(", ");
+        let turmas = if turmas.is_empty() { vec![ano.clone()] } else { turmas };
+
+        for turma in turmas {
+            registros.push(RegistroPlanejamento {
+                professor: professor.clone(),
+                disciplina: disciplina.clone(),
+                ano: ano.clone(),
+                turma,
+                turmas: turmas_legivel.clone(),
+                bimestre: bimestre.clone(),
+                unidade_tematica: unidade_tematica.clone(),
+                objetos_conhecimento: objetos_conhecimento.clone(),
+                habilidades: habilidades.clone(),
+                estrategias: estrategias.clone(),
+                recursos: recursos.clone(),
+                avaliacao: avaliacao.clone(),
+                adaptacao_curricular: adaptacao_curricular.clone(),
+                verificacao_objetivo: verificacao_objetivo.clone(),
+            });
+        }
+    }
+
+    registros
+}
+
 pub(crate) fn parsear_csv_planejamento(texto: &str) -> Result<Vec<RegistroPlanejamento>, String> {
     let linhas = parsear_csv_completo(texto);
     if linhas.len() < 2 {
@@ -466,25 +550,63 @@ pub(crate) fn baixar_csv_planilha(url: &str) -> Result<String, String> {
         .map_err(|err| format!("Erro ao ler o conteúdo da planilha: {err}"))
 }
 
-// Busca e combina os registros de todas as planilhas configuradas.
+// Busca e combina os registros de todas as fontes configuradas: as URLs
+// legadas (CSV público do Forms) e, se preenchida, a planilha automática
+// (Sheets API autenticada). Falha isolada por fonte — uma fonte quebrada
+// não derruba as demais. Roda numa thread OS dedicada porque o caminho
+// automático usa OAuth (reqwest::blocking + eventual TcpListener de
+// reautorização), inseguro dentro do runtime async do Tauri (mesmo motivo
+// documentado em apps_script_api::criar_webapp_planejamento).
 #[tauri::command(async)]
-pub(crate) fn buscar_planejamentos(urls: Vec<String>) -> Result<Vec<RegistroPlanejamento>, String> {
+pub(crate) fn buscar_planejamentos(
+    urls: Vec<String>,
+    planilha_automatica_id: Option<String>,
+) -> Result<Vec<RegistroPlanejamento>, String> {
+    std::thread::spawn(move || buscar_planejamentos_interno(urls, planilha_automatica_id))
+        .join()
+        .map_err(|_| "Falha interna ao buscar os planejamentos.".to_string())?
+}
+
+fn buscar_planejamentos_interno(
+    urls: Vec<String>,
+    planilha_automatica_id: Option<String>,
+) -> Result<Vec<RegistroPlanejamento>, String> {
     let urls: Vec<String> = urls
         .into_iter()
         .map(|u| u.trim().to_string())
         .filter(|u| !u.is_empty())
         .collect();
-    if urls.is_empty() {
-        return Err("Nenhuma planilha configurada. Informe ao menos um link.".to_string());
+    let planilha_automatica_id = planilha_automatica_id
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty());
+
+    if urls.is_empty() && planilha_automatica_id.is_none() {
+        return Err(
+            "Nenhuma planilha configurada. Informe ao menos um link ou crie o Web App automaticamente."
+                .to_string(),
+        );
     }
+
     let mut todos = Vec::new();
     let mut erros = Vec::new();
+
     for url in &urls {
         match baixar_csv_planilha(url).and_then(|csv| parsear_csv_planejamento(&csv)) {
             Ok(mut regs) => todos.append(&mut regs),
             Err(e) => erros.push(e),
         }
     }
+
+    if let Some(planilha_id) = planilha_automatica_id {
+        let intervalo = format!("{}!A2:M", sheets_api::ABA_RESPOSTAS);
+        match obter_access_token().and_then(|token| {
+            sheets_api::buscar_planilha_valores_autenticado(&token, &planilha_id, &intervalo)
+        }) {
+            Ok(valores) => todos.extend(parsear_valores_sheets_planejamento(valores)),
+            Err(e) => erros.push(format!("Planilha automática: {e}")),
+        }
+    }
+
     if todos.is_empty() {
         return Err(if erros.is_empty() {
             "Nenhum planejamento encontrado nas planilhas configuradas.".to_string()

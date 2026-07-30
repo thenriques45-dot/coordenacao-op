@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, BookMarked, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -207,8 +207,6 @@ export function RelatoriosMenu({
   onAbrirElegiveisRecuperacao,
   onAbrirAlteracoesNotas,
   onAbrirAtendimentos,
-  onAbrirPei,
-  onAbrirPlanejamento,
   onAbrirTarefas,
   onAbrirProvaPaulista,
 }: {
@@ -216,8 +214,6 @@ export function RelatoriosMenu({
   onAbrirElegiveisRecuperacao: () => void;
   onAbrirAlteracoesNotas: () => void;
   onAbrirAtendimentos: () => void;
-  onAbrirPei: () => void;
-  onAbrirPlanejamento: () => void;
   onAbrirTarefas: () => void;
   onAbrirProvaPaulista: () => void;
 }) {
@@ -283,20 +279,6 @@ export function RelatoriosMenu({
             <strong>Pendência de Lançamento de Notas</strong>
             <span>{gerandoLancamento ? "Gerando relatório..." : "Lista, por turma, as disciplinas com notas ainda não lançadas no mapão."}</span>
             {erroLancamento && <span style={{ color: "var(--danger, #ef4444)" }}>{erroLancamento}</span>}
-          </div>
-        </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirPei}>
-          <BookMarked size={26} />
-          <div>
-            <strong>PEI — Plano Educacional Individualizado</strong>
-            <span>Acompanhe os planos enviados pelos professores e gere documentos por aluno elegível.</span>
-          </div>
-        </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirPlanejamento}>
-          <FileText size={26} />
-          <div>
-            <strong>Planejamento dos Professores</strong>
-            <span>Acompanhe os planos de ensino enviados pelos professores por turma, disciplina e bimestre.</span>
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={onAbrirTarefas}>

@@ -253,6 +253,24 @@ export function AssistenteConfiguracaoInicial({
                   disabled={!config}
                 />
               </label>
+              <label>
+                Prazo do 1º semestre (bimestres 1º e 2º)
+                <input
+                  type="date"
+                  value={config?.prazo_1_semestre ?? ""}
+                  onChange={(event) => setConfig((atual) => (atual ? { ...atual, prazo_1_semestre: event.target.value } : atual))}
+                  disabled={!config}
+                />
+              </label>
+              <label>
+                Prazo do 2º semestre (bimestres 3º e 4º)
+                <input
+                  type="date"
+                  value={config?.prazo_2_semestre ?? ""}
+                  onChange={(event) => setConfig((atual) => (atual ? { ...atual, prazo_2_semestre: event.target.value } : atual))}
+                  disabled={!config}
+                />
+              </label>
             </div>
             <div className="settings-file-group">
               <span>Cabeçalho da ata</span>
