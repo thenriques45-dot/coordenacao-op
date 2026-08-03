@@ -2,6 +2,7 @@ import { BookMarked, ClipboardList, Copy, ExternalLink, FileText, FolderOpen, Re
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { semestreAtivo, type PrazosSemestre } from "./semestre";
+import { carregarMembrosSincronizacao, garantirPerfilPersistido, type WorkgroupSyncMember } from "./workgroupSync";
 
 type RegistroPei = {
   timestamp: string;
@@ -24,6 +25,8 @@ type ConfigPei = {
   webapp_url: string;
   apps_script_projeto_id: string;
   apps_script_deployment_id: string;
+  token_leitura: string;
+  configurado_por_user_id: string;
 };
 
 type ProvisionamentoPeiResultado = {
@@ -32,6 +35,7 @@ type ProvisionamentoPeiResultado = {
   planilha_url: string;
   apps_script_projeto_id: string;
   apps_script_deployment_id: string;
+  token_leitura: string;
 };
 
 const CONFIG_PEI_PADRAO: ConfigPei = {
@@ -40,6 +44,8 @@ const CONFIG_PEI_PADRAO: ConfigPei = {
   webapp_url: "",
   apps_script_projeto_id: "",
   apps_script_deployment_id: "",
+  token_leitura: "",
+  configurado_por_user_id: "",
 };
 
 type AlunoElegivelComDisciplinas = {
@@ -164,14 +170,31 @@ export function TelaPEI() {
   const [gerandoPend, setGerandoPend] = useState(false);
   const [criandoWebApp, setCriandoWebApp] = useState(false);
   const [erroWebApp, setErroWebApp] = useState("");
+  const [linkRecebido, setLinkRecebido] = useState("");
+  const [importandoLink, setImportandoLink] = useState(false);
+  const [statusImportarLink, setStatusImportarLink] = useState("");
   const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
+  const [configuradoPorOutro, setConfiguradoPorOutro] = useState(false);
+  const [membroConfigurador, setMembroConfigurador] = useState<WorkgroupSyncMember | null>(null);
 
   useEffect(() => {
     invokeApp<ConfigPei>("carregar_config_pei")
       .then((c) => {
         const cfg = { ...CONFIG_PEI_PADRAO, ...c };
         setConfig(cfg);
-        setConfigAberta(!cfg.url_legado.trim() && !cfg.webapp_url.trim());
+        // Configurado por outro coordenador via sincronização de grupo (ver
+        // workgroupSync.ts): nesse caso não força a modal técnica, mostra o
+        // card "Fulano já configurou" em vez disso.
+        const perfilLocal = garantirPerfilPersistido();
+        const porOutro = Boolean(
+          cfg.webapp_url && cfg.token_leitura && cfg.configurado_por_user_id
+            && cfg.configurado_por_user_id !== perfilLocal.userId
+        );
+        setConfiguradoPorOutro(porOutro);
+        setMembroConfigurador(
+          porOutro ? carregarMembrosSincronizacao().find((m) => m.userId === cfg.configurado_por_user_id) ?? null : null
+        );
+        setConfigAberta(!porOutro && !cfg.url_legado.trim() && !cfg.webapp_url.trim());
       })
       .catch(() => setConfigAberta(true));
     invokeApp<PrazosSemestre>("carregar_configuracoes")
@@ -241,17 +264,14 @@ export function TelaPEI() {
 
   function carregarPeis() {
     const urlLegado = config.url_legado.trim();
-    if (!urlLegado && !config.planilha_automatica_id.trim()) {
+    if (!urlLegado && !config.planilha_automatica_id.trim() && !config.webapp_url.trim()) {
       setErro("Informe o link de uma planilha ou crie o Web App automaticamente.");
       return;
     }
     setCarregando(true);
     setErro("");
     salvarConfig().catch(() => {})
-      .then(() => invokeApp<RegistroPei[]>("buscar_peis", {
-        urlLegado: urlLegado || null,
-        planilhaAutomaticaId: config.planilha_automatica_id.trim() || null,
-      }))
+      .then(() => invokeApp<RegistroPei[]>("buscar_peis", { config }))
       .then((dados) => {
         setRegistros(dados);
         const agora = new Date().toLocaleString("pt-BR");
@@ -265,6 +285,18 @@ export function TelaPEI() {
   }
 
   async function criarWebAppPeiAutomatico() {
+    const perfilLocal = garantirPerfilPersistido();
+    if (
+      config.configurado_por_user_id
+      && config.configurado_por_user_id !== perfilLocal.userId
+      && !window.confirm(
+        "Esta configuração de PEI já foi feita por outro coordenador do grupo de trabalho e está em uso por "
+        + "todos. Continuar cria uma configuração própria nesta máquina e SUBSTITUI a atual — o ideal é ter só "
+        + "uma configuração ativa por grupo de trabalho. Quer continuar mesmo assim?"
+      )
+    ) {
+      return;
+    }
     setCriandoWebApp(true);
     setErroWebApp("");
     try {
@@ -278,14 +310,36 @@ export function TelaPEI() {
         webapp_url: resultado.webapp_url,
         apps_script_projeto_id: resultado.apps_script_projeto_id,
         apps_script_deployment_id: resultado.apps_script_deployment_id,
+        token_leitura: resultado.token_leitura,
+        configurado_por_user_id: perfilLocal.userId,
       };
       setConfig(novaConfig);
+      setConfiguradoPorOutro(false);
+      setMembroConfigurador(null);
       await invokeApp("salvar_config_pei", { config: novaConfig }).catch(() => {});
     } catch (err) {
       setErroWebApp(err instanceof Error ? err.message : String(err));
     } finally {
       setCriandoWebApp(false);
     }
+  }
+
+  // Colado de outro coordenador (que já configurou o Web App): evita repetir
+  // a criação/OAuth só para ler os mesmos dados — ver
+  // pei::importar_config_pei_por_link.
+  function importarLinkRecebido() {
+    const link = linkRecebido.trim();
+    if (!link) return;
+    setImportandoLink(true);
+    setStatusImportarLink("");
+    invokeApp<ConfigPei>("importar_config_pei_por_link", { link })
+      .then((novaConfig) => {
+        setConfig({ ...CONFIG_PEI_PADRAO, ...novaConfig });
+        setLinkRecebido("");
+        setStatusImportarLink("Link importado! Já pode buscar os PEIs.");
+      })
+      .catch((err) => setStatusImportarLink(err instanceof Error ? err.message : String(err)))
+      .finally(() => setImportandoLink(false));
   }
 
   function gerarLote(recs: RegistroPei[]) {
@@ -407,6 +461,34 @@ export function TelaPEI() {
         </div>
       </header>
 
+      {configuradoPorOutro && !configAberta && (
+        <div
+          style={{
+            display: "flex", alignItems: "center", gap: "0.8rem", flexWrap: "wrap",
+            border: "1px solid var(--border-color, #333)", borderRadius: "10px",
+            padding: "0.8rem 1rem", margin: "0 0 1rem",
+          }}
+        >
+          {membroConfigurador?.avatarDataUrl && (
+            <img
+              src={membroConfigurador.avatarDataUrl}
+              alt=""
+              style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+            />
+          )}
+          <p style={{ margin: 0, flex: 1, minWidth: "220px", fontSize: "0.88rem" }}>
+            <strong>{membroConfigurador?.displayName || "Outro coordenador da equipe"}</strong> já configurou o PEI
+            automático para a escola — não é preciso criar um novo.
+          </p>
+          <button type="button" className="primary-action" onClick={carregarPeis} disabled={carregando}>
+            <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar agora"}
+          </button>
+          <button type="button" className="ghost-action" onClick={() => setConfigAberta(true)}>
+            Ver configurações avançadas
+          </button>
+        </div>
+      )}
+
       {/* Diálogo modal de configuração */}
       {configAberta && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setConfigAberta(false); }}>
@@ -493,8 +575,18 @@ export function TelaPEI() {
                         <ExternalLink size={14} /> Abrir PEI
                       </button>
                       <button type="button" className="secondary-action" style={{ justifyContent: "center" }} onClick={() => navigator.clipboard.writeText(config.webapp_url)}>
-                        <Copy size={14} /> Copiar link para compartilhar
+                        <Copy size={14} /> Copiar link para professores
                       </button>
+                      {config.token_leitura && (
+                        <button
+                          type="button"
+                          className="secondary-action"
+                          style={{ justifyContent: "center" }}
+                          onClick={() => navigator.clipboard.writeText(`${config.webapp_url}?respostas=${config.token_leitura}`)}
+                        >
+                          <Copy size={14} /> Copiar link para coordenadores
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="secondary-action"
@@ -508,6 +600,13 @@ export function TelaPEI() {
                         <FileText size={14} /> Abrir planilha de respostas
                       </button>
                     </div>
+                    {config.token_leitura && (
+                      <p style={{ ...estiloTextoPassoPEI, marginTop: "0.1rem", color: "var(--danger, #ef4444)" }}>
+                        Atenção: o link "para coordenadores" dá acesso de leitura a dados sensíveis dos estudantes
+                        (nome, disciplina, adaptações). Os dois links são diferentes — mande o "para coordenadores"
+                        só para quem coordena com você, nunca para a lista de professores.
+                      </p>
+                    )}
                     <p style={{ ...estiloTextoPassoPEI, marginTop: "0.1rem" }}>
                       <strong>Passo único, opcional:</strong> se quiser que os professores recebam uma cópia por
                       e-mail ao enviar o PEI, é preciso autorizar o envio uma vez por Web App (o Google não aceita
@@ -529,6 +628,31 @@ export function TelaPEI() {
                   </div>
                 )}
                 {erroWebApp && <p style={{ ...estiloTextoPassoPEI, color: "var(--danger, #ef4444)", marginTop: "0.45rem" }}>{erroWebApp}</p>}
+              </div>
+            )}
+
+            {abaConfig === "automatico" && (
+              <div style={{ border: "1px solid var(--border-color, #333)", borderRadius: "10px", padding: "0.9rem 1rem", marginBottom: "1.2rem" }}>
+                <strong>Já tem um Web App configurado por outro coordenador?</strong>
+                <p style={estiloTextoPassoPEI}>
+                  Cole aqui o "link para coordenadores" que ele te mandou — evita criar um Web App e uma planilha
+                  novos só para ver os mesmos PEIs.
+                </p>
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                  <input
+                    type="url"
+                    placeholder="Cole aqui o link recebido"
+                    value={linkRecebido}
+                    onChange={(e) => setLinkRecebido(e.target.value)}
+                    style={{ flex: 1, minWidth: "220px" }}
+                  />
+                  <button type="button" onClick={importarLinkRecebido} disabled={importandoLink || !linkRecebido.trim()}>
+                    {importandoLink ? "Validando..." : "Usar este link"}
+                  </button>
+                </div>
+                {statusImportarLink && (
+                  <p style={{ ...estiloTextoPassoPEI, marginTop: "0.45rem" }}>{statusImportarLink}</p>
+                )}
               </div>
             )}
 

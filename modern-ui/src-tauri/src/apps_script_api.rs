@@ -268,7 +268,15 @@ fn provisionar_planejamento_via_oauth(
         config.apps_script_projeto_id.trim().to_string()
     };
 
-    let code_gs = CODE_GS.replace("__PLANILHA_ID__", &planilha_id);
+    let token_leitura = if config.token_leitura.trim().is_empty() {
+        google_oauth::gerar_bytes_aleatorios_base64url(32)
+    } else {
+        config.token_leitura.trim().to_string()
+    };
+
+    let code_gs = CODE_GS
+        .replace("__PLANILHA_ID__", &planilha_id)
+        .replace("__TOKEN_LEITURA__", &token_leitura);
     let dados_reais_gs = construir_dados_reais_gs()?;
     let componentes_extras_gs = construir_componentes_extras_gs(&config)?;
 
@@ -307,6 +315,7 @@ fn provisionar_planejamento_via_oauth(
         planilha_id,
         apps_script_projeto_id: script_id,
         apps_script_deployment_id: deployment_id,
+        token_leitura,
     })
 }
 
@@ -350,7 +359,15 @@ fn provisionar_pei_via_oauth(config: ConfigPei) -> Result<ProvisionamentoPeiResu
         config.apps_script_projeto_id.trim().to_string()
     };
 
-    let code_gs = CODE_GS_PEI.replace("__PLANILHA_ID__", &planilha_id);
+    let token_leitura = if config.token_leitura.trim().is_empty() {
+        google_oauth::gerar_bytes_aleatorios_base64url(32)
+    } else {
+        config.token_leitura.trim().to_string()
+    };
+
+    let code_gs = CODE_GS_PEI
+        .replace("__PLANILHA_ID__", &planilha_id)
+        .replace("__TOKEN_LEITURA__", &token_leitura);
     let dados_pei_gs = construir_dados_pei_gs()?;
 
     subir_conteudo(
@@ -385,6 +402,7 @@ fn provisionar_pei_via_oauth(config: ConfigPei) -> Result<ProvisionamentoPeiResu
         planilha_id,
         apps_script_projeto_id: script_id,
         apps_script_deployment_id: deployment_id,
+        token_leitura,
     })
 }
 

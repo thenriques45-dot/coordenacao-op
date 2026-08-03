@@ -114,6 +114,29 @@ pub(crate) fn carregar_config_pei() -> Result<ConfigPei, String> {
     })
 }
 
+// Recebe o link de leitura que outro coordenador copiou ("Copiar link para
+// os coordenadores") e cola aqui — evita repetir todo o provisionamento
+// OAuth só para ler os mesmos dados. Valida buscando de verdade antes de
+// salvar, para não gravar um link quebrado/digitado errado sem avisar.
+#[tauri::command(async)]
+pub(crate) fn importar_config_pei_por_link(link: String) -> Result<ConfigPei, String> {
+    std::thread::spawn(move || importar_config_pei_por_link_interno(link))
+        .join()
+        .map_err(|_| "Falha interna ao importar o link.".to_string())?
+}
+
+fn importar_config_pei_por_link_interno(link: String) -> Result<ConfigPei, String> {
+    let (webapp_url, token_leitura) = sheets_api::separar_link_leitura(&link)?;
+    sheets_api::buscar_respostas_via_webapp(&webapp_url, &token_leitura)
+        .map_err(|e| format!("Não foi possível validar o link: {e}"))?;
+
+    let mut config = carregar_config_pei()?;
+    config.webapp_url = webapp_url;
+    config.token_leitura = token_leitura;
+    salvar_config_pei(config.clone())?;
+    Ok(config)
+}
+
 // Esquema fixo (12 colunas, ver sheets_api::CABECALHO_RESPOSTAS_PEI) escrito
 // pelo Web App próprio — mapeamento direto por coluna, sem decomposição
 // (diferente das "aulas" de Planejamento): o cliente já entrega os campos
@@ -148,31 +171,31 @@ pub(crate) fn parsear_valores_sheets_pei(valores: Vec<Vec<String>>) -> Vec<Regis
         .collect()
 }
 
-// Une o PEI legado (CSV público do Forms) com o caminho automático (Sheets
-// API autenticada). Falha isolada por fonte — mesmo padrão de
-// planejamento::buscar_planejamentos. Roda numa thread OS dedicada porque o
-// caminho automático usa OAuth (reqwest::blocking + eventual TcpListener de
-// reautorização), inseguro dentro do runtime async do Tauri.
+// Une o PEI legado (CSV público do Forms) com o caminho automático. Falha
+// isolada por fonte — mesmo padrão de planejamento::buscar_planejamentos.
+// Roda numa thread OS dedicada porque o caminho automático de configs
+// antigas (sem token_leitura) usa OAuth (reqwest::blocking + eventual
+// TcpListener de reautorização), inseguro dentro do runtime async do Tauri.
 #[tauri::command(async)]
-pub(crate) fn buscar_peis(
-    url_legado: Option<String>,
-    planilha_automatica_id: Option<String>,
-) -> Result<Vec<RegistroPei>, String> {
-    std::thread::spawn(move || buscar_peis_interno(url_legado, planilha_automatica_id))
+pub(crate) fn buscar_peis(config: ConfigPei) -> Result<Vec<RegistroPei>, String> {
+    std::thread::spawn(move || buscar_peis_interno(config))
         .join()
         .map_err(|_| "Falha interna ao buscar os PEIs.".to_string())?
 }
 
-fn buscar_peis_interno(
-    url_legado: Option<String>,
-    planilha_automatica_id: Option<String>,
-) -> Result<Vec<RegistroPei>, String> {
-    let url_legado = url_legado.map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
-    let planilha_automatica_id = planilha_automatica_id
-        .map(|id| id.trim().to_string())
-        .filter(|id| !id.is_empty());
+fn buscar_peis_interno(config: ConfigPei) -> Result<Vec<RegistroPei>, String> {
+    let url_legado = {
+        let u = config.url_legado.trim().to_string();
+        if u.is_empty() { None } else { Some(u) }
+    };
+    let webapp_url = config.webapp_url.trim().to_string();
+    let token_leitura = config.token_leitura.trim().to_string();
+    let planilha_automatica_id = {
+        let id = config.planilha_automatica_id.trim().to_string();
+        if id.is_empty() { None } else { Some(id) }
+    };
 
-    if url_legado.is_none() && planilha_automatica_id.is_none() {
+    if url_legado.is_none() && webapp_url.is_empty() && planilha_automatica_id.is_none() {
         return Err(
             "Nenhuma planilha configurada. Informe um link ou crie o Web App automaticamente."
                 .to_string(),
@@ -189,7 +212,17 @@ fn buscar_peis_interno(
         }
     }
 
-    if let Some(planilha_id) = planilha_automatica_id {
+    if !webapp_url.is_empty() && !token_leitura.is_empty() {
+        // Caminho preferencial: leitura direta pelo próprio Web App, sem
+        // OAuth nem compartilhar a planilha — ver
+        // sheets_api::buscar_respostas_via_webapp.
+        match sheets_api::buscar_respostas_via_webapp(&webapp_url, &token_leitura) {
+            Ok(valores) => todos.extend(parsear_valores_sheets_pei(valores)),
+            Err(e) => erros.push(format!("Web App: {e}")),
+        }
+    } else if let Some(planilha_id) = planilha_automatica_id {
+        // Configs provisionadas antes do token de leitura existir: cai para
+        // o caminho OAuth/Sheets API até a próxima republicação.
         let intervalo = format!("{}!A2:L", sheets_api::ABA_RESPOSTAS);
         match obter_access_token().and_then(|token| {
             sheets_api::buscar_planilha_valores_autenticado(&token, &planilha_id, &intervalo)

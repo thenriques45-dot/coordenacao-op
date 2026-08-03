@@ -213,3 +213,60 @@ pub(crate) fn buscar_planilha_valores_autenticado(
 fn urlencoding_simples(texto: &str) -> String {
     url::form_urlencoded::byte_serialize(texto.as_bytes()).collect()
 }
+
+#[derive(Deserialize, Default)]
+struct RespostasWebAppResponse {
+    #[serde(default)]
+    valores: Vec<Vec<String>>,
+    #[serde(default)]
+    erro: String,
+}
+
+/// Lê as respostas direto pelo Web App (rota protegida por token — ver
+/// responderLeituraRespostas_ em Code.gs), sem OAuth e sem exigir que a
+/// planilha esteja compartilhada: o Web App já roda com a permissão de quem
+/// o implantou (appsscript.json: ANYONE_ANONYMOUS/USER_DEPLOYING), então
+/// qualquer coordenador com o link de leitura consegue buscar os dados.
+/// Substitui buscar_planilha_valores_autenticado quando a config tem
+/// webapp_url + token_leitura preenchidos.
+pub(crate) fn buscar_respostas_via_webapp(
+    webapp_url: &str,
+    token: &str,
+) -> Result<Vec<Vec<String>>, String> {
+    let separador = if webapp_url.contains('?') { "&" } else { "?" };
+    let url = format!("{webapp_url}{separador}respostas={}", urlencoding_simples(token));
+    let client = reqwest::blocking::Client::new();
+    let resposta = client
+        .get(&url)
+        .send()
+        .map_err(|err| format!("Erro ao ler as respostas pelo Web App: {err}"))?;
+    let resposta = tratar_resposta_erro(resposta, "Erro ao ler as respostas pelo Web App")?;
+    let corpo: RespostasWebAppResponse = resposta
+        .json()
+        .map_err(|err| format!("Erro ao interpretar as respostas do Web App: {err}"))?;
+    if !corpo.erro.is_empty() {
+        return Err(corpo.erro);
+    }
+    Ok(corpo.valores)
+}
+
+/// Separa um link de leitura colado (formato "<webapp_url>?respostas=<token>",
+/// copiado do botão "Copiar link para os coordenadores") nas duas partes que
+/// ConfigPei/ConfigPlanejamento guardam separadas — para o coordenador que
+/// recebe o link só precisar colar uma URL, sem entender o que é token ou
+/// webapp_url.
+pub(crate) fn separar_link_leitura(link: &str) -> Result<(String, String), String> {
+    let link = link.trim();
+    let (base, query) = link.split_once('?').ok_or_else(|| {
+        "Link inválido: não parece um link de leitura do CoordenacaoOP (falta \"?respostas=\")."
+            .to_string()
+    })?;
+    let token = query
+        .split('&')
+        .find_map(|par| par.strip_prefix("respostas="))
+        .filter(|t| !t.is_empty())
+        .ok_or_else(|| {
+            "Link inválido: não encontrei o parâmetro \"respostas\" no link.".to_string()
+        })?;
+    Ok((base.to_string(), token.to_string()))
+}

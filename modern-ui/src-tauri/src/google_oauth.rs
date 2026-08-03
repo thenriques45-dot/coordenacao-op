@@ -92,7 +92,7 @@ fn ler_credenciais_proprias() -> Option<CredenciaisOAuth> {
 
 // ── PKCE ──────────────────────────────────────────────────────────────────
 
-fn gerar_bytes_aleatorios_base64url(quantidade: usize) -> String {
+pub(crate) fn gerar_bytes_aleatorios_base64url(quantidade: usize) -> String {
     let mut bytes = vec![0u8; quantidade];
     rand::thread_rng().fill_bytes(&mut bytes);
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)

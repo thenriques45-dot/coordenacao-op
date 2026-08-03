@@ -755,6 +755,22 @@ pub(crate) struct ConfigPei {
     pub(crate) apps_script_projeto_id: String,
     #[serde(default)]
     pub(crate) apps_script_deployment_id: String,
+    // Token de leitura do Web App: permite que outros coordenadores busquem
+    // as respostas via HTTP simples (?respostas=TOKEN), sem OAuth nem
+    // compartilhar a planilha — ver Code.gs (scripts/webapp-pei) e
+    // sheets_api::buscar_respostas_via_webapp. Gerado automaticamente no
+    // provisionamento quando vazio.
+    #[serde(default)]
+    pub(crate) token_leitura: String,
+    // userId (workgroupSync.ts) do coordenador que rodou "Criar
+    // automaticamente" — só o id, não nome/foto (esses vêm do roster de
+    // perfis já sincronizado, ver WorkgroupSyncMember). Usado pelo
+    // frontend para decidir se mostra "Fulano já configurou isso" em vez
+    // de forçar a tela de configuração, e para avisar antes de criar uma
+    // config paralela. Opaco para o backend — só é lido/escrito pelo
+    // frontend (tipos.rs só precisa aceitar e devolver o campo).
+    #[serde(default)]
+    pub(crate) configurado_por_user_id: String,
 }
 
 // Retorno de provisionar_pei_automatico: os recursos criados/reaproveitados
@@ -766,6 +782,7 @@ pub(crate) struct ProvisionamentoPeiResultado {
     pub(crate) planilha_url: String,
     pub(crate) apps_script_projeto_id: String,
     pub(crate) apps_script_deployment_id: String,
+    pub(crate) token_leitura: String,
 }
 
 // Um registro já processado = um Plano de Ensino por turma.
@@ -828,6 +845,17 @@ pub(crate) struct ConfigPlanejamento {
     pub(crate) componentes_extras_medio: std::collections::BTreeMap<String, Vec<String>>,
     #[serde(default)]
     pub(crate) componentes_extras_anos_finais: std::collections::BTreeMap<String, Vec<String>>,
+    // Token de leitura do Web App: permite que outros coordenadores busquem
+    // as respostas via HTTP simples (?respostas=TOKEN), sem OAuth nem
+    // compartilhar a planilha — ver Code.gs (scripts/webapp) e
+    // sheets_api::buscar_respostas_via_webapp. Gerado automaticamente no
+    // provisionamento quando vazio.
+    #[serde(default)]
+    pub(crate) token_leitura: String,
+    // userId (workgroupSync.ts) do coordenador que rodou "Criar
+    // automaticamente" — ver campo equivalente em ConfigPei.
+    #[serde(default)]
+    pub(crate) configurado_por_user_id: String,
 }
 
 // Retorno de provisionar_planejamento_automatico: os três recursos criados/
@@ -839,4 +867,5 @@ pub(crate) struct ProvisionamentoPlanejamentoResultado {
     pub(crate) planilha_url: String,
     pub(crate) apps_script_projeto_id: String,
     pub(crate) apps_script_deployment_id: String,
+    pub(crate) token_leitura: String,
 }

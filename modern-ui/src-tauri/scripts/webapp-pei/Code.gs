@@ -7,6 +7,7 @@
 
 const PLANILHA_ID = "__PLANILHA_ID__";
 const ABA_RESPOSTAS = "Respostas";
+const TOKEN_LEITURA = "__TOKEN_LEITURA__";
 
 // Lista fixa (mesma do Google Forms legado do PEI) — usada quando o aluno
 // elegível selecionado não tem nenhuma disciplina real cadastrada, para não
@@ -22,10 +23,43 @@ const COMPONENTES_CURRICULARES_PEI = [
 
 const BIMESTRES_PEI = ["1º Bimestre", "2º Bimestre", "3º Bimestre", "4º Bimestre"];
 
-function doGet() {
+function doGet(e) {
+  var tokenRecebido = e && e.parameter && e.parameter.respostas;
+  if (tokenRecebido) {
+    return responderLeituraRespostas_(tokenRecebido);
+  }
   return HtmlService.createHtmlOutputFromFile("Index")
     .setTitle("PEI — CoordenacaoOP")
     .addMetaTag("viewport", "width=device-width, initial-scale=1");
+}
+
+// Rota de leitura para outros coordenadores: com o token correto, devolve as
+// respostas em JSON (mesmo formato de linhas que a Sheets API autenticada já
+// entrega), sem exigir OAuth nem compartilhar a planilha — quem já tem o
+// link de leitura (só o coordenador que implantou deveria repassá-lo) lê os
+// dados através deste Web App, que roda com a permissão de quem o publicou.
+// Contém dados sensíveis dos estudantes (PEI) — o link de leitura não deve
+// ser divulgado para professores nem publicado em lugar público.
+function responderLeituraRespostas_(tokenRecebido) {
+  if (!TOKEN_LEITURA || tokenRecebido !== TOKEN_LEITURA) {
+    return ContentService.createTextOutput(
+      JSON.stringify({ erro: "Token inválido." })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+  var planilha = SpreadsheetApp.openById(PLANILHA_ID);
+  var aba = planilha.getSheetByName(ABA_RESPOSTAS) || planilha.getSheets()[0];
+  var valores = aba.getDataRange().getValues();
+  var linhas = valores.slice(1).map(function (linha) {
+    return linha.map(function (celula) {
+      if (Object.prototype.toString.call(celula) === "[object Date]") {
+        return celula.toISOString();
+      }
+      return String(celula);
+    });
+  });
+  return ContentService.createTextOutput(
+    JSON.stringify({ valores: linhas })
+  ).setMimeType(ContentService.MimeType.JSON);
 }
 
 // Envio de e-mail (MailApp) não é herdado do OAuth externo usado para

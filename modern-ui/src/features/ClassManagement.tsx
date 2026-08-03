@@ -212,20 +212,47 @@ function abreviarDisciplina(nome: string) {
   return abreviacoes[nome] ?? (nome.length > 10 ? `${nome.slice(0, 9)}.` : nome);
 }
 
-function calcularMediaAluno(aluno: Aluno) {
+function notasBimestresDisciplina(disciplina: Disciplina, bimestreAtual: number): Array<number | null> {
+  const notaAtual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
+  const notas = [null, null, null, null] as Array<number | null>;
+  for (const hb of disciplina.historicoBimestres ?? []) {
+    const idx = Number.parseInt(hb.bimestre, 10) - 1;
+    if (idx >= 0 && idx < 4 && typeof hb.media === "number" && Number.isFinite(hb.media)) {
+      notas[idx] = hb.media;
+    }
+  }
+  if (typeof notaAtual === "number" && Number.isFinite(notaAtual) && bimestreAtual >= 1 && bimestreAtual <= 4) {
+    notas[bimestreAtual - 1] = notaAtual;
+  }
+  return notas;
+}
+
+function calcularMediaDisciplina(disciplina: Disciplina, bimestreAtual: number): number | null {
+  const notas = notasBimestresDisciplina(disciplina, bimestreAtual).filter(
+    (nota): nota is number => nota !== null,
+  );
+  if (!notas.length) return null;
+  return notas.reduce((total, valor) => total + valor, 0) / notas.length;
+}
+
+function calcularMediaAluno(aluno: Aluno, bimestreAtual: number) {
   const medias = aluno.disciplinas.flatMap((disciplina) => {
-    const nota = disciplina.mediaConselho ?? disciplina.mediaOriginal;
-    return typeof nota === "number" && Number.isFinite(nota) ? [nota] : [];
+    const media = calcularMediaDisciplina(disciplina, bimestreAtual);
+    return media !== null ? [media] : [];
   });
   if (!medias.length) return null;
   return medias.reduce((total, valor) => total + valor, 0) / medias.length;
 }
 
-function classificarAluno(aluno: Aluno) {
-  const media = arredondarMedia(calcularMediaAluno(aluno));
+function classificarAluno(aluno: Aluno, bimestreAtual: number) {
+  const media = arredondarMedia(calcularMediaAluno(aluno, bimestreAtual));
   if (media !== null && media < 5) return "critico";
   if (media === 5) return "atencao";
   return "adequado";
+}
+
+function bimestreParaNumero(bimestre: string | null | undefined) {
+  return Math.max(1, Math.min(4, Number.parseInt(bimestre ?? "1", 10) || 1));
 }
 
 function classeNota(nota: number | null | undefined) {
@@ -245,19 +272,20 @@ function formatarAtribuicao(atribuicao: AtribuicaoNota | null | undefined) {
   return `Importado por ${atribuicao.por} em ${data}`;
 }
 
-function rotuloClassificacao(aluno: Aluno) {
-  const status = classificarAluno(aluno);
+function rotuloClassificacao(status: ReturnType<typeof classificarAluno>) {
   if (status === "critico") return "Critico";
   if (status === "atencao") return "Atenção";
   return "Adequado";
 }
 
-function calcularMetricasTurma(alunos: Aluno[]) {
-  const medias = alunos.map(calcularMediaAluno).filter((valor): valor is number => valor !== null && valor !== undefined);
+function calcularMetricasTurma(alunos: Aluno[], bimestreAtual: number) {
+  const medias = alunos
+    .map((aluno) => calcularMediaAluno(aluno, bimestreAtual))
+    .filter((valor): valor is number => valor !== null && valor !== undefined);
   const mediaGeral = medias.length ? medias.reduce((total, valor) => total + valor, 0) / medias.length : null;
   return alunos.reduce(
     (metricas, aluno) => {
-      const status = classificarAluno(aluno);
+      const status = classificarAluno(aluno, bimestreAtual);
       return {
         ...metricas,
         adequados: metricas.adequados + (status === "adequado" ? 1 : 0),
@@ -453,9 +481,10 @@ export function GestaoTurma({
   }, [alunosVisiveis, busca]);
 
   // Métricas e desempenho consideram apenas os alunos ativos.
+  const bimestreAtualTurma = bimestreParaNumero(turmaDetalhe?.bimestre);
   const disciplinas = useMemo(() => Array.from(new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunosAtivos]);
-  const mediaGeral = calcularMetricasTurma(alunosAtivos).mediaGeral;
-  const metricas = calcularMetricasTurma(alunosAtivos);
+  const mediaGeral = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma).mediaGeral;
+  const metricas = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma);
   const total = alunosAtivos.length || 1;
   const desempenhoDisciplinas = useMemo(() => disciplinas.map((disciplina) => {
     const notas = alunosAtivos.flatMap((aluno) => {
@@ -661,7 +690,7 @@ export function GestaoTurma({
               <thead><tr><th>Nome</th><th>RA</th><th>Média</th><th>Frequência</th><th>Situação</th>{turmaConfig.elegivel_ativo && <th>{turmaConfig.elegivel_rotulo}</th>}{turmaConfig.lider_ativo && <th>{turmaConfig.lider_rotulo}</th>}</tr></thead>
               <tbody>
                 {alunosFiltrados.map((aluno) => {
-                  const status = classificarAluno(aluno);
+                  const status = classificarAluno(aluno, bimestreAtualTurma);
                   return (
                     <tr
                       className={`student-table-row${aluno.ativo === false ? " inactive" : ""}`}
@@ -678,9 +707,9 @@ export function GestaoTurma({
                         <span>Nº {aluno.chamada || "-"}</span>
                       </td>
                       <td>{aluno.matricula ?? "-"}</td>
-                      <td className={status === "critico" ? "danger-text" : "success-text"}>{formatarMediaGlobal(calcularMediaAluno(aluno))}</td>
+                      <td className={status === "critico" ? "danger-text" : "success-text"}>{formatarMediaGlobal(calcularMediaAluno(aluno, bimestreAtualTurma))}</td>
                       <td>{formatarPercentual(aluno.frequencia)}</td>
-                      <td><span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span></td>
+                      <td><span className={`class-status-pill ${status}`}>{rotuloClassificacao(status)}</span></td>
                       {turmaConfig.elegivel_ativo && (
                         <td>
                           <button
@@ -836,25 +865,15 @@ function AlunoDetalheGestao({
   const [anexosAtendimento, setAnexosAtendimento] = useState<AtendimentoAnexo[]>([]);
   const [erroAtendimento, setErroAtendimento] = useState("");
   const [salvandoAtendimento, setSalvandoAtendimento] = useState(false);
-  const status = classificarAluno(aluno);
-  const mediaAluno = calcularMediaAluno(aluno);
-  const bimestreAtual = Math.max(1, Math.min(4, Number.parseInt(bimestre, 10) || 1));
+  const bimestreAtual = bimestreParaNumero(bimestre);
+  const status = classificarAluno(aluno, bimestreAtual);
+  const mediaAluno = calcularMediaAluno(aluno, bimestreAtual);
   const alturaLinhaGrafico = 22;
   const larguraGraficoAluno = 760;
   const alturaGraficoAluno = Math.max(180, 66 + aluno.disciplinas.length * alturaLinhaGrafico);
   const escalaGraficoAluno = 1.1;
   const graficoDisciplinas = aluno.disciplinas.map((disciplina, indice) => {
-    const notaAtual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
-    const notas = [null, null, null, null] as Array<number | null>;
-    for (const hb of disciplina.historicoBimestres ?? []) {
-      const idx = Number.parseInt(hb.bimestre, 10) - 1;
-      if (idx >= 0 && idx < 4 && typeof hb.media === "number" && Number.isFinite(hb.media)) {
-        notas[idx] = hb.media;
-      }
-    }
-    if (notaAtual !== null && notaAtual !== undefined) {
-      notas[bimestreAtual - 1] = notaAtual;
-    }
+    const notas = notasBimestresDisciplina(disciplina, bimestreAtual);
     const pontos = notas
       .map((nota, bimestreIndice) => {
         if (nota === null) return null;
@@ -1200,7 +1219,7 @@ function AlunoDetalheGestao({
             Gerar relatório
           </button>
           )}
-          <span className={`class-status-pill ${status}`}>{rotuloClassificacao(aluno)}</span>
+          <span className={`class-status-pill ${status}`}>{rotuloClassificacao(status)}</span>
         </div>
       </header>
 
@@ -1299,6 +1318,7 @@ function AlunoDetalheGestao({
             <tbody>
               {aluno.disciplinas.map((disciplina) => {
                 const nota = disciplina.mediaConselho ?? disciplina.mediaOriginal;
+                const mediaDisciplina = calcularMediaDisciplina(disciplina, bimestreAtual);
                 const frequencia = calcularFrequenciaDisciplina(disciplina);
                 const diagnosticoDisciplina = diagnosticoSarespPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
                 return (
@@ -1327,7 +1347,7 @@ function AlunoDetalheGestao({
                       );
                     })}
                     <td className={classeTextoNota(disciplina.quintoConceito)}>{formatarNota(disciplina.quintoConceito)}</td>
-                    <td className={classeTextoNota(nota)}>{formatarNota(nota)}</td>
+                    <td className={classeTextoNota(mediaDisciplina)}>{formatarNota(mediaDisciplina)}</td>
                     <td className={frequencia !== null && frequencia >= 75 ? "success-text" : "danger-text"}>{formatarPercentual(frequencia)}</td>
                   </tr>
                 );

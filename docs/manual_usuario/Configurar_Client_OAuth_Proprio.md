@@ -1,5 +1,14 @@
 # Como criar seu próprio client do Google (Web App automático de Planejamento e PEI)
 
+> **Isso só é necessário para quem CRIA o Web App** (o primeiro clique em "Criar
+> automaticamente"). Os demais coordenadores da mesma escola **não precisam disso, nem
+> de conta Google nenhuma**: quem já criou o Web App pode copiar o botão **"Copiar link
+> para coordenadores"** (nas telas de Planejamento e PEI, depois de configurado) e
+> mandar esse link para os colegas. Cada um cola o link recebido no campo "Já tem um Web
+> App configurado por outro coordenador?" e passa a ver os mesmos dados — sem OAuth, sem
+> compartilhar planilha no Drive, sem cadastrar ninguém como usuário de teste. O
+> tutorial abaixo é só para quem vai criar o Web App do zero.
+
 ## Quando você precisa disso
 
 O botão **Criar automaticamente** (nas telas de Planejamento e PEI) cria e publica um Web App no Google da própria escola, sem precisar colar script manualmente nem compartilhar planilha. Para isso, ele usa uma autorização OAuth do Google — e, por padrão, essa autorização usa um client compartilhado por todas as instalações do CoordenacaoOP.

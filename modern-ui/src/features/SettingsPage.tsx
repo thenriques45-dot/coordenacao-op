@@ -638,7 +638,7 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de publicar.");
       }
-      const payload = montarPayloadSincronizacao(perfilSync);
+      const payload = await montarPayloadSincronizacao(perfilSync);
       const resultado = await invokeApp<SyncStateResultado>("publicar_estado_sincronizacao", {
         input: {
           pasta: perfilSync.syncFolder,
@@ -668,7 +668,7 @@ export function Configuracoes({
         setMensagem("Ainda não há estado publicado nesta pasta de sincronização.");
         return;
       }
-      const resumo = aplicarPayloadSincronizacao(payload);
+      const resumo = await aplicarPayloadSincronizacao(payload);
       onPerfilSyncChange({ ...perfilSync, syncEnabled: true, onboarding: "enabled", lastPulledAt: new Date().toISOString() });
       setMensagem(`Dados do grupo aplicados: ${resumo.tarefas} tarefas e ${resumo.eventos} eventos. Origem: ${resumo.origem}.`);
     } catch (err) {

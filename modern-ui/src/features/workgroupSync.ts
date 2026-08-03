@@ -9,6 +9,17 @@ import {
   type KanbanColuna,
   type KanbanTarefa,
 } from "./management";
+import { invokeApp } from "./appBridge";
+
+// Formato mínimo usado só para carregar a config de Planejamento/PEI do Web
+// App automático via sincronização de grupo — ver WebAppConfigSync abaixo.
+// Os tipos completos (com currículo, componentes extras etc.) vivem em
+// Planejamento.tsx/PEI.tsx; aqui só os três campos que precisam viajar.
+type WebAppConfigSync = {
+  webapp_url: string;
+  token_leitura: string;
+  configurado_por_user_id: string;
+};
 
 export type WorkgroupSyncProfile = {
   userId: string;
@@ -54,6 +65,8 @@ export type WorkgroupSyncPayload = {
     calendarEvents: CalendarEvent[];
     deletedKanbanTasks?: Record<string, string>;
     deletedCalendarEvents?: Record<string, string>;
+    planejamentoConfig?: WebAppConfigSync | null;
+    peiConfig?: WebAppConfigSync | null;
   };
 };
 
@@ -108,6 +121,19 @@ export function carregarPerfilSincronizacao(): WorkgroupSyncProfile {
   } catch {
     return criarPerfilSincronizacaoPadrao();
   }
+}
+
+// carregarPerfilSincronizacao() gera um userId novo a cada chamada quando
+// nunca houve um perfil salvo (coordenador que nunca abriu a aba de
+// Sincronização de grupo) — o que quebra qualquer comparação de identidade
+// entre chamadas. Usada por quem precisa de um userId ESTÁVEL mesmo sem o
+// coordenador ter passado pelo onboarding de sincronização (ver
+// configurado_por_user_id em Planejamento.tsx/PEI.tsx).
+export function garantirPerfilPersistido(): WorkgroupSyncProfile {
+  if (localStorage.getItem(WORKGROUP_SYNC_PROFILE_KEY)) {
+    return carregarPerfilSincronizacao();
+  }
+  return salvarPerfilSincronizacao(criarPerfilSincronizacaoPadrao());
 }
 
 export function salvarPerfilSincronizacao(perfil: WorkgroupSyncProfile) {
@@ -193,9 +219,32 @@ function carregarColunasKanban() {
   }
 }
 
-export function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): WorkgroupSyncPayload {
+// Busca a config de Planejamento/PEI para incluir no payload de
+// sincronização — só quando o Web App automático já estiver configurado de
+// verdade (webapp_url + token_leitura), senão não há nada útil pra
+// propagar. Falha isolada: se o comando não existir ainda (versão antiga do
+// backend) ou der erro, simplesmente não inclui essa config no payload.
+async function buscarConfigWebAppParaSync(comando: string): Promise<WebAppConfigSync | null> {
+  try {
+    const cfg = await invokeApp<Partial<WebAppConfigSync>>(comando);
+    if (!cfg?.webapp_url || !cfg?.token_leitura) return null;
+    return {
+      webapp_url: cfg.webapp_url,
+      token_leitura: cfg.token_leitura,
+      configurado_por_user_id: cfg.configurado_por_user_id ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Promise<WorkgroupSyncPayload> {
   const tombstones = carregarTombstones();
   registrarMembroSincronizacao(perfil);
+  const [planejamentoConfig, peiConfig] = await Promise.all([
+    buscarConfigWebAppParaSync("carregar_config_planejamento"),
+    buscarConfigWebAppParaSync("carregar_config_pei"),
+  ]);
   return {
     tipo: "coordenacaoop-workgroup-state",
     versao: 1,
@@ -214,6 +263,8 @@ export function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Workgr
       calendarEvents: carregarEventosCalendario(),
       deletedKanbanTasks: tombstones.kanbanTasks,
       deletedCalendarEvents: tombstones.calendarEvents,
+      planejamentoConfig,
+      peiConfig,
     },
   };
 }
@@ -237,10 +288,35 @@ function mesclarPorAtualizacao<T extends { id: string; updatedAt?: string; creat
   return Array.from(porId.values());
 }
 
-export function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload) {
+// Adota a config recebida só se esta máquina ainda não tiver nenhuma própria
+// (webapp_url vazio) — nunca sobrescreve uma configuração já existente,
+// local ou vinda de outro colega. Preserva configurado_por_user_id tal como
+// veio, para manter a atribuição original através de vários saltos de
+// sincronização.
+async function adotarConfigWebAppRecebida(
+  recebida: WebAppConfigSync | null | undefined,
+  comandoCarregar: string,
+  comandoSalvar: string,
+) {
+  if (!recebida?.webapp_url || !recebida?.token_leitura) return;
+  try {
+    const atual = await invokeApp<Partial<WebAppConfigSync>>(comandoCarregar);
+    if (atual?.webapp_url) return;
+    await invokeApp(comandoSalvar, { config: { ...atual, ...recebida } });
+  } catch {
+    // Sincronização automática é silenciosa — a tela de Planejamento/PEI
+    // continua funcionando com os controles manuais existentes.
+  }
+}
+
+export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload) {
   if (payload.tipo !== "coordenacaoop-workgroup-state" || payload.versao !== 1) {
     throw new Error("Arquivo de sincronização incompatível com esta versão.");
   }
+  await Promise.all([
+    adotarConfigWebAppRecebida(payload.data.planejamentoConfig, "carregar_config_planejamento", "salvar_config_planejamento"),
+    adotarConfigWebAppRecebida(payload.data.peiConfig, "carregar_config_pei", "salvar_config_pei"),
+  ]);
   const tarefasAtuais = carregarTarefasKanban();
   const eventosAtuais = carregarEventosCalendario();
   const colunasAtuais = carregarColunasKanban();

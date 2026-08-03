@@ -320,6 +320,10 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.21.4": [
+    "Planejamento e PEI: quando um coordenador do grupo de trabalho já configurou o Web App automático, os demais deixam de precisar clicar em 'Criar automaticamente' — a config (link e token de leitura) chega sozinha pela sincronização de grupo já existente (Kanban/Calendário), e a tela mostra só o nome (e foto, se houver) de quem configurou, com um botão 'Carregar agora'.",
+    "Se mesmo assim alguém clicar em 'Criar automaticamente' tendo uma configuração de grupo já ativa, o app avisa que isso cria uma configuração paralela e substitui a atual nesta máquina, antes de prosseguir — o objetivo é manter só uma configuração ativa por escola.",
+  ],
   "2.21.3": [
     "Corrigido: a bolinha de status do PEI podia acusar 'crítico' (vermelho) mesmo com vários PEIs recebidos, quando a carga horária do 3º/4º bimestre ainda não tinha sido importada para o aluno — agora, sem esse dado, ela cai num indicador simples (recebeu algo ou não) em vez de um falso vermelho.",
     "Telas de Planejamento e PEI ganham avisos na aba Automático: o que fazer se o Google mostrar 'Acesso bloqueado'/'app não verificado' ao autorizar (link direto pro tutorial de client próprio), e o que fazer se o link parar de abrir para outras pessoas depois de republicar (falha conhecida da API do Google ao atualizar implantações — resolvida resalvando a implantação pelo editor do Apps Script).",
@@ -785,9 +789,9 @@ export function App() {
         // Aplica o estado de cada dispositivo; a mesclagem é cumulativa e
         // converge mesmo que outro coordenador esteja offline.
         for (const remoto of remotos) {
-          if (remoto) aplicarPayloadSincronizacao(remoto);
+          if (remoto) await aplicarPayloadSincronizacao(remoto);
         }
-        const payload = montarPayloadSincronizacao(perfilSync);
+        const payload = await montarPayloadSincronizacao(perfilSync);
         const resultado = await invokeApp<SyncStateResultado>("publicar_estado_sincronizacao", {
           input: {
             pasta: perfilSync.syncFolder,

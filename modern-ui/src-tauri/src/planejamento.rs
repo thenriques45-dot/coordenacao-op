@@ -551,36 +551,37 @@ pub(crate) fn baixar_csv_planilha(url: &str) -> Result<String, String> {
 }
 
 // Busca e combina os registros de todas as fontes configuradas: as URLs
-// legadas (CSV público do Forms) e, se preenchida, a planilha automática
-// (Sheets API autenticada). Falha isolada por fonte — uma fonte quebrada
-// não derruba as demais. Roda numa thread OS dedicada porque o caminho
-// automático usa OAuth (reqwest::blocking + eventual TcpListener de
+// legadas (CSV público do Forms) e o caminho automático. Falha isolada por
+// fonte — uma fonte quebrada não derruba as demais. Roda numa thread OS
+// dedicada porque o caminho automático de configs antigas (sem
+// token_leitura) usa OAuth (reqwest::blocking + eventual TcpListener de
 // reautorização), inseguro dentro do runtime async do Tauri (mesmo motivo
 // documentado em apps_script_api::criar_webapp_planejamento).
 #[tauri::command(async)]
 pub(crate) fn buscar_planejamentos(
-    urls: Vec<String>,
-    planilha_automatica_id: Option<String>,
+    config: ConfigPlanejamento,
 ) -> Result<Vec<RegistroPlanejamento>, String> {
-    std::thread::spawn(move || buscar_planejamentos_interno(urls, planilha_automatica_id))
+    std::thread::spawn(move || buscar_planejamentos_interno(config))
         .join()
         .map_err(|_| "Falha interna ao buscar os planejamentos.".to_string())?
 }
 
 fn buscar_planejamentos_interno(
-    urls: Vec<String>,
-    planilha_automatica_id: Option<String>,
+    config: ConfigPlanejamento,
 ) -> Result<Vec<RegistroPlanejamento>, String> {
-    let urls: Vec<String> = urls
+    let urls: Vec<String> = [config.anos_finais.as_str(), config.medio.as_str()]
         .into_iter()
         .map(|u| u.trim().to_string())
         .filter(|u| !u.is_empty())
         .collect();
-    let planilha_automatica_id = planilha_automatica_id
-        .map(|id| id.trim().to_string())
-        .filter(|id| !id.is_empty());
+    let webapp_url = config.webapp_url.trim().to_string();
+    let token_leitura = config.token_leitura.trim().to_string();
+    let planilha_automatica_id = {
+        let id = config.planilha_automatica_id.trim().to_string();
+        if id.is_empty() { None } else { Some(id) }
+    };
 
-    if urls.is_empty() && planilha_automatica_id.is_none() {
+    if urls.is_empty() && webapp_url.is_empty() && planilha_automatica_id.is_none() {
         return Err(
             "Nenhuma planilha configurada. Informe ao menos um link ou crie o Web App automaticamente."
                 .to_string(),
@@ -597,7 +598,17 @@ fn buscar_planejamentos_interno(
         }
     }
 
-    if let Some(planilha_id) = planilha_automatica_id {
+    if !webapp_url.is_empty() && !token_leitura.is_empty() {
+        // Caminho preferencial: leitura direta pelo próprio Web App, sem
+        // OAuth nem compartilhar a planilha — ver
+        // sheets_api::buscar_respostas_via_webapp.
+        match sheets_api::buscar_respostas_via_webapp(&webapp_url, &token_leitura) {
+            Ok(valores) => todos.extend(parsear_valores_sheets_planejamento(valores)),
+            Err(e) => erros.push(format!("Web App: {e}")),
+        }
+    } else if let Some(planilha_id) = planilha_automatica_id {
+        // Configs provisionadas antes do token de leitura existir: cai para
+        // o caminho OAuth/Sheets API até a próxima republicação.
         let intervalo = format!("{}!A2:M", sheets_api::ABA_RESPOSTAS);
         match obter_access_token().and_then(|token| {
             sheets_api::buscar_planilha_valores_autenticado(&token, &planilha_id, &intervalo)
@@ -638,6 +649,33 @@ pub(crate) fn carregar_config_planejamento() -> Result<ConfigPlanejamento, Strin
     let texto = fs::read_to_string(caminho).map_err(|e| e.to_string())?;
     // Tolerante a configs antigas (string simples) -> retorna default.
     Ok(serde_json::from_str(&texto).unwrap_or_default())
+}
+
+// Recebe o link de leitura que outro coordenador copiou ("Copiar link para
+// os coordenadores") e cola aqui — evita repetir todo o provisionamento
+// OAuth só para ler os mesmos dados. Valida buscando de verdade antes de
+// salvar, para não gravar um link quebrado/digitado errado sem avisar.
+#[tauri::command(async)]
+pub(crate) fn importar_config_planejamento_por_link(
+    link: String,
+) -> Result<ConfigPlanejamento, String> {
+    std::thread::spawn(move || importar_config_planejamento_por_link_interno(link))
+        .join()
+        .map_err(|_| "Falha interna ao importar o link.".to_string())?
+}
+
+fn importar_config_planejamento_por_link_interno(
+    link: String,
+) -> Result<ConfigPlanejamento, String> {
+    let (webapp_url, token_leitura) = sheets_api::separar_link_leitura(&link)?;
+    sheets_api::buscar_respostas_via_webapp(&webapp_url, &token_leitura)
+        .map_err(|e| format!("Não foi possível validar o link: {e}"))?;
+
+    let mut config = carregar_config_planejamento()?;
+    config.webapp_url = webapp_url;
+    config.token_leitura = token_leitura;
+    salvar_config_planejamento(config.clone())?;
+    Ok(config)
 }
 
 #[tauri::command]
