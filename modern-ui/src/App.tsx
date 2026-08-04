@@ -320,6 +320,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.21.5": [
+    "Corrigido: o botão 'Sincronizar do grupo de trabalho' (Configurações → Perfil & Sincronização) podia trazer o estado de outro coordenador em vez do mais recente de cada um — ele lia um arquivo único compartilhado, sobrescrito por qualquer publicação de qualquer pessoa do grupo, em vez do arquivo próprio de cada coordenador (que é o que o ciclo automático de sincronização já usava corretamente). Isso podia fazer a config de Planejamento/PEI de um coordenador nunca chegar aos demais, de forma intermitente.",
+  ],
   "2.21.4": [
     "Planejamento e PEI: quando um coordenador do grupo de trabalho já configurou o Web App automático, os demais deixam de precisar clicar em 'Criar automaticamente' — a config (link e token de leitura) chega sozinha pela sincronização de grupo já existente (Kanban/Calendário), e a tela mostra só o nome (e foto, se houver) de quem configurou, com um botão 'Carregar agora'.",
     "Se mesmo assim alguém clicar em 'Criar automaticamente' tendo uma configuração de grupo já ativa, o app avisa que isso cria uma configuração paralela e substitui a atual nesta máquina, antes de prosseguir — o objetivo é manter só uma configuração ativa por escola.",

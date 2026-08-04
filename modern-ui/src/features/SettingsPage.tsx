@@ -663,14 +663,27 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
-      const payload = await invokeApp<WorkgroupSyncPayload | null>("carregar_estado_sincronizacao", { pasta: perfilSync.syncFolder });
-      if (!payload) {
+      // Lê o estado de CADA coordenador (arquivo por dispositivo), não o
+      // arquivo único legado — este último é sobrescrito por qualquer
+      // publicação de qualquer coordenador, então "puxar" a partir dele
+      // podia trazer o estado de outra pessoa em vez do mais recente de
+      // cada um. Mesma lógica já usada pelo ciclo automático em App.tsx.
+      const payloads = await invokeApp<WorkgroupSyncPayload[]>("carregar_estados_sincronizacao", {
+        pasta: perfilSync.syncFolder,
+        deviceId: perfilSync.userId,
+      });
+      if (payloads.length === 0) {
         setMensagem("Ainda não há estado publicado nesta pasta de sincronização.");
         return;
       }
-      const resumo = await aplicarPayloadSincronizacao(payload);
+      let resumo: Awaited<ReturnType<typeof aplicarPayloadSincronizacao>> | null = null;
+      const origens: string[] = [];
+      for (const payload of payloads) {
+        resumo = await aplicarPayloadSincronizacao(payload);
+        origens.push(resumo.origem);
+      }
       onPerfilSyncChange({ ...perfilSync, syncEnabled: true, onboarding: "enabled", lastPulledAt: new Date().toISOString() });
-      setMensagem(`Dados do grupo aplicados: ${resumo.tarefas} tarefas e ${resumo.eventos} eventos. Origem: ${resumo.origem}.`);
+      setMensagem(`Dados do grupo aplicados: ${resumo?.tarefas ?? 0} tarefas e ${resumo?.eventos ?? 0} eventos. Origem: ${origens.join(", ")}.`);
     } catch (err) {
       setErro(String(err));
     } finally {
