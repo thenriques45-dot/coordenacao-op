@@ -320,6 +320,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.21.6": [
+    "Corrigido: a sincronização (de grupo ou institucional) podia apagar da configuração de Planejamento/PEI o vínculo com a planilha e o projeto Apps Script já criados, mesmo em quem originalmente configurou — o sintoma era erro 'Acesso negado' ao ler respostas e, ao clicar em 'Atualizar turmas/republicar' nesse estado, uma planilha nova e vazia em vez de reaproveitar a existente.",
+    "Corrigido: uma resposta sem turma selecionada gerava um documento de planejamento numa pasta fantasma (só o nome do ano, sem a letra da turma) misturada às pastas das turmas reais — agora aparece marcada como 'SEM TURMA' para ficar claro que é uma resposta a corrigir na planilha.",
+    "Nomes de arquivo gerados (planejamento e PEI) não trocam mais cada letra acentuada por '_' (ex.: 'Educação Física' virava 'Educa__o F_sica') — os acentos são convertidos para a letra correspondente, o que também evita gerar arquivos diferentes para o mesmo texto digitado de formas diferentes.",
+    "As telas de Planejamento e PEI passam a mostrar o status (turmas coloridas, quantidade gerada, 'Abrir pasta') a partir dos documentos já salvos no computador, não só da última busca na planilha — um erro pontual de leitura não faz mais turmas com documento já gerado aparecerem como se nada tivesse sido entregue. Recarregar também deixa de reescrever documentos cujo conteúdo não mudou.",
+  ],
   "2.21.5": [
     "Corrigido: o botão 'Sincronizar do grupo de trabalho' (Configurações → Perfil & Sincronização) podia trazer o estado de outro coordenador em vez do mais recente de cada um — ele lia um arquivo único compartilhado, sobrescrito por qualquer publicação de qualquer pessoa do grupo, em vez do arquivo próprio de cada coordenador (que é o que o ciclo automático de sincronização já usava corretamente). Isso podia fazer a config de Planejamento/PEI de um coordenador nunca chegar aos demais, de forma intermitente.",
   ],

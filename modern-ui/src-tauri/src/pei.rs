@@ -263,6 +263,40 @@ pub(crate) fn abrir_pei_docx(nome_aluno: String, disciplina: String, bimestre: S
     abrir_arquivo(&caminho)
 }
 
+const NOME_INDICE_PEI: &str = "_indice.json";
+
+fn chave_registro_pei(r: &RegistroPei) -> String {
+    format!("{}|{}|{}", r.nome_aluno, r.disciplina, r.bimestre)
+}
+
+fn carregar_indice_pei(pasta_base: &Path) -> Vec<RegistroPei> {
+    fs::read_to_string(pasta_base.join(NOME_INDICE_PEI))
+        .ok()
+        .and_then(|texto| serde_json::from_str(&texto).ok())
+        .unwrap_or_default()
+}
+
+fn salvar_indice_pei(pasta_base: &Path, registros: &[RegistroPei]) {
+    if let Ok(texto) = serde_json::to_string_pretty(registros) {
+        let _ = escrever_json_atomicamente(&pasta_base.join(NOME_INDICE_PEI), &texto);
+    }
+}
+
+// Lê só o que já está em disco (índice local, ver salvar_indice_pei acima)
+// — usada para popular a tela de acompanhamento sem depender de nenhum
+// fetch na planilha ter dado certo. Ver PeisLocaisResultado.
+#[tauri::command]
+pub(crate) fn carregar_peis_locais() -> Result<PeisLocaisResultado, String> {
+    let pasta_base = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("pei");
+    Ok(PeisLocaisResultado {
+        pasta: pasta_base.to_string_lossy().to_string(),
+        registros: carregar_indice_pei(&pasta_base),
+    })
+}
+
 #[tauri::command(async)]
 pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLoteResultado, String> {
     let _dados = travar_dados();
@@ -272,31 +306,59 @@ pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLo
         .join("pei");
     fs::create_dir_all(&pasta_base).map_err(|err| err.to_string())?;
 
+    // Índice anterior — a mesclagem começa dele: um registro ausente NESTA
+    // leva (fetch parcial/com erro) não é removido, só fica sem atualização
+    // — evita a tela "zerar" quando uma busca falha ou volta incompleta.
+    // Ver gerar_planejamentos_lote (mesmo padrão) para o raciocínio completo.
+    let mut indice: BTreeMap<String, RegistroPei> = carregar_indice_pei(&pasta_base)
+        .into_iter()
+        .map(|r| (chave_registro_pei(&r), r))
+        .collect();
+
     let mut arquivos = 0usize;
+    let mut pulados = 0usize;
     let mut erros: Vec<String> = Vec::new();
 
     for r in &registros {
         let pasta_aluno = pasta_base.join(sanitizar_segmento(&r.nome_aluno));
-        if let Err(e) = fs::create_dir_all(&pasta_aluno) {
-            erros.push(format!("{} — pasta: {e}", r.nome_aluno));
-            continue;
-        }
         let nome_arquivo = format!(
             "{}_{}_bimestre.docx",
             sanitizar_segmento(&r.disciplina),
             sanitizar_segmento(&r.bimestre)
         );
         let caminho = pasta_aluno.join(&nome_arquivo);
+
+        // Mesmo conteúdo do que já está no índice E o arquivo ainda existe:
+        // pula a reescrita — recarregar vira um no-op na prática.
+        let chave = chave_registro_pei(r);
+        let inalterado = indice.get(&chave).is_some_and(|anterior| anterior == r) && caminho.exists();
+        if inalterado {
+            pulados += 1;
+            continue;
+        }
+
+        if let Err(e) = fs::create_dir_all(&pasta_aluno) {
+            erros.push(format!("{} — pasta: {e}", r.nome_aluno));
+            continue;
+        }
         match escrever_pei_docx_individual(&caminho, r) {
-            Ok(_) => arquivos += 1,
+            Ok(_) => {
+                arquivos += 1;
+                indice.insert(chave, r.clone());
+            }
             Err(e) => erros.push(format!("{} — {}: {e}", r.nome_aluno, r.disciplina)),
         }
     }
 
+    let registros_indice: Vec<RegistroPei> = indice.into_values().collect();
+    salvar_indice_pei(&pasta_base, &registros_indice);
+
     Ok(GerarPeisLoteResultado {
         pasta: pasta_base.to_string_lossy().to_string(),
         arquivos,
+        pulados,
         erros,
+        registros: registros_indice,
     })
 }
 

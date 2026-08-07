@@ -14,11 +14,21 @@ import { invokeApp } from "./appBridge";
 // Formato mínimo usado só para carregar a config de Planejamento/PEI do Web
 // App automático via sincronização de grupo — ver WebAppConfigSync abaixo.
 // Os tipos completos (com currículo, componentes extras etc.) vivem em
-// Planejamento.tsx/PEI.tsx; aqui só os três campos que precisam viajar.
+// Planejamento.tsx/PEI.tsx; aqui só os campos que precisam viajar.
+//
+// Inclui planilha_automatica_id/apps_script_projeto_id/apps_script_deployment_id
+// (não só webapp_url+token_leitura): sem eles, uma máquina que só adota a
+// config por sincronização fica com um config "meio preenchido" — lê as
+// respostas normalmente, mas se clicar em "Atualizar turmas/republicar" o
+// backend não tem os IDs pra reaproveitar e cria silenciosamente uma
+// planilha e um projeto Apps Script NOVOS, órfãos do original.
 type WebAppConfigSync = {
   webapp_url: string;
   token_leitura: string;
   configurado_por_user_id: string;
+  planilha_automatica_id: string;
+  apps_script_projeto_id: string;
+  apps_script_deployment_id: string;
 };
 
 export type WorkgroupSyncProfile = {
@@ -232,6 +242,9 @@ async function buscarConfigWebAppParaSync(comando: string): Promise<WebAppConfig
       webapp_url: cfg.webapp_url,
       token_leitura: cfg.token_leitura,
       configurado_por_user_id: cfg.configurado_por_user_id ?? "",
+      planilha_automatica_id: cfg.planilha_automatica_id ?? "",
+      apps_script_projeto_id: cfg.apps_script_projeto_id ?? "",
+      apps_script_deployment_id: cfg.apps_script_deployment_id ?? "",
     };
   } catch {
     return null;
@@ -293,6 +306,20 @@ function mesclarPorAtualizacao<T extends { id: string; updatedAt?: string; creat
 // local ou vinda de outro colega. Preserva configurado_por_user_id tal como
 // veio, para manter a atribuição original através de vários saltos de
 // sincronização.
+//
+// Caso à parte: quem já importou o MESMO Web App pelo link manual (fluxo
+// anterior a este, que não gravava configurado_por_user_id) tem
+// webapp_url preenchido mas nenhuma atribuição — sem isso, a tela nunca
+// mostra "Fulano já configurou". Nesse caso específico (mesmo webapp_url,
+// atribuição local vazia), completa só esse campo, sem tocar em mais nada.
+//
+// Mesma lógica para planilha_automatica_id/apps_script_projeto_id/
+// apps_script_deployment_id: uma máquina que só adotou a config (ou
+// importou por link) fica com esses três vazios mesmo com o webapp_url
+// certo — e se clicar em "Atualizar turmas/republicar" nesse estado, o
+// backend não tem o que reaproveitar e provisiona planilha/projeto NOVOS.
+// Sempre que aparecer, pelo sync, o mesmo webapp_url com esses campos
+// preenchidos, completa os que estiverem vazios localmente.
 async function adotarConfigWebAppRecebida(
   recebida: WebAppConfigSync | null | undefined,
   comandoCarregar: string,
@@ -301,8 +328,27 @@ async function adotarConfigWebAppRecebida(
   if (!recebida?.webapp_url || !recebida?.token_leitura) return;
   try {
     const atual = await invokeApp<Partial<WebAppConfigSync>>(comandoCarregar);
-    if (atual?.webapp_url) return;
-    await invokeApp(comandoSalvar, { config: { ...atual, ...recebida } });
+    if (!atual?.webapp_url) {
+      await invokeApp(comandoSalvar, { config: { ...atual, ...recebida } });
+      return;
+    }
+    if (atual.webapp_url !== recebida.webapp_url) return;
+    const completar: Partial<WebAppConfigSync> = {};
+    if (!atual.configurado_por_user_id && recebida.configurado_por_user_id) {
+      completar.configurado_por_user_id = recebida.configurado_por_user_id;
+    }
+    if (!atual.planilha_automatica_id && recebida.planilha_automatica_id) {
+      completar.planilha_automatica_id = recebida.planilha_automatica_id;
+    }
+    if (!atual.apps_script_projeto_id && recebida.apps_script_projeto_id) {
+      completar.apps_script_projeto_id = recebida.apps_script_projeto_id;
+    }
+    if (!atual.apps_script_deployment_id && recebida.apps_script_deployment_id) {
+      completar.apps_script_deployment_id = recebida.apps_script_deployment_id;
+    }
+    if (Object.keys(completar).length > 0) {
+      await invokeApp(comandoSalvar, { config: { ...atual, ...completar } });
+    }
   } catch {
     // Sincronização automática é silenciosa — a tela de Planejamento/PEI
     // continua funcionando com os controles manuais existentes.

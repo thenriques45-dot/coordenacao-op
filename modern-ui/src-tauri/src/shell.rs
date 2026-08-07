@@ -387,10 +387,38 @@ pub(crate) fn aspas_powershell(valor: &str) -> String {
     format!("'{}'", valor.replace('\'', "''"))
 }
 
+// Dobra acentos para a letra-base ASCII (preservando maiúsc./minúsc.) antes
+// de sanitizar. Antes disso, QUALQUER caractere acentuado virava "_" — "ç" e
+// "ã" ficavam indistinguíveis ("Educação Física" → "Educa__o F_sica"), e o
+// mesmo texto digitado com acentuação pré-composta vs. decomposta (comum
+// quando a resposta vem de dispositivos/navegadores diferentes) podia gerar
+// nomes de arquivo DIFERENTES para a mesma disciplina/turma — duplicando
+// silenciosamente o documento em vez de sobrescrever o existente.
+fn dobrar_acento(ch: char) -> char {
+    match ch {
+        'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+        'Á' | 'À' | 'Â' | 'Ã' | 'Ä' => 'A',
+        'é' | 'è' | 'ê' | 'ë' => 'e',
+        'É' | 'È' | 'Ê' | 'Ë' => 'E',
+        'í' | 'ì' | 'î' | 'ï' => 'i',
+        'Í' | 'Ì' | 'Î' | 'Ï' => 'I',
+        'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+        'Ó' | 'Ò' | 'Ô' | 'Õ' | 'Ö' => 'O',
+        'ú' | 'ù' | 'û' | 'ü' => 'u',
+        'Ú' | 'Ù' | 'Û' | 'Ü' => 'U',
+        'ç' => 'c',
+        'Ç' => 'C',
+        'ñ' => 'n',
+        'Ñ' => 'N',
+        other => other,
+    }
+}
+
 pub(crate) fn sanitizar_segmento(valor: &str) -> String {
     let texto = valor.trim().replace('º', "o").replace('ª', "a");
     let filtrado = texto
         .chars()
+        .map(dobrar_acento)
         .map(|ch| {
             if ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '_' | '-') {
                 ch

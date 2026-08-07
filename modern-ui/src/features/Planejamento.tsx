@@ -21,7 +21,14 @@ type RegistroPlanejamento = {
   verificacao_objetivo: string;
 };
 
-type GerarPlanejamentosLoteResultado = { pasta: string; arquivos: number; erros: string[] };
+type GerarPlanejamentosLoteResultado = {
+  pasta: string;
+  arquivos: number;
+  pulados: number;
+  erros: string[];
+  registros: RegistroPlanejamento[];
+};
+type PlanejamentosLocaisResultado = { pasta: string; registros: RegistroPlanejamento[] };
 
 type TurmaResumo = {
   codigo: string;
@@ -78,7 +85,6 @@ const SEGMENTOS: { chave: "anos_finais" | "medio"; rotulo: string }[] = [
 ];
 
 const PLANEJAMENTO_ULTIMA_BUSCA_KEY = "coordenacaoop:planejamento-ultima-busca";
-const PLANEJAMENTO_REGISTROS_KEY = "coordenacaoop:planejamento-registros-cache";
 const BIMESTRES = ["1", "2", "3", "4"];
 
 function normalizarTurma(valor: string) {
@@ -86,15 +92,6 @@ function normalizarTurma(valor: string) {
 }
 function normalizarDisciplina(valor: string) {
   return valor.trim().toLocaleUpperCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
-
-function carregarRegistrosCache(): RegistroPlanejamento[] {
-  try {
-    const salvo = localStorage.getItem(PLANEJAMENTO_REGISTROS_KEY);
-    return salvo ? (JSON.parse(salvo) as RegistroPlanejamento[]) : [];
-  } catch {
-    return [];
-  }
 }
 
 function urlsDaConfig(c: ConfigPlanejamento): string[] {
@@ -133,7 +130,7 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
   const [erro, setErro] = useState("");
   const [statusScript, setStatusScript] = useState("");
   const [ultimaBusca, setUltimaBusca] = useState(() => localStorage.getItem(PLANEJAMENTO_ULTIMA_BUSCA_KEY) ?? "");
-  const [registros, setRegistros] = useState<RegistroPlanejamento[]>(carregarRegistrosCache);
+  const [registros, setRegistros] = useState<RegistroPlanejamento[]>([]);
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [disciplinasMapao, setDisciplinasMapao] = useState<Record<string, string[]>>({});
   const [gerando, setGerando] = useState(false);
@@ -181,12 +178,19 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
       .catch(() => {});
   }, []);
 
-  // Geração automática quando os registros mudam.
+  // Popula a tela a partir do que já foi gerado em disco (índice local, ver
+  // planejamento::carregar_planejamentos_locais) — não depende de nenhuma
+  // busca na planilha ter dado certo, então um 403/erro de rede não faz a
+  // tela voltar a mostrar "nenhum planejamento" para turmas que já têm
+  // documento salvo.
   useEffect(() => {
-    if (registros.length === 0 || gerando) return;
-    gerarLote(registros);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registros]);
+    invokeApp<PlanejamentosLocaisResultado>("carregar_planejamentos_locais")
+      .then((res) => {
+        setPastaGeral(res.pasta);
+        setRegistros(res.registros);
+      })
+      .catch(() => {});
+  }, []);
 
   // Carrega disciplinas do mapão ao selecionar uma turma (com cache por caminho).
   useEffect(() => {
@@ -306,12 +310,14 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
     salvarConfig().catch(() => {})
       .then(() => invokeApp<RegistroPlanejamento[]>("buscar_planejamentos", { config }))
       .then((dados) => {
-        setRegistros(dados);
         const agora = new Date().toLocaleString("pt-BR");
         setUltimaBusca(agora);
         localStorage.setItem(PLANEJAMENTO_ULTIMA_BUSCA_KEY, agora);
-        localStorage.setItem(PLANEJAMENTO_REGISTROS_KEY, JSON.stringify(dados));
         setConfigAberta(false);
+        // Não faz setRegistros(dados) direto: a tela só reflete o que
+        // realmente foi (ou já estava) gerado em disco — gerarLote mescla
+        // isto com o índice local e é quem atualiza `registros` de fato.
+        gerarLote(dados);
       })
       .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
       .finally(() => setCarregando(false));
@@ -342,7 +348,15 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
     invokeApp<GerarPlanejamentosLoteResultado>("gerar_planejamentos_lote", { registros: recs })
       .then((res) => {
         setPastaGeral(res.pasta);
-        setStatusGeracao(res.erros.length > 0 ? `${res.arquivos} gerado(s). ${res.erros.length} erro(s).` : `${res.arquivos} planejamento(s) gerado(s).`);
+        // Fonte de verdade da tela vira o índice mesclado (local + esta
+        // leva) devolvido pelo backend — nunca o `recs` cru da planilha,
+        // que pode vir parcial numa busca com erro.
+        setRegistros(res.registros);
+        const partes: string[] = [];
+        if (res.arquivos > 0) partes.push(`${res.arquivos} gerado(s)`);
+        if (res.pulados > 0) partes.push(`${res.pulados} sem mudança`);
+        if (res.erros.length > 0) partes.push(`${res.erros.length} erro(s)`);
+        setStatusGeracao(partes.length > 0 ? `${partes.join(", ")}.` : "Nenhum planejamento novo.");
       })
       .catch((err) => setStatusGeracao(`Erro ao gerar: ${err instanceof Error ? err.message : String(err)}`))
       .finally(() => setGerando(false));

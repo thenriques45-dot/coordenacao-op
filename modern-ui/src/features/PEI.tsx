@@ -59,11 +59,13 @@ type AlunoElegivelComDisciplinas = {
 type GerarPeisLoteResultado = {
   pasta: string;
   arquivos: number;
+  pulados: number;
   erros: string[];
+  registros: RegistroPei[];
 };
+type PeisLocaisResultado = { pasta: string; registros: RegistroPei[] };
 
 const PEI_ULTIMA_BUSCA_KEY = "coordenacaoop:pei-ultima-busca";
-const PEI_REGISTROS_KEY = "coordenacaoop:pei-registros-cache";
 
 const BIMESTRES = ["1", "2", "3", "4"];
 
@@ -127,15 +129,6 @@ function statusPeiAluno(
   return encontrado >= esperado ? "adequado" : "atencao";
 }
 
-function carregarRegistrosCachedados(): RegistroPei[] {
-  try {
-    const salvo = localStorage.getItem(PEI_REGISTROS_KEY);
-    return salvo ? (JSON.parse(salvo) as RegistroPei[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 // Estilos reutilizados no diálogo de tutorial
 const estiloPassoPEI: React.CSSProperties = {
   display: "flex", gap: "0.9rem", marginBottom: "1rem", alignItems: "flex-start",
@@ -160,7 +153,7 @@ export function TelaPEI() {
   const [ultimaBusca, setUltimaBusca] = useState(
     () => localStorage.getItem(PEI_ULTIMA_BUSCA_KEY) ?? ""
   );
-  const [registros, setRegistros] = useState<RegistroPei[]>(carregarRegistrosCachedados);
+  const [registros, setRegistros] = useState<RegistroPei[]>([]);
   const [alunosElegiveis, setAlunosElegiveis] = useState<AlunoElegivelComDisciplinas[]>([]);
   const [alunoSelecionado, setAlunoSelecionado] = useState<AlunoElegivelComDisciplinas | null>(null);
   const [erroPeiAbrir, setErroPeiAbrir] = useState("");
@@ -208,12 +201,18 @@ export function TelaPEI() {
       .catch(() => setAlunosElegiveis([]));
   }, []);
 
-  // Dispara geração automática sempre que os registros mudam (startup com cache ou fetch novo).
+  // Popula a tela a partir do que já foi gerado em disco (índice local, ver
+  // pei::carregar_peis_locais) — não depende de nenhuma busca na planilha
+  // ter dado certo, então um 403/erro de rede não faz a tela voltar a
+  // mostrar "nenhum PEI" para alunos que já têm documento salvo.
   useEffect(() => {
-    if (registros.length === 0 || gerando) return;
-    gerarLote(registros);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registros]);
+    invokeApp<PeisLocaisResultado>("carregar_peis_locais")
+      .then((res) => {
+        setPastaGeral(res.pasta);
+        setRegistros(res.registros);
+      })
+      .catch(() => {});
+  }, []);
 
   const semestre = useMemo(() => semestreAtivo(prazos), [prazos]);
 
@@ -273,12 +272,14 @@ export function TelaPEI() {
     salvarConfig().catch(() => {})
       .then(() => invokeApp<RegistroPei[]>("buscar_peis", { config }))
       .then((dados) => {
-        setRegistros(dados);
         const agora = new Date().toLocaleString("pt-BR");
         setUltimaBusca(agora);
         localStorage.setItem(PEI_ULTIMA_BUSCA_KEY, agora);
-        localStorage.setItem(PEI_REGISTROS_KEY, JSON.stringify(dados));
         setConfigAberta(false);
+        // Não faz setRegistros(dados) direto: a tela só reflete o que
+        // realmente foi (ou já estava) gerado em disco — gerarLote mescla
+        // isto com o índice local e é quem atualiza `registros` de fato.
+        gerarLote(dados);
       })
       .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
       .finally(() => setCarregando(false));
@@ -349,10 +350,15 @@ export function TelaPEI() {
     invokeApp<GerarPeisLoteResultado>("gerar_peis_lote", { registros: recs })
       .then((res) => {
         setPastaGeral(res.pasta);
-        const msg = res.erros.length > 0
-          ? `${res.arquivos} PEI(s) gerado(s). ${res.erros.length} erro(s).`
-          : `${res.arquivos} PEI(s) gerado(s) com sucesso.`;
-        setStatusGeracao(msg);
+        // Fonte de verdade da tela vira o índice mesclado (local + esta
+        // leva) devolvido pelo backend — nunca o `recs` cru da planilha,
+        // que pode vir parcial numa busca com erro.
+        setRegistros(res.registros);
+        const partes: string[] = [];
+        if (res.arquivos > 0) partes.push(`${res.arquivos} gerado(s)`);
+        if (res.pulados > 0) partes.push(`${res.pulados} sem mudança`);
+        if (res.erros.length > 0) partes.push(`${res.erros.length} erro(s)`);
+        setStatusGeracao(partes.length > 0 ? `${partes.join(", ")}.` : "Nenhum PEI novo.");
       })
       .catch((err) => setStatusGeracao(`Erro ao gerar: ${err instanceof Error ? err.message : String(err)}`))
       .finally(() => setGerando(false));

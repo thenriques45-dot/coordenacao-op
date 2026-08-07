@@ -179,6 +179,7 @@ fn main() {
             pei::carregar_url_pei,
             pei::abrir_pei_docx,
             pei::gerar_peis_lote,
+            pei::carregar_peis_locais,
             pei::listar_alunos_elegiveis_com_disciplinas,
             pei::salvar_config_pei,
             pei::carregar_config_pei,
@@ -209,6 +210,7 @@ fn main() {
             planejamento::versao_script_planejamento,
             planejamento::abrir_planejamento_docx,
             planejamento::gerar_planejamentos_lote,
+            planejamento::carregar_planejamentos_locais,
             apps_script_api::provisionar_planejamento_automatico
         ])
         .run(tauri::generate_context!())

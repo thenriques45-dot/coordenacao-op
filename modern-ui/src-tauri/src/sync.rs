@@ -285,6 +285,21 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
     mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))
         .map_err(|err| err.to_string())?;
 
+    // Preserva planilha_automatica_id/apps_script_projeto_id/
+    // apps_script_deployment_id do PEI/Planejamento quando só existem
+    // localmente — sem isso, puxar dados institucionais de um colega cuja
+    // config chegou "incompleta" (ex.: só adotada via sincronização de
+    // grupo, sem esses IDs — ver WebAppConfigSync em workgroupSync.ts)
+    // sobrescrevia esses campos com vazio nesta máquina, mesmo sendo ela a
+    // dona original do Web App. Ver mesclar_config_webapp.
+    mesclar_config_webapp(&destino.join("pei").join("config.json"), &temporario.join("pei").join("config.json"))
+        .map_err(|err| err.to_string())?;
+    mesclar_config_webapp(
+        &destino.join("planejamento").join("config.json"),
+        &temporario.join("planejamento").join("config.json"),
+    )
+    .map_err(|err| err.to_string())?;
+
     // Renomeia o diretório atual para backup antes de colocar o novo no lugar.
     // Se o segundo rename falhar, o original é restaurado — sem perda de dados.
     if destino.exists() {
@@ -610,6 +625,50 @@ pub(crate) fn remover_copias_de_conflito_sync(pasta: &Path) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+// Mescla um único arquivo de config (dados/pei/config.json ou
+// dados/planejamento/config.json) campo a campo: para cada campo string
+// vazio do lado recebido (temp_path, que vira o novo dados/ após o swap),
+// mantém o valor local se ele não estiver vazio. Se o peer nem tinha o
+// arquivo, copia o local para não desaparecer no swap.
+pub(crate) fn mesclar_config_webapp(local_path: &Path, temp_path: &Path) -> io::Result<()> {
+    if !local_path.exists() {
+        return Ok(());
+    }
+    if !temp_path.exists() {
+        if let Some(pai) = temp_path.parent() {
+            fs::create_dir_all(pai)?;
+        }
+        return fs::copy(local_path, temp_path).map(|_| ());
+    }
+    let texto_local = fs::read_to_string(local_path)?;
+    let texto_temp = fs::read_to_string(temp_path)?;
+    let (Ok(Value::Object(local_map)), Ok(Value::Object(mut temp_map))) = (
+        serde_json::from_str::<Value>(&texto_local),
+        serde_json::from_str::<Value>(&texto_temp),
+    ) else {
+        // Um dos dois não é um objeto JSON válido (ex.: config legada, só
+        // texto cru) — não mescla, mantém o que já está em temp_path.
+        return Ok(());
+    };
+    for (chave, valor_local) in local_map {
+        let local_nao_vazio = valor_local.as_str().map(|s| !s.is_empty()).unwrap_or(false);
+        if !local_nao_vazio {
+            continue;
+        }
+        let vazio_no_recebido = temp_map
+            .get(&chave)
+            .and_then(Value::as_str)
+            .map(str::is_empty)
+            .unwrap_or(true);
+        if vazio_no_recebido {
+            temp_map.insert(chave, valor_local);
+        }
+    }
+    let texto_merged =
+        serde_json::to_string_pretty(&Value::Object(temp_map)).map_err(|e| io::Error::other(e.to_string()))?;
+    fs::write(temp_path, texto_merged)
 }
 
 pub(crate) fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -> io::Result<()> {

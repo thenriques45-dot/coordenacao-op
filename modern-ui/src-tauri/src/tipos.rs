@@ -706,7 +706,7 @@ pub(crate) struct DadosMapao {
     pub(crate) disciplinas: BTreeSet<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct RegistroPei {
     pub(crate) timestamp: String,
     pub(crate) email: String,
@@ -735,7 +735,23 @@ pub(crate) struct AlunoElegiveisComDisciplinas {
 pub(crate) struct GerarPeisLoteResultado {
     pub(crate) pasta: String,
     pub(crate) arquivos: usize,
+    // Quantos registros bateram com o índice local (mesmo conteúdo já
+    // gerado) e não precisaram reescrever o docx — ver gerar_peis_lote.
+    pub(crate) pulados: usize,
     pub(crate) erros: Vec<String>,
+    // Índice local mesclado (anterior + esta leva), já persistido em
+    // relatorios/pei/_indice.json — o frontend usa isto (não o retorno cru
+    // da planilha) como estado de acompanhamento, para um erro de leitura
+    // pontual não apagar documentos já gerados da tela.
+    pub(crate) registros: Vec<RegistroPei>,
+}
+
+// Retorno de carregar_peis_locais: popula a tela de acompanhamento a partir
+// do índice já em disco, sem depender de nenhum fetch na planilha.
+#[derive(Serialize)]
+pub(crate) struct PeisLocaisResultado {
+    pub(crate) pasta: String,
+    pub(crate) registros: Vec<RegistroPei>,
 }
 
 // Configuração do PEI: caminho manual (Forms legado, URL crua) + caminho
@@ -788,7 +804,7 @@ pub(crate) struct ProvisionamentoPeiResultado {
 // Um registro já processado = um Plano de Ensino por turma.
 // Uma resposta da planilha pode cobrir várias turmas (Turma A..G); cada turma
 // vira um RegistroPlanejamento (mesmo conteúdo, pasta própria).
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub(crate) struct RegistroPlanejamento {
     pub(crate) professor: String,
     pub(crate) disciplina: String,    // componente curricular
@@ -810,7 +826,23 @@ pub(crate) struct RegistroPlanejamento {
 pub(crate) struct GerarPlanejamentosLoteResultado {
     pub(crate) pasta: String,
     pub(crate) arquivos: usize,
+    // Quantos registros bateram com o índice local (mesmo conteúdo já
+    // gerado) e não precisaram reescrever o docx — ver gerar_planejamentos_lote.
+    pub(crate) pulados: usize,
     pub(crate) erros: Vec<String>,
+    // Índice local mesclado (anterior + esta leva), já persistido em
+    // relatorios/planejamento/_indice.json — o frontend usa isto (não o
+    // retorno cru da planilha) como estado de acompanhamento, para um erro
+    // de leitura pontual não apagar documentos já gerados da tela.
+    pub(crate) registros: Vec<RegistroPlanejamento>,
+}
+
+// Retorno de carregar_planejamentos_locais: popula a tela de acompanhamento
+// a partir do índice já em disco, sem depender de nenhum fetch na planilha.
+#[derive(Serialize)]
+pub(crate) struct PlanejamentosLocaisResultado {
+    pub(crate) pasta: String,
+    pub(crate) registros: Vec<RegistroPlanejamento>,
 }
 
 // Configuração: uma planilha de respostas por segmento + versão do currículo.

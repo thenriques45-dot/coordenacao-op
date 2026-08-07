@@ -333,7 +333,19 @@ pub(crate) fn parsear_valores_sheets_planejamento(valores: Vec<Vec<String>>) -> 
             .filter(|t| !t.is_empty())
             .collect();
         let turmas_legivel = turmas.join(", ");
-        let turmas = if turmas.is_empty() { vec![ano.clone()] } else { turmas };
+        // Sem turma selecionada na resposta (célula vazia/mal formada — ex.:
+        // linha corrompida por uma cópia manual entre planilhas): antes caía
+        // silenciosamente para o "ano" sozinho (ex.: "6º Ano"), que virava uma
+        // pasta/arquivo à parte de "6º Ano A".."G" — o MESMO plano da turma
+        // real, duplicado numa pasta órfã sem letra, sem nenhum aviso.
+        // Marca em vez de mascarar: fica visível como pendência a corrigir
+        // na planilha, não se mistura com nenhuma turma real (não bate com
+        // nenhum item do mapão) e não aparece como se fosse uma turma válida.
+        let turmas = if turmas.is_empty() {
+            vec![format!("SEM TURMA - {ano}")]
+        } else {
+            turmas
+        };
 
         for turma in turmas {
             registros.push(RegistroPlanejamento {
@@ -717,6 +729,40 @@ pub(crate) fn abrir_planejamento_docx(turma: String, disciplina: String, bimestr
     abrir_arquivo(&caminho)
 }
 
+const NOME_INDICE_PLANEJAMENTO: &str = "_indice.json";
+
+fn chave_registro_planejamento(r: &RegistroPlanejamento) -> String {
+    format!("{}|{}|{}", r.turma, r.disciplina, r.bimestre)
+}
+
+fn carregar_indice_planejamento(pasta_base: &Path) -> Vec<RegistroPlanejamento> {
+    fs::read_to_string(pasta_base.join(NOME_INDICE_PLANEJAMENTO))
+        .ok()
+        .and_then(|texto| serde_json::from_str(&texto).ok())
+        .unwrap_or_default()
+}
+
+fn salvar_indice_planejamento(pasta_base: &Path, registros: &[RegistroPlanejamento]) {
+    if let Ok(texto) = serde_json::to_string_pretty(registros) {
+        let _ = escrever_json_atomicamente(&pasta_base.join(NOME_INDICE_PLANEJAMENTO), &texto);
+    }
+}
+
+// Lê só o que já está em disco (índice local, ver salvar_indice_planejamento
+// acima) — usada para popular a tela de acompanhamento sem depender de
+// nenhum fetch na planilha ter dado certo. Ver PlanejamentosLocaisResultado.
+#[tauri::command]
+pub(crate) fn carregar_planejamentos_locais() -> Result<PlanejamentosLocaisResultado, String> {
+    let pasta_base = data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join("planejamento");
+    Ok(PlanejamentosLocaisResultado {
+        pasta: pasta_base.to_string_lossy().to_string(),
+        registros: carregar_indice_planejamento(&pasta_base),
+    })
+}
+
 #[tauri::command(async)]
 pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> Result<GerarPlanejamentosLoteResultado, String> {
     let _dados = travar_dados();
@@ -726,30 +772,62 @@ pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> 
         .join("planejamento");
     fs::create_dir_all(&pasta_base).map_err(|err| err.to_string())?;
 
+    // Índice anterior (o que já foi gerado antes, em qualquer sessão) —
+    // começa a mesclagem a partir dele: um registro ausente NESTA leva (ex.:
+    // fetch parcial/com erro) não é removido, só fica sem atualização. Isso
+    // é o que evita a tela "zerar" quando uma busca falha ou volta
+    // incompleta — ver GerarPlanejamentosLoteResultado.registros.
+    let mut indice: BTreeMap<String, RegistroPlanejamento> = carregar_indice_planejamento(&pasta_base)
+        .into_iter()
+        .map(|r| (chave_registro_planejamento(&r), r))
+        .collect();
+
     let mut arquivos = 0usize;
+    let mut pulados = 0usize;
     let mut erros: Vec<String> = Vec::new();
 
     for r in &registros {
         let pasta_turma = pasta_base.join(sanitizar_segmento(&r.turma));
-        if let Err(e) = fs::create_dir_all(&pasta_turma) {
-            erros.push(format!("{} — pasta: {e}", r.turma));
-            continue;
-        }
         let nome_arquivo = format!(
             "{}_{}.docx",
             sanitizar_segmento(&r.disciplina),
             sanitizar_segmento(&r.bimestre)
         );
         let caminho = pasta_turma.join(&nome_arquivo);
+
+        // Mesmo conteúdo do que já está no índice E o arquivo ainda existe
+        // no disco (não foi apagado por fora): pula a reescrita. Reduz o
+        // recarregar a um no-op na prática — só regrava o que realmente
+        // mudou — e evita reabrir/tocar arquivos que o coordenador possa
+        // estar com o Word aberto em cima.
+        let chave = chave_registro_planejamento(r);
+        let inalterado = indice.get(&chave).is_some_and(|anterior| anterior == r) && caminho.exists();
+        if inalterado {
+            pulados += 1;
+            continue;
+        }
+
+        if let Err(e) = fs::create_dir_all(&pasta_turma) {
+            erros.push(format!("{} — pasta: {e}", r.turma));
+            continue;
+        }
         match escrever_planejamento_docx_individual(&caminho, r) {
-            Ok(_) => arquivos += 1,
+            Ok(_) => {
+                arquivos += 1;
+                indice.insert(chave, r.clone());
+            }
             Err(e) => erros.push(format!("{} — {}: {e}", r.turma, r.disciplina)),
         }
     }
 
+    let registros_indice: Vec<RegistroPlanejamento> = indice.into_values().collect();
+    salvar_indice_planejamento(&pasta_base, &registros_indice);
+
     Ok(GerarPlanejamentosLoteResultado {
         pasta: pasta_base.to_string_lossy().to_string(),
         arquivos,
+        pulados,
         erros,
+        registros: registros_indice,
     })
 }
