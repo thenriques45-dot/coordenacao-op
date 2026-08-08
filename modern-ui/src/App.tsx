@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   BookMarked,
   BookOpen,
   CalendarDays,
@@ -320,6 +319,14 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.22.0": [
+    "Corrigido: disciplinas de mapões de 'Tipo de Ensino: Expansão' (turmas não seriadas de itinerário/aprofundamento) apareciam na tela de Planejamento como se precisassem de Plano de Ensino, mesmo sem nenhum professor responsável por planejá-las. As notas continuam entrando normalmente nos alunos/conselho — só a cobrança de plano não se aplica mais a essas disciplinas. Quando a mesma disciplina existe nos dois mapões (ex.: Língua Inglesa no mapão normal e no de expansão), ela continua contando como disciplina normal.",
+    "Corrigido: a mesma disciplina podia aparecer duas vezes na lista de Planejamento (ex.: 'Orientação de Estudo em Matemática' e 'ORIENTACAO DE ESTUDO - MATEMATICA') quando o mapão do SED e o Web App usavam redações diferentes — hífen, a palavra 'em' ou um sufixo de série coladas ao nome. Essas variações passam a ser reconhecidas como a mesma disciplina.",
+    "Corrigido: trocar o coordenador responsável por uma turma podia sobrescrever o texto da ata e o tempo de reunião do conselho pelos dados do 1º bimestre, mesmo estando em outro bimestre no momento.",
+    "Corrigido: criar uma tarefa a partir de um evento do calendário não atualizava o Dashboard nem o Quadro de Gestão até recarregar o app.",
+    "Corrigido: salvar educação especial ou atendimento de um aluno sem matrícula cadastrada falhava em silêncio, sem avisar o coordenador.",
+    "Corrigido: a lista de eventos do calendário disponíveis para vincular a uma tarefa no Kanban podia ficar desatualizada depois de uma sincronização de grupo.",
+  ],
   "2.21.6": [
     "Corrigido: a sincronização (de grupo ou institucional) podia apagar da configuração de Planejamento/PEI o vínculo com a planilha e o projeto Apps Script já criados, mesmo em quem originalmente configurou — o sintoma era erro 'Acesso negado' ao ler respostas e, ao clicar em 'Atualizar turmas/republicar' nesse estado, uma planilha nova e vazia em vez de reaproveitar a existente.",
     "Corrigido: uma resposta sem turma selecionada gerava um documento de planejamento numa pasta fantasma (só o nome do ano, sem a letra da turma) misturada às pastas das turmas reais — agora aparece marcada como 'SEM TURMA' para ficar claro que é uma resposta a corrigir na planilha.",
@@ -1036,6 +1043,7 @@ export function App() {
     return invokeApp<TurmaDetalhe>("salvar_coordenador_turma", {
       caminho: turmaSelecionada.caminho,
       input: { coordenador },
+      bimestre: turmaDetalhe?.bimestre ?? "1",
     }).then((detalheAtualizado) => {
       setTurmaDetalhe(detalheAtualizado);
       setTurmaSelecionada((atual) => atual ? { ...atual, coordenador_turma: detalheAtualizado.coordenador_turma } : atual);
@@ -1454,7 +1462,6 @@ export function App() {
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} />}
-        {tela !== "dashboard" && tela !== "conselhos" && tela !== "conselho" && tela !== "turmas" && tela !== "gestao-turma" && tela !== "importar-dados" && tela !== "importar-notas" && tela !== "importar-elegiveis" && tela !== "importar-diagnostico" && tela !== "importar-fotos" && tela !== "importar-alunos-lote" && tela !== "importar-tarefas" && tela !== "importar-prova-paulista" && tela !== "kanban" && tela !== "calendario" && tela !== "configuracoes" && tela !== "relatorios" && tela !== "relatorio-criticos" && tela !== "relatorio-elegiveis-recuperacao" && tela !== "relatorio-alteracoes-notas" && tela !== "relatorio-atendimentos" && tela !== "relatorio-tarefas" && tela !== "relatorio-prova-paulista" && tela !== "pei" && tela !== "planejamento" && <Placeholder tela={tela} />}
       </section>
       {buscaGlobalAberta && (
         <BuscaGlobal
@@ -1593,49 +1600,5 @@ function NavButton({
       {icon}
       {label}
     </button>
-  );
-}
-
-function Placeholder({ tela }: { tela: Tela }) {
-  const nomes: Record<Tela, string> = {
-    dashboard: "Dashboard",
-    turmas: "Turmas",
-    "gestao-turma": "Gestão de Turma",
-    "importar-dados": "Importar Dados",
-    "importar-notas": "Importar Notas",
-    "importar-elegiveis": "Importar Elegíveis",
-    "importar-diagnostico": "Importar Diagnóstico SARESP",
-    "importar-fotos": "Importar Fotos dos Alunos",
-    "importar-alunos-lote": "Atualizar Turmas em Lote",
-    "importar-tarefas": "Importar Tarefas Realizadas",
-    "importar-prova-paulista": "Importar Prova Paulista",
-    conselhos: "Conselhos",
-    conselho: "Conselho",
-    kanban: "Quadro de Gestão",
-    calendario: "Calendário",
-    relatorios: "Relatórios",
-    "relatorio-criticos": "Relatório de Alunos Críticos",
-    "relatorio-elegiveis-recuperacao": "Elegíveis à Prova de Recuperação",
-    "relatorio-alteracoes-notas": "Alterações de Notas Pós-Conselho",
-    "relatorio-atendimentos": "Relatórios de Atendimento",
-    "relatorio-tarefas": "Relatório de Tarefas Realizadas",
-    "relatorio-prova-paulista": "Relatório da Prova Paulista",
-    pei: "PEI — Plano Educacional Individualizado",
-    planejamento: "Planejamento dos Professores",
-    configuracoes: "Configurações",
-  };
-
-  return (
-    <section className="placeholder panel">
-      <ClipboardList size={36} />
-      <h1>{nomes[tela]}</h1>
-      <p>Esta area sera migrada depois da validacao da tela de conselho.</p>
-      <div className="placeholder-actions">
-        <button>
-          <BarChart3 size={18} />
-          Ver fluxo planejado
-        </button>
-      </div>
-    </section>
   );
 }

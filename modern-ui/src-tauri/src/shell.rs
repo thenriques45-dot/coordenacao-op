@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Integração com o sistema: notificações, abrir URLs/pastas/arquivos e anexos.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,12 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use chrono::Local;
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
+    fs,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
+    process::Command,
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 /// Envia uma notificação nativa do sistema diretamente pelo backend.
@@ -151,9 +135,22 @@ pub(crate) fn abrir_pasta(caminho: String) -> Result<(), String> {
 #[tauri::command]
 pub(crate) fn preparar_anexo_kanban(caminho: String) -> Result<KanbanAnexoResultado, String> {
     let _dados = travar_dados();
-    let origem = PathBuf::from(caminho);
-    if !origem.exists() || !origem.is_file() {
+    let origem = PathBuf::from(&caminho)
+        .canonicalize()
+        .map_err(|_| "Arquivo nao encontrado.".to_string())?;
+    if !origem.is_file() {
         return Err("Arquivo nao encontrado.".to_string());
+    }
+    // Mesma proteção de preparar_anexo_atendimento: sem isto, o ramo "externo"
+    // abaixo devolveria o caminho cru como anexo, deixando o Kanban referenciar
+    // (e exibir como se fosse escolhido pelo usuário) arquivos internos do
+    // app — ex.: config.json, planilhas de respostas.
+    let dados_c = data_dir()
+        .map_err(|err| err.to_string())?
+        .canonicalize()
+        .map_err(|err| err.to_string())?;
+    if origem.starts_with(&dados_c) {
+        return Err("Nao e permitido anexar arquivos internos do aplicativo.".to_string());
     }
 
     let nome = origem

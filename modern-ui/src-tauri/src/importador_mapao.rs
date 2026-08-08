@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Importador de mapões e diagnóstico de aprendizagem (parsing XLSX).
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -7,26 +6,13 @@
 use crate::*;
 
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
+use chrono::Local;
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
     io::Cursor,
-    io::Write,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
+    path::PathBuf,
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 #[tauri::command(async)]
@@ -86,6 +72,7 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
             }
         };
 
+        let eh_expansao = dados.eh_expansao;
         let alvos = alvos_para_mapao(&arquivo.nome, &dados, &turmas);
         for aluno_mapao in dados.alunos {
             if aluno_mapao_corresponde_a_inativo(&aluno_mapao, &alvos, &turmas) {
@@ -119,6 +106,35 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
             }
 
             for (disciplina, media, faltas, compensacao) in aluno_mapao.disciplinas {
+                // Mapão de "Tipo de Ensino: Expansão" (turma não seriada de
+                // itinerário/aprofundamento — ver mapao_eh_expansao): as
+                // notas continuam entrando normalmente abaixo, mas a
+                // disciplina fica marcada pra não aparecer como pendente de
+                // Plano de Ensino no Planejamento (nenhum professor planeja
+                // essas aulas). Exceção: algumas disciplinas se repetem no
+                // mapão normal E no de expansão (ex.: Língua Inglesa) — só a
+                // expansão tem nota/falta de verdade nesses casos, o mapão
+                // normal é quem tem; então só marca quem ainda não apareceu
+                // por uma fonte normal (carga_horaria), e desmarca (a ordem
+                // de import pode ser qualquer uma) assim que um mapão normal
+                // trouxer a mesma disciplina depois.
+                if eh_expansao {
+                    let ja_e_regular = turma.carga_horaria.as_ref().is_some_and(|carga| {
+                        carga.values().any(|por_disc| {
+                            por_disc
+                                .as_object()
+                                .is_some_and(|obj| obj.contains_key(&disciplina.nome))
+                        })
+                    });
+                    if !ja_e_regular {
+                        let marcadas = turma.disciplinas_expansao.get_or_insert_with(Vec::new);
+                        if !marcadas.contains(&disciplina.nome) {
+                            marcadas.push(disciplina.nome.clone());
+                        }
+                    }
+                } else if let Some(marcadas) = turma.disciplinas_expansao.as_mut() {
+                    marcadas.retain(|nome| nome != &disciplina.nome);
+                }
                 if let Some(valor) = media {
                     inserir_valor_bimestre(info, "medias", &bimestre, &disciplina.nome, valor, device_id);
                 }
@@ -593,6 +609,7 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         .enumerate()
         .position(|(idx, linha)| linha_parece_cabecalho_mapao(linha, linhas.get(idx + 1)))
         .ok_or_else(|| "Cabeçalho de alunos não encontrado no mapão. Use a versão com nome, número ou nome e número.".to_string())?;
+    let eh_expansao = mapao_eh_expansao(&linhas, linha_inicio);
     let cabecalho_alunos =
         localizar_colunas_aluno_mapao(&linhas[linha_inicio], linhas.get(linha_inicio + 1))
             .ok_or_else(|| {
@@ -709,7 +726,26 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
     Ok(DadosMapao {
         alunos,
         disciplinas: disciplinas_lidas,
+        eh_expansao,
     })
+}
+
+// Procura, nas linhas antes do cabeçalho de alunos, a célula "Tipo de
+// Ensino:" (rótulo do mapão do SED) e olha se o valor ao lado contém
+// "Expansão" (ex.: "110 - EXPANSÃO NOVO EM") — marca de turma não seriada de
+// itinerário/aprofundamento, cujas disciplinas não têm Plano de Ensino de
+// professor. Ver DadosMapao::eh_expansao.
+pub(crate) fn mapao_eh_expansao(linhas: &[Vec<Data>], linha_inicio: usize) -> bool {
+    for linha in linhas.iter().take(linha_inicio) {
+        for (idx, celula) in linha.iter().enumerate() {
+            let rotulo = normalizar_texto_basico(&texto_celula(Some(celula)));
+            if rotulo.contains("TIPO DE ENSINO") {
+                let valor = normalizar_texto_basico(&texto_celula(linha.get(idx + 1)));
+                return valor.contains("EXPANSAO");
+            }
+        }
+    }
+    false
 }
 
 pub(crate) fn ler_diagnostico_bytes(bytes: &[u8]) -> Result<Vec<RegistroDiagnostico>, String> {

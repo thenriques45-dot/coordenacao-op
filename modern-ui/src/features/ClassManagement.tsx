@@ -938,7 +938,10 @@ function AlunoDetalheGestao({
   }
 
   function salvarEducacaoEspecial() {
-    if (!aluno.matricula) return;
+    if (!aluno.matricula) {
+      setErro("Aluno sem matrícula cadastrada — não é possível salvar educação especial.");
+      return;
+    }
     setSalvando(true);
     setMensagem("");
     setErro("");
@@ -1041,7 +1044,10 @@ function AlunoDetalheGestao({
 
   function salvarAtendimento(event?: FormEvent) {
     event?.preventDefault();
-    if (!aluno.matricula) return;
+    if (!aluno.matricula) {
+      setErroAtendimento("Aluno sem matrícula cadastrada — não é possível salvar atendimento.");
+      return;
+    }
     setErroAtendimento("");
     setMensagem("");
     if (!dataAtendimento) {

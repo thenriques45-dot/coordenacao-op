@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Planejamento dos professores: busca, parsing e geração de documentos.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,11 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use chrono::{Datelike, Local};
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
+    collections::BTreeMap, fs,
+    path::Path,
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 pub(crate) const SCRIPT_PLANEJAMENTO_ANOS_FINAIS: &str =
@@ -729,28 +712,13 @@ pub(crate) fn abrir_planejamento_docx(turma: String, disciplina: String, bimestr
     abrir_arquivo(&caminho)
 }
 
-const NOME_INDICE_PLANEJAMENTO: &str = "_indice.json";
-
 fn chave_registro_planejamento(r: &RegistroPlanejamento) -> String {
     format!("{}|{}|{}", r.turma, r.disciplina, r.bimestre)
 }
 
-fn carregar_indice_planejamento(pasta_base: &Path) -> Vec<RegistroPlanejamento> {
-    fs::read_to_string(pasta_base.join(NOME_INDICE_PLANEJAMENTO))
-        .ok()
-        .and_then(|texto| serde_json::from_str(&texto).ok())
-        .unwrap_or_default()
-}
-
-fn salvar_indice_planejamento(pasta_base: &Path, registros: &[RegistroPlanejamento]) {
-    if let Ok(texto) = serde_json::to_string_pretty(registros) {
-        let _ = escrever_json_atomicamente(&pasta_base.join(NOME_INDICE_PLANEJAMENTO), &texto);
-    }
-}
-
-// Lê só o que já está em disco (índice local, ver salvar_indice_planejamento
-// acima) — usada para popular a tela de acompanhamento sem depender de
-// nenhum fetch na planilha ter dado certo. Ver PlanejamentosLocaisResultado.
+// Lê só o que já está em disco (índice local, ver infra::carregar_indice) —
+// usada para popular a tela de acompanhamento sem depender de nenhum fetch
+// na planilha ter dado certo. Ver PlanejamentosLocaisResultado.
 #[tauri::command]
 pub(crate) fn carregar_planejamentos_locais() -> Result<PlanejamentosLocaisResultado, String> {
     let pasta_base = data_dir()
@@ -759,7 +727,7 @@ pub(crate) fn carregar_planejamentos_locais() -> Result<PlanejamentosLocaisResul
         .join("planejamento");
     Ok(PlanejamentosLocaisResultado {
         pasta: pasta_base.to_string_lossy().to_string(),
-        registros: carregar_indice_planejamento(&pasta_base),
+        registros: carregar_indice(&pasta_base),
     })
 }
 
@@ -777,7 +745,7 @@ pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> 
     // fetch parcial/com erro) não é removido, só fica sem atualização. Isso
     // é o que evita a tela "zerar" quando uma busca falha ou volta
     // incompleta — ver GerarPlanejamentosLoteResultado.registros.
-    let mut indice: BTreeMap<String, RegistroPlanejamento> = carregar_indice_planejamento(&pasta_base)
+    let mut indice: BTreeMap<String, RegistroPlanejamento> = carregar_indice(&pasta_base)
         .into_iter()
         .map(|r| (chave_registro_planejamento(&r), r))
         .collect();
@@ -821,7 +789,7 @@ pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> 
     }
 
     let registros_indice: Vec<RegistroPlanejamento> = indice.into_values().collect();
-    salvar_indice_planejamento(&pasta_base, &registros_indice);
+    salvar_indice(&pasta_base, &registros_indice);
 
     Ok(GerarPlanejamentosLoteResultado {
         pasta: pasta_base.to_string_lossy().to_string(),

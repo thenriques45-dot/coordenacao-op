@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // PEI: busca na planilha, geração de documentos e parsing de CSV.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,11 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
+    collections::BTreeMap, fs,
+    path::Path,
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 #[tauri::command(async)]
@@ -263,28 +246,13 @@ pub(crate) fn abrir_pei_docx(nome_aluno: String, disciplina: String, bimestre: S
     abrir_arquivo(&caminho)
 }
 
-const NOME_INDICE_PEI: &str = "_indice.json";
-
 fn chave_registro_pei(r: &RegistroPei) -> String {
     format!("{}|{}|{}", r.nome_aluno, r.disciplina, r.bimestre)
 }
 
-fn carregar_indice_pei(pasta_base: &Path) -> Vec<RegistroPei> {
-    fs::read_to_string(pasta_base.join(NOME_INDICE_PEI))
-        .ok()
-        .and_then(|texto| serde_json::from_str(&texto).ok())
-        .unwrap_or_default()
-}
-
-fn salvar_indice_pei(pasta_base: &Path, registros: &[RegistroPei]) {
-    if let Ok(texto) = serde_json::to_string_pretty(registros) {
-        let _ = escrever_json_atomicamente(&pasta_base.join(NOME_INDICE_PEI), &texto);
-    }
-}
-
-// Lê só o que já está em disco (índice local, ver salvar_indice_pei acima)
-// — usada para popular a tela de acompanhamento sem depender de nenhum
-// fetch na planilha ter dado certo. Ver PeisLocaisResultado.
+// Lê só o que já está em disco (índice local, ver infra::carregar_indice) —
+// usada para popular a tela de acompanhamento sem depender de nenhum fetch
+// na planilha ter dado certo. Ver PeisLocaisResultado.
 #[tauri::command]
 pub(crate) fn carregar_peis_locais() -> Result<PeisLocaisResultado, String> {
     let pasta_base = data_dir()
@@ -293,7 +261,7 @@ pub(crate) fn carregar_peis_locais() -> Result<PeisLocaisResultado, String> {
         .join("pei");
     Ok(PeisLocaisResultado {
         pasta: pasta_base.to_string_lossy().to_string(),
-        registros: carregar_indice_pei(&pasta_base),
+        registros: carregar_indice(&pasta_base),
     })
 }
 
@@ -310,7 +278,7 @@ pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLo
     // leva (fetch parcial/com erro) não é removido, só fica sem atualização
     // — evita a tela "zerar" quando uma busca falha ou volta incompleta.
     // Ver gerar_planejamentos_lote (mesmo padrão) para o raciocínio completo.
-    let mut indice: BTreeMap<String, RegistroPei> = carregar_indice_pei(&pasta_base)
+    let mut indice: BTreeMap<String, RegistroPei> = carregar_indice(&pasta_base)
         .into_iter()
         .map(|r| (chave_registro_pei(&r), r))
         .collect();
@@ -351,7 +319,7 @@ pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLo
     }
 
     let registros_indice: Vec<RegistroPei> = indice.into_values().collect();
-    salvar_indice_pei(&pasta_base, &registros_indice);
+    salvar_indice(&pasta_base, &registros_indice);
 
     Ok(GerarPeisLoteResultado {
         pasta: pasta_base.to_string_lossy().to_string(),

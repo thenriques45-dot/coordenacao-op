@@ -120,7 +120,6 @@ fn main() {
             config::carregar_alunos_destaque,
             config::salvar_alunos_destaque,
             sync::publicar_estado_sincronizacao,
-            sync::carregar_estado_sincronizacao,
             sync::carregar_estados_sincronizacao,
             sync::publicar_dados_institucionais_sincronizacao,
             sync::carregar_dados_institucionais_sincronizacao,
@@ -611,5 +610,32 @@ mod tests {
         let (nome2, turma2) = separar_nome_turma_pei("ANA CLARA");
         assert_eq!(nome2, "ANA CLARA");
         assert_eq!(turma2, "");
+    }
+
+    // Mapão de "Tipo de Ensino: Expansão" (turma não seriada de
+    // itinerário/aprofundamento — código "110" no SED): as disciplinas dele
+    // recebem nota normalmente, mas não devem virar pendência de Plano de
+    // Ensino no Planejamento. Ver mapao_eh_expansao/disciplinas_expansao.
+    #[test]
+    fn mapao_deteta_tipo_de_ensino_expansao() {
+        let linhas: Vec<Vec<Data>> = vec![
+            vec![Data::String("Ano Letivo:".into()), Data::String("2026".into())],
+            vec![
+                Data::String("Tipo de Ensino:".into()),
+                Data::String("110 - EXPANSÃO NOVO EM".into()),
+            ],
+            vec![Data::String("Turma:".into()), Data::String("NÃO SERIADO A TARDE".into())],
+        ];
+        assert!(mapao_eh_expansao(&linhas, linhas.len()));
+    }
+
+    #[test]
+    fn mapao_regular_nao_e_marcado_como_expansao() {
+        let linhas: Vec<Vec<Data>> = vec![
+            vec![Data::String("Ano Letivo:".into()), Data::String("2026".into())],
+            vec![Data::String("Tipo de Ensino:".into()), Data::String("100 - Regular".into())],
+            vec![Data::String("Turma:".into()), Data::String("1ª Série A".into())],
+        ];
+        assert!(!mapao_eh_expansao(&linhas, linhas.len()));
     }
 }

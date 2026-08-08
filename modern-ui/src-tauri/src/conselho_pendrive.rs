@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Pendrive de conselho (check-out/check-in): prepara uma cópia portátil do app
 // com as turmas de um conselho, e reintegra os dados na volta, mesclando as

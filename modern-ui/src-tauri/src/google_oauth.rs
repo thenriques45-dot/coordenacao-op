@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // OAuth do Google (Authorization Code + PKCE, redirect loopback) para o
 // coordenador autorizar o app a agir em nome da própria conta Google — sem

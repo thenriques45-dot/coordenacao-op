@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Conteúdo (estático e dinâmico) do Web App de Planejamento — separado de
 // apps_script_api.rs, que fica só com as chamadas HTTP à Apps Script API.

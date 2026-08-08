@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Conteúdo (estático e dinâmico) do Web App do PEI — mesmo modelo de
 // apps_script_webapp_conteudo.rs (Planejamento), separado de

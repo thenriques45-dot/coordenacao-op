@@ -1684,12 +1684,6 @@ function rotuloTurma(turma: TurmaResumo) {
   return rotuloSerie(codigo) || codigo;
 }
 
-function rotuloLideranca(lideranca: "lider" | "vice" | null | undefined) {
-  if (lideranca === "lider") return "Líder";
-  if (lideranca === "vice") return "Vice líder";
-  return "Não";
-}
-
 function FinalizacaoConselho({
   turmaLabel,
   tempoSegundos,

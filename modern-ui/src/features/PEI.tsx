@@ -2,7 +2,8 @@ import { BookMarked, ClipboardList, Copy, ExternalLink, FileText, FolderOpen, Re
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { semestreAtivo, type PrazosSemestre } from "./semestre";
-import { carregarMembrosSincronizacao, garantirPerfilPersistido, type WorkgroupSyncMember } from "./workgroupSync";
+import { useWebAppConfig } from "./useWebAppConfig";
+import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral } from "./webAppConfigUi";
 
 type RegistroPei = {
   timestamp: string;
@@ -29,15 +30,6 @@ type ConfigPei = {
   configurado_por_user_id: string;
 };
 
-type ProvisionamentoPeiResultado = {
-  webapp_url: string;
-  planilha_id: string;
-  planilha_url: string;
-  apps_script_projeto_id: string;
-  apps_script_deployment_id: string;
-  token_leitura: string;
-};
-
 const CONFIG_PEI_PADRAO: ConfigPei = {
   url_legado: "",
   planilha_automatica_id: "",
@@ -56,18 +48,7 @@ type AlunoElegivelComDisciplinas = {
   disciplinas_por_bimestre: Record<string, string[]>;
 };
 
-type GerarPeisLoteResultado = {
-  pasta: string;
-  arquivos: number;
-  pulados: number;
-  erros: string[];
-  registros: RegistroPei[];
-};
-type PeisLocaisResultado = { pasta: string; registros: RegistroPei[] };
-
 const PEI_ULTIMA_BUSCA_KEY = "coordenacaoop:pei-ultima-busca";
-
-const BIMESTRES = ["1", "2", "3", "4"];
 
 function normalizarNome(nome: string) {
   return nome
@@ -78,12 +59,20 @@ function normalizarNome(nome: string) {
     .replace(/\s+/g, " ");
 }
 
+// Além de maiúsculas/acento, ignora diferenças de redação que não mudam a
+// disciplina: hífen, o conector "em" e um sufixo de série colado no fim
+// (ver mesma função em Planejamento.tsx para o caso real que motivou isto).
 function normalizarDisciplina(nome: string) {
   return nome
     .trim()
     .toLocaleUpperCase("pt-BR")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s*-?\s*\d+[ºO]?\s*ANO\s*$/i, "")
+    .replace(/[-–—]/g, " ")
+    .replace(/\bEM\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -145,51 +134,45 @@ const estiloTextoPassoPEI: React.CSSProperties = {
 };
 
 export function TelaPEI() {
-  const [config, setConfig] = useState<ConfigPei>(CONFIG_PEI_PADRAO);
-  const [configAberta, setConfigAberta] = useState(false);
-  const [abaConfig, setAbaConfig] = useState<"automatico" | "manual">("automatico");
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
-  const [ultimaBusca, setUltimaBusca] = useState(
-    () => localStorage.getItem(PEI_ULTIMA_BUSCA_KEY) ?? ""
-  );
-  const [registros, setRegistros] = useState<RegistroPei[]>([]);
+  const {
+    config, setConfig, configAberta, setConfigAberta, abaConfig, setAbaConfig,
+    carregando, erro, setErro, ultimaBusca, registros, gerando, statusGeracao,
+    pastaGeral, criandoWebApp, erroWebApp, linkRecebido, setLinkRecebido,
+    importandoLink, statusImportarLink, configuradoPorOutro, membroConfigurador,
+    salvarConfig, carregar: carregarPeis, criarWebAppAutomatico: criarWebAppPeiAutomatico,
+    importarLinkRecebido,
+  } = useWebAppConfig<ConfigPei, RegistroPei>({
+    configPadrao: CONFIG_PEI_PADRAO,
+    comandos: {
+      carregarConfig: "carregar_config_pei",
+      salvarConfig: "salvar_config_pei",
+      carregarLocais: "carregar_peis_locais",
+      buscar: "buscar_peis",
+      gerarLote: "gerar_peis_lote",
+      provisionarAutomatico: "provisionar_pei_automatico",
+      importarLinkPorConfig: "importar_config_pei_por_link",
+    },
+    ultimaBuscaKey: PEI_ULTIMA_BUSCA_KEY,
+    textos: {
+      semFonte: "Informe o link de uma planilha ou crie o Web App automaticamente.",
+      confirmarSubstituirConfigDeOutro:
+        "Esta configuração de PEI já foi feita por outro coordenador do grupo de trabalho e está em uso por "
+        + "todos. Continuar cria uma configuração própria nesta máquina e SUBSTITUI a atual — o ideal é ter só "
+        + "uma configuração ativa por grupo de trabalho. Quer continuar mesmo assim?",
+      linkImportado: "Link importado! Já pode buscar os PEIs.",
+      gerando: "documentos PEI",
+      nenhumNovo: "Nenhum PEI novo.",
+    },
+    temFonteManual: (c) => Boolean(c.url_legado.trim()),
+  });
+
   const [alunosElegiveis, setAlunosElegiveis] = useState<AlunoElegivelComDisciplinas[]>([]);
   const [alunoSelecionado, setAlunoSelecionado] = useState<AlunoElegivelComDisciplinas | null>(null);
   const [erroPeiAbrir, setErroPeiAbrir] = useState("");
-  const [gerando, setGerando] = useState(false);
-  const [statusGeracao, setStatusGeracao] = useState("");
-  const [pastaGeral, setPastaGeral] = useState("");
   const [gerandoPend, setGerandoPend] = useState(false);
-  const [criandoWebApp, setCriandoWebApp] = useState(false);
-  const [erroWebApp, setErroWebApp] = useState("");
-  const [linkRecebido, setLinkRecebido] = useState("");
-  const [importandoLink, setImportandoLink] = useState(false);
-  const [statusImportarLink, setStatusImportarLink] = useState("");
   const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
-  const [configuradoPorOutro, setConfiguradoPorOutro] = useState(false);
-  const [membroConfigurador, setMembroConfigurador] = useState<WorkgroupSyncMember | null>(null);
 
   useEffect(() => {
-    invokeApp<ConfigPei>("carregar_config_pei")
-      .then((c) => {
-        const cfg = { ...CONFIG_PEI_PADRAO, ...c };
-        setConfig(cfg);
-        // Configurado por outro coordenador via sincronização de grupo (ver
-        // workgroupSync.ts): nesse caso não força a modal técnica, mostra o
-        // card "Fulano já configurou" em vez disso.
-        const perfilLocal = garantirPerfilPersistido();
-        const porOutro = Boolean(
-          cfg.webapp_url && cfg.token_leitura && cfg.configurado_por_user_id
-            && cfg.configurado_por_user_id !== perfilLocal.userId
-        );
-        setConfiguradoPorOutro(porOutro);
-        setMembroConfigurador(
-          porOutro ? carregarMembrosSincronizacao().find((m) => m.userId === cfg.configurado_por_user_id) ?? null : null
-        );
-        setConfigAberta(!porOutro && !cfg.url_legado.trim() && !cfg.webapp_url.trim());
-      })
-      .catch(() => setConfigAberta(true));
     invokeApp<PrazosSemestre>("carregar_configuracoes")
       .then((c) => setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre }))
       .catch(() => {});
@@ -199,19 +182,6 @@ export function TelaPEI() {
     invokeApp<AlunoElegivelComDisciplinas[]>("listar_alunos_elegiveis_com_disciplinas")
       .then(setAlunosElegiveis)
       .catch(() => setAlunosElegiveis([]));
-  }, []);
-
-  // Popula a tela a partir do que já foi gerado em disco (índice local, ver
-  // pei::carregar_peis_locais) — não depende de nenhuma busca na planilha
-  // ter dado certo, então um 403/erro de rede não faz a tela voltar a
-  // mostrar "nenhum PEI" para alunos que já têm documento salvo.
-  useEffect(() => {
-    invokeApp<PeisLocaisResultado>("carregar_peis_locais")
-      .then((res) => {
-        setPastaGeral(res.pasta);
-        setRegistros(res.registros);
-      })
-      .catch(() => {});
   }, []);
 
   const semestre = useMemo(() => semestreAtivo(prazos), [prazos]);
@@ -255,113 +225,6 @@ export function TelaPEI() {
 
   function atualizarUrlLegado(valor: string) {
     setConfig((c) => ({ ...c, url_legado: valor }));
-  }
-
-  function salvarConfig(): Promise<void> {
-    return invokeApp("salvar_config_pei", { config }).then(() => {});
-  }
-
-  function carregarPeis() {
-    const urlLegado = config.url_legado.trim();
-    if (!urlLegado && !config.planilha_automatica_id.trim() && !config.webapp_url.trim()) {
-      setErro("Informe o link de uma planilha ou crie o Web App automaticamente.");
-      return;
-    }
-    setCarregando(true);
-    setErro("");
-    salvarConfig().catch(() => {})
-      .then(() => invokeApp<RegistroPei[]>("buscar_peis", { config }))
-      .then((dados) => {
-        const agora = new Date().toLocaleString("pt-BR");
-        setUltimaBusca(agora);
-        localStorage.setItem(PEI_ULTIMA_BUSCA_KEY, agora);
-        setConfigAberta(false);
-        // Não faz setRegistros(dados) direto: a tela só reflete o que
-        // realmente foi (ou já estava) gerado em disco — gerarLote mescla
-        // isto com o índice local e é quem atualiza `registros` de fato.
-        gerarLote(dados);
-      })
-      .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
-      .finally(() => setCarregando(false));
-  }
-
-  async function criarWebAppPeiAutomatico() {
-    const perfilLocal = garantirPerfilPersistido();
-    if (
-      config.configurado_por_user_id
-      && config.configurado_por_user_id !== perfilLocal.userId
-      && !window.confirm(
-        "Esta configuração de PEI já foi feita por outro coordenador do grupo de trabalho e está em uso por "
-        + "todos. Continuar cria uma configuração própria nesta máquina e SUBSTITUI a atual — o ideal é ter só "
-        + "uma configuração ativa por grupo de trabalho. Quer continuar mesmo assim?"
-      )
-    ) {
-      return;
-    }
-    setCriandoWebApp(true);
-    setErroWebApp("");
-    try {
-      const resultado = await invokeApp<ProvisionamentoPeiResultado>(
-        "provisionar_pei_automatico",
-        { config }
-      );
-      const novaConfig: ConfigPei = {
-        ...config,
-        planilha_automatica_id: resultado.planilha_id,
-        webapp_url: resultado.webapp_url,
-        apps_script_projeto_id: resultado.apps_script_projeto_id,
-        apps_script_deployment_id: resultado.apps_script_deployment_id,
-        token_leitura: resultado.token_leitura,
-        configurado_por_user_id: perfilLocal.userId,
-      };
-      setConfig(novaConfig);
-      setConfiguradoPorOutro(false);
-      setMembroConfigurador(null);
-      await invokeApp("salvar_config_pei", { config: novaConfig }).catch(() => {});
-    } catch (err) {
-      setErroWebApp(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCriandoWebApp(false);
-    }
-  }
-
-  // Colado de outro coordenador (que já configurou o Web App): evita repetir
-  // a criação/OAuth só para ler os mesmos dados — ver
-  // pei::importar_config_pei_por_link.
-  function importarLinkRecebido() {
-    const link = linkRecebido.trim();
-    if (!link) return;
-    setImportandoLink(true);
-    setStatusImportarLink("");
-    invokeApp<ConfigPei>("importar_config_pei_por_link", { link })
-      .then((novaConfig) => {
-        setConfig({ ...CONFIG_PEI_PADRAO, ...novaConfig });
-        setLinkRecebido("");
-        setStatusImportarLink("Link importado! Já pode buscar os PEIs.");
-      })
-      .catch((err) => setStatusImportarLink(err instanceof Error ? err.message : String(err)))
-      .finally(() => setImportandoLink(false));
-  }
-
-  function gerarLote(recs: RegistroPei[]) {
-    if (recs.length === 0) return;
-    setGerando(true);
-    setStatusGeracao("Gerando documentos PEI...");
-    invokeApp<GerarPeisLoteResultado>("gerar_peis_lote", { registros: recs })
-      .then((res) => {
-        setPastaGeral(res.pasta);
-        // Fonte de verdade da tela vira o índice mesclado (local + esta
-        // leva) devolvido pelo backend — nunca o `recs` cru da planilha,
-        // que pode vir parcial numa busca com erro.
-        setRegistros(res.registros);
-        const partes: string[] = [];
-        if (res.arquivos > 0) partes.push(`${res.arquivos} gerado(s)`);
-        if (res.pulados > 0) partes.push(`${res.pulados} sem mudança`);
-        if (res.erros.length > 0) partes.push(`${res.erros.length} erro(s)`);
-        setStatusGeracao(partes.length > 0 ? `${partes.join(", ")}.` : "Nenhum PEI novo.");
-      })
-      .catch((err) => setStatusGeracao(`Erro ao gerar: ${err instanceof Error ? err.message : String(err)}`))
-      .finally(() => setGerando(false));
   }
 
   // Relatório de pendências: por aluno elegível, disciplinas sem PEI até o
@@ -468,31 +331,13 @@ export function TelaPEI() {
       </header>
 
       {configuradoPorOutro && !configAberta && (
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: "0.8rem", flexWrap: "wrap",
-            border: "1px solid var(--border-color, #333)", borderRadius: "10px",
-            padding: "0.8rem 1rem", margin: "0 0 1rem",
-          }}
-        >
-          {membroConfigurador?.avatarDataUrl && (
-            <img
-              src={membroConfigurador.avatarDataUrl}
-              alt=""
-              style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-            />
-          )}
-          <p style={{ margin: 0, flex: 1, minWidth: "220px", fontSize: "0.88rem" }}>
-            <strong>{membroConfigurador?.displayName || "Outro coordenador da equipe"}</strong> já configurou o PEI
-            automático para a escola — não é preciso criar um novo.
-          </p>
-          <button type="button" className="primary-action" onClick={carregarPeis} disabled={carregando}>
-            <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar agora"}
-          </button>
-          <button type="button" className="ghost-action" onClick={() => setConfigAberta(true)}>
-            Ver configurações avançadas
-          </button>
-        </div>
+        <ConfiguradoPorOutroBanner
+          membro={membroConfigurador}
+          rotulo="PEI"
+          carregando={carregando}
+          onCarregarAgora={carregarPeis}
+          onVerConfiguracoes={() => setConfigAberta(true)}
+        />
       )}
 
       {/* Diálogo modal de configuração */}
@@ -844,74 +689,22 @@ export function TelaPEI() {
               </div>
 
               {/* Tabela matriz */}
-              <div className="table-panel">
-                <div className="panel-heading">
-                  <h3>PEIs por disciplina e bimestre</h3>
-                </div>
-                {disciplinasDoAluno.length === 0 ? (
-                  <p style={{ padding: "0.75rem", fontSize: "0.84rem", color: "var(--text-secondary)" }}>
-                    Nenhuma disciplina encontrada. Importe o mapão para carregar as disciplinas desta turma.
-                  </p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left", minWidth: "160px" }}>Disciplina</th>
-                        {BIMESTRES.map((b) => (
-                          <th key={b} style={{ textAlign: "center", width: "80px" }}>
-                            {b}º Bim
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {disciplinasDoAluno.map((disciplina) => (
-                        <tr key={disciplina}>
-                          <td>{disciplina}</td>
-                          {BIMESTRES.map((b) => {
-                            const chave = `${normalizarDisciplina(disciplina)}|${b}`;
-                            const pei = matrizPei.get(chave);
-                            return (
-                              <td key={b} style={{ textAlign: "center" }}>
-                                {pei ? (
-                                  <button
-                                    type="button"
-                                    title={`Abrir PEI de ${disciplina} — ${b}º bimestre (Prof. ${pei.professor})`}
-                                    onClick={() => {
-                                      setErroPeiAbrir("");
-                                      invokeApp("abrir_pei_docx", {
-                                        nomeAluno: alunoSelecionado!.nome,
-                                        disciplina: pei.disciplina,
-                                        bimestre: pei.bimestre,
-                                      }).catch((err: unknown) =>
-                                        setErroPeiAbrir(err instanceof Error ? err.message : String(err))
-                                      );
-                                    }}
-                                    style={{
-                                      background: "transparent",
-                                      border: "1px solid transparent",
-                                      borderRadius: "6px",
-                                      padding: "0.25rem 0.4rem",
-                                      cursor: "pointer",
-                                      color: "var(--accent)",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                    }}
-                                  >
-                                    <FileText size={16} />
-                                  </button>
-                                ) : (
-                                  <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>—</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              <MatrizBimestral
+                titulo="PEIs por disciplina e bimestre"
+                mensagemVazia="Nenhuma disciplina encontrada. Importe o mapão para carregar as disciplinas desta turma."
+                disciplinas={disciplinasDoAluno}
+                matriz={matrizPei}
+                normalizarDisciplina={normalizarDisciplina}
+                tituloBotao={(disciplina, b, pei) => `Abrir PEI de ${disciplina} — ${b}º bimestre (Prof. ${pei.professor})`}
+                onAbrir={(_disciplina, _b, pei) => {
+                  setErroPeiAbrir("");
+                  invokeApp("abrir_pei_docx", {
+                    nomeAluno: alunoSelecionado!.nome,
+                    disciplina: pei.disciplina,
+                    bimestre: pei.bimestre,
+                  }).catch((err: unknown) => setErroPeiAbrir(err instanceof Error ? err.message : String(err)));
+                }}
+              />
 
               {erroPeiAbrir && (
                 <div className="notice error" style={{ marginTop: "0.75rem" }}>

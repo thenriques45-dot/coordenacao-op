@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Relatório de pendências (genérico para PEI e Planejamento).
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,11 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
-};
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
+use std::collections::BTreeMap;
+use std::fs;
 
 
 // ── Relatório de pendências (genérico: PEI e Planejamento) ──────────────────────

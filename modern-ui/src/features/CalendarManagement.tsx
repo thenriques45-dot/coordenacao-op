@@ -2,7 +2,6 @@ import { Clock, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CALENDAR_STORAGE_KEY,
-  KANBAN_STORAGE_KEY,
   adicionarMeses,
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -17,6 +16,7 @@ import {
   obterVinculosEvento,
   obterVinculosTarefa,
   rotuloRecorrencia,
+  salvarTarefasKanban,
   separarVinculos,
   type CalendarEvent,
   type KanbanPrioridade,
@@ -145,7 +145,11 @@ export function CalendarioGestao({
   }, [eventos]);
 
   useEffect(() => {
-    localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
+    // salvarTarefasKanban (não localStorage.setItem direto): também dispara
+    // KANBAN_UPDATED_EVENT, que Dashboard/ClassManagement/taskNotifications
+    // escutam para se atualizar — sem isso, criar uma tarefa associada a um
+    // evento por aqui ficava invisível pros outros até um reload.
+    salvarTarefasKanban(tarefas);
   }, [tarefas]);
 
   useEffect(() => {

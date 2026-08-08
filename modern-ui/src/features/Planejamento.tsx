@@ -2,7 +2,8 @@ import { BookMarked, ChevronDown, ChevronRight, ClipboardCopy, ClipboardList, Co
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { semestreAtivo, type PrazosSemestre } from "./semestre";
-import { carregarMembrosSincronizacao, garantirPerfilPersistido, type WorkgroupSyncMember } from "./workgroupSync";
+import { useWebAppConfig } from "./useWebAppConfig";
+import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral } from "./webAppConfigUi";
 
 type RegistroPlanejamento = {
   professor: string;
@@ -20,15 +21,6 @@ type RegistroPlanejamento = {
   adaptacao_curricular: string;
   verificacao_objetivo: string;
 };
-
-type GerarPlanejamentosLoteResultado = {
-  pasta: string;
-  arquivos: number;
-  pulados: number;
-  erros: string[];
-  registros: RegistroPlanejamento[];
-};
-type PlanejamentosLocaisResultado = { pasta: string; registros: RegistroPlanejamento[] };
 
 type TurmaResumo = {
   codigo: string;
@@ -51,15 +43,6 @@ type ConfigPlanejamento = {
   configurado_por_user_id: string;
   componentes_extras_medio: Record<string, string[]>;
   componentes_extras_anos_finais: Record<string, string[]>;
-};
-
-type ProvisionamentoPlanejamentoResultado = {
-  webapp_url: string;
-  planilha_id: string;
-  planilha_url: string;
-  apps_script_projeto_id: string;
-  apps_script_deployment_id: string;
-  token_leitura: string;
 };
 
 const CONFIG_PADRAO: ConfigPlanejamento = {
@@ -85,13 +68,28 @@ const SEGMENTOS: { chave: "anos_finais" | "medio"; rotulo: string }[] = [
 ];
 
 const PLANEJAMENTO_ULTIMA_BUSCA_KEY = "coordenacaoop:planejamento-ultima-busca";
-const BIMESTRES = ["1", "2", "3", "4"];
 
 function normalizarTurma(valor: string) {
   return valor.trim().toLocaleUpperCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ");
 }
+// Além de maiúsculas/acento, ignora diferenças de redação que não mudam a
+// disciplina: hífen ("Orientação de Estudo - Matemática" vs "... Estudo
+// Matemática", varia entre bimestres do mapão do SED), o conector "em"
+// ("... Estudo em Matemática", como o Web App oferece no dropdown) e um
+// sufixo de série colado no fim ("... Matemática - 9º Ano", de uma versão
+// anterior do formulário). Sem isso, a mesma disciplina aparecia como
+// linhas duplicadas na matriz — uma vinda do mapão, outra do Web App.
 function normalizarDisciplina(valor: string) {
-  return valor.trim().toLocaleUpperCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return valor
+    .trim()
+    .toLocaleUpperCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s*-?\s*\d+[ºO]?\s*ANO\s*$/i, "")
+    .replace(/[-–—]/g, " ")
+    .replace(/\bEM\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function urlsDaConfig(c: ConfigPlanejamento): string[] {
@@ -122,73 +120,57 @@ const numStyle: React.CSSProperties = {
 const textoPassoStyle: React.CSSProperties = { fontSize: "0.84rem", margin: "0.3rem 0 0", lineHeight: 1.5, color: "var(--text-secondary)" };
 
 export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
-  const [config, setConfig] = useState<ConfigPlanejamento>(CONFIG_PADRAO);
   const [versaoScript, setVersaoScript] = useState("");
-  const [configAberta, setConfigAberta] = useState(false);
-  const [abaConfig, setAbaConfig] = useState<"automatico" | "manual">("automatico");
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
   const [statusScript, setStatusScript] = useState("");
-  const [ultimaBusca, setUltimaBusca] = useState(() => localStorage.getItem(PLANEJAMENTO_ULTIMA_BUSCA_KEY) ?? "");
-  const [registros, setRegistros] = useState<RegistroPlanejamento[]>([]);
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [disciplinasMapao, setDisciplinasMapao] = useState<Record<string, string[]>>({});
-  const [gerando, setGerando] = useState(false);
-  const [statusGeracao, setStatusGeracao] = useState("");
-  const [pastaGeral, setPastaGeral] = useState("");
   const [erroAbrir, setErroAbrir] = useState("");
   const [gerandoPend, setGerandoPend] = useState(false);
-  const [criandoWebApp, setCriandoWebApp] = useState(false);
-  const [erroWebApp, setErroWebApp] = useState("");
-  const [linkRecebido, setLinkRecebido] = useState("");
-  const [importandoLink, setImportandoLink] = useState(false);
-  const [statusImportarLink, setStatusImportarLink] = useState("");
   const [componentesExtrasAberto, setComponentesExtrasAberto] = useState(false);
   const [textoExtrasMedio, setTextoExtrasMedio] = useState(() => textoDeComponentesExtras(CONFIG_PADRAO.componentes_extras_medio));
   const [textoExtrasAnosFinais, setTextoExtrasAnosFinais] = useState(() => textoDeComponentesExtras(CONFIG_PADRAO.componentes_extras_anos_finais));
   const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
-  const [configuradoPorOutro, setConfiguradoPorOutro] = useState(false);
-  const [membroConfigurador, setMembroConfigurador] = useState<WorkgroupSyncMember | null>(null);
+
+  const {
+    config, setConfig, configAberta, setConfigAberta, abaConfig, setAbaConfig,
+    carregando, erro, setErro, ultimaBusca, registros, gerando, statusGeracao,
+    pastaGeral, criandoWebApp, erroWebApp, linkRecebido, setLinkRecebido,
+    importandoLink, statusImportarLink, configuradoPorOutro, membroConfigurador,
+    salvarConfig, carregar: carregarPlanejamentos, criarWebAppAutomatico,
+    importarLinkRecebido,
+  } = useWebAppConfig<ConfigPlanejamento, RegistroPlanejamento>({
+    configPadrao: CONFIG_PADRAO,
+    comandos: {
+      carregarConfig: "carregar_config_planejamento",
+      salvarConfig: "salvar_config_planejamento",
+      carregarLocais: "carregar_planejamentos_locais",
+      buscar: "buscar_planejamentos",
+      gerarLote: "gerar_planejamentos_lote",
+      provisionarAutomatico: "provisionar_planejamento_automatico",
+      importarLinkPorConfig: "importar_config_planejamento_por_link",
+    },
+    ultimaBuscaKey: PLANEJAMENTO_ULTIMA_BUSCA_KEY,
+    textos: {
+      semFonte: "Informe ao menos um link de planilha de respostas ou crie o Web App automaticamente.",
+      confirmarSubstituirConfigDeOutro:
+        "Esta configuração de Planejamento já foi feita por outro coordenador do grupo de trabalho e está em uso "
+        + "por todos. Continuar cria uma configuração própria nesta máquina e SUBSTITUI a atual — o ideal é ter só "
+        + "uma configuração ativa por grupo de trabalho. Quer continuar mesmo assim?",
+      linkImportado: "Link importado! Já pode buscar os planejamentos.",
+      gerando: "planejamentos",
+      nenhumNovo: "Nenhum planejamento novo.",
+    },
+    temFonteManual: (c) => urlsDaConfig(c).length > 0,
+    aoConfigCarregada: (cfg) => {
+      setTextoExtrasMedio(textoDeComponentesExtras(cfg.componentes_extras_medio));
+      setTextoExtrasAnosFinais(textoDeComponentesExtras(cfg.componentes_extras_anos_finais));
+    },
+  });
 
   useEffect(() => {
-    invokeApp<ConfigPlanejamento>("carregar_config_planejamento")
-      .then((c) => {
-        const cfg = { ...CONFIG_PADRAO, ...c };
-        setConfig(cfg);
-        // Configurado por outro coordenador via sincronização de grupo (ver
-        // workgroupSync.ts): nesse caso não força a modal técnica, mostra o
-        // card "Fulano já configurou" em vez disso.
-        const perfilLocal = garantirPerfilPersistido();
-        const porOutro = Boolean(
-          cfg.webapp_url && cfg.token_leitura && cfg.configurado_por_user_id
-            && cfg.configurado_por_user_id !== perfilLocal.userId
-        );
-        setConfiguradoPorOutro(porOutro);
-        setMembroConfigurador(
-          porOutro ? carregarMembrosSincronizacao().find((m) => m.userId === cfg.configurado_por_user_id) ?? null : null
-        );
-        setConfigAberta(!porOutro && urlsDaConfig(cfg).length === 0 && !cfg.webapp_url);
-        setTextoExtrasMedio(textoDeComponentesExtras(cfg.componentes_extras_medio));
-        setTextoExtrasAnosFinais(textoDeComponentesExtras(cfg.componentes_extras_anos_finais));
-      })
-      .catch(() => setConfigAberta(true));
     invokeApp<string>("versao_script_planejamento").then(setVersaoScript).catch(() => {});
     invokeApp<PrazosSemestre>("carregar_configuracoes")
       .then((c) => setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre }))
-      .catch(() => {});
-  }, []);
-
-  // Popula a tela a partir do que já foi gerado em disco (índice local, ver
-  // planejamento::carregar_planejamentos_locais) — não depende de nenhuma
-  // busca na planilha ter dado certo, então um 403/erro de rede não faz a
-  // tela voltar a mostrar "nenhum planejamento" para turmas que já têm
-  // documento salvo.
-  useEffect(() => {
-    invokeApp<PlanejamentosLocaisResultado>("carregar_planejamentos_locais")
-      .then((res) => {
-        setPastaGeral(res.pasta);
-        setRegistros(res.registros);
-      })
       .catch(() => {});
   }, []);
 
@@ -295,72 +277,6 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
   function atualizarUrl(seg: "anos_finais" | "medio", valor: string) {
     setConfig((c) => ({ ...c, [seg]: valor }));
   }
-  function salvarConfig(): Promise<void> {
-    return invokeApp("salvar_config_planejamento", { config }).then(() => {});
-  }
-
-  function carregarPlanejamentos() {
-    const urls = urlsDaConfig(config);
-    if (urls.length === 0 && !config.planilha_automatica_id.trim() && !config.webapp_url.trim()) {
-      setErro("Informe ao menos um link de planilha de respostas ou crie o Web App automaticamente.");
-      return;
-    }
-    setCarregando(true);
-    setErro("");
-    salvarConfig().catch(() => {})
-      .then(() => invokeApp<RegistroPlanejamento[]>("buscar_planejamentos", { config }))
-      .then((dados) => {
-        const agora = new Date().toLocaleString("pt-BR");
-        setUltimaBusca(agora);
-        localStorage.setItem(PLANEJAMENTO_ULTIMA_BUSCA_KEY, agora);
-        setConfigAberta(false);
-        // Não faz setRegistros(dados) direto: a tela só reflete o que
-        // realmente foi (ou já estava) gerado em disco — gerarLote mescla
-        // isto com o índice local e é quem atualiza `registros` de fato.
-        gerarLote(dados);
-      })
-      .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
-      .finally(() => setCarregando(false));
-  }
-
-  // Colado de outro coordenador (que já configurou o Web App): evita repetir
-  // a criação/OAuth só para ler os mesmos dados — ver
-  // planejamento::importar_config_planejamento_por_link.
-  function importarLinkRecebido() {
-    const link = linkRecebido.trim();
-    if (!link) return;
-    setImportandoLink(true);
-    setStatusImportarLink("");
-    invokeApp<ConfigPlanejamento>("importar_config_planejamento_por_link", { link })
-      .then((novaConfig) => {
-        setConfig({ ...CONFIG_PADRAO, ...novaConfig });
-        setLinkRecebido("");
-        setStatusImportarLink("Link importado! Já pode buscar os planejamentos.");
-      })
-      .catch((err) => setStatusImportarLink(err instanceof Error ? err.message : String(err)))
-      .finally(() => setImportandoLink(false));
-  }
-
-  function gerarLote(recs: RegistroPlanejamento[]) {
-    if (recs.length === 0) return;
-    setGerando(true);
-    setStatusGeracao("Gerando planejamentos...");
-    invokeApp<GerarPlanejamentosLoteResultado>("gerar_planejamentos_lote", { registros: recs })
-      .then((res) => {
-        setPastaGeral(res.pasta);
-        // Fonte de verdade da tela vira o índice mesclado (local + esta
-        // leva) devolvido pelo backend — nunca o `recs` cru da planilha,
-        // que pode vir parcial numa busca com erro.
-        setRegistros(res.registros);
-        const partes: string[] = [];
-        if (res.arquivos > 0) partes.push(`${res.arquivos} gerado(s)`);
-        if (res.pulados > 0) partes.push(`${res.pulados} sem mudança`);
-        if (res.erros.length > 0) partes.push(`${res.erros.length} erro(s)`);
-        setStatusGeracao(partes.length > 0 ? `${partes.join(", ")}.` : "Nenhum planejamento novo.");
-      })
-      .catch((err) => setStatusGeracao(`Erro ao gerar: ${err instanceof Error ? err.message : String(err)}`))
-      .finally(() => setGerando(false));
-  }
 
   // Relatório de pendências: turmas × disciplinas (do mapão) que participam do
   // planejamento e estão sem plano nos bimestres já coletados.
@@ -436,46 +352,6 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
     }
   }
 
-  async function criarWebAppAutomatico() {
-    const perfilLocal = garantirPerfilPersistido();
-    if (
-      config.configurado_por_user_id
-      && config.configurado_por_user_id !== perfilLocal.userId
-      && !window.confirm(
-        "Esta configuração de Planejamento já foi feita por outro coordenador do grupo de trabalho e está em uso "
-        + "por todos. Continuar cria uma configuração própria nesta máquina e SUBSTITUI a atual — o ideal é ter só "
-        + "uma configuração ativa por grupo de trabalho. Quer continuar mesmo assim?"
-      )
-    ) {
-      return;
-    }
-    setCriandoWebApp(true);
-    setErroWebApp("");
-    try {
-      const resultado = await invokeApp<ProvisionamentoPlanejamentoResultado>(
-        "provisionar_planejamento_automatico",
-        { config }
-      );
-      const novaConfig: ConfigPlanejamento = {
-        ...config,
-        planilha_automatica_id: resultado.planilha_id,
-        webapp_url: resultado.webapp_url,
-        apps_script_projeto_id: resultado.apps_script_projeto_id,
-        apps_script_deployment_id: resultado.apps_script_deployment_id,
-        token_leitura: resultado.token_leitura,
-        configurado_por_user_id: perfilLocal.userId,
-      };
-      setConfig(novaConfig);
-      setConfiguradoPorOutro(false);
-      setMembroConfigurador(null);
-      await invokeApp("salvar_config_planejamento", { config: novaConfig }).catch(() => {});
-    } catch (err) {
-      setErroWebApp(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCriandoWebApp(false);
-    }
-  }
-
   return (
     <>
       <header className="topbar council-topbar">
@@ -504,31 +380,13 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
       </header>
 
       {configuradoPorOutro && !configAberta && (
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: "0.8rem", flexWrap: "wrap",
-            border: "1px solid var(--border-color, #333)", borderRadius: "10px",
-            padding: "0.8rem 1rem", margin: "0 0 1rem",
-          }}
-        >
-          {membroConfigurador?.avatarDataUrl && (
-            <img
-              src={membroConfigurador.avatarDataUrl}
-              alt=""
-              style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-            />
-          )}
-          <p style={{ margin: 0, flex: 1, minWidth: "220px", fontSize: "0.88rem" }}>
-            <strong>{membroConfigurador?.displayName || "Outro coordenador da equipe"}</strong> já configurou o
-            Planejamento automático para a escola — não é preciso criar um novo.
-          </p>
-          <button type="button" className="primary-action" onClick={carregarPlanejamentos} disabled={carregando}>
-            <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar agora"}
-          </button>
-          <button type="button" className="ghost-action" onClick={() => setConfigAberta(true)}>
-            Ver configurações avançadas
-          </button>
-        </div>
+        <ConfiguradoPorOutroBanner
+          membro={membroConfigurador}
+          rotulo="Planejamento"
+          carregando={carregando}
+          onCarregarAgora={carregarPlanejamentos}
+          onVerConfiguracoes={() => setConfigAberta(true)}
+        />
       )}
 
       {configAberta && (
@@ -897,53 +755,19 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
                 </div>
               </div>
 
-              <div className="table-panel">
-                <div className="panel-heading"><h3>Planejamentos por disciplina e bimestre</h3></div>
-                {disciplinasDaTurma.length === 0 ? (
-                  <p style={{ padding: "0.75rem", fontSize: "0.84rem", color: "var(--text-secondary)" }}>
-                    Nenhuma disciplina encontrada. Importe o mapão desta turma para carregar as disciplinas.
-                  </p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: "left", minWidth: "160px" }}>Disciplina</th>
-                        {BIMESTRES.map((b) => (<th key={b} style={{ textAlign: "center", width: "80px" }}>{b}º Bim</th>))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {disciplinasDaTurma.map((disciplina) => (
-                        <tr key={disciplina}>
-                          <td>{disciplina}</td>
-                          {BIMESTRES.map((b) => {
-                            const reg = matrizPlano.get(`${normalizarDisciplina(disciplina)}|${b}`);
-                            return (
-                              <td key={b} style={{ textAlign: "center" }}>
-                                {reg ? (
-                                  <button
-                                    type="button"
-                                    title={`Abrir Plano de Ensino · ${disciplina} · ${b}º bim (Prof. ${reg.professor})`}
-                                    onClick={() => {
-                                      setErroAbrir("");
-                                      invokeApp("abrir_planejamento_docx", { turma: reg.turma, disciplina: reg.disciplina, bimestre: reg.bimestre })
-                                        .catch((err: unknown) => setErroAbrir(err instanceof Error ? err.message : String(err)));
-                                    }}
-                                    style={{ background: "transparent", border: "1px solid transparent", borderRadius: "6px", padding: "0.25rem 0.4rem", cursor: "pointer", color: "var(--accent)", display: "inline-flex", alignItems: "center" }}
-                                  >
-                                    <FileText size={16} />
-                                  </button>
-                                ) : (
-                                  <span style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>—</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              <MatrizBimestral
+                titulo="Planejamentos por disciplina e bimestre"
+                mensagemVazia="Nenhuma disciplina encontrada. Importe o mapão desta turma para carregar as disciplinas."
+                disciplinas={disciplinasDaTurma}
+                matriz={matrizPlano}
+                normalizarDisciplina={normalizarDisciplina}
+                tituloBotao={(disciplina, b, reg) => `Abrir Plano de Ensino · ${disciplina} · ${b}º bim (Prof. ${reg.professor})`}
+                onAbrir={(_disciplina, _b, reg) => {
+                  setErroAbrir("");
+                  invokeApp("abrir_planejamento_docx", { turma: reg.turma, disciplina: reg.disciplina, bimestre: reg.bimestre })
+                    .catch((err: unknown) => setErroAbrir(err instanceof Error ? err.message : String(err)));
+                }}
+              />
 
               {erroAbrir && <div className="notice error" style={{ marginTop: "0.75rem" }}>{erroAbrir}</div>}
             </>

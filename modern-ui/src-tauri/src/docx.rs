@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Geração de documentos DOCX: ata, relatórios do conselho e utilitários XML.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,15 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
 use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
+    env, fs,
     io::Write,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
+use zip::{write::SimpleFileOptions, ZipWriter};
 
 
 #[tauri::command(async)]
@@ -2705,9 +2692,7 @@ pub(crate) fn mes_por_extenso(mes: u32) -> &'static str {
 }
 
 pub(crate) fn ano_por_extenso(ano: i32) -> String {
-    if ano == 2026 {
-        "dois mil e vinte e seis".to_string()
-    } else if (2000..=2099).contains(&ano) {
+    if (2000..=2099).contains(&ano) {
         let resto = (ano - 2000) as u32;
         if resto == 0 {
             "dois mil".to_string()

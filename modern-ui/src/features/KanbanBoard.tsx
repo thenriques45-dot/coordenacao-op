@@ -140,14 +140,10 @@ function rotuloTurma(turma: TurmaKanban) {
 }
 
 function adicionarSugestaoEmLista(texto: string, sugestao: string) {
-  const vinculos = separarItensSeparados(texto);
+  const vinculos = separarVinculos(texto);
   const chave = normalizarTextoGestao(sugestao);
   const semAtual = vinculos.filter((item) => normalizarTextoGestao(item) !== chave);
   return [...semAtual, sugestao].join(", ");
-}
-
-function separarItensSeparados(valor: string) {
-  return separarVinculos(valor);
 }
 
 function ultimoItemDigitado(valor: string) {
@@ -246,7 +242,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   const [mensagemQuadro, setMensagemQuadro] = useState("");
   const [erroQuadro, setErroQuadro] = useState("");
   const [membrosSync, setMembrosSync] = useState<WorkgroupSyncMember[]>(() => carregarMembrosSincronizacao());
-  const eventosCalendario = useMemo(() => carregarEventosCalendario(), [modalNovaTarefa]);
+  const [eventosCalendario, setEventosCalendario] = useState<CalendarEvent[]>(() => carregarEventosCalendario());
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: "",
     descricao: "",
@@ -277,6 +273,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   useEffect(() => {
     function recarregarEstadoCompartilhado() {
       setTarefas(carregarTarefasKanban());
+      setEventosCalendario(carregarEventosCalendario());
       setMembrosSync(carregarMembrosSincronizacao());
       try {
         const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
@@ -342,7 +339,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   }, [tarefas]);
 
   const termoEtiquetaAtual = ultimoItemDigitado(novaTarefa.etiquetas);
-  const etiquetasSelecionadas = separarItensSeparados(novaTarefa.etiquetas);
+  const etiquetasSelecionadas = separarVinculos(novaTarefa.etiquetas);
   const sugestoesEtiquetaTarefa = filtrarSugestoesFuzzy(
     sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
     termoEtiquetaAtual,
@@ -430,6 +427,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   }
 
   function abrirNovaTarefa(status: KanbanStatus = "fazer") {
+    setEventosCalendario(carregarEventosCalendario());
     setTarefaEditando(null);
     setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: perfil?.displayName?.trim() || "Coordenação", dataInicio: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
     setAbaFormulario("detalhes");
@@ -437,6 +435,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   }
 
   function abrirEdicaoTarefa(tarefa: KanbanTarefa, anexar = false) {
+    setEventosCalendario(carregarEventosCalendario());
     setMenuTarefaAberto(null);
     setDestacarAnexos(anexar);
     setTarefaEditando(tarefa);
@@ -1135,7 +1134,7 @@ function KanbanTaskCard({
   const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
   const termoEtiquetaAtual = ultimoItemDigitado(textoEtiquetas);
-  const etiquetasSelecionadas = separarItensSeparados(textoEtiquetas);
+  const etiquetasSelecionadas = separarVinculos(textoEtiquetas);
   const sugestoesEtiquetasFiltradas = filtrarSugestoesFuzzy(
     sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
     termoEtiquetaAtual,

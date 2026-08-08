@@ -1,32 +1,12 @@
-#![allow(unused_imports)]
 
 // Structs e tipos compartilhados entre os módulos (DTOs dos comandos).
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
 // através dos re-exports globais feitos no main.rs (use crate::*).
 
-use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
-};
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
+use std::collections::{BTreeMap, BTreeSet};
 
 
 #[derive(Serialize)]
@@ -426,6 +406,13 @@ pub(crate) struct TurmaArquivo {
     pub(crate) textos_ata: Option<serde_json::Map<String, Value>>,
     pub(crate) conselhos: Option<serde_json::Map<String, Value>>,
     pub(crate) alunos: Option<serde_json::Map<String, Value>>,
+    // Disciplinas cujas notas vieram de um mapão de "Tipo de Ensino:
+    // Expansão" (turmas não seriadas de itinerário/aprofundamento, sem
+    // Plano de Ensino do professor) — ver aplicar_mapoes_lote e
+    // listar_disciplinas_turma. As notas continuam misturadas normalmente
+    // nos alunos/conselho; só a listagem de disciplinas do Planejamento
+    // (e o dropdown de componente curricular do Web App) exclui estas.
+    pub(crate) disciplinas_expansao: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -704,6 +691,10 @@ pub(crate) struct AlunoMapao {
 pub(crate) struct DadosMapao {
     pub(crate) alunos: Vec<AlunoMapao>,
     pub(crate) disciplinas: BTreeSet<String>,
+    // true quando a célula "Tipo de Ensino:" do cabeçalho do mapão contém
+    // "Expansão" (ex.: "110 - EXPANSÃO NOVO EM") — turma não seriada de
+    // itinerário/aprofundamento. Ver ler_mapao_bytes.
+    pub(crate) eh_expansao: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]

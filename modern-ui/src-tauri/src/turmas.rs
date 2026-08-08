@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Modelo de turma: CRUD, conselho (ajustes, encaminhamentos, atendimentos) e detalhamento.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,12 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
+use chrono::Local;
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, BTreeSet},
-    env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
+    collections::{BTreeMap, BTreeSet}, fs,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 #[tauri::command]
@@ -247,6 +231,16 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
             }
         }
     }
+    // Disciplinas de mapão "Tipo de Ensino: Expansão" (turma não seriada de
+    // itinerário/aprofundamento) têm nota lançada normalmente acima, mas
+    // ninguém escreve Plano de Ensino pra elas — não entram na lista que
+    // alimenta o Planejamento nem o dropdown de componente curricular do
+    // Web App. Ver importador_mapao::mapao_eh_expansao.
+    if let Some(expansao) = dados.get("disciplinas_expansao").and_then(Value::as_array) {
+        for nome in expansao.iter().filter_map(Value::as_str) {
+            set.remove(nome);
+        }
+    }
     Ok(set.into_iter().collect())
 }
 
@@ -350,6 +344,7 @@ pub(crate) fn salvar_tempo_conselho(
 pub(crate) fn salvar_coordenador_turma(
     caminho: String,
     input: CoordenadorTurmaInput,
+    bimestre: String,
 ) -> Result<TurmaDetalhe, String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -369,7 +364,7 @@ pub(crate) fn salvar_coordenador_turma(
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
     let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
-    Ok(detalhar_turma(turma, "1"))
+    Ok(detalhar_turma(turma, &bimestre))
 }
 
 #[tauri::command]

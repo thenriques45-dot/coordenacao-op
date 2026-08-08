@@ -119,12 +119,6 @@ function rotuloCiclo(ciclo: string) {
   return rotulos[ciclo] ?? ciclo;
 }
 
-function rotuloLideranca(lideranca: "lider" | "vice" | null | undefined) {
-  if (lideranca === "lider") return "Líder";
-  if (lideranca === "vice") return "Vice líder";
-  return "Não";
-}
-
 export function codigoTurma(serie: string, letra: string) {
   return `${serie} ${letra.trim().toLocaleUpperCase("pt-BR")}`.trim();
 }

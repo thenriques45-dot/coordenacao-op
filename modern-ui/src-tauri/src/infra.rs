@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Infraestrutura: trava global de dados, caminhos do app, escrita atômica e espelho do estado da interface.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,15 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
+use chrono::Local;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     env, fs, io,
-    hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
     sync::{Mutex, MutexGuard, PoisonError},
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 // Serializa o acesso aos arquivos locais (dados/ e config/) entre os comandos
@@ -59,6 +46,30 @@ pub(crate) fn escrever_json_atomicamente(caminho: &Path, conteudo: &str) -> io::
     fs::rename(&temporario, caminho).inspect_err(|_err| {
         let _ = fs::remove_file(&temporario);
     })
+}
+
+const NOME_INDICE_LOCAL: &str = "_indice.json";
+
+/// Lê o índice local (`_indice.json`) de uma pasta de relatórios — usado por
+/// pei.rs e planejamento.rs pra popular a tela de acompanhamento a partir do
+/// que já foi gerado em disco, sem depender de nenhum fetch na planilha ter
+/// dado certo, e pra decidir (por chave, ver os chamadores) o que pular na
+/// próxima geração. Genérico porque a estrutura é idêntica nos dois — só o
+/// tipo do registro muda.
+pub(crate) fn carregar_indice<T: DeserializeOwned>(pasta_base: &Path) -> Vec<T> {
+    fs::read_to_string(pasta_base.join(NOME_INDICE_LOCAL))
+        .ok()
+        .and_then(|texto| serde_json::from_str(&texto).ok())
+        .unwrap_or_default()
+}
+
+/// Contraparte de carregar_indice — grava atomicamente, ignorando falha (o
+/// índice é só um cache de acompanhamento; os .docx já gerados continuam
+/// válidos mesmo se essa gravação específica falhar).
+pub(crate) fn salvar_indice<T: Serialize>(pasta_base: &Path, registros: &[T]) {
+    if let Ok(texto) = serde_json::to_string_pretty(registros) {
+        let _ = escrever_json_atomicamente(&pasta_base.join(NOME_INDICE_LOCAL), &texto);
+    }
 }
 
 pub(crate) fn app_base_dir() -> io::Result<PathBuf> {

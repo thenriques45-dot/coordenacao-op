@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Sincronização por pasta compartilhada (estado do grupo e dados institucionais) e merges.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
@@ -6,27 +5,13 @@
 
 use crate::*;
 
-use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use rust_xlsxwriter::{Format, Workbook};
-use chrono::{Datelike, Local, NaiveDate};
-use serde::{Deserialize, Serialize};
+use chrono::Local;
 use serde_json::Value;
 use std::{
-    collections::{BTreeMap, BTreeSet},
     env, fs, io,
     hash::{Hash, Hasher},
-    io::Cursor,
-    io::Write,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    sync::{Mutex, MutexGuard, PoisonError},
 };
-use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager,
-};
-use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 
 // Async sem trava de dados: só toca a pasta de sincronização (OneDrive), com
@@ -71,17 +56,6 @@ pub(crate) fn publicar_estado_sincronizacao(input: SyncStateInput) -> Result<Syn
         caminho: peer_destino.to_string_lossy().to_string(),
         atualizado_em: Local::now().to_rfc3339(),
     })
-}
-
-#[tauri::command(async)]
-pub(crate) fn carregar_estado_sincronizacao(pasta: String) -> Result<Option<Value>, String> {
-    let raiz = validar_pasta_sincronizacao(&pasta)?;
-    let arquivo = raiz.join("state").join("workspace-state.json");
-    if !arquivo.exists() {
-        return Ok(None);
-    }
-    let texto = fs::read_to_string(arquivo).map_err(|err| err.to_string())?;
-    serde_json::from_str(&texto).map(Some).map_err(|err| err.to_string())
 }
 
 /// Lê o estado de TODOS os dispositivos (arquivos em state/peers/) além do

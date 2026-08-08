@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Planilha de respostas do Planejamento via Sheets API (autenticada com o
 // OAuth do coordenador — ver google_oauth.rs). Substitui a necessidade de
@@ -9,7 +8,6 @@
 // rodar fora do runtime async do Tauri (thread OS dedicada no call site),
 // senão reproduz o panic "Cannot drop a runtime" já visto nesta sessão.
 
-use crate::*;
 
 use serde::{Deserialize, Serialize};
 

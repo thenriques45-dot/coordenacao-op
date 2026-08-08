@@ -1,4 +1,3 @@
-#![allow(unused_imports)]
 
 // Criação e implantação automática do Web App de Planejamento no Google, via
 // Apps Script API (script.googleapis.com) e Sheets API (ver sheets_api.rs),
