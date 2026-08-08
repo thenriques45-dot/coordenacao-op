@@ -319,7 +319,7 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
-  "2.22.0": [
+  "2.22.1": [
     "Corrigido: disciplinas de mapões de 'Tipo de Ensino: Expansão' (turmas não seriadas de itinerário/aprofundamento) apareciam na tela de Planejamento como se precisassem de Plano de Ensino, mesmo sem nenhum professor responsável por planejá-las. As notas continuam entrando normalmente nos alunos/conselho — só a cobrança de plano não se aplica mais a essas disciplinas. Quando a mesma disciplina existe nos dois mapões (ex.: Língua Inglesa no mapão normal e no de expansão), ela continua contando como disciplina normal.",
     "Corrigido: a mesma disciplina podia aparecer duas vezes na lista de Planejamento (ex.: 'Orientação de Estudo em Matemática' e 'ORIENTACAO DE ESTUDO - MATEMATICA') quando o mapão do SED e o Web App usavam redações diferentes — hífen, a palavra 'em' ou um sufixo de série coladas ao nome. Essas variações passam a ser reconhecidas como a mesma disciplina.",
     "Corrigido: trocar o coordenador responsável por uma turma podia sobrescrever o texto da ata e o tempo de reunião do conselho pelos dados do 1º bimestre, mesmo estando em outro bimestre no momento.",

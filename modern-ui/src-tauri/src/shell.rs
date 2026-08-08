@@ -11,6 +11,11 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+// Só usado dentro do #[cfg(target_os = "linux")] em comando_externo — cfg'd
+// aqui também para não ficar "não usado" (e ser removido de novo por engano)
+// ao compilar/rodar `cargo fix` no Windows ou macOS.
+#[cfg(target_os = "linux")]
+use std::env;
 
 
 /// Envia uma notificação nativa do sistema diretamente pelo backend.
