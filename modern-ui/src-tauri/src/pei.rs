@@ -7,8 +7,9 @@ use crate::*;
 
 use serde_json::Value;
 use std::{
-    collections::BTreeMap, fs,
-    path::Path,
+    collections::{BTreeMap, HashSet},
+    fs,
+    path::{Path, PathBuf},
 };
 
 
@@ -259,10 +260,251 @@ pub(crate) fn carregar_peis_locais() -> Result<PeisLocaisResultado, String> {
         .map_err(|err| err.to_string())?
         .join("relatorios")
         .join("pei");
+    let mut registros = carregar_indice(&pasta_base);
+    reconciliar_indice_pei_com_disco(&pasta_base, &mut registros);
     Ok(PeisLocaisResultado {
         pasta: pasta_base.to_string_lossy().to_string(),
-        registros: carregar_indice(&pasta_base),
+        registros,
     })
+}
+
+// ── Reconciliação do índice local com o que existe em disco ────────────────
+//
+// O índice (_indice.json) só ganha uma entrada quando uma busca na planilha
+// (buscar_peis + gerar_peis_lote) roda com sucesso para aquele registro. Um
+// PEI gerado por uma fonte que não é mais buscada — ex.: o Forms/CSV legado,
+// depois que o coordenador migrou para o Web App automático e a config
+// perdeu o url_legado — ou por uma versão anterior do sanitizador de nome de
+// arquivo (ver dobrar_acento em shell.rs: antes, cada vogal acentuada virava
+// "_", perdendo o caractere e mudando o nome do arquivo) some do índice,
+// mas o .docx continua salvo na pasta do aluno. Sem isto, a tela de
+// acompanhamento e o relatório de pendências acusavam "faltando" um PEI que
+// na prática já tinha sido entregue.
+fn extrair_disciplina_bimestre_do_nome(nome_arquivo: &str) -> Option<(String, String)> {
+    let stem = nome_arquivo.strip_suffix(".docx")?;
+    let stem = stem.strip_suffix("_bimestre")?;
+    let pos = stem.rfind('_')?;
+    let bimestre = &stem[pos + 1..];
+    if bimestre.is_empty() || !bimestre.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let disc_token = stem[..pos].trim();
+    if disc_token.is_empty() {
+        return None;
+    }
+    Some((disc_token.to_string(), bimestre.to_string()))
+}
+
+fn chave_letras(s: &str) -> String {
+    s.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_uppercase())
+        .collect()
+}
+
+fn distancia_levenshtein(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let mut dp = vec![vec![0usize; b.len() + 1]; a.len() + 1];
+    for (i, linha) in dp.iter_mut().enumerate() {
+        linha[0] = i;
+    }
+    for (j, valor) in dp[0].iter_mut().enumerate() {
+        *valor = j;
+    }
+    for i in 1..=a.len() {
+        for j in 1..=b.len() {
+            let custo = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            dp[i][j] = (dp[i - 1][j] + 1)
+                .min(dp[i][j - 1] + 1)
+                .min(dp[i - 1][j - 1] + custo);
+        }
+    }
+    dp[a.len()][b.len()]
+}
+
+// Acha, entre as disciplinas conhecidas do aluno (mapão), a que corresponde
+// ao trecho de nome de arquivo `disc_token`. Compara igual (formato atual
+// do sanitizador) e, se não bater, tolera uma distância pequena — cobre o
+// formato legado, que perdia 1 caractere por vogal acentuada.
+fn casar_disciplina_conhecida<'a>(disc_token: &str, candidatas: &'a [String]) -> Option<&'a String> {
+    let chave_token = chave_letras(disc_token);
+    if chave_token.is_empty() {
+        return None;
+    }
+    let mut melhor: Option<(&String, usize)> = None;
+    for candidata in candidatas {
+        let chave_cand = chave_letras(candidata);
+        if chave_cand.is_empty() {
+            continue;
+        }
+        let distancia = distancia_levenshtein(&chave_token, &chave_cand);
+        if distancia == 0 {
+            return Some(candidata);
+        }
+        let tolerancia = (chave_cand.len() / 6).clamp(1, 3);
+        if distancia <= tolerancia && melhor.is_none_or(|(_, d)| distancia < d) {
+            melhor = Some((candidata, distancia));
+        }
+    }
+    melhor.map(|(c, _)| c)
+}
+
+fn caminho_esperado_pei(pasta_base: &Path, r: &RegistroPei) -> PathBuf {
+    pasta_base
+        .join(sanitizar_segmento(&r.nome_aluno))
+        .join(format!(
+            "{}_{}_bimestre.docx",
+            sanitizar_segmento(&r.disciplina),
+            sanitizar_segmento(&r.bimestre)
+        ))
+}
+
+// Varre a pasta de cada aluno elegível e acrescenta ao índice (em memória,
+// sem persistir — é barato refazer a cada carregamento da tela) um registro
+// sintético para todo .docx que já exista em disco mas não corresponda a
+// nenhuma entrada do índice. Falha em silêncio por aluno/pasta (mapão não
+// importado, pasta ainda não criada) — é só uma tentativa de reconciliação.
+fn reconciliar_indice_pei_com_disco(pasta_base: &Path, indice: &mut Vec<RegistroPei>) {
+    let alunos = listar_alunos_elegiveis_com_disciplinas().unwrap_or_default();
+    if alunos.is_empty() {
+        return;
+    }
+
+    let mut caminhos_indexados: HashSet<PathBuf> = indice
+        .iter()
+        .map(|r| caminho_esperado_pei(pasta_base, r))
+        .collect();
+    let mut chaves_indice: HashSet<String> = indice.iter().map(chave_registro_pei).collect();
+
+    for aluno in &alunos {
+        let pasta_aluno = pasta_base.join(sanitizar_segmento(&aluno.nome));
+        let entradas = match fs::read_dir(&pasta_aluno) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entrada in entradas.flatten() {
+            let caminho = entrada.path();
+            if caminho.extension().and_then(|e| e.to_str()) != Some("docx") {
+                continue;
+            }
+            if caminhos_indexados.contains(&caminho) {
+                continue;
+            }
+            let nome_arquivo = match caminho.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n,
+                None => continue,
+            };
+            let Some((disc_token, bimestre)) = extrair_disciplina_bimestre_do_nome(nome_arquivo) else {
+                continue;
+            };
+            let Some(disciplina) = casar_disciplina_conhecida(&disc_token, &aluno.disciplinas) else {
+                continue;
+            };
+            let disciplina = disciplina.clone();
+
+            let registro = RegistroPei {
+                timestamp: String::new(),
+                email: String::new(),
+                professor: String::new(),
+                nome_estudante_completo: String::new(),
+                nome_aluno: aluno.nome.clone(),
+                turma_aluno: aluno.turma.clone(),
+                disciplina,
+                bimestre,
+                conteudos: String::new(),
+                estrategias: String::new(),
+                instrumentos: String::new(),
+                recursos: String::new(),
+            };
+            let chave = chave_registro_pei(&registro);
+            if chaves_indice.insert(chave) {
+                caminhos_indexados.insert(caminho);
+                indice.push(registro);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod testes_reconciliacao_disco {
+    use super::*;
+
+    const CANDIDATAS: &[&str] = &[
+        "ARTE",
+        "CIENCIAS",
+        "EDUCACAO FISICA",
+        "GEOGRAFIA",
+        "HISTORIA",
+        "LINGUA INGLESA",
+        "LINGUA PORTUGUESA",
+        "MATEMATICA",
+        "ORIENTACAO DE ESTUDO LINGUA PORTUGUESA",
+        "ORIENTACAO DE ESTUDO MATEMATICA",
+        "PROJETO DE VIDA",
+        "REDACAO E LEITURA",
+    ];
+
+    fn candidatas() -> Vec<String> {
+        CANDIDATAS.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn reconhece_nomes_de_arquivo_legado_do_caso_real() {
+        let candidatas = candidatas();
+        let casos = [
+            ("Ci_ncias_2_bimestre.docx", "2", "CIENCIAS"),
+            ("Hist_ria_1_bimestre.docx", "1", "HISTORIA"),
+            ("L_ngua Inglesa_3_bimestre.docx", "3", "LINGUA INGLESA"),
+            ("L_ngua Portuguesa_1_bimestre.docx", "1", "LINGUA PORTUGUESA"),
+            ("Matem_tica_1_bimestre.docx", "1", "MATEMATICA"),
+            (
+                "Orienta__o de Estudo - Matem_tica_2_bimestre.docx",
+                "2",
+                "ORIENTACAO DE ESTUDO MATEMATICA",
+            ),
+            ("Projeto de Vida_3_bimestre.docx", "3", "PROJETO DE VIDA"),
+        ];
+        for (nome_arquivo, bimestre_esperado, disciplina_esperada) in casos {
+            let (disc_token, bimestre) = extrair_disciplina_bimestre_do_nome(nome_arquivo)
+                .unwrap_or_else(|| panic!("não conseguiu extrair de {nome_arquivo}"));
+            assert_eq!(bimestre, bimestre_esperado, "bimestre de {nome_arquivo}");
+            let casado = casar_disciplina_conhecida(&disc_token, &candidatas)
+                .unwrap_or_else(|| panic!("não casou nenhuma disciplina para {nome_arquivo}"));
+            assert_eq!(casado, disciplina_esperada, "disciplina de {nome_arquivo}");
+        }
+    }
+
+    #[test]
+    fn reconhece_nomes_de_arquivo_no_formato_atual() {
+        let candidatas = candidatas();
+        let casos = [
+            ("ARTE_2_bimestre.docx", "2", "ARTE"),
+            ("EDUCACAO FISICA_3_bimestre.docx", "3", "EDUCACAO FISICA"),
+            ("MATEMATICA_4_bimestre.docx", "4", "MATEMATICA"),
+        ];
+        for (nome_arquivo, bimestre_esperado, disciplina_esperada) in casos {
+            let (disc_token, bimestre) = extrair_disciplina_bimestre_do_nome(nome_arquivo).unwrap();
+            assert_eq!(bimestre, bimestre_esperado);
+            let casado = casar_disciplina_conhecida(&disc_token, &candidatas).unwrap();
+            assert_eq!(casado, disciplina_esperada);
+        }
+    }
+
+    #[test]
+    fn nao_confunde_disciplina_curta_com_orientacao_de_estudo() {
+        let candidatas = candidatas();
+        // "Matem_tica" pura (sem "Orientação de Estudo") deve casar com
+        // MATEMATICA, não com ORIENTACAO DE ESTUDO MATEMATICA.
+        let casado = casar_disciplina_conhecida("Matem_tica", &candidatas).unwrap();
+        assert_eq!(casado, "MATEMATICA");
+    }
+
+    #[test]
+    fn ignora_arquivo_sem_padrao_de_bimestre_reconhecivel() {
+        assert_eq!(extrair_disciplina_bimestre_do_nome("_indice.json"), None);
+        assert_eq!(extrair_disciplina_bimestre_do_nome("qualquer_coisa.docx"), None);
+    }
 }
 
 #[tauri::command(async)]
@@ -341,6 +583,23 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
             None => continue,
         };
 
+        // Disciplinas que não pedem PEI por componente, mesmo aparecendo na
+        // carga horária: itinerário/tutoria sem professor de componente (ver
+        // disciplina_e_de_apoio_sem_documento) e as marcadas como vindas de
+        // mapão de expansão (turma não seriada — ver
+        // importador_mapao::mapao_eh_expansao). Mesma exclusão que
+        // turmas::listar_disciplinas_turma já aplica ao Planejamento.
+        let expansao_da_turma: std::collections::HashSet<&str> = turma
+            .disciplinas_expansao
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let exclui_disciplina = |nome: &str| -> bool {
+            disciplina_e_de_apoio_sem_documento(nome) || expansao_da_turma.contains(nome)
+        };
+
         // Coleta disciplinas por bimestre a partir da carga horária.
         let mut disciplinas_por_bimestre: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for bim in ["1", "2", "3", "4"] {
@@ -349,7 +608,12 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
                 .as_ref()
                 .and_then(|c| c.get(bim))
                 .and_then(Value::as_object)
-                .map(|obj| obj.keys().cloned().collect())
+                .map(|obj| {
+                    obj.keys()
+                        .filter(|nome| !exclui_disciplina(nome))
+                        .cloned()
+                        .collect()
+                })
                 .unwrap_or_default();
             if !disc.is_empty() {
                 disciplinas_por_bimestre.insert(bim.to_string(), disc);

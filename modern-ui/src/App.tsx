@@ -319,6 +319,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.22.2": [
+    "Corrigido: a correção da versão anterior para disciplinas que aparecem tanto no mapão normal quanto no de expansão com grafias diferentes (ex.: 'Língua Inglesa' no normal e 'LINGUA INGLESA' no de expansão) não funcionava de fato — a comparação usava o texto exato e não reconhecia as duas grafias como a mesma disciplina, deixando a versão de expansão aparecer como se fosse uma disciplina própria, sem plano nem PEI. Agora a comparação ignora acento e caixa.",
+    "Ajustado: só 'Projeto de Vida' deixou de exigir Plano de Ensino e PEI (é um componente de tutoria sem professor de componente dedicado). Redação e Leitura e Orientação de Estudo continuam exigindo os dois documentos normalmente — a versão anterior desta correção tinha excluído essas duas por engano.",
+    "O PEI passa a esconder as disciplinas de mapão de expansão da cobrança de documento, do mesmo jeito que o Planejamento já fazia — antes só o Planejamento respeitava essa marcação.",
+    "Corrigido: PEIs já entregues por um Forms antigo (antes da migração para o Web App automático) ou gerados com uma versão anterior do app (antes da correção de acentos no nome do arquivo) ficavam invisíveis na tela de acompanhamento e no relatório de pendências, mesmo com o documento salvo na pasta do aluno. A tela agora reconcilia com os documentos já existentes na pasta de cada aluno elegível.",
+    "Planejamento: nomes de disciplina na matriz passam a ter caixa consistente (Título Case), mesmo quando vêm de um mapão que grava o nome todo em maiúsculas (comum em componentes de expansão/itinerário).",
+  ],
   "2.22.1": [
     "Corrigido: disciplinas de mapões de 'Tipo de Ensino: Expansão' (turmas não seriadas de itinerário/aprofundamento) apareciam na tela de Planejamento como se precisassem de Plano de Ensino, mesmo sem nenhum professor responsável por planejá-las. As notas continuam entrando normalmente nos alunos/conselho — só a cobrança de plano não se aplica mais a essas disciplinas. Quando a mesma disciplina existe nos dois mapões (ex.: Língua Inglesa no mapão normal e no de expansão), ela continua contando como disciplina normal.",
     "Corrigido: a mesma disciplina podia aparecer duas vezes na lista de Planejamento (ex.: 'Orientação de Estudo em Matemática' e 'ORIENTACAO DE ESTUDO - MATEMATICA') quando o mapão do SED e o Web App usavam redações diferentes — hífen, a palavra 'em' ou um sufixo de série coladas ao nome. Essas variações passam a ser reconhecidas como a mesma disciplina.",

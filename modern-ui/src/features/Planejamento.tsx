@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { semestreAtivo, type PrazosSemestre } from "./semestre";
 import { useWebAppConfig } from "./useWebAppConfig";
-import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral } from "./webAppConfigUi";
+import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral, paraTituloDisciplina } from "./webAppConfigUi";
 
 type RegistroPlanejamento = {
   professor: string;
@@ -264,7 +264,7 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
     const doMapao = turmaSelecionada ? disciplinasMapao[turmaSelecionada.caminho] ?? [] : [];
     const dosPlanos = registrosDaTurma.map((r) => r.disciplina);
     const todas = new Map<string, string>();
-    for (const d of [...doMapao, ...dosPlanos]) todas.set(normalizarDisciplina(d), d);
+    for (const d of [...doMapao, ...dosPlanos]) todas.set(normalizarDisciplina(d), paraTituloDisciplina(d));
     return Array.from(todas.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [turmaSelecionada, disciplinasMapao, registrosDaTurma]);
 

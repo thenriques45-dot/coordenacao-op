@@ -3,6 +3,33 @@ import type { WorkgroupSyncMember } from "./workgroupSync";
 
 export const BIMESTRES = ["1", "2", "3", "4"];
 
+// Conectores que ficam em minúsculo no meio do nome (mas não se forem a
+// primeira palavra) — "Orientação de Estudo em Matemática", não "Orientação
+// De Estudo Em Matemática".
+const CONECTORES_TITULO_DISCIPLINA = new Set(["de", "da", "do", "das", "dos", "e", "em", "a", "o"]);
+
+// Uniformiza a caixa de nomes de disciplina para exibição — o mapão do SED
+// mistura "Matemática" (Título) com componentes de expansão/itinerário como
+// "EDUCACAO FISICA" (TUDO MAIÚSCULO), e a mesma turma podia mostrar as duas
+// convenções lado a lado na matriz de PEI/Planejamento. Não restaura acento
+// que o texto de origem já não tinha (não há como adivinhar "Educação" a
+// partir de "EDUCACAO") — só resolve a inconsistência de caixa.
+export function paraTituloDisciplina(valor: string): string {
+  let primeira = true;
+  return valor
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .split(/(\s+)/)
+    .map((parte) => {
+      if (parte.trim() === "") return parte;
+      const manterMinusculo = !primeira && CONECTORES_TITULO_DISCIPLINA.has(parte);
+      primeira = false;
+      if (manterMinusculo || !parte.charAt(0)) return parte;
+      return parte.charAt(0).toLocaleUpperCase("pt-BR") + parte.slice(1);
+    })
+    .join("");
+}
+
 type ConfiguradoPorOutroBannerProps = {
   membro: WorkgroupSyncMember | null;
   // Nome do que foi configurado, para a frase "já configurou o ___

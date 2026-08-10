@@ -638,4 +638,55 @@ mod tests {
         ];
         assert!(!mapao_eh_expansao(&linhas, linhas.len()));
     }
+
+    // Só "Projeto de Vida" não tem professor de componente que escreva Plano
+    // de Ensino nem PEI — confirmado pelo coordenador em 10/08/2026. Redação
+    // e Leitura e Orientação de Estudo são disciplinas regulares normais,
+    // não entram aqui. Ver disciplina_e_de_apoio_sem_documento.
+    #[test]
+    fn disciplina_de_apoio_e_reconhecida_independente_de_grafia() {
+        for nome in ["PROJETO DE VIDA", "Projeto de Vida", "projeto de vida"] {
+            assert!(
+                disciplina_e_de_apoio_sem_documento(nome),
+                "esperava que {nome} fosse reconhecida como disciplina de apoio"
+            );
+        }
+    }
+
+    #[test]
+    fn disciplina_regular_nao_e_confundida_com_disciplina_de_apoio() {
+        for nome in [
+            "MATEMATICA",
+            "EDUCACAO FISICA",
+            "LINGUA INGLESA",
+            "Vida",
+            "REDACAO E LEITURA",
+            "Redação e Leitura",
+            "ORIENTACAO DE ESTUDO MATEMATICA",
+            "Orientação de Estudo - Matemática",
+        ] {
+            assert!(
+                !disciplina_e_de_apoio_sem_documento(nome),
+                "não esperava que {nome} fosse reconhecida como disciplina de apoio"
+            );
+        }
+    }
+
+    // Mapão normal e mapão de expansão podem grafar a mesma disciplina de
+    // formas diferentes (acento, caixa) — só a grafia do mapão normal deve
+    // valer, pra não duplicar a linha na tela (ex.: "Língua Inglesa" no
+    // normal + "LINGUA INGLESA" no de expansão viravam duas disciplinas).
+    #[test]
+    fn reconhece_disciplina_regular_com_grafia_diferente() {
+        let carga = json!({
+            "1": {"Língua Inglesa": 2},
+            "2": {"Matemática": 4}
+        });
+        let carga = carga.as_object().unwrap();
+        assert!(ja_existe_disciplina_regular(Some(carga), "LINGUA INGLESA"));
+        assert!(ja_existe_disciplina_regular(Some(carga), "lingua inglesa"));
+        assert!(ja_existe_disciplina_regular(Some(carga), "Língua Inglesa"));
+        assert!(!ja_existe_disciplina_regular(Some(carga), "GEOGRAFIA"));
+        assert!(!ja_existe_disciplina_regular(None, "MATEMATICA"));
+    }
 }

@@ -110,22 +110,17 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
                 // itinerário/aprofundamento — ver mapao_eh_expansao): as
                 // notas continuam entrando normalmente abaixo, mas a
                 // disciplina fica marcada pra não aparecer como pendente de
-                // Plano de Ensino no Planejamento (nenhum professor planeja
-                // essas aulas). Exceção: algumas disciplinas se repetem no
-                // mapão normal E no de expansão (ex.: Língua Inglesa) — só a
-                // expansão tem nota/falta de verdade nesses casos, o mapão
-                // normal é quem tem; então só marca quem ainda não apareceu
-                // por uma fonte normal (carga_horaria), e desmarca (a ordem
-                // de import pode ser qualquer uma) assim que um mapão normal
-                // trouxer a mesma disciplina depois.
+                // Plano de Ensino/PEI (nenhum professor planeja essas aulas).
+                // Exceção: algumas disciplinas se repetem no mapão normal E
+                // no de expansão com grafias diferentes (ex.: "Língua
+                // Inglesa" no normal, "LINGUA INGLESA" no de expansão) — só a
+                // grafia do mapão normal deve valer, senão a mesma matéria
+                // vira duas linhas na tela. A comparação usa
+                // normalizar_texto_basico (ignora acento/caixa) justamente
+                // pra pegar esses casos; comparação exata deixava a grafia
+                // de expansão passar como se fosse uma disciplina nova.
+                let ja_e_regular = ja_existe_disciplina_regular(turma.carga_horaria.as_ref(), &disciplina.nome);
                 if eh_expansao {
-                    let ja_e_regular = turma.carga_horaria.as_ref().is_some_and(|carga| {
-                        carga.values().any(|por_disc| {
-                            por_disc
-                                .as_object()
-                                .is_some_and(|obj| obj.contains_key(&disciplina.nome))
-                        })
-                    });
                     if !ja_e_regular {
                         let marcadas = turma.disciplinas_expansao.get_or_insert_with(Vec::new);
                         if !marcadas.contains(&disciplina.nome) {
@@ -151,17 +146,24 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
                         None,
                     );
                 }
+                // Grafia de expansão com equivalente já regular: não cria uma
+                // entrada própria na carga horária (a exigência de Plano de
+                // Ensino/PEI já é coberta pela grafia do mapão normal) — só
+                // nota/falta acima continuam sendo registradas normalmente.
+                let pular_carga_horaria = eh_expansao && ja_e_regular;
                 if let Some(aulas) = disciplina.aulas {
-                    let carga = turma.carga_horaria.get_or_insert_with(serde_json::Map::new);
-                    let por_bimestre = carga
-                        .entry(bimestre.clone())
-                        .or_insert_with(|| Value::Object(serde_json::Map::new()));
-                    if let Some(objeto) = por_bimestre.as_object_mut() {
-                        objeto.entry(disciplina.nome.clone()).or_insert_with(|| {
-                            serde_json::Number::from_f64(aulas)
-                                .map(Value::Number)
-                                .unwrap_or(Value::Null)
-                        });
+                    if !pular_carga_horaria {
+                        let carga = turma.carga_horaria.get_or_insert_with(serde_json::Map::new);
+                        let por_bimestre = carga
+                            .entry(bimestre.clone())
+                            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+                        if let Some(objeto) = por_bimestre.as_object_mut() {
+                            objeto.entry(disciplina.nome.clone()).or_insert_with(|| {
+                                serde_json::Number::from_f64(aulas)
+                                    .map(Value::Number)
+                                    .unwrap_or(Value::Null)
+                            });
+                        }
                     }
                 }
             }
@@ -1125,6 +1127,39 @@ pub(crate) fn rotulo_celula(celula: &Data) -> String {
 
 pub(crate) fn normalizar_disciplina_mapao(valor: &str) -> String {
     normalizar_texto_basico(valor)
+}
+
+// "Projeto de Vida" é o único componente do mapão normal que, mesmo tendo
+// carga horária e nota lançada normalmente, nunca tem professor de
+// componente que escreva Plano de Ensino ou PEI — confirmado pelo
+// coordenador em 10/08/2026. Redação e Leitura e Orientação de Estudo
+// SÃO disciplinas regulares normais (têm professor e exigem os dois
+// documentos); não entram aqui. Usado por listar_disciplinas_turma
+// (Planejamento) e listar_alunos_elegiveis_com_disciplinas (PEI).
+pub(crate) fn disciplina_e_de_apoio_sem_documento(nome: &str) -> bool {
+    normalizar_texto_basico(nome) == "PROJETO DE VIDA"
+}
+
+// Existe, em `carga_horaria` (qualquer bimestre), alguma disciplina cuja
+// grafia normalizada (ignora acento/caixa) bate com `nome`? Usado para
+// decidir se uma disciplina vinda de um mapão de expansão já tem
+// equivalente no mapão normal — ver aplicar_mapoes_lote. Comparação
+// normalizada de propósito: o mapão normal e o de expansão podem grafar a
+// mesma matéria de formas diferentes (ex.: "Língua Inglesa" vs "LINGUA
+// INGLESA"); comparar só a string exata deixava a grafia de expansão passar
+// como se fosse uma disciplina nova, duplicando a linha na tela.
+pub(crate) fn ja_existe_disciplina_regular(
+    carga_horaria: Option<&serde_json::Map<String, Value>>,
+    nome: &str,
+) -> bool {
+    let nome_norm = normalizar_texto_basico(nome);
+    carga_horaria.is_some_and(|carga| {
+        carga.values().any(|por_disc| {
+            por_disc
+                .as_object()
+                .is_some_and(|obj| obj.keys().any(|chave| normalizar_texto_basico(chave) == nome_norm))
+        })
+    })
 }
 
 pub(crate) fn normalizar_nome_busca(valor: &str) -> String {

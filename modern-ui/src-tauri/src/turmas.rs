@@ -241,6 +241,10 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
             set.remove(nome);
         }
     }
+    // Itinerário/tutoria (Projeto de Vida, Redação e Leitura, Orientação de
+    // Estudo) nunca tem Plano de Ensino de professor, independente de vir de
+    // mapão regular ou de expansão — ver disciplina_e_de_apoio_sem_documento.
+    set.retain(|nome| !disciplina_e_de_apoio_sem_documento(nome));
     Ok(set.into_iter().collect())
 }
 
