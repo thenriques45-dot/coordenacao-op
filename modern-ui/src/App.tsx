@@ -319,6 +319,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.22.3": [
+    "Corrigido: a tela de novidades ('o que há de novidade') podia ficar travada em monitores menores, sem espaço para rolar até o botão 'Entendi' nem forma de fechar — agora ela sempre cabe na tela (com rolagem interna quando o texto é longo), e também fecha com Esc ou clicando fora.",
+  ],
   "2.22.2": [
     "Corrigido: a correção da versão anterior para disciplinas que aparecem tanto no mapão normal quanto no de expansão com grafias diferentes (ex.: 'Língua Inglesa' no normal e 'LINGUA INGLESA' no de expansão) não funcionava de fato — a comparação usava o texto exato e não reconhecia as duas grafias como a mesma disciplina, deixando a versão de expansão aparecer como se fosse uma disciplina própria, sem plano nem PEI. Agora a comparação ignora acento e caixa.",
     "Ajustado: só 'Projeto de Vida' deixou de exigir Plano de Ensino e PEI (é um componente de tutoria sem professor de componente dedicado). Redação e Leitura e Orientação de Estudo continuam exigindo os dois documentos normalmente — a versão anterior desta correção tinha excluído essas duas por engano.",
@@ -885,6 +888,19 @@ export function App() {
     }
     setMostrarNovidades(false);
   }
+
+  useEffect(() => {
+    if (!mostrarNovidades) {
+      return;
+    }
+    function aoPressionarEsc(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        fecharNovidades();
+      }
+    }
+    window.addEventListener("keydown", aoPressionarEsc);
+    return () => window.removeEventListener("keydown", aoPressionarEsc);
+  }, [mostrarNovidades, appInfo?.version]);
 
   function atualizarPerfilSync(perfil: WorkgroupSyncProfile) {
     setPerfilSync(salvarPerfilSincronizacao(perfil));
@@ -1519,7 +1535,7 @@ export function App() {
         </div>
       )}
       {mostrarNovidades && novidadesVersao.length > 0 && (
-        <div className="modal-backdrop">
+        <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) fecharNovidades(); }}>
           <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
             <span className="eyebrow">Atualização concluída</span>
             <h2 id="whats-new-title">O que há de novidade</h2>

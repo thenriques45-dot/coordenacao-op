@@ -3437,6 +3437,16 @@ th:nth-child(3) {
   z-index: 40;
 }
 
+/* Rede de seguranca: todo card direto de um modal-backdrop fica limitado a
+   altura da tela e ganha rolagem propria, mesmo que a classe especifica do
+   modal esqueca de declarar isso. Evita que os botoes de acao fiquem fora da
+   tela em monitores menores. Regras mais especificas abaixo (ex.: .modal-panel
+   com overflow: hidden por ter cabecalho/rodape fixos) continuam vencendo. */
+.modal-backdrop > * {
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+
 .modal-panel {
   background: #ffffff;
   border: 1px solid #eae8e3;
@@ -3700,6 +3710,8 @@ th:nth-child(3) {
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
   display: grid;
   gap: 12px;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
   padding: 24px;
   width: min(560px, 100%);
 }
