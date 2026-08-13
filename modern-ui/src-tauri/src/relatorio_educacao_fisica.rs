@@ -3,9 +3,12 @@
 // Educação Física, quando ofertada, chega por um mapão separado que mistura
 // alunos de várias turmas/turnos num único arquivo (ver
 // mapao_educacao_fisica_misto em importador_mapao.rs), então nem todo aluno
-// do EM tem essa disciplina lançada. A presença de carga horária de
+// do EM tem essa disciplina lançada. O sinal de que um aluno específico faz a
+// disciplina é ter uma entrada de frequência (mesmo que 0 falta) para
 // "EDUCACAO FISICA" (nome já normalizado — sem acento/caixa — como gravado
-// pelo importador) é o único sinal de que o aluno faz a disciplina.
+// pelo importador) em algum bimestre. carga_horaria não serve sozinha pra
+// isso: é um campo por turma, então fica positiva pra sala inteira assim que
+// 1 aluno da EF é casado ali.
 
 use crate::*;
 
@@ -64,12 +67,20 @@ pub(crate) fn gerar_relatorio_educacao_fisica(
 
             let mut faltas_acumuladas = 0.0;
             let mut total_aulas_acumuladas = 0.0;
+            let mut aluno_tem_educacao_fisica = false;
             for periodo in ["1", "2", "3", "4"] {
-                if let Some(valor) = objeto_bimestre(info, "frequencia", periodo)
+                if let Some(entrada) = objeto_bimestre(info, "frequencia", periodo)
                     .and_then(|mapa| mapa.get(DISCIPLINA_EDUCACAO_FISICA))
-                    .and_then(valor_para_f64)
                 {
-                    faltas_acumuladas += valor;
+                    // A presença da chave (mesmo com 0 falta) é o sinal de que ESSE aluno
+                    // está na lista de chamada da EF — carga_horaria é por turma (mesmo
+                    // valor pra sala inteira), então usá-la sozinha como critério incluía
+                    // a sala toda, porque basta 1 aluno real de EF casado ali pra ela virar
+                    // positiva para a turma inteira.
+                    aluno_tem_educacao_fisica = true;
+                    if let Some(valor) = valor_para_f64(entrada) {
+                        faltas_acumuladas += valor;
+                    }
                 }
                 if let Some(valor) = carga_horaria
                     .get(periodo)
@@ -81,8 +92,7 @@ pub(crate) fn gerar_relatorio_educacao_fisica(
                 }
             }
 
-            // Sem carga horária de Educação Física lançada = aluno não faz a disciplina.
-            if total_aulas_acumuladas <= 0.0 {
+            if !aluno_tem_educacao_fisica || total_aulas_acumuladas <= 0.0 {
                 continue;
             }
 

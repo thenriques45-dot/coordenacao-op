@@ -319,6 +319,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.23.1": [
+    "Corrigido: o relatório 'Educação Física — Ensino Médio' (novo na 2.23.0) listava a turma inteira em vez de só quem faz a disciplina — a carga horária de EF é um número por turma (mesmo valor pra sala toda), então bastava 1 aluno real de EF ter sido casado naquela sala pra todo mundo dela entrar no relatório com frequência 100% inventada. Agora só entra quem tem falta de EF lançada individualmente.",
+  ],
   "2.23.0": [
     "Novo relatório 'Educação Física — Ensino Médio' na Central de Relatórios: exporta em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada — a disciplina chega por um mapão separado e nem todo aluno a faz, então só entram os alunos com carga horária de EF de fato lançada.",
     "Corrigido: reimportar o mapão de um bimestre anterior depois de já ter importado um mais recente podia fazer a frequência exibida na ficha do aluno regredir — o app agora só atualiza esse número quando o mapão importado é do bimestre igual ou mais recente que o já registrado.",
