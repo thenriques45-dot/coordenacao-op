@@ -428,14 +428,64 @@ pub(crate) fn mesclar_medias(local: &mut serde_json::Map<String, Value>, incomin
     }
 }
 
+pub(crate) fn mesclar_frequencia_ou_compensacao(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &serde_json::Map<String, Value>,
+) {
+    for (bimestre, valores_inc) in incoming {
+        let Some(valores_inc_obj) = valores_inc.as_object() else { continue; };
+        let valores_local = local
+            .entry(bimestre.clone())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let Some(valores_local_obj) = valores_local.as_object_mut() else { continue; };
+        for (disciplina, valor_inc) in valores_inc_obj {
+            valores_local_obj.insert(disciplina.clone(), valor_inc.clone());
+        }
+    }
+}
+
 pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
     let Some(local_obj) = local.as_object_mut() else { return; };
     let Some(inc_obj) = incoming.as_object() else { return; };
 
-    // Dados vindos de importação de mapão: incoming sempre vence
-    for campo in &["frequencia", "frequencia_percentual", "compensacao_ausencias"] {
-        if let Some(valor) = inc_obj.get(*campo) {
-            local_obj.insert(campo.to_string(), valor.clone());
+    // frequencia/compensacao_ausencias: mapa por bimestre/disciplina, sem timestamp por
+    // célula. Mesclamos por bimestre+disciplina (incoming vence só a célula em conflito)
+    // em vez de substituir o objeto inteiro — trocar o objeto inteiro apagava os
+    // bimestres que só existiam no lado local (ex.: outro dispositivo já tinha importado
+    // o mapão do bimestre 3, e um incoming trazendo só até o bimestre 2 zerava o 3),
+    // o que fazia o total de faltas do ano ficar errado depois do sync.
+    for campo in &["frequencia", "compensacao_ausencias"] {
+        if let Some(inc_valor) = inc_obj.get(*campo).and_then(Value::as_object) {
+            let local_valor = local_obj
+                .entry(campo.to_string())
+                .or_insert_with(|| Value::Object(serde_json::Map::new()));
+            if let Some(local_valor_obj) = local_valor.as_object_mut() {
+                mesclar_frequencia_ou_compensacao(local_valor_obj, inc_valor);
+            }
+        }
+    }
+
+    // frequencia_percentual ("Fre An(%)"): cumulativo por bimestre, então só deixamos o
+    // incoming vencer se ele vier de um bimestre igual ou mais recente que o já
+    // armazenado — senão um sync trazendo um mapão mais antigo (de outro dispositivo)
+    // fazia a frequência exibida na ficha do aluno regredir.
+    let bim_local = local_obj
+        .get("frequencia_percentual_bimestre")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let bim_inc = inc_obj
+        .get("frequencia_percentual_bimestre")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if inc_obj.contains_key("frequencia_percentual") && bim_inc >= bim_local {
+        if let Some(valor) = inc_obj.get("frequencia_percentual") {
+            local_obj.insert("frequencia_percentual".to_string(), valor.clone());
+        }
+        if !bim_inc.is_empty() {
+            local_obj.insert(
+                "frequencia_percentual_bimestre".to_string(),
+                Value::String(bim_inc.to_string()),
+            );
         }
     }
 

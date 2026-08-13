@@ -90,6 +90,13 @@ type RelatorioProvaPaulistaResultado = {
   alunos: number;
 };
 
+type RelatorioEducacaoFisicaResultado = {
+  caminho: string;
+  pasta: string;
+  turmas: number;
+  alunos: number;
+};
+
 const coresRelatorio = ["#2563eb", "#16a34a", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
 
 const opcoesBimestre = [
@@ -209,6 +216,7 @@ export function RelatoriosMenu({
   onAbrirAtendimentos,
   onAbrirTarefas,
   onAbrirProvaPaulista,
+  onAbrirEducacaoFisica,
 }: {
   onAbrirCriticos: () => void;
   onAbrirElegiveisRecuperacao: () => void;
@@ -216,6 +224,7 @@ export function RelatoriosMenu({
   onAbrirAtendimentos: () => void;
   onAbrirTarefas: () => void;
   onAbrirProvaPaulista: () => void;
+  onAbrirEducacaoFisica: () => void;
 }) {
   const [gerandoLancamento, setGerandoLancamento] = useState(false);
   const [erroLancamento, setErroLancamento] = useState("");
@@ -293,6 +302,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Prova Paulista</strong>
             <span>Exporte em planilha (.csv) as notas da Prova Paulista por disciplina, turma e bimestre.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirEducacaoFisica}>
+          <BarChart3 size={26} />
+          <div>
+            <strong>Educação Física — Ensino Médio</strong>
+            <span>Exporte em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada.</span>
           </div>
         </button>
       </section>
@@ -1199,6 +1215,132 @@ export function RelatorioProvaPaulista({
 
         <TurmaChipSelector
           turmas={turmas}
+          selecionadas={selecionadas}
+          onToggle={toggleTurma}
+          onSelecionarSubset={selecionarSubset}
+          onDesmarcarSubset={desmarcarSubset}
+        />
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || selecionadas.size === 0}>
+            {processando ? "Gerando..." : "Gerar planilha"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir arquivo
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
+export function RelatorioEducacaoFisica({
+  turmas,
+  onVoltar,
+}: {
+  turmas: TurmaResumoRelatorio[];
+  onVoltar: () => void;
+}) {
+  const turmasEM = useMemo(() => turmas.filter((t) => t.ciclo === "EM"), [turmas]);
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmasEM.map((t) => t.codigo)));
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioEducacaoFisicaResultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    setSelecionadas(new Set(turmasEM.map((t) => t.codigo)));
+  }, [turmasEM]);
+
+  function toggleTurma(codigo: string) {
+    setSelecionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(codigo)) next.delete(codigo);
+      else next.add(codigo);
+      return next;
+    });
+    setResultado(null);
+  }
+
+  function selecionarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
+    setResultado(null);
+  }
+
+  function desmarcarSubset(codigos: string[]) {
+    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
+    setResultado(null);
+  }
+
+  function gerarRelatorio() {
+    if (selecionadas.size === 0) {
+      setErro("Selecione ao menos uma turma.");
+      return;
+    }
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invokeApp<RelatorioEducacaoFisicaResultado>("gerar_relatorio_educacao_fisica", {
+      turmasFiltro: Array.from(selecionadas),
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        if (resposta.alunos === 0) {
+          setMensagem("Nenhum aluno com Educação Física lançada nas turmas selecionadas.");
+        } else {
+          setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
+        }
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPasta() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Educação Física — Ensino Médio</h1>
+          <p>Exporte uma planilha (.csv) com nome, turma e frequência dos alunos do Ensino Médio que têm Educação Física lançada (via mapão separado).</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Exportar</h2>
+            <p>Só entram alunos com carga horária de Educação Física lançada no mapão — quem não faz a disciplina não aparece. A frequência soma os 4 bimestres do ano.</p>
+          </div>
+          <BarChart3 size={28} />
+        </div>
+
+        <TurmaChipSelector
+          turmas={turmasEM}
           selecionadas={selecionadas}
           onToggle={toggleTurma}
           onSelecionarSubset={selecionarSubset}

@@ -37,7 +37,7 @@ import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
-import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioElegiveisRecuperacao, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
+import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioEducacaoFisica, RelatorioElegiveisRecuperacao, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento } from "./features/SettingsPage";
@@ -54,7 +54,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-elegiveis-recuperacao" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-elegiveis-recuperacao" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "relatorio-educacao-fisica" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -319,6 +319,11 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.23.0": [
+    "Novo relatório 'Educação Física — Ensino Médio' na Central de Relatórios: exporta em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada — a disciplina chega por um mapão separado e nem todo aluno a faz, então só entram os alunos com carga horária de EF de fato lançada.",
+    "Corrigido: reimportar o mapão de um bimestre anterior depois de já ter importado um mais recente podia fazer a frequência exibida na ficha do aluno regredir — o app agora só atualiza esse número quando o mapão importado é do bimestre igual ou mais recente que o já registrado.",
+    "Corrigido: sincronizar entre dois dispositivos que tinham importado mapões de bimestres diferentes podia apagar as faltas por disciplina de um dos lados, distorcendo o total de faltas do ano — a sincronização agora combina os bimestres de cada lado em vez de substituir um pelo outro.",
+  ],
   "2.22.3": [
     "Corrigido: a tela de novidades ('o que há de novidade') podia ficar travada em monitores menores, sem espaço para rolar até o botão 'Entendi' nem forma de fechar — agora ela sempre cabe na tela (com rolagem interna quando o texto é longo), e também fecha com Esc ou clicando fora.",
   ],
@@ -1475,6 +1480,7 @@ export function App() {
             onAbrirAtendimentos={() => navegarPara("relatorio-atendimentos")}
             onAbrirTarefas={() => navegarPara("relatorio-tarefas")}
             onAbrirProvaPaulista={() => navegarPara("relatorio-prova-paulista")}
+            onAbrirEducacaoFisica={() => navegarPara("relatorio-educacao-fisica")}
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
@@ -1483,6 +1489,7 @@ export function App() {
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-educacao-fisica" && <RelatorioEducacaoFisica turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} />}
       </section>

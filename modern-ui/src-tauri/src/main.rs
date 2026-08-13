@@ -17,6 +17,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod relatorio_educacao_fisica;
 mod sheets_api;
 mod shell;
 mod sync;
@@ -31,7 +32,7 @@ pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_mapao::*, infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
+    relatorio_educacao_fisica::*, sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
 use tauri::{
@@ -201,6 +202,7 @@ fn main() {
             prova_paulista::analisar_prova_paulista,
             prova_paulista::aplicar_prova_paulista,
             prova_paulista::gerar_relatorio_prova_paulista,
+            relatorio_educacao_fisica::gerar_relatorio_educacao_fisica,
             planejamento::buscar_planejamentos,
             planejamento::salvar_config_planejamento,
             planejamento::carregar_config_planejamento,
@@ -272,6 +274,71 @@ mod tests {
 
         assert!(conselho_foi_finalizado(&resultado["conselhos"]["1"]));
         assert_eq!(resultado["textos_ata"]["1"]["corpo"], json!("ata final"));
+    }
+
+    // Cada dispositivo pode ter importado o mapão de um bimestre diferente antes de
+    // sincronizar; o merge de "frequencia" precisa somar os bimestres em vez de trocar
+    // o objeto inteiro, senão o total de faltas do ano some quando um lado sincroniza
+    // por cima do outro.
+    #[test]
+    fn merge_de_turma_soma_faltas_de_bimestres_so_locais_e_so_do_incoming() {
+        let local = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "frequencia": {"3": {"MATEMATICA": 2.0}}
+                }
+            }
+        });
+        let incoming = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "frequencia": {"1": {"MATEMATICA": 1.0}, "2": {"MATEMATICA": 3.0}}
+                }
+            }
+        });
+
+        let resultado = mesclar_arquivo_turma(&local, &incoming);
+
+        let frequencia = &resultado["alunos"]["123"]["frequencia"];
+        assert_eq!(frequencia["1"]["MATEMATICA"], json!(1.0));
+        assert_eq!(frequencia["2"]["MATEMATICA"], json!(3.0));
+        assert_eq!(frequencia["3"]["MATEMATICA"], json!(2.0));
+    }
+
+    // "Fre An(%)" é cumulativo: o valor do bimestre mais recente já inclui os
+    // anteriores. Um sync trazendo um mapão mais antigo (de um dispositivo que ainda
+    // não importou o bimestre atual) não pode fazer a frequência exibida regredir.
+    #[test]
+    fn merge_de_turma_nao_regride_frequencia_percentual_para_bimestre_mais_antigo() {
+        let local = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "frequencia_percentual": 88,
+                    "frequencia_percentual_bimestre": "3"
+                }
+            }
+        });
+        let incoming = json!({
+            "codigo": "2A",
+            "alunos": {
+                "123": {
+                    "nome": "ALUNO TESTE",
+                    "frequencia_percentual": 95,
+                    "frequencia_percentual_bimestre": "1"
+                }
+            }
+        });
+
+        let resultado = mesclar_arquivo_turma(&local, &incoming);
+
+        assert_eq!(resultado["alunos"]["123"]["frequencia_percentual"], json!(88));
+        assert_eq!(resultado["alunos"]["123"]["frequencia_percentual_bimestre"], json!("3"));
     }
 
     // Reintegração de pendrive chama mesclar_arquivo_turma(&valor_pendrive,

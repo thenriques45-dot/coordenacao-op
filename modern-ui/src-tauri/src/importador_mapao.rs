@@ -99,10 +99,26 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
             };
 
             if let Some(freq) = aluno_mapao.frequencia_percentual {
-                let valor = serde_json::Number::from_f64(freq.round())
-                    .map(Value::Number)
-                    .unwrap_or(Value::Null);
-                info.insert("frequencia_percentual".to_string(), valor);
+                // "Fre An(%)" é cumulativo (frequência anual até aquele bimestre), então o
+                // mapão do bimestre mais recente sempre tem o valor mais completo. Sem essa
+                // checagem, reimportar um mapão de correção de um bimestre anterior (depois
+                // de já ter importado um bimestre mais novo) fazia a frequência exibida
+                // regredir para o valor mais antigo.
+                let bimestre_armazenado_e_mais_recente = info
+                    .get("frequencia_percentual_bimestre")
+                    .and_then(Value::as_str)
+                    .map(|armazenado| armazenado > bimestre.as_str())
+                    .unwrap_or(false);
+                if !bimestre_armazenado_e_mais_recente {
+                    let valor = serde_json::Number::from_f64(freq.round())
+                        .map(Value::Number)
+                        .unwrap_or(Value::Null);
+                    info.insert("frequencia_percentual".to_string(), valor);
+                    info.insert(
+                        "frequencia_percentual_bimestre".to_string(),
+                        Value::String(bimestre.clone()),
+                    );
+                }
             }
 
             for (disciplina, media, faltas, compensacao) in aluno_mapao.disciplinas {
