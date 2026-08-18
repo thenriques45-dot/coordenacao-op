@@ -46,6 +46,8 @@ export type WorkgroupSyncProfile = {
   lastPulledAt?: string;
   lastInstitutionalPublishedAt?: string;
   lastInstitutionalPulledAt?: string;
+  lastSyncError?: string;
+  lastSyncErrorAt?: string;
 };
 
 export type WorkgroupSyncMember = {

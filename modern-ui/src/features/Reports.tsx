@@ -97,6 +97,13 @@ type RelatorioEducacaoFisicaResultado = {
   alunos: number;
 };
 
+type RelatorioTop60Resultado = {
+  caminho: string;
+  pasta: string;
+  periodos: number;
+  alunos: number;
+};
+
 const coresRelatorio = ["#2563eb", "#16a34a", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
 
 const opcoesBimestre = [
@@ -217,6 +224,7 @@ export function RelatoriosMenu({
   onAbrirTarefas,
   onAbrirProvaPaulista,
   onAbrirEducacaoFisica,
+  onAbrirTop60,
 }: {
   onAbrirCriticos: () => void;
   onAbrirElegiveisRecuperacao: () => void;
@@ -225,6 +233,7 @@ export function RelatoriosMenu({
   onAbrirTarefas: () => void;
   onAbrirProvaPaulista: () => void;
   onAbrirEducacaoFisica: () => void;
+  onAbrirTop60: () => void;
 }) {
   const [gerandoLancamento, setGerandoLancamento] = useState(false);
   const [erroLancamento, setErroLancamento] = useState("");
@@ -309,6 +318,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Educação Física — Ensino Médio</strong>
             <span>Exporte em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirTop60}>
+          <Users size={26} />
+          <div>
+            <strong>Top 60 por Período</strong>
+            <span>Lista os 60 melhores alunos de cada período (manhã, tarde e noite), por média global, faltas e médias vermelhas.</span>
           </div>
         </button>
       </section>
@@ -1354,6 +1370,100 @@ export function RelatorioEducacaoFisica({
           {resultado && (
             <button className="secondary-action" onClick={abrirRelatorio}>
               Abrir arquivo
+            </button>
+          )}
+          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
+            Abrir pasta
+          </button>
+        </div>
+
+        {mensagem && <div className="notice success">{mensagem}</div>}
+        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
+        {erro && <div className="notice error">{erro}</div>}
+      </section>
+    </section>
+  );
+}
+
+export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
+  const [bimestre, setBimestre] = useState("4");
+  const [processando, setProcessando] = useState(false);
+  const [resultado, setResultado] = useState<RelatorioTop60Resultado | null>(null);
+  const [mensagem, setMensagem] = useState("");
+  const [erro, setErro] = useState("");
+
+  function gerarRelatorio() {
+    setProcessando(true);
+    setErro("");
+    setMensagem("");
+    setResultado(null);
+    invokeApp<RelatorioTop60Resultado>("gerar_relatorio_top60", {
+      input: { bimestre },
+    })
+      .then((resposta) => {
+        setResultado(resposta);
+        if (resposta.alunos === 0) {
+          setMensagem("Nenhum aluno com média lançada neste bimestre foi encontrado.");
+        } else {
+          setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.periodos} período(s).`);
+        }
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setProcessando(false));
+  }
+
+  function abrirRelatorio() {
+    if (!resultado?.caminho) return;
+    setErro("");
+    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  function abrirPasta() {
+    if (!resultado?.pasta) return;
+    setErro("");
+    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
+  }
+
+  return (
+    <section className="reports-page">
+      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Relatórios</span>
+          <h1>Top 60 por Período</h1>
+          <p>Lista os 60 melhores alunos de cada período (manhã, tarde e noite), ranqueados por média global, faltas e médias vermelhas.</p>
+        </div>
+      </header>
+
+      <section className="panel report-generator-card">
+        <div className="report-generator-heading">
+          <div>
+            <h2>Gerar relatório</h2>
+            <p>Critérios de desempate: 1) maior média global; 2) menos faltas; 3) menos médias vermelhas. Turmas de período Integral não entram. Alunos sem nota lançada no bimestre não aparecem.</p>
+          </div>
+          <Users size={28} />
+        </div>
+
+        <div className="report-controls">
+          <label>
+            Bimestre
+            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
+              {opcoesBimestre.map((opcao) => (
+                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="report-actions">
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+            {processando ? "Gerando..." : "Gerar relatório"}
+          </button>
+          {resultado && (
+            <button className="secondary-action" onClick={abrirRelatorio}>
+              Abrir relatório
             </button>
           )}
           <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>

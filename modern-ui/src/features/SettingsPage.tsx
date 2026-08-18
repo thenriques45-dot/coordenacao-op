@@ -1175,6 +1175,11 @@ export function Configuracoes({
           </span>
           {perfilSync.lastPublishedAt && <span className="settings-version">Última publicação: {new Date(perfilSync.lastPublishedAt).toLocaleString("pt-BR")}</span>}
           {perfilSync.lastPulledAt && <span className="settings-version">Última atualização recebida: {new Date(perfilSync.lastPulledAt).toLocaleString("pt-BR")}</span>}
+          {perfilSync.lastSyncError && (
+            <div className="notice error">
+              A sincronização automática falhou em {perfilSync.lastSyncErrorAt ? new Date(perfilSync.lastSyncErrorAt).toLocaleString("pt-BR") : "uma tentativa recente"}: {perfilSync.lastSyncError}
+            </div>
+          )}
         </article>
         )}
 

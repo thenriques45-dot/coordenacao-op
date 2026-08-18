@@ -37,7 +37,7 @@ import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
-import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioEducacaoFisica, RelatorioElegiveisRecuperacao, RelatorioProvaPaulista, RelatorioTarefas, RelatoriosMenu } from "./features/Reports";
+import { RelatorioAlteracoesNotas, RelatorioAtendimentos, RelatorioAlunosCriticos, RelatorioEducacaoFisica, RelatorioElegiveisRecuperacao, RelatorioProvaPaulista, RelatorioTarefas, RelatorioTop60, RelatoriosMenu } from "./features/Reports";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento } from "./features/SettingsPage";
@@ -54,7 +54,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-elegiveis-recuperacao" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "relatorio-educacao-fisica" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-criticos" | "relatorio-elegiveis-recuperacao" | "relatorio-alteracoes-notas" | "relatorio-atendimentos" | "relatorio-tarefas" | "relatorio-prova-paulista" | "relatorio-educacao-fisica" | "relatorio-top60" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -838,6 +838,8 @@ export function App() {
             ...atual,
             lastPublishedAt: resultado.atualizado_em,
             lastPulledAt: recebeu ? new Date().toISOString() : atual.lastPulledAt,
+            lastSyncError: undefined,
+            lastSyncErrorAt: undefined,
           }));
         }
         const sincronizarDadosInstitucionais = ciclos === 0 || ciclos % 20 === 0;
@@ -865,8 +867,19 @@ export function App() {
             }));
           }
         }
-      } catch {
-        // A sincronização automática é silenciosa; a tela de Configurações mantém os controles manuais.
+      } catch (err) {
+        // A sincronização automática não interrompe o uso do app, mas o erro
+        // fica visível na tela de Configurações — sem isso, uma falha
+        // persistente (ex.: pasta compartilhada inválida numa máquina)
+        // travava a publicação por meses sem que ninguém percebesse.
+        console.error("Falha na sincronização automática de grupo:", err);
+        if (!cancelado) {
+          setPerfilSync((atual) => salvarPerfilSincronizacao({
+            ...atual,
+            lastSyncError: String(err),
+            lastSyncErrorAt: new Date().toISOString(),
+          }));
+        }
       } finally {
         ciclos += 1;
         sincronizando = false;
@@ -1484,6 +1497,7 @@ export function App() {
             onAbrirTarefas={() => navegarPara("relatorio-tarefas")}
             onAbrirProvaPaulista={() => navegarPara("relatorio-prova-paulista")}
             onAbrirEducacaoFisica={() => navegarPara("relatorio-educacao-fisica")}
+            onAbrirTop60={() => navegarPara("relatorio-top60")}
           />
         )}
         {tela === "relatorio-criticos" && <RelatorioAlunosCriticos turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
@@ -1493,6 +1507,7 @@ export function App() {
         {tela === "relatorio-tarefas" && <RelatorioTarefas turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-prova-paulista" && <RelatorioProvaPaulista turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-educacao-fisica" && <RelatorioEducacaoFisica turmas={turmas} onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "relatorio-top60" && <RelatorioTop60 onVoltar={() => navegarPara("relatorios")} />}
         {tela === "pei" && <TelaPEI />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} />}
       </section>

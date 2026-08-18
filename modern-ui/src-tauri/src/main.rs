@@ -18,6 +18,7 @@ mod pendencias;
 mod planejamento;
 mod prova_paulista;
 mod relatorio_educacao_fisica;
+mod relatorio_top60;
 mod sheets_api;
 mod shell;
 mod sync;
@@ -32,7 +33,7 @@ pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_mapao::*, infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    relatorio_educacao_fisica::*, sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
+    relatorio_educacao_fisica::*, relatorio_top60::*, sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
 use tauri::{
@@ -203,6 +204,7 @@ fn main() {
             prova_paulista::aplicar_prova_paulista,
             prova_paulista::gerar_relatorio_prova_paulista,
             relatorio_educacao_fisica::gerar_relatorio_educacao_fisica,
+            relatorio_top60::gerar_relatorio_top60,
             planejamento::buscar_planejamentos,
             planejamento::salvar_config_planejamento,
             planejamento::carregar_config_planejamento,
