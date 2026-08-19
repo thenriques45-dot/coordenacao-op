@@ -379,7 +379,7 @@ mod tests {
         );
         assert_eq!(resultado["alunos"]["123"]["deliberados_conselho"]["1"], json!(true));
     }
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::io::Read;
 
     fn texto_documento_docx(caminho: &Path) -> String {
@@ -757,5 +757,94 @@ mod tests {
         assert!(ja_existe_disciplina_regular(Some(carga), "Língua Inglesa"));
         assert!(!ja_existe_disciplina_regular(Some(carga), "GEOGRAFIA"));
         assert!(!ja_existe_disciplina_regular(None, "MATEMATICA"));
+    }
+
+    // Regressão: um peer com versão antiga do app grava o código da turma sem
+    // formatação ("2a SERIE A") enquanto este dispositivo já tem a mesma turma
+    // com o código formatado ("2ª Série A"). Como os nomes de arquivo divergem,
+    // mesclar_diretorio_persistidos (que casa por nome exato) não os une — a
+    // turma aparecia duplicada na listagem. desduplicar_turmas_por_codigo deve
+    // juntar os dois num só arquivo, mantendo o nome/formatação já corretos e
+    // sem perder alunos nem o ajuste de nota lançado no lado bom.
+    #[test]
+    fn desduplicar_turmas_por_codigo_une_arquivos_com_nomes_diferentes() {
+        let pasta = env::temp_dir().join(format!("coordenacaoop_dedupe_test_{}", std::process::id()));
+        let ano_dir = pasta.join("2026");
+        if pasta.exists() {
+            fs::remove_dir_all(&pasta).unwrap();
+        }
+        fs::create_dir_all(&ano_dir).unwrap();
+
+        let bom = json!({
+            "codigo": "2ª Série A",
+            "ano": 2026,
+            "serie": "2ª Série",
+            "sala": "04",
+            "periodo": "Manhã",
+            "ciclo": "EM",
+            "carga_horaria": {},
+            "conselhos": {},
+            "alunos": {
+                "1": {
+                    "nome": "ALUNO UM",
+                    "ativo": true,
+                    "ajustes_medias_conselho": {"1": {"MATEMATICA": {"media_original": 4.0, "media_ajustada": 5.5, "observacao": ""}}}
+                }
+            }
+        });
+        let cru = json!({
+            "codigo": "2a SERIE A",
+            "ano": 2026,
+            "serie": "2a SERIE",
+            "sala": "04",
+            "periodo": "Manhã",
+            "ciclo": "EM",
+            "carga_horaria": {},
+            "conselhos": {},
+            "alunos": {
+                "1": {"nome": "ALUNO UM", "ativo": true},
+                "2": {"nome": "ALUNO DOIS", "ativo": true}
+            }
+        });
+
+        let caminho_bom = ano_dir.join("turma_2a S_rie A.json");
+        let caminho_cru = ano_dir.join("turma_2a SERIE A.json");
+        fs::write(&caminho_bom, serde_json::to_string_pretty(&bom).unwrap()).unwrap();
+        fs::write(&caminho_cru, serde_json::to_string_pretty(&cru).unwrap()).unwrap();
+
+        desduplicar_turmas_por_codigo(&pasta).unwrap();
+
+        assert!(caminho_bom.exists(), "arquivo com nome formatado deveria permanecer");
+        assert!(!caminho_cru.exists(), "arquivo cru duplicado deveria ser removido");
+
+        let resultado: Value = serde_json::from_str(&fs::read_to_string(&caminho_bom).unwrap()).unwrap();
+        assert_eq!(resultado["codigo"], json!("2ª Série A"));
+        assert_eq!(resultado["alunos"].as_object().unwrap().len(), 2);
+        assert_eq!(
+            resultado["alunos"]["1"]["ajustes_medias_conselho"]["1"]["MATEMATICA"]["media_ajustada"],
+            json!(5.5)
+        );
+        assert_eq!(resultado["alunos"]["2"]["nome"], json!("ALUNO DOIS"));
+
+        fs::remove_dir_all(&pasta).unwrap();
+    }
+
+    #[test]
+    fn desduplicar_turmas_por_codigo_nao_mexe_quando_nao_ha_duplicata() {
+        let pasta = env::temp_dir().join(format!("coordenacaoop_dedupe_unico_test_{}", std::process::id()));
+        let ano_dir = pasta.join("2026");
+        if pasta.exists() {
+            fs::remove_dir_all(&pasta).unwrap();
+        }
+        fs::create_dir_all(&ano_dir).unwrap();
+
+        let turma = json!({"codigo": "6º Ano A", "ano": 2026, "alunos": {}});
+        let caminho = ano_dir.join("turma_6o Ano A.json");
+        fs::write(&caminho, serde_json::to_string_pretty(&turma).unwrap()).unwrap();
+
+        desduplicar_turmas_por_codigo(&pasta).unwrap();
+        assert!(caminho.exists());
+
+        fs::remove_dir_all(&pasta).unwrap();
     }
 }

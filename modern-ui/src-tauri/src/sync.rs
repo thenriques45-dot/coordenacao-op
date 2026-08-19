@@ -8,6 +8,7 @@ use crate::*;
 use chrono::Local;
 use serde_json::Value;
 use std::{
+    collections::BTreeMap,
     env, fs, io,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
@@ -254,6 +255,16 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
         &temporario.join("persistidos"),
     )
     .map_err(|err| err.to_string())?;
+
+    // O merge acima casa arquivos pelo nome exato. Se um peer com versão mais
+    // antiga do app gravou o código da turma sem formatação ("2a SERIE A") e
+    // este dispositivo já tinha a mesma turma com o código formatado
+    // ("2ª Série A"), os nomes de arquivo divergem e o merge por nome não os
+    // une — a turma passava a aparecer duplicada na listagem. Aqui agrupamos
+    // por ano + código normalizado (ignorando acentos/maiúsculas) e mesclamos
+    // qualquer grupo com mais de um arquivo.
+    desduplicar_turmas_por_codigo(&temporario.join("persistidos"))
+        .map_err(|err| err.to_string())?;
 
     // Une as fotos locais às recebidas (sem perder fotos só locais).
     mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))
@@ -693,6 +704,109 @@ pub(crate) fn mesclar_config_webapp(local_path: &Path, temp_path: &Path) -> io::
     let texto_merged =
         serde_json::to_string_pretty(&Value::Object(temp_map)).map_err(|e| io::Error::other(e.to_string()))?;
     fs::write(temp_path, texto_merged)
+}
+
+// Agrupa os arquivos turma_*.json de cada pasta de ano por (ano, código
+// normalizado) e mescla qualquer grupo com mais de um arquivo, mantendo o
+// nome e os campos de configuração do arquivo cujo código já está no formato
+// "bonito" (ex.: "2ª Série A") — se nenhum estiver, mantém o primeiro em
+// ordem alfabética. Ver comentário em publicar/carregar_dados_institucionais_
+// sincronizacao sobre como duplicatas com nomes diferentes sobrevivem ao
+// merge por nome de arquivo em mesclar_diretorio_persistidos.
+pub(crate) fn desduplicar_turmas_por_codigo(pasta: &Path) -> io::Result<()> {
+    if !pasta.is_dir() {
+        return Ok(());
+    }
+    for entrada in fs::read_dir(pasta)? {
+        let caminho = entrada?.path();
+        if caminho.is_dir() {
+            desduplicar_turmas_por_codigo(&caminho)?;
+        }
+    }
+
+    let mut grupos: BTreeMap<(i64, String), Vec<PathBuf>> = BTreeMap::new();
+    for entrada in fs::read_dir(pasta)? {
+        let caminho = entrada?.path();
+        let Some(nome) = caminho.file_name().and_then(|v| v.to_str()) else {
+            continue;
+        };
+        if caminho.is_dir() || !nome.starts_with("turma_") || !nome.ends_with(".json") {
+            continue;
+        }
+        if eh_copia_de_conflito_sync(&caminho) {
+            continue;
+        }
+        let Some(dados) = fs::read_to_string(&caminho)
+            .ok()
+            .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+        else {
+            continue;
+        };
+        let (Some(ano), Some(codigo)) = (
+            dados.get("ano").and_then(Value::as_i64),
+            dados.get("codigo").and_then(Value::as_str),
+        ) else {
+            continue;
+        };
+        grupos
+            .entry((ano, normalizar_texto_basico(codigo)))
+            .or_default()
+            .push(caminho);
+    }
+
+    for (_, mut arquivos) in grupos {
+        if arquivos.len() < 2 {
+            continue;
+        }
+        arquivos.sort();
+
+        let mut valores: Vec<(PathBuf, Value)> = arquivos
+            .into_iter()
+            .filter_map(|caminho| {
+                fs::read_to_string(&caminho)
+                    .ok()
+                    .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+                    .map(|dados| (caminho, dados))
+            })
+            .collect();
+        if valores.len() < 2 {
+            continue;
+        }
+
+        let indice_base = valores
+            .iter()
+            .position(|(_, dados)| {
+                dados
+                    .get("codigo")
+                    .and_then(Value::as_str)
+                    .map(|codigo| formatar_rotulo_turma_texto(codigo) == codigo)
+                    .unwrap_or(false)
+            })
+            .unwrap_or(0);
+        let (caminho_base, base_original) = valores.remove(indice_base);
+
+        let mut mesclado = base_original.clone();
+        for (_, valor_extra) in &valores {
+            mesclado = mesclar_arquivo_turma(&mesclado, valor_extra);
+        }
+        // mesclar_arquivo_turma deixa o lado "incoming" vencer nos campos de
+        // configuração da turma — aqui queremos que o arquivo já formatado
+        // (base_original) continue definindo código/série/sala/etc.
+        if let Some(obj) = mesclado.as_object_mut() {
+            for campo in ["codigo", "ano", "serie", "sala", "periodo", "ciclo", "carga_horaria"] {
+                if let Some(valor) = base_original.get(campo) {
+                    obj.insert(campo.to_string(), valor.clone());
+                }
+            }
+        }
+
+        let texto = serde_json::to_string_pretty(&mesclado).map_err(|e| io::Error::other(e.to_string()))?;
+        fs::write(&caminho_base, texto)?;
+        for (caminho_extra, _) in valores {
+            fs::remove_file(caminho_extra)?;
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -> io::Result<()> {

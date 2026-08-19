@@ -319,6 +319,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "2.24.1": [
+    "Corrigido: turmas podiam aparecer duplicadas na lista depois de sincronizar com um dispositivo em versão mais antiga do app — o merge casava as turmas pelo nome do arquivo, e um código gravado sem formatação (ex.: '2a SERIE A') virava um arquivo com nome diferente do já formatado ('2ª Série A'), então as duas nunca se uniam. A sincronização agora reconhece que são a mesma turma comparando o código sem acento/maiúsculas, une os dados dos dois lados e mantém só um registro.",
+  ],
   "2.23.1": [
     "Corrigido: o relatório 'Educação Física — Ensino Médio' (novo na 2.23.0) listava a turma inteira em vez de só quem faz a disciplina — a carga horária de EF é um número por turma (mesmo valor pra sala toda), então bastava 1 aluno real de EF ter sido casado naquela sala pra todo mundo dela entrar no relatório com frequência 100% inventada. Agora só entra quem tem falta de EF lançada individualmente.",
   ],
