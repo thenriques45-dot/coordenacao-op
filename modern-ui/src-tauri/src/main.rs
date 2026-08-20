@@ -205,6 +205,8 @@ fn main() {
             motor_relatorios::excluir_definicao_relatorio,
             motor_relatorios::exportar_definicao_relatorio,
             motor_relatorios::importar_definicao_relatorio,
+            motor_relatorios::listar_repositorio_relatorios,
+            motor_relatorios::baixar_relatorio_repositorio,
             planejamento::buscar_planejamentos,
             planejamento::salvar_config_planejamento,
             planejamento::carregar_config_planejamento,

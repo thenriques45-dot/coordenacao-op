@@ -113,12 +113,21 @@ pub(crate) struct OrdenacaoRelatorio {
 /// turma). `limite_por_grupo` cobre o caso "Top N por grupo" (ex.: Top 60);
 /// `ordem_grupos` permite fixar a ordem dos blocos em vez de alfabética
 /// (ex.: Manhã/Tarde/Noite em vez de Manhã/Noite/Tarde).
+///
+/// `limite_parametro`, quando presente, aponta pro id de um
+/// `DefinicaoParametro` numérico cujo valor (escolhido na hora de gerar)
+/// substitui `limite_por_grupo` — é o que deixa um "Top N" configurável
+/// (ex.: Top 60 virar Top 20) sem precisar de uma coluna calculada só pra
+/// isso. `limite_por_grupo` continua servindo de valor de referência/
+/// fallback quando o parâmetro não resolve pra nada.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct AgrupamentoRelatorio {
     #[serde(default)]
     pub(crate) campo: Option<ExpressaoNo>,
     #[serde(default)]
     pub(crate) limite_por_grupo: Option<usize>,
+    #[serde(default)]
+    pub(crate) limite_parametro: Option<String>,
     #[serde(default)]
     pub(crate) ordem_grupos: Option<Vec<String>>,
 }
@@ -184,6 +193,64 @@ pub(crate) struct SecaoRelatorio {
     pub(crate) agrupamento: AgrupamentoRelatorio,
 }
 
+/// Um bloco do documento na ordem em que aparece no construtor visual novo
+/// (o "editor de blocos"). Não confundir com `SecaoRelatorio`: um bloco
+/// `Tabela` só *aponta* pra uma seção (via `secao_index`) — quem carrega
+/// filtros/colunas/ordenação continua sendo `SecaoRelatorio`, pra não
+/// duplicar schema nem mexer no executor.
+///
+/// Relatórios salvos antes desta versão (todos os embutidos, e qualquer
+/// relatório personalizado antigo) não têm `blocos` — o campo vem vazio via
+/// `#[serde(default)]` e os renderers caem no caminho antigo, direto em
+/// `secoes`, sem qualquer mudança de comportamento.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct BlocoRelatorio {
+    pub(crate) id: String,
+    #[serde(default = "valor_true")]
+    pub(crate) ativo: bool,
+    #[serde(flatten)]
+    pub(crate) conteudo: ConteudoBloco,
+}
+
+fn valor_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "tipo", rename_all = "snake_case")]
+pub(crate) enum ConteudoBloco {
+    /// Nome do relatório + "Coordenação Pedagógica · Nº bimestre" no topo.
+    /// Sem configuração — usa `ReportDefinition.nome` e o bimestre de
+    /// execução.
+    Cabecalho,
+    /// Parágrafo livre. `corpo` aceita `{bimestre}`, substituído pelo
+    /// rótulo do bimestre em que o relatório está sendo gerado.
+    Texto {
+        #[serde(default)]
+        titulo: Option<String>,
+        #[serde(default)]
+        corpo: String,
+    },
+    /// `secao_index` é a posição da tabela correspondente em
+    /// `ReportDefinition.secoes` — quem executa a consulta é o motor de
+    /// sempre, este bloco só decide onde ela entra no documento final.
+    Tabela {
+        secao_index: usize,
+    },
+    /// Início de uma nova página (docx/pdf). Sem configuração.
+    QuebraPagina,
+    /// Uma linha de assinatura por nome.
+    Assinaturas {
+        #[serde(default)]
+        nomes: Vec<String>,
+    },
+    /// Os parâmetros de execução (`ReportDefinition.parametros`) editados
+    /// como um bloco, em vez de escondidos numa aba separada. Não gera
+    /// nada no arquivo final — é só onde a pessoa configura o que a tela de
+    /// geração vai perguntar antes de rodar.
+    Parametros,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ReportDefinition {
     pub(crate) id: String,
@@ -199,5 +266,9 @@ pub(crate) struct ReportDefinition {
     #[serde(default)]
     pub(crate) parametros: Vec<DefinicaoParametro>,
     pub(crate) secoes: Vec<SecaoRelatorio>,
+    /// Composição do documento pro construtor de blocos novo — ver
+    /// `BlocoRelatorio`. Vazio nos relatórios antigos/embutidos.
+    #[serde(default)]
+    pub(crate) blocos: Vec<BlocoRelatorio>,
     pub(crate) formato_saida: FormatoSaida,
 }

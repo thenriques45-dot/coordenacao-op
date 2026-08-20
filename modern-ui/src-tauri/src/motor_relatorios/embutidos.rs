@@ -17,13 +17,6 @@ fn campo(id: &str) -> ExpressaoNo {
     }
 }
 
-fn campo_param(id: &str, parametro: &str) -> ExpressaoNo {
-    ExpressaoNo::Campo {
-        campo_id: id.to_string(),
-        parametro: Some(parametro.to_string()),
-    }
-}
-
 fn item_atual(chave: &str) -> ExpressaoNo {
     ExpressaoNo::ItemAtual { chave: chave.to_string() }
 }
@@ -41,12 +34,6 @@ fn literal_texto(texto: &str) -> ExpressaoNo {
 fn literal_numero(numero: f64) -> ExpressaoNo {
     ExpressaoNo::Literal {
         valor: ValorExpressao::Numero(numero),
-    }
-}
-
-fn literal_bool(valor: bool) -> ExpressaoNo {
-    ExpressaoNo::Literal {
-        valor: ValorExpressao::Booleano(valor),
     }
 }
 
@@ -112,18 +99,24 @@ fn expressao_rotulo_periodo() -> ExpressaoNo {
 pub(crate) fn definicao_top60() -> ReportDefinition {
     ReportDefinition {
         id: "top60".to_string(),
-        nome: "Top 60 por Período".to_string(),
+        nome: "Top Alunos".to_string(),
         descricao:
-            "Os 60 melhores alunos de cada período (Manhã/Tarde/Noite) do bimestre, por média global. \
-             Critérios de desempate: maior frequência anual acumulada, depois menor número de médias \
-             vermelhas. Turmas de período Integral não entram."
+            "Os melhores alunos de cada período (Manhã/Tarde/Noite) do bimestre, por média global — \
+             quantidade por período ajustável abaixo (60 por padrão). Critérios de desempate: maior \
+             frequência anual acumulada, depois menor número de médias vermelhas. Turmas de período \
+             Integral não entram."
                 .to_string(),
         embutido: true,
         fonte: FiltroTurmas {
             periodos: vec!["MANHA".to_string(), "TARDE".to_string(), "NOITE".to_string()],
             ..Default::default()
         },
-        parametros: vec![],
+        parametros: vec![DefinicaoParametro {
+            id: "quantidade_top".to_string(),
+            rotulo: "Quantos alunos por período (Top N)".to_string(),
+            tipo: TipoParametro::Numero,
+            valor_padrao: ValorExpressao::Numero(60.0),
+        }],
         secoes: secao_unica(
             GrupoFiltros {
                 combinador: Combinador::E,
@@ -161,65 +154,12 @@ pub(crate) fn definicao_top60() -> ReportDefinition {
             AgrupamentoRelatorio {
                 campo: Some(expressao_rotulo_periodo()),
                 limite_por_grupo: Some(60),
+                limite_parametro: Some("quantidade_top".to_string()),
                 ordem_grupos: Some(vec!["Manhã".to_string(), "Tarde".to_string(), "Noite".to_string()]),
             },
         ),
+        blocos: Vec::new(),
         formato_saida: FormatoSaida::Docx,
-    }
-}
-
-const DISCIPLINA_EDUCACAO_FISICA: &str = "EDUCACAO FISICA";
-
-pub(crate) fn definicao_educacao_fisica() -> ReportDefinition {
-    ReportDefinition {
-        id: "educacao_fisica".to_string(),
-        nome: "Educação Física — Ensino Médio".to_string(),
-        descricao: "Frequência acumulada em Educação Física, turmas de Ensino Médio.".to_string(),
-        embutido: true,
-        fonte: FiltroTurmas {
-            ciclos: vec!["EM".to_string()],
-            ..Default::default()
-        },
-        parametros: vec![],
-        secoes: secao_unica(
-            GrupoFiltros {
-                combinador: Combinador::E,
-                condicoes: vec![FiltroCondicao {
-                    campo: campo_param("aluno_tem_disciplina", DISCIPLINA_EDUCACAO_FISICA),
-                    operador: Operador::Igual,
-                    valor: Some(literal_bool(true)),
-                }],
-            },
-            vec![
-                coluna("turma", "Turma", campo("turma_codigo"), Some(1800), Alinhamento::Esquerda),
-                coluna("numero", "Nº", campo("aluno_numero_chamada"), Some(600), Alinhamento::Centro),
-                coluna("nome", "Nome", campo("aluno_nome"), Some(3200), Alinhamento::Esquerda),
-                coluna(
-                    "faltas",
-                    "Faltas",
-                    campo_param("faltas_acumuladas_disciplina", DISCIPLINA_EDUCACAO_FISICA),
-                    Some(900),
-                    Alinhamento::Centro,
-                ),
-                coluna(
-                    "total_aulas",
-                    "Total de aulas",
-                    campo_param("total_aulas_disciplina", DISCIPLINA_EDUCACAO_FISICA),
-                    Some(1300),
-                    Alinhamento::Centro,
-                ),
-                coluna(
-                    "frequencia",
-                    "Frequência (%)",
-                    campo_param("frequencia_percentual_disciplina", DISCIPLINA_EDUCACAO_FISICA),
-                    Some(1300),
-                    Alinhamento::Centro,
-                ),
-            ],
-            vec![ordenacao("turma"), ordenacao("numero")],
-            AgrupamentoRelatorio::default(),
-        ),
-        formato_saida: FormatoSaida::Csv,
     }
 }
 
@@ -305,77 +245,12 @@ pub(crate) fn definicao_alunos_criticos() -> ReportDefinition {
             AgrupamentoRelatorio {
                 campo: Some(campo("turma_rotulo")),
                 limite_por_grupo: None,
+                limite_parametro: None,
                 ordem_grupos: None,
             },
         ),
+        blocos: Vec::new(),
         formato_saida: FormatoSaida::Docx,
-    }
-}
-
-const CODIGOS_PROVA_PAULISTA: [&str; 13] = [
-    "MAT", "PORT", "ING", "HIST", "GEO", "CIE", "FILO", "SOC", "BIO", "FIS", "QUI", "FIN", "TEC",
-];
-
-pub(crate) fn definicao_prova_paulista() -> ReportDefinition {
-    let mut colunas = vec![
-        coluna("turma", "Turma", campo("turma_codigo"), None, Alinhamento::Esquerda),
-        coluna("numero", "Nº", campo("aluno_numero_chamada"), None, Alinhamento::Centro),
-        coluna("nome", "Nome", campo("aluno_nome"), None, Alinhamento::Esquerda),
-        coluna("participou", "Participou", campo("prova_paulista_participou"), None, Alinhamento::Centro),
-        coluna("geral", "Geral", campo("prova_paulista_geral"), None, Alinhamento::Centro),
-    ];
-    for codigo in CODIGOS_PROVA_PAULISTA {
-        colunas.push(coluna(
-            &format!("disc_{}", codigo.to_lowercase()),
-            codigo,
-            campo_param("prova_paulista_disciplina", codigo),
-            None,
-            Alinhamento::Centro,
-        ));
-    }
-
-    ReportDefinition {
-        id: "prova_paulista".to_string(),
-        nome: "Prova Paulista".to_string(),
-        descricao: "Notas da Prova Paulista por disciplina, turma e bimestre, para todos os alunos ativos.".to_string(),
-        embutido: true,
-        fonte: FiltroTurmas::default(),
-        parametros: vec![],
-        secoes: secao_unica(
-            GrupoFiltros::default(),
-            colunas,
-            vec![ordenacao("turma"), ordenacao("numero"), ordenacao("nome")],
-            AgrupamentoRelatorio::default(),
-        ),
-        formato_saida: FormatoSaida::Csv,
-    }
-}
-
-pub(crate) fn definicao_tarefas() -> ReportDefinition {
-    ReportDefinition {
-        id: "tarefas".to_string(),
-        nome: "Tarefas Realizadas".to_string(),
-        descricao: "Percentual de tarefas concluídas por aluno e turma, por bimestre — uma aba por turma.".to_string(),
-        embutido: true,
-        fonte: FiltroTurmas::default(),
-        parametros: vec![],
-        secoes: secao_unica(
-            GrupoFiltros::default(),
-            vec![
-                coluna("numero", "Nº", campo("aluno_numero_chamada"), None, Alinhamento::Centro),
-                coluna("nome", "Nome", campo("aluno_nome"), None, Alinhamento::Esquerda),
-                coluna("feitas", "Feitas", campo("tarefas_feitas"), None, Alinhamento::Centro),
-                coluna("total", "Total", campo("tarefas_total"), None, Alinhamento::Centro),
-                coluna("nota", "Nota", campo("tarefas_nota"), None, Alinhamento::Centro),
-            ],
-            vec![ordenacao("numero"), ordenacao("nome")],
-            AgrupamentoRelatorio {
-                campo: Some(campo("turma_codigo")),
-                limite_por_grupo: None,
-                ordem_grupos: None,
-            },
-        ),
-        formato_saida: FormatoSaida::Xlsx,
     }
 }
 
@@ -414,6 +289,7 @@ fn secao_alteracoes_notas(titulo: &str, operador_situacao: Operador) -> SecaoRel
         agrupamento: AgrupamentoRelatorio {
             campo: Some(campo("turma_rotulo")),
             limite_por_grupo: None,
+            limite_parametro: None,
             ordem_grupos: None,
         },
     }
@@ -432,6 +308,7 @@ pub(crate) fn definicao_alteracoes_notas() -> ReportDefinition {
             secao_alteracoes_notas("Pendentes (mapão ainda não confirma o conselho)", Operador::Diferente),
             secao_alteracoes_notas("Confirmadas no mapão", Operador::Igual),
         ],
+        blocos: Vec::new(),
         formato_saida: FormatoSaida::Docx,
     }
 }
@@ -511,6 +388,7 @@ pub(crate) fn definicao_elegiveis_recuperacao() -> ReportDefinition {
         agrupamento: AgrupamentoRelatorio {
             campo: Some(campo("turma_rotulo")),
             limite_por_grupo: None,
+            limite_parametro: None,
             ordem_grupos: None,
         },
     };
@@ -535,6 +413,7 @@ pub(crate) fn definicao_elegiveis_recuperacao() -> ReportDefinition {
         agrupamento: AgrupamentoRelatorio {
             campo: Some(expressao_grupo_sugestao_recuperacao()),
             limite_por_grupo: None,
+            limite_parametro: None,
             ordem_grupos: None,
         },
     };
@@ -554,6 +433,7 @@ pub(crate) fn definicao_elegiveis_recuperacao() -> ReportDefinition {
             valor_padrao: ValorExpressao::Numero(50.0),
         }],
         secoes: vec![secao_elegiveis, secao_sugestoes],
+        blocos: Vec::new(),
         formato_saida: FormatoSaida::Docx,
     }
 }
@@ -589,9 +469,11 @@ pub(crate) fn definicao_pendencia_lancamento() -> ReportDefinition {
             agrupamento: AgrupamentoRelatorio {
                 campo: Some(campo("turma_codigo")),
                 limite_por_grupo: None,
+                limite_parametro: None,
                 ordem_grupos: None,
             },
         }],
+        blocos: Vec::new(),
         formato_saida: FormatoSaida::Docx,
     }
 }
@@ -599,10 +481,7 @@ pub(crate) fn definicao_pendencia_lancamento() -> ReportDefinition {
 pub(crate) fn definicoes_embutidas() -> Vec<ReportDefinition> {
     vec![
         definicao_top60(),
-        definicao_educacao_fisica(),
         definicao_alunos_criticos(),
-        definicao_prova_paulista(),
-        definicao_tarefas(),
         definicao_alteracoes_notas(),
         definicao_elegiveis_recuperacao(),
         definicao_pendencia_lancamento(),

@@ -1,0 +1,104 @@
+{
+  "id": "tarefas",
+  "nome": "Tarefas Realizadas",
+  "descricao": "Percentual de tarefas concluídas por aluno e turma, por bimestre — uma aba por turma.",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [],
+    "ciclos": [],
+    "codigos": []
+  },
+  "parametros": [],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": []
+      },
+      "colunas": [
+        {
+          "id": "numero",
+          "rotulo": "Nº",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "nome",
+          "rotulo": "Nome",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "feitas",
+          "rotulo": "Feitas",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "tarefas_feitas",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "total",
+          "rotulo": "Total",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "tarefas_total",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "nota",
+          "rotulo": "Nota",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "tarefas_nota",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "numero",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "nome",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": {
+          "tipo": "campo",
+          "campo_id": "turma_codigo",
+          "parametro": null
+        },
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [],
+  "formato_saida": "xlsx"
+}

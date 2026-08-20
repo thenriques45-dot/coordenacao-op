@@ -1,0 +1,129 @@
+{
+  "id": "educacao_fisica",
+  "nome": "Educação Física — Ensino Médio",
+  "descricao": "Frequência acumulada em Educação Física, turmas de Ensino Médio.",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [],
+    "ciclos": [
+      "EM"
+    ],
+    "codigos": []
+  },
+  "parametros": [],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": [
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "aluno_tem_disciplina",
+              "parametro": "EDUCACAO FISICA"
+            },
+            "operador": "igual",
+            "valor": {
+              "tipo": "literal",
+              "valor": {
+                "tipo": "booleano",
+                "valor": true
+              }
+            }
+          }
+        ]
+      },
+      "colunas": [
+        {
+          "id": "turma",
+          "rotulo": "Turma",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "turma_codigo",
+            "parametro": null
+          },
+          "largura": 1800,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "numero",
+          "rotulo": "Nº",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": 600,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "nome",
+          "rotulo": "Nome",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": 3200,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "faltas",
+          "rotulo": "Faltas",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "faltas_acumuladas_disciplina",
+            "parametro": "EDUCACAO FISICA"
+          },
+          "largura": 900,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "total_aulas",
+          "rotulo": "Total de aulas",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "total_aulas_disciplina",
+            "parametro": "EDUCACAO FISICA"
+          },
+          "largura": 1300,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "frequencia",
+          "rotulo": "Frequência (%)",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "frequencia_percentual_disciplina",
+            "parametro": "EDUCACAO FISICA"
+          },
+          "largura": 1300,
+          "alinhamento": "centro"
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "turma",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "numero",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": null,
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [],
+  "formato_saida": "csv"
+}

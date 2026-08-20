@@ -39,6 +39,7 @@ import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegive
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
+import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRelatorios";
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
@@ -56,7 +57,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -1247,7 +1248,11 @@ export function App() {
   }
 
   return (
-    <main className={`app-shell ${temaEscuro ? "theme-dark" : "theme-light"} ${modoReuniao ? "meeting-mode-shell" : ""}`}>
+    <main
+      className={`app-shell ${temaEscuro ? "theme-dark" : "theme-light"} ${modoReuniao ? "meeting-mode-shell" : ""} ${
+        tela === "construtor-relatorio" ? "no-sidebar-shell" : ""
+      }`}
+    >
       <button
         className="app-sidebar-toggle"
         type="button"
@@ -1301,7 +1306,7 @@ export function App() {
               </div>
             )}
           </div>
-          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-atendimentos" || tela === "relatorio-motor" || tela === "construtor-relatorio"} onClick={() => navegarPara("relatorios")} />
+          <NavButton icon={<FileText size={18} />} label="Relatórios" active={tela === "relatorios" || tela === "relatorio-atendimentos" || tela === "relatorio-motor" || tela === "construtor-relatorio" || tela === "repositorio-relatorios"} onClick={() => navegarPara("relatorios")} />
           <NavButton icon={<Settings size={18} />} label="Configurações" active={tela === "configuracoes"} onClick={() => navegarPara("configuracoes")} />
         </nav>
 
@@ -1506,6 +1511,7 @@ export function App() {
               setDefinicaoParaEditar(undefined);
               navegarPara("construtor-relatorio");
             }}
+            onAbrirRepositorio={() => navegarPara("repositorio-relatorios")}
             onEditarRelatorio={(definicaoId) => {
               invokeApp<ReportDefinition[]>("listar_definicoes_relatorio")
                 .then((lista) => {
@@ -1518,6 +1524,7 @@ export function App() {
           />
         )}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
+        {tela === "repositorio-relatorios" && <RepositorioRelatorios onVoltar={() => navegarPara("relatorios")} />}
         {tela === "relatorio-motor" && (
           <MotorRelatorios definicaoIdInicial={relatorioMotorPreselecionado} onVoltar={() => navegarPara("relatorios")} />
         )}

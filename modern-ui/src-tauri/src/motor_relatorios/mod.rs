@@ -16,6 +16,7 @@ mod embutidos;
 mod executor;
 mod expressoes;
 mod renderers;
+mod repositorio;
 
 #[allow(unused_imports)]
-pub(crate) use {comandos::*, definicao::*, executor::RelatorioGenericoResultado};
+pub(crate) use {comandos::*, definicao::*, executor::RelatorioGenericoResultado, repositorio::*};

@@ -80,6 +80,10 @@ export type OrdenacaoRelatorio = {
 export type AgrupamentoRelatorio = {
   campo?: ExpressaoNo | null;
   limite_por_grupo?: number | null;
+  // Id de um DefinicaoParametro numérico que, quando presente, vale mais que
+  // limite_por_grupo na hora de gerar — é o que torna um "Top N" ajustável
+  // (ex.: Top 60 virar Top 20) sem editar a definição do relatório.
+  limite_parametro?: string | null;
   ordem_grupos?: string[] | null;
 };
 
@@ -105,6 +109,25 @@ export type SecaoRelatorio = {
   agrupamento: AgrupamentoRelatorio;
 };
 
+// Espelha ConteudoBloco (motor_relatorios/definicao.rs) — o construtor de
+// blocos novo. "tabela" só guarda `secao_index`: quem carrega filtros,
+// colunas etc. continua sendo a SecaoRelatorio correspondente em
+// `ReportDefinition.secoes`, no mesmo índice.
+export type ConteudoBloco =
+  | { tipo: "cabecalho" }
+  | { tipo: "texto"; titulo?: string | null; corpo: string }
+  | { tipo: "tabela"; secao_index: number }
+  | { tipo: "quebra_pagina" }
+  | { tipo: "assinaturas"; nomes: string[] }
+  | { tipo: "parametros" };
+
+export type TipoBloco = ConteudoBloco["tipo"];
+
+export type BlocoRelatorio = {
+  id: string;
+  ativo: boolean;
+} & ConteudoBloco;
+
 export type ReportDefinition = {
   id: string;
   nome: string;
@@ -113,6 +136,19 @@ export type ReportDefinition = {
   fonte: FiltroTurmas;
   parametros: DefinicaoParametro[];
   secoes: SecaoRelatorio[];
+  blocos: BlocoRelatorio[];
+  formato_saida: FormatoSaida;
+};
+
+// Espelha repositorio.rs — um item listado na tela "Repositório de
+// relatórios", vindo do repositório GitHub público do projeto.
+export type CategoriaRepositorio = "oficial" | "comunidade";
+
+export type ItemRepositorio = {
+  caminho: string;
+  categoria: CategoriaRepositorio;
+  nome: string;
+  descricao: string;
   formato_saida: FormatoSaida;
 };
 

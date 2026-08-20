@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "modern-ui-dev",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\npm.cmd",
       "runtimeArgs": ["--prefix", "modern-ui", "run", "dev"],
       "port": 1420
     }

@@ -1,0 +1,247 @@
+{
+  "id": "prova_paulista",
+  "nome": "Prova Paulista",
+  "descricao": "Notas da Prova Paulista por disciplina, turma e bimestre, para todos os alunos ativos.",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [],
+    "ciclos": [],
+    "codigos": []
+  },
+  "parametros": [],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": []
+      },
+      "colunas": [
+        {
+          "id": "turma",
+          "rotulo": "Turma",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "turma_codigo",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "numero",
+          "rotulo": "Nº",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "nome",
+          "rotulo": "Nome",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "participou",
+          "rotulo": "Participou",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_participou",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "geral",
+          "rotulo": "Geral",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_geral",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_mat",
+          "rotulo": "MAT",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "MAT"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_port",
+          "rotulo": "PORT",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "PORT"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_ing",
+          "rotulo": "ING",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "ING"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_hist",
+          "rotulo": "HIST",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "HIST"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_geo",
+          "rotulo": "GEO",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "GEO"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_cie",
+          "rotulo": "CIE",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "CIE"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_filo",
+          "rotulo": "FILO",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "FILO"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_soc",
+          "rotulo": "SOC",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "SOC"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_bio",
+          "rotulo": "BIO",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "BIO"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_fis",
+          "rotulo": "FIS",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "FIS"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_qui",
+          "rotulo": "QUI",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "QUI"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_fin",
+          "rotulo": "FIN",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "FIN"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "disc_tec",
+          "rotulo": "TEC",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "prova_paulista_disciplina",
+            "parametro": "TEC"
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "turma",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "numero",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "nome",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": null,
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [],
+  "formato_saida": "csv"
+}

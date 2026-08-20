@@ -80,7 +80,7 @@ fn montar_secoes<'a>(
     for secao in &definicao.secoes {
         let mut linhas = gerar_linhas_secao(secao, turmas, &definicao.fonte, bimestre, nota_minima, parametros);
         ordenar_linhas(&mut linhas, &secao.ordenacao);
-        let blocos = agrupar_linhas(linhas, &secao.agrupamento);
+        let blocos = agrupar_linhas(linhas, &secao.agrupamento, parametros);
         let linhas_secao: usize = blocos.iter().map(|(_, linhas)| linhas.len()).sum();
         total_linhas += linhas_secao;
         total_grupos += blocos.len();
@@ -113,7 +113,7 @@ pub(crate) fn executar_relatorio(
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
     let caminho = pasta.join(nome_arquivo_relatorio(definicao, &bimestre));
 
-    renderers::renderizar(definicao, &secoes_resultado, &caminho)?;
+    renderers::renderizar(definicao, &secoes_resultado, &bimestre, &caminho)?;
 
     Ok(RelatorioGenericoResultado {
         caminho: caminho.to_string_lossy().to_string(),
@@ -379,18 +379,35 @@ fn comparar_valores(a: Option<&ValorExpressao>, b: Option<&ValorExpressao>) -> s
 /// alfabética. Sem agrupamento configurado, devolve um único bloco sem
 /// rótulo. `limite_por_grupo` corta cada bloco depois de montado — como as
 /// linhas já vieram ordenadas por `ordenacao`, isso é o "Top N por grupo".
+/// `limite_parametro` (id de um `DefinicaoParametro` numérico) vence
+/// `limite_por_grupo` quando os dois estão presentes e o parâmetro resolve
+/// pra um número — é o que torna um "Top N" configurável na hora de gerar
+/// (ex.: Top 60 virar Top 20) em vez de fixo na definição.
+fn limite_efetivo(agrupamento: &AgrupamentoRelatorio, parametros: &BTreeMap<String, ValorExpressao>) -> Option<usize> {
+    agrupamento
+        .limite_parametro
+        .as_ref()
+        .and_then(|id| parametros.get(id))
+        .and_then(ValorExpressao::como_numero)
+        .map(|numero| numero.max(0.0) as usize)
+        .or(agrupamento.limite_por_grupo)
+}
+
 fn agrupar_linhas(
     linhas: Vec<LinhaRelatorio>,
     agrupamento: &AgrupamentoRelatorio,
+    parametros: &BTreeMap<String, ValorExpressao>,
 ) -> Vec<(Option<String>, Vec<LinhaRelatorio>)> {
+    let limite = limite_efetivo(agrupamento, parametros);
+
     if agrupamento.campo.is_none() {
         // Sem campo de agrupamento, as linhas caem todas num grupo
-        // implícito só — mas `limite_por_grupo` ainda vale aqui, senão não
-        // tem como pedir um "Top N" sem inventar um campo de agrupamento
-        // artificial só pra isso (era exatamente esse o bug: o limite era
+        // implícito só — mas o limite ainda vale aqui, senão não tem como
+        // pedir um "Top N" sem inventar um campo de agrupamento artificial
+        // só pra isso (era exatamente esse o bug: o limite era
         // silenciosamente ignorado quando não havia agrupamento).
         let mut linhas = linhas;
-        if let Some(limite) = agrupamento.limite_por_grupo {
+        if let Some(limite) = limite {
             linhas.truncate(limite);
         }
         return vec![(None, linhas)];
@@ -407,7 +424,6 @@ fn agrupar_linhas(
         None => mapa.keys().cloned().collect(),
     };
 
-    let limite = agrupamento.limite_por_grupo;
     ordem_final
         .into_iter()
         .filter_map(|chave| {
@@ -465,6 +481,29 @@ mod testes {
         if secao.total_linhas > 0 {
             assert!(!secao.linhas.is_empty(), "havendo dados reais, a prévia não deveria vir vazia");
         }
+    }
+
+    /// "Top Alunos" (ex-Top 60) agora aceita um parâmetro `quantidade_top`
+    /// que sobrepõe o `limite_por_grupo` fixo da definição — prova que
+    /// `limite_efetivo` realmente lê o parâmetro passado na hora de gerar,
+    /// não só o valor gravado na definição.
+    #[test]
+    fn quantidade_top_por_parametro_sobrepoe_o_padrao() {
+        let definicao = definicao_top60();
+        let mut parametros = BTreeMap::new();
+        parametros.insert("quantidade_top".to_string(), ValorExpressao::Numero(2.0));
+
+        let resultado = executar_relatorio(&definicao, "1", &parametros)
+            .expect("Top Alunos com parâmetro customizado deveria rodar sem erro");
+
+        assert!(resultado.grupos > 0, "deveria ter pelo menos um período com dado real no fixture");
+        assert!(
+            resultado.linhas <= resultado.grupos * 2,
+            "com quantidade_top=2, nenhum período deveria trazer mais que 2 linhas (grupos={}, linhas={})",
+            resultado.grupos,
+            resultado.linhas
+        );
+        let _ = std::fs::remove_file(&resultado.caminho);
     }
 
     fn campo(id: &str) -> ExpressaoNo {
@@ -548,9 +587,11 @@ mod testes {
                 agrupamento: AgrupamentoRelatorio {
                     campo: None,
                     limite_por_grupo: Some(20),
+                    limite_parametro: None,
                     ordem_grupos: None,
                 },
             }],
+            blocos: Vec::new(),
             formato_saida: FormatoSaida::Docx,
         }
     }
@@ -576,5 +617,58 @@ mod testes {
         let mut notas_ordenadas = notas.clone();
         notas_ordenadas.sort_by(|a, b| b.partial_cmp(a).unwrap());
         assert_eq!(notas, notas_ordenadas, "as linhas da prévia deveriam vir ordenadas por nota decrescente");
+    }
+
+    /// Mesma consulta do teste acima, mas com `blocos` preenchido (o que o
+    /// construtor de blocos novo produz) e passando por cabeçalho, texto,
+    /// tabela, quebra de página, assinaturas e parâmetros — prova que o
+    /// caminho novo dos 4 renderers roda de ponta a ponta sem entrar em
+    /// pânico e sem sair vazio, não só o caminho antigo (direto em `secoes`)
+    /// que os outros testes já cobrem.
+    fn definicao_com_blocos(formato: FormatoSaida) -> ReportDefinition {
+        use super::super::definicao::{BlocoRelatorio, ConteudoBloco};
+
+        let mut definicao = definicao_top20_matematica_em_noturno();
+        definicao.formato_saida = formato;
+        definicao.blocos = vec![
+            BlocoRelatorio { id: "blk_1".to_string(), ativo: true, conteudo: ConteudoBloco::Cabecalho },
+            BlocoRelatorio {
+                id: "blk_2".to_string(),
+                ativo: true,
+                conteudo: ConteudoBloco::Texto {
+                    titulo: Some("Apresentação".to_string()),
+                    corpo: "Lista referente ao {bimestre}.".to_string(),
+                },
+            },
+            BlocoRelatorio { id: "blk_3".to_string(), ativo: true, conteudo: ConteudoBloco::Tabela { secao_index: 0 } },
+            BlocoRelatorio { id: "blk_4".to_string(), ativo: true, conteudo: ConteudoBloco::QuebraPagina },
+            BlocoRelatorio {
+                id: "blk_5".to_string(),
+                ativo: true,
+                conteudo: ConteudoBloco::Assinaturas { nomes: vec!["Direção".to_string(), "Coordenação".to_string()] },
+            },
+            BlocoRelatorio { id: "blk_6".to_string(), ativo: true, conteudo: ConteudoBloco::Parametros },
+            // Bloco desligado: não deve aparecer no arquivo final nem quebrar nada.
+            BlocoRelatorio {
+                id: "blk_7".to_string(),
+                ativo: false,
+                conteudo: ConteudoBloco::Texto { titulo: None, corpo: "Não deveria aparecer.".to_string() },
+            },
+        ];
+        definicao
+    }
+
+    #[test]
+    fn relatorio_com_blocos_gera_arquivo_nao_vazio_nos_4_formatos() {
+        for formato in [FormatoSaida::Docx, FormatoSaida::Xlsx, FormatoSaida::Csv, FormatoSaida::Pdf] {
+            let definicao = definicao_com_blocos(formato.clone());
+            let resultado = executar_relatorio(&definicao, "2", &BTreeMap::new())
+                .unwrap_or_else(|erro| panic!("formato {formato:?} deveria gerar o relatório sem erro: {erro}"));
+            let tamanho = fs::metadata(&resultado.caminho)
+                .unwrap_or_else(|erro| panic!("formato {formato:?}: arquivo gerado deveria existir ({erro})"))
+                .len();
+            assert!(tamanho > 0, "formato {formato:?}: arquivo gerado não deveria ficar vazio");
+            let _ = fs::remove_file(&resultado.caminho);
+        }
     }
 }

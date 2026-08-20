@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, FolderGit2, RefreshCw, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -177,11 +177,13 @@ export function RelatoriosMenu({
   onAbrirRelatorioMotor,
   onAbrirAtendimentos,
   onCriarRelatorio,
+  onAbrirRepositorio,
   onEditarRelatorio,
 }: {
   onAbrirRelatorioMotor: (definicaoId: string) => void;
   onAbrirAtendimentos: () => void;
   onCriarRelatorio: () => void;
+  onAbrirRepositorio: () => void;
   onEditarRelatorio: (definicaoId: string) => void;
 }) {
   const [definicoes, setDefinicoes] = useState<ReportDefinitionResumo[]>([]);
@@ -256,32 +258,11 @@ export function RelatoriosMenu({
             <span>Lista, por turma, as disciplinas com notas ainda não lançadas no mapão.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("tarefas")}>
-          <BarChart3 size={26} />
-          <div>
-            <strong>Tarefas Realizadas</strong>
-            <span>Exporte em planilha (.xlsx) o percentual de tarefas concluídas por aluno e sala, por bimestre.</span>
-          </div>
-        </button>
-        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("prova_paulista")}>
-          <BarChart3 size={26} />
-          <div>
-            <strong>Prova Paulista</strong>
-            <span>Exporte em planilha (.csv) as notas da Prova Paulista por disciplina, turma e bimestre.</span>
-          </div>
-        </button>
-        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("educacao_fisica")}>
-          <BarChart3 size={26} />
-          <div>
-            <strong>Educação Física — Ensino Médio</strong>
-            <span>Exporte em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada.</span>
-          </div>
-        </button>
         <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("top60")}>
           <Users size={26} />
           <div>
-            <strong>Top 60 por Período</strong>
-            <span>Lista os 60 melhores alunos de cada período (manhã, tarde e noite), por média global, faltas e médias vermelhas.</span>
+            <strong>Top Alunos</strong>
+            <span>Lista os melhores alunos de cada período (manhã, tarde e noite) por média global, faltas e médias vermelhas — quantidade ajustável na hora de gerar.</span>
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={onCriarRelatorio}>
@@ -289,6 +270,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Criar relatório</strong>
             <span>Monte um relatório novo escolhendo campos, filtros e colunas — sem precisar de um release.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onAbrirRepositorio}>
+          <FolderGit2 size={26} />
+          <div>
+            <strong>Repositório de relatórios</strong>
+            <span>Baixe relatórios prontos publicados por você ou pela comunidade — inclui Tarefas Realizadas, Prova Paulista e Educação Física.</span>
           </div>
         </button>
       </section>
