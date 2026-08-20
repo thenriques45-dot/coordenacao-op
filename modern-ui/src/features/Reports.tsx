@@ -8,28 +8,6 @@ type TurmaResumoRelatorio = {
   ciclo: string | null;
 };
 
-type RelatorioAlunosCriticosResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  alunos: number;
-};
-
-type RelatorioAlteracoesNotasResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  pendentes: number;
-  alteradas: number;
-};
-
-type RelatorioElegiveisRecuperacaoResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  alunos: number;
-};
-
 type RelatorioAtendimentoContagem = {
   nome: string;
   total: number;
@@ -74,34 +52,6 @@ type SerieMensal = {
   nome: string;
   total: number;
   valores: number[];
-};
-
-type RelatorioTarefasResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  alunos: number;
-};
-
-type RelatorioProvaPaulistaResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  alunos: number;
-};
-
-type RelatorioEducacaoFisicaResultado = {
-  caminho: string;
-  pasta: string;
-  turmas: number;
-  alunos: number;
-};
-
-type RelatorioTop60Resultado = {
-  caminho: string;
-  pasta: string;
-  periodos: number;
-  alunos: number;
 };
 
 const coresRelatorio = ["#2563eb", "#16a34a", "#dc2626", "#d97706", "#7c3aed", "#0891b2", "#be123c"];
@@ -216,39 +166,47 @@ function rotuloSerie(valor?: string | null) {
     .replace(/\bserie\b/gi, "Série")
     .replace(/\bano\b/gi, "Ano");
 }
-export function RelatoriosMenu({
-  onAbrirCriticos,
-  onAbrirElegiveisRecuperacao,
-  onAbrirAlteracoesNotas,
-  onAbrirAtendimentos,
-  onAbrirTarefas,
-  onAbrirProvaPaulista,
-  onAbrirEducacaoFisica,
-  onAbrirTop60,
-}: {
-  onAbrirCriticos: () => void;
-  onAbrirElegiveisRecuperacao: () => void;
-  onAbrirAlteracoesNotas: () => void;
-  onAbrirAtendimentos: () => void;
-  onAbrirTarefas: () => void;
-  onAbrirProvaPaulista: () => void;
-  onAbrirEducacaoFisica: () => void;
-  onAbrirTop60: () => void;
-}) {
-  const [gerandoLancamento, setGerandoLancamento] = useState(false);
-  const [erroLancamento, setErroLancamento] = useState("");
+type ReportDefinitionResumo = {
+  id: string;
+  nome: string;
+  descricao: string;
+  embutido: boolean;
+};
 
-  async function gerarPendenciaLancamento() {
-    if (gerandoLancamento) return;
-    setGerandoLancamento(true);
-    setErroLancamento("");
+export function RelatoriosMenu({
+  onAbrirRelatorioMotor,
+  onAbrirAtendimentos,
+  onCriarRelatorio,
+  onEditarRelatorio,
+}: {
+  onAbrirRelatorioMotor: (definicaoId: string) => void;
+  onAbrirAtendimentos: () => void;
+  onCriarRelatorio: () => void;
+  onEditarRelatorio: (definicaoId: string) => void;
+}) {
+  const [definicoes, setDefinicoes] = useState<ReportDefinitionResumo[]>([]);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
+
+  function recarregarDefinicoes() {
+    invokeApp<ReportDefinitionResumo[]>("listar_definicoes_relatorio")
+      .then(setDefinicoes)
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    recarregarDefinicoes();
+  }, []);
+
+  const personalizados = definicoes.filter((definicao) => !definicao.embutido);
+
+  async function excluir(id: string) {
+    if (!window.confirm("Apagar este relatório personalizado? Não dá pra desfazer.")) return;
+    setExcluindo(id);
     try {
-      const res = await invokeApp<{ caminho: string }>("gerar_relatorio_pendencia_lancamento");
-      await invokeApp("abrir_documento_conselho", { input: { caminho: res.caminho } }).catch(() => {});
-    } catch (err) {
-      setErroLancamento(err instanceof Error ? err.message : String(err));
+      await invokeApp("excluir_definicao_relatorio", { id });
+      recarregarDefinicoes();
     } finally {
-      setGerandoLancamento(false);
+      setExcluindo(null);
     }
   }
 
@@ -263,21 +221,21 @@ export function RelatoriosMenu({
       </header>
 
       <section className="report-menu-grid">
-        <button type="button" className="report-menu-card" onClick={onAbrirCriticos}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("alunos_criticos")}>
           <FileText size={26} />
           <div>
             <strong>Relatório de Alunos Críticos</strong>
             <span>Lista estudantes por turma com excesso de faltas ou situação crítica por notas.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirElegiveisRecuperacao}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("elegiveis_recuperacao")}>
           <AlertTriangle size={26} />
           <div>
             <strong>Elegíveis à Prova de Recuperação</strong>
             <span>Lista alunos com X% ou mais de notas vermelhas (limiar ajustável, 50% padrão) somando todos os bimestres e sugere qual nota trocar após a recuperação.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirAlteracoesNotas}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("alteracoes_notas")}>
           <ClipboardList size={26} />
           <div>
             <strong>Alterações de Notas Pós-Conselho</strong>
@@ -291,401 +249,86 @@ export function RelatoriosMenu({
             <span>Acompanhe alunos atendidos, alunos nunca atendidos, tipos recorrentes e evolução mensal das tags.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={gerarPendenciaLancamento} disabled={gerandoLancamento}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("pendencia_lancamento")}>
           <FileWarning size={26} />
           <div>
             <strong>Pendência de Lançamento de Notas</strong>
-            <span>{gerandoLancamento ? "Gerando relatório..." : "Lista, por turma, as disciplinas com notas ainda não lançadas no mapão."}</span>
-            {erroLancamento && <span style={{ color: "var(--danger, #ef4444)" }}>{erroLancamento}</span>}
+            <span>Lista, por turma, as disciplinas com notas ainda não lançadas no mapão.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirTarefas}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("tarefas")}>
           <BarChart3 size={26} />
           <div>
             <strong>Tarefas Realizadas</strong>
-            <span>Exporte em planilha (.csv) o percentual de tarefas concluídas por aluno e sala, por bimestre.</span>
+            <span>Exporte em planilha (.xlsx) o percentual de tarefas concluídas por aluno e sala, por bimestre.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirProvaPaulista}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("prova_paulista")}>
           <BarChart3 size={26} />
           <div>
             <strong>Prova Paulista</strong>
             <span>Exporte em planilha (.csv) as notas da Prova Paulista por disciplina, turma e bimestre.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirEducacaoFisica}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("educacao_fisica")}>
           <BarChart3 size={26} />
           <div>
             <strong>Educação Física — Ensino Médio</strong>
             <span>Exporte em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada.</span>
           </div>
         </button>
-        <button type="button" className="report-menu-card" onClick={onAbrirTop60}>
+        <button type="button" className="report-menu-card" onClick={() => onAbrirRelatorioMotor("top60")}>
           <Users size={26} />
           <div>
             <strong>Top 60 por Período</strong>
             <span>Lista os 60 melhores alunos de cada período (manhã, tarde e noite), por média global, faltas e médias vermelhas.</span>
           </div>
         </button>
-      </section>
-    </section>
-  );
-}
-
-export function RelatorioAlunosCriticos({ turmas, onVoltar }: { turmas: TurmaResumoRelatorio[]; onVoltar: () => void }) {
-  const [serie, setSerie] = useState("todas");
-  const [bimestre, setBimestre] = useState("1");
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioAlunosCriticosResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
-  const series = useMemo(() => {
-    const unicas = new Set<string>();
-    turmas.forEach((turma) => {
-      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
-      if (rotulo.trim()) unicas.add(rotulo.trim());
-    });
-    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
-  }, [turmas]);
-
-  useEffect(() => {
-    if (serie !== "todas" && !series.includes(serie)) {
-      setSerie("todas");
-    }
-  }, [serie, series]);
-
-  function gerarRelatorioCriticos() {
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioAlunosCriticosResultado>("gerar_relatorio_alunos_criticos", {
-      input: {
-        serie: serie === "todas" ? null : serie,
-        bimestre,
-      },
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPastaRelatorios() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Relatório de Alunos Críticos</h1>
-          <p>Gere uma lista por turma com estudantes em excesso de faltas ou situação crítica por notas.</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
+        <button type="button" className="report-menu-card" onClick={onCriarRelatorio}>
+          <RefreshCw size={26} />
           <div>
-            <h2>Alunos críticos</h2>
-            <p>O relatório é dividido por turma e informa o motivo da inclusão do estudante.</p>
+            <strong>Criar relatório</strong>
+            <span>Monte um relatório novo escolhendo campos, filtros e colunas — sem precisar de um release.</span>
           </div>
-          <FileText size={28} />
-        </div>
-
-        <div className="report-controls">
-          <label>
-            Bimestre
-            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
-              {opcoesBimestre.map((opcao) => (
-                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Turmas
-            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
-              <option value="todas">Todas as salas</option>
-              {series.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorioCriticos} disabled={processando || !turmas.length}>
-            {processando ? "Gerando..." : "Gerar relatório"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir relatório
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
+        </button>
       </section>
-    </section>
-  );
-}
 
-export function RelatorioElegiveisRecuperacao({ turmas, onVoltar }: { turmas: TurmaResumoRelatorio[]; onVoltar: () => void }) {
-  const [serie, setSerie] = useState("todas");
-  const [limiarPercentual, setLimiarPercentual] = useState(50);
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioElegiveisRecuperacaoResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
-  const series = useMemo(() => {
-    const unicas = new Set<string>();
-    turmas.forEach((turma) => {
-      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
-      if (rotulo.trim()) unicas.add(rotulo.trim());
-    });
-    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
-  }, [turmas]);
-
-  useEffect(() => {
-    if (serie !== "todas" && !series.includes(serie)) {
-      setSerie("todas");
-    }
-  }, [serie, series]);
-
-  function gerarRelatorio() {
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioElegiveisRecuperacaoResultado>("gerar_relatorio_elegiveis_recuperacao", {
-      input: {
-        serie: serie === "todas" ? null : serie,
-        limiar_percentual: limiarPercentual,
-      },
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPastaRelatorios() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Elegíveis à Prova de Recuperação</h1>
-          <p>Lista os estudantes com {limiarPercentual}% ou mais de notas vermelhas, somando as disciplinas de todos os bimestres lançados, e sugere ao professor qual nota (1º/2º ou 3º/4º bimestre) a prova de recuperação deve substituir.</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
-          <div>
-            <h2>Elegíveis à recuperação</h2>
-            <p>O relatório é dividido por turma e mostra o percentual de notas vermelhas de cada aluno considerando o 1º ao 4º bimestre. Para os elegíveis, aponta qual nota a recuperação substitui em cada disciplina: se só um bimestre do par (1º/2º ou 3º/4º) está vermelho, sugere direto; se os dois estão, sugere o menor.</p>
-          </div>
-          <AlertTriangle size={28} />
-        </div>
-
-        <div className="report-controls">
-          <label>
-            Turmas
-            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
-              <option value="todas">Todas as salas</option>
-              {series.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Elegível com % de vermelhas a partir de
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={limiarPercentual}
-              onChange={(event) => {
-                const valor = Number(event.target.value);
-                setLimiarPercentual(Number.isFinite(valor) ? valor : 50);
-              }}
-            />
-          </label>
-        </div>
-
-        <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || !turmas.length || limiarPercentual <= 0 || limiarPercentual > 100}>
-            {processando ? "Gerando..." : "Gerar relatório"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir relatório
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
-      </section>
-    </section>
-  );
-}
-
-export function RelatorioAlteracoesNotas({ turmas, onVoltar }: { turmas: TurmaResumoRelatorio[]; onVoltar: () => void }) {
-  const [serie, setSerie] = useState("todas");
-  const [bimestre, setBimestre] = useState("1");
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioAlteracoesNotasResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
-  const series = useMemo(() => {
-    const unicas = new Set<string>();
-    turmas.forEach((turma) => {
-      const rotulo = rotuloSerie(turma.serie) || turma.serie || turma.ciclo || "";
-      if (rotulo.trim()) unicas.add(rotulo.trim());
-    });
-    return Array.from(unicas).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
-  }, [turmas]);
-
-  useEffect(() => {
-    if (serie !== "todas" && !series.includes(serie)) {
-      setSerie("todas");
-    }
-  }, [serie, series]);
-
-  function gerarRelatorioAlteracoes() {
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioAlteracoesNotasResultado>("gerar_relatorio_alteracoes_notas", {
-      input: {
-        serie: serie === "todas" ? null : serie,
-        bimestre,
-      },
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        setMensagem(
-          `Relatório gerado com ${resposta.pendentes} pendência(s) e ${resposta.alteradas} alteração(ões) confirmada(s) em ${resposta.turmas} turma(s).`,
-        );
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPastaRelatorios() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Alterações de Notas Pós-Conselho</h1>
-          <p>Confira se as notas ajustadas no conselho já aparecem corretamente no último mapão importado.</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
-          <div>
-            <h2>Conferência pós-conselho</h2>
-            <p>O relatório mostra primeiro as pendências e depois as alterações confirmadas por turma.</p>
-          </div>
-          <ClipboardList size={28} />
-        </div>
-
-        <div className="report-controls">
-          <label>
-            Bimestre
-            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
-              {opcoesBimestre.map((opcao) => (
-                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Turmas
-            <select value={serie} onChange={(event) => setSerie(event.target.value)}>
-              <option value="todas">Todas as salas</option>
-              {series.map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorioAlteracoes} disabled={processando || !turmas.length}>
-            {processando ? "Gerando..." : "Gerar relatório"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir relatório
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPastaRelatorios} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
-      </section>
+      {personalizados.length > 0 && (
+        <>
+          <header className="topbar" style={{ marginTop: 24 }}>
+            <div>
+              <h2>Meus relatórios</h2>
+            </div>
+          </header>
+          <section className="report-menu-grid">
+            {personalizados.map((definicao) => (
+              <div key={definicao.id} className="report-menu-card" style={{ cursor: "default" }}>
+                <FileText size={26} />
+                <div>
+                  <strong>{definicao.nome || "(sem nome)"}</strong>
+                  <span>{definicao.descricao}</span>
+                  <div className="report-actions" style={{ marginTop: 8 }}>
+                    <button type="button" className="secondary-action" onClick={() => onAbrirRelatorioMotor(definicao.id)}>
+                      Gerar
+                    </button>
+                    <button type="button" className="secondary-action" onClick={() => onEditarRelatorio(definicao.id)}>
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-action"
+                      onClick={() => excluir(definicao.id)}
+                      disabled={excluindo === definicao.id}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
     </section>
   );
 }
@@ -986,427 +629,108 @@ function MonthlyLineChart({ meses, series, emptyText }: { meses: string[]; serie
   );
 }
 
-export function RelatorioTarefas({
-  turmas,
-  onVoltar,
-}: {
-  turmas: TurmaResumoRelatorio[];
-  onVoltar: () => void;
-}) {
-  const [bimestre, setBimestre] = useState("1");
-  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmas.map((t) => t.codigo)));
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioTarefasResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
 
-  // Sincroniza selecionadas quando a lista de turmas muda
-  useEffect(() => {
-    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
-  }, [turmas]);
+type ValorExpressaoDTO =
+  | { tipo: "texto"; valor: string }
+  | { tipo: "numero"; valor: number }
+  | { tipo: "booleano"; valor: boolean }
+  | { tipo: "nulo" };
 
-  function toggleTurma(codigo: string) {
-    setSelecionadas((prev) => {
-      const next = new Set(prev);
-      if (next.has(codigo)) next.delete(codigo);
-      else next.add(codigo);
-      return next;
-    });
-    setResultado(null);
-  }
+type DefinicaoParametro = {
+  id: string;
+  rotulo: string;
+  tipo: "numero" | "texto";
+  valor_padrao: ValorExpressaoDTO;
+};
 
-  function selecionarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
-    setResultado(null);
-  }
+type ReportDefinition = {
+  id: string;
+  nome: string;
+  descricao: string;
+  embutido: boolean;
+  formato_saida: string;
+  parametros: DefinicaoParametro[];
+  [chave: string]: unknown;
+};
 
-  function desmarcarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
-    setResultado(null);
-  }
+type RelatorioGenericoResultado = {
+  caminho: string;
+  pasta: string;
+  linhas: number;
+  grupos: number;
+};
 
-  function gerarRelatorio() {
-    if (selecionadas.size === 0) {
-      setErro("Selecione ao menos uma turma.");
-      return;
-    }
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioTarefasResultado>("gerar_relatorio_tarefas", {
-      bimestre,
-      turmasFiltro: Array.from(selecionadas),
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPasta() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Tarefas Realizadas</h1>
-          <p>Exporte uma planilha Excel (.xlsx) com uma aba por turma.</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
-          <div>
-            <h2>Exportar por bimestre</h2>
-            <p>Cada turma selecionada gera uma aba separada na planilha.</p>
-          </div>
-          <BarChart3 size={28} />
-        </div>
-
-        <div className="report-controls">
-          <label>
-            Bimestre
-            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setResultado(null); }}>
-              {opcoesBimestre.map((opcao) => (
-                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <TurmaChipSelector
-          turmas={turmas}
-          selecionadas={selecionadas}
-          onToggle={toggleTurma}
-          onSelecionarSubset={selecionarSubset}
-          onDesmarcarSubset={desmarcarSubset}
-        />
-
-        <div className="report-actions">
-          <button
-            className="primary-action"
-            onClick={gerarRelatorio}
-            disabled={processando || selecionadas.size === 0}
-          >
-            {processando ? "Gerando..." : "Gerar planilha"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir arquivo
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
-      </section>
-    </section>
-  );
+function valorPadraoTexto(valor: ValorExpressaoDTO): string {
+  if (valor.tipo === "numero") return String(valor.valor);
+  if (valor.tipo === "texto") return valor.valor;
+  return "";
 }
 
-export function RelatorioProvaPaulista({
-  turmas,
+export function MotorRelatorios({
   onVoltar,
+  definicaoIdInicial,
 }: {
-  turmas: TurmaResumoRelatorio[];
   onVoltar: () => void;
+  definicaoIdInicial?: string;
 }) {
-  const [bimestre, setBimestre] = useState("1");
-  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmas.map((t) => t.codigo)));
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioProvaPaulistaResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    setSelecionadas(new Set(turmas.map((t) => t.codigo)));
-  }, [turmas]);
-
-  function toggleTurma(codigo: string) {
-    setSelecionadas((prev) => {
-      const next = new Set(prev);
-      if (next.has(codigo)) next.delete(codigo);
-      else next.add(codigo);
-      return next;
-    });
-    setResultado(null);
-  }
-
-  function selecionarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
-    setResultado(null);
-  }
-
-  function desmarcarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
-    setResultado(null);
-  }
-
-  function gerarRelatorio() {
-    if (selecionadas.size === 0) {
-      setErro("Selecione ao menos uma turma.");
-      return;
-    }
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioProvaPaulistaResultado>("gerar_relatorio_prova_paulista", {
-      bimestre,
-      turmasFiltro: Array.from(selecionadas),
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPasta() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Prova Paulista</h1>
-          <p>Exporte uma planilha (.csv) com as notas da Prova Paulista por disciplina, turma e bimestre.</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
-          <div>
-            <h2>Exportar por bimestre</h2>
-            <p>O arquivo .csv gerado abre diretamente no Excel. As colunas de disciplina aparecem apenas para as que tiverem dados importados.</p>
-          </div>
-          <BarChart3 size={28} />
-        </div>
-
-        <div className="report-controls">
-          <label>
-            Bimestre
-            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setResultado(null); }}>
-              {opcoesBimestre.map((opcao) => (
-                <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <TurmaChipSelector
-          turmas={turmas}
-          selecionadas={selecionadas}
-          onToggle={toggleTurma}
-          onSelecionarSubset={selecionarSubset}
-          onDesmarcarSubset={desmarcarSubset}
-        />
-
-        <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || selecionadas.size === 0}>
-            {processando ? "Gerando..." : "Gerar planilha"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir arquivo
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
-      </section>
-    </section>
-  );
-}
-
-export function RelatorioEducacaoFisica({
-  turmas,
-  onVoltar,
-}: {
-  turmas: TurmaResumoRelatorio[];
-  onVoltar: () => void;
-}) {
-  const turmasEM = useMemo(() => turmas.filter((t) => t.ciclo === "EM"), [turmas]);
-  const [selecionadas, setSelecionadas] = useState<Set<string>>(() => new Set(turmasEM.map((t) => t.codigo)));
-  const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioEducacaoFisicaResultado | null>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    setSelecionadas(new Set(turmasEM.map((t) => t.codigo)));
-  }, [turmasEM]);
-
-  function toggleTurma(codigo: string) {
-    setSelecionadas((prev) => {
-      const next = new Set(prev);
-      if (next.has(codigo)) next.delete(codigo);
-      else next.add(codigo);
-      return next;
-    });
-    setResultado(null);
-  }
-
-  function selecionarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.add(c)); return next; });
-    setResultado(null);
-  }
-
-  function desmarcarSubset(codigos: string[]) {
-    setSelecionadas((prev) => { const next = new Set(prev); codigos.forEach((c) => next.delete(c)); return next; });
-    setResultado(null);
-  }
-
-  function gerarRelatorio() {
-    if (selecionadas.size === 0) {
-      setErro("Selecione ao menos uma turma.");
-      return;
-    }
-    setProcessando(true);
-    setErro("");
-    setMensagem("");
-    setResultado(null);
-    invokeApp<RelatorioEducacaoFisicaResultado>("gerar_relatorio_educacao_fisica", {
-      turmasFiltro: Array.from(selecionadas),
-    })
-      .then((resposta) => {
-        setResultado(resposta);
-        if (resposta.alunos === 0) {
-          setMensagem("Nenhum aluno com Educação Física lançada nas turmas selecionadas.");
-        } else {
-          setMensagem(`Planilha gerada com ${resposta.alunos} aluno(s) em ${resposta.turmas} turma(s).`);
-        }
-      })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
-      .finally(() => setProcessando(false));
-  }
-
-  function abrirRelatorio() {
-    if (!resultado?.caminho) return;
-    setErro("");
-    invokeApp<string>("abrir_documento_conselho", { input: { caminho: resultado.caminho } })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  function abrirPasta() {
-    if (!resultado?.pasta) return;
-    setErro("");
-    invokeApp<string>("abrir_pasta", { caminho: resultado.pasta })
-      .catch((error) => setErro(error instanceof Error ? error.message : String(error)));
-  }
-
-  return (
-    <section className="reports-page">
-      <button className="back-link" onClick={onVoltar}>← Voltar para Relatórios</button>
-      <header className="topbar">
-        <div>
-          <span className="eyebrow">Relatórios</span>
-          <h1>Educação Física — Ensino Médio</h1>
-          <p>Exporte uma planilha (.csv) com nome, turma e frequência dos alunos do Ensino Médio que têm Educação Física lançada (via mapão separado).</p>
-        </div>
-      </header>
-
-      <section className="panel report-generator-card">
-        <div className="report-generator-heading">
-          <div>
-            <h2>Exportar</h2>
-            <p>Só entram alunos com carga horária de Educação Física lançada no mapão — quem não faz a disciplina não aparece. A frequência soma os 4 bimestres do ano.</p>
-          </div>
-          <BarChart3 size={28} />
-        </div>
-
-        <TurmaChipSelector
-          turmas={turmasEM}
-          selecionadas={selecionadas}
-          onToggle={toggleTurma}
-          onSelecionarSubset={selecionarSubset}
-          onDesmarcarSubset={desmarcarSubset}
-        />
-
-        <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || selecionadas.size === 0}>
-            {processando ? "Gerando..." : "Gerar planilha"}
-          </button>
-          {resultado && (
-            <button className="secondary-action" onClick={abrirRelatorio}>
-              Abrir arquivo
-            </button>
-          )}
-          <button className="secondary-action" onClick={abrirPasta} disabled={!resultado}>
-            Abrir pasta
-          </button>
-        </div>
-
-        {mensagem && <div className="notice success">{mensagem}</div>}
-        {resultado && <span className="report-path">Salvo em: {resultado.caminho}</span>}
-        {erro && <div className="notice error">{erro}</div>}
-      </section>
-    </section>
-  );
-}
-
-export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
+  const [definicoes, setDefinicoes] = useState<ReportDefinition[]>([]);
+  const [selecionadaId, setSelecionadaId] = useState("");
   const [bimestre, setBimestre] = useState("4");
+  const [valoresParametros, setValoresParametros] = useState<Record<string, string>>({});
+  const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
-  const [resultado, setResultado] = useState<RelatorioTop60Resultado | null>(null);
+  const [resultado, setResultado] = useState<RelatorioGenericoResultado | null>(null);
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
 
+  useEffect(() => {
+    invokeApp<ReportDefinition[]>("listar_definicoes_relatorio")
+      .then((lista) => {
+        setDefinicoes(lista);
+        const preferida = definicaoIdInicial && lista.some((definicao) => definicao.id === definicaoIdInicial);
+        if (preferida) {
+          setSelecionadaId(definicaoIdInicial as string);
+        } else if (lista.length > 0) {
+          setSelecionadaId(lista[0].id);
+        }
+      })
+      .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
+      .finally(() => setCarregando(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definicaoIdInicial]);
+
+  const definicaoSelecionada = definicoes.find((definicao) => definicao.id === selecionadaId) ?? null;
+
+  useEffect(() => {
+    const iniciais: Record<string, string> = {};
+    for (const parametro of definicaoSelecionada?.parametros ?? []) {
+      iniciais[parametro.id] = valorPadraoTexto(parametro.valor_padrao);
+    }
+    setValoresParametros(iniciais);
+  }, [selecionadaId]);
+
   function gerarRelatorio() {
+    if (!definicaoSelecionada) return;
     setProcessando(true);
     setErro("");
     setMensagem("");
     setResultado(null);
-    invokeApp<RelatorioTop60Resultado>("gerar_relatorio_top60", {
-      input: { bimestre },
+    const parametros: Record<string, ValorExpressaoDTO> = {};
+    for (const parametro of definicaoSelecionada.parametros ?? []) {
+      const texto = valoresParametros[parametro.id] ?? valorPadraoTexto(parametro.valor_padrao);
+      parametros[parametro.id] =
+        parametro.tipo === "numero" ? { tipo: "numero", valor: Number(texto) || 0 } : { tipo: "texto", valor: texto };
+    }
+    invokeApp<RelatorioGenericoResultado>("executar_relatorio_generico", {
+      input: { definicao: definicaoSelecionada, bimestre, parametros },
     })
       .then((resposta) => {
         setResultado(resposta);
-        if (resposta.alunos === 0) {
-          setMensagem("Nenhum aluno com média lançada neste bimestre foi encontrado.");
-        } else {
-          setMensagem(`Relatório gerado com ${resposta.alunos} aluno(s) em ${resposta.periodos} período(s).`);
-        }
+        setMensagem(
+          resposta.linhas === 0
+            ? "Nenhum registro encontrado para os filtros deste relatório."
+            : `Relatório gerado com ${resposta.linhas} registro(s) em ${resposta.grupos} grupo(s).`
+        );
       })
       .catch((error) => setErro(error instanceof Error ? error.message : String(error)))
       .finally(() => setProcessando(false));
@@ -1432,8 +756,8 @@ export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
       <header className="topbar">
         <div>
           <span className="eyebrow">Relatórios</span>
-          <h1>Top 60 por Período</h1>
-          <p>Lista os 60 melhores alunos de cada período (manhã, tarde e noite), ranqueados por média global, faltas e médias vermelhas.</p>
+          <h1>{definicaoSelecionada?.nome ?? "Gerar relatório"}</h1>
+          <p>{definicaoSelecionada?.descricao}</p>
         </div>
       </header>
 
@@ -1441,12 +765,24 @@ export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
         <div className="report-generator-heading">
           <div>
             <h2>Gerar relatório</h2>
-            <p>Critérios de desempate: 1) maior média global; 2) menos faltas; 3) menos médias vermelhas. Turmas de período Integral não entram. Alunos sem nota lançada no bimestre não aparecem.</p>
+            {carregando && <p>Carregando relatórios disponíveis...</p>}
           </div>
-          <Users size={28} />
+          <BarChart3 size={28} />
         </div>
 
         <div className="report-controls">
+          {!definicaoIdInicial && (
+            <label>
+              Relatório
+              <select value={selecionadaId} onChange={(event) => setSelecionadaId(event.target.value)} disabled={carregando}>
+                {definicoes.map((definicao) => (
+                  <option key={definicao.id} value={definicao.id}>
+                    {definicao.nome} ({String(definicao.formato_saida).toUpperCase()})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Bimestre
             <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
@@ -1455,10 +791,22 @@ export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
               ))}
             </select>
           </label>
+          {(definicaoSelecionada?.parametros ?? []).map((parametro) => (
+            <label key={parametro.id}>
+              {parametro.rotulo}
+              <input
+                type={parametro.tipo === "numero" ? "number" : "text"}
+                value={valoresParametros[parametro.id] ?? ""}
+                onChange={(event) =>
+                  setValoresParametros((atual) => ({ ...atual, [parametro.id]: event.target.value }))
+                }
+              />
+            </label>
+          ))}
         </div>
 
         <div className="report-actions">
-          <button className="primary-action" onClick={gerarRelatorio} disabled={processando}>
+          <button className="primary-action" onClick={gerarRelatorio} disabled={processando || !definicaoSelecionada}>
             {processando ? "Gerando..." : "Gerar relatório"}
           </button>
           {resultado && (
@@ -1478,3 +826,4 @@ export function RelatorioTop60({ onVoltar }: { onVoltar: () => void }) {
     </section>
   );
 }
+

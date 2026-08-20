@@ -8,7 +8,6 @@ use crate::*;
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::BTreeMap;
 use std::fs;
 
 
@@ -126,120 +125,6 @@ pub(crate) fn gerar_relatorio_pendencias(
     )
 }
 
-// Chave de ordenação natural da turma: (número, última letra). Ex.: "1ª Série A" < "6º Ano B".
-pub(crate) fn chave_ordenacao_turma(texto: &str) -> (u32, String) {
-    let mut num = String::new();
-    for ch in texto.chars() {
-        if ch.is_ascii_digit() {
-            num.push(ch);
-        } else if !num.is_empty() {
-            break;
-        }
-    }
-    let numero = num.parse::<u32>().unwrap_or(0);
-    let letra = texto
-        .chars().rfind(|c| c.is_ascii_alphabetic())
-        .map(|c| c.to_ascii_uppercase().to_string())
-        .unwrap_or_default();
-    (numero, letra)
-}
-
-// Relatório de pendência de lançamento: por turma, disciplinas com notas ainda
-// não lançadas no mapão (por bimestre presente na carga horária).
-#[tauri::command(async)]
-pub(crate) fn gerar_relatorio_pendencia_lancamento() -> Result<RelatorioPendenciasResultado, String> {
-    let _dados = travar_dados();
-    let mut turmas: Vec<TurmaArquivo> = carregar_turmas_com_caminho()?
-        .into_iter()
-        .map(|(_, t)| t)
-        .collect();
-    turmas.sort_by_key(|a| chave_ordenacao_turma(&a.codigo));
-
-    let mut secoes: Vec<SecaoPendencia> = Vec::new();
-
-    for turma in &turmas {
-        let (alunos, carga) = match (&turma.alunos, &turma.carga_horaria) {
-            (Some(a), Some(c)) => (a, c),
-            _ => continue,
-        };
-        let ativos: Vec<&Value> = alunos
-            .values()
-            .filter(|i| i.get("ativo").and_then(Value::as_bool).unwrap_or(true))
-            .collect();
-        let total = ativos.len();
-        if total == 0 {
-            continue;
-        }
-
-        let mut bims: Vec<&String> = carga.keys().collect();
-        bims.sort();
-
-        // disciplina (maiúscula) -> lista de (bimestre, faltam)
-        let mut por_disc: BTreeMap<String, Vec<(String, usize)>> = BTreeMap::new();
-        for bim in &bims {
-            let discs = match carga.get(*bim).and_then(Value::as_object) {
-                Some(o) => o,
-                None => continue,
-            };
-            for disc in discs.keys() {
-                let lancadas = ativos
-                    .iter()
-                    .filter(|info| {
-                        info.get("medias")
-                            .and_then(Value::as_object)
-                            .and_then(|m| m.get(*bim))
-                            .and_then(Value::as_object)
-                            .and_then(|b| b.get(disc))
-                            .and_then(valor_para_f64)
-                            .is_some()
-                    })
-                    .count();
-                let faltam = total.saturating_sub(lancadas);
-                if faltam > 0 {
-                    por_disc
-                        .entry(disc.to_uppercase())
-                        .or_default()
-                        .push(((*bim).clone(), faltam));
-                }
-            }
-        }
-
-        let mut linhas: Vec<LinhaPendencia> = por_disc
-            .into_iter()
-            .map(|(disc, bims_faltam)| {
-                let faltam = bims_faltam
-                    .iter()
-                    .map(|(b, f)| {
-                        if *f == total {
-                            format!("{b}º (todos)")
-                        } else {
-                            format!("{b}º ({f} de {total})")
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                LinhaPendencia { item: disc, faltam }
-            })
-            .collect();
-        linhas.sort_by(|a, b| a.item.cmp(&b.item));
-
-        if !linhas.is_empty() {
-            secoes.push(SecaoPendencia {
-                titulo: turma.codigo.clone(),
-                linhas,
-            });
-        }
-    }
-
-    escrever_relatorio_pendencias_doc(
-        "PENDÊNCIAS — LANÇAMENTO DE NOTAS",
-        "Lista, por turma, as disciplinas com notas ainda não lançadas no mapão. \"(todos)\" indica que nenhum aluno teve nota lançada na disciplina; \"(N de T)\" indica quantos alunos estão sem nota. Considera apenas alunos ativos e os bimestres presentes na carga horária.",
-        "Disciplina",
-        "Notas não lançadas",
-        "lancamento_notas",
-        &secoes,
-    )
-}
 
 // ── fim Planejamento ──────────────────────────────────────────────────────────
 

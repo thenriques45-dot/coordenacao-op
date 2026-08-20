@@ -8407,3 +8407,78 @@ th:nth-child(3) {
 .theme-dark .grade-history-popover span {
   color: #9a96a4;
 }
+
+/* Construtor de relatórios: lista com arrastar-e-soltar (ListaOrdenavel) */
+.lista-ordenavel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista-ordenavel-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.lista-ordenavel-alca {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: grab;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  touch-action: none;
+}
+
+.lista-ordenavel-alca:active {
+  cursor: grabbing;
+}
+
+.lista-ordenavel-conteudo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Editor de expressão recursivo */
+.editor-expressao {
+  border: 1px solid var(--border-inner);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--surface-subtle);
+}
+
+.editor-expressao-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-expressao-filhos {
+  margin-top: 8px;
+  margin-left: 16px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-inner);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-expressao-remover {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.editor-expressao-remover:hover {
+  color: var(--accent);
+}

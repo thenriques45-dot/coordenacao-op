@@ -13,12 +13,11 @@ mod ia;
 mod importador_alunos;
 mod importador_mapao;
 mod infra;
+mod motor_relatorios;
 mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
-mod relatorio_educacao_fisica;
-mod relatorio_top60;
 mod sheets_api;
 mod shell;
 mod sync;
@@ -32,8 +31,8 @@ mod turmas;
 pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
-    importador_mapao::*, infra::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    relatorio_educacao_fisica::*, relatorio_top60::*, sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
+    importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
+    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
 use tauri::{
@@ -164,9 +163,6 @@ fn main() {
             docx::abrir_relatorio_professores,
             docx::listar_documentos_conselho,
             docx::abrir_documento_conselho,
-            docx::gerar_relatorio_alunos_criticos,
-            docx::gerar_relatorio_elegiveis_recuperacao,
-            docx::gerar_relatorio_alteracoes_notas,
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,
             turmas::salvar_finalizacao_conselho,
@@ -189,7 +185,6 @@ fn main() {
             apps_script_api::provisionar_pei_automatico,
             turmas::listar_disciplinas_turma,
             pendencias::gerar_relatorio_pendencias,
-            pendencias::gerar_relatorio_pendencia_lancamento,
             fotos::importar_fotos_turma,
             fotos::carregar_foto_aluno,
             fotos::salvar_posicao_foto,
@@ -199,12 +194,17 @@ fn main() {
             importador_alunos::aplicar_lote_alunos,
             importador_alunos::analisar_tarefas,
             importador_alunos::aplicar_tarefas,
-            importador_alunos::gerar_relatorio_tarefas,
             prova_paulista::analisar_prova_paulista,
             prova_paulista::aplicar_prova_paulista,
-            prova_paulista::gerar_relatorio_prova_paulista,
-            relatorio_educacao_fisica::gerar_relatorio_educacao_fisica,
-            relatorio_top60::gerar_relatorio_top60,
+            motor_relatorios::listar_definicoes_relatorio,
+            motor_relatorios::listar_campos_disponiveis,
+            motor_relatorios::listar_disciplinas_conhecidas,
+            motor_relatorios::executar_relatorio_generico,
+            motor_relatorios::pre_visualizar_relatorio,
+            motor_relatorios::salvar_definicao_relatorio,
+            motor_relatorios::excluir_definicao_relatorio,
+            motor_relatorios::exportar_definicao_relatorio,
+            motor_relatorios::importar_definicao_relatorio,
             planejamento::buscar_planejamentos,
             planejamento::salvar_config_planejamento,
             planejamento::carregar_config_planejamento,
