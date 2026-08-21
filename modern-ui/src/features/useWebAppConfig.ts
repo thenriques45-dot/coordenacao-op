@@ -32,6 +32,24 @@ type GerarLoteResultado<TRegistro> = {
 
 type LocaisResultado<TRegistro> = { pasta: string; registros: TRegistro[] };
 
+function normalizarNome(valor: string): string[] {
+  return valor.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean);
+}
+
+// Compara dois nomes de exibição por prefixo de palavras (não por igualdade
+// exata) pra cobrir o caso comum de reinstalação: o coordenador configurou
+// como "Thiago" e, ao reinstalar, o grupo de trabalho já tinha "Thiago
+// Henrique Santos" cadastrado — mesma pessoa, nome mais completo. Exige
+// bater palavra inteira em sequência (não substring solta), pra "Ana" não
+// casar com "Mariana".
+function nomesCompativeis(a: string, b: string): boolean {
+  const palavrasA = normalizarNome(a);
+  const palavrasB = normalizarNome(b);
+  if (palavrasA.length === 0 || palavrasB.length === 0) return false;
+  const [menor, maior] = palavrasA.length <= palavrasB.length ? [palavrasA, palavrasB] : [palavrasB, palavrasA];
+  return menor.every((palavra, indice) => palavra === maior[indice]);
+}
+
 type ComandosWebAppConfig = {
   carregarConfig: string;
   salvarConfig: string;
@@ -286,13 +304,13 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
     configuradoPorOutro,
     membroConfigurador,
     // Só oferece "essa configuração é minha" quando o nome de exibição de
-    // quem configurou bate com o do perfil local atual — evita que alguém
-    // reivindique a configuração de outra pessoa por engano.
+    // quem configurou bate (por inteiro ou por prefixo) com o do perfil
+    // local atual — evita que alguém reivindique a configuração de outra
+    // pessoa por engano.
     podeReivindicar:
       configuradoPorOutro
       && !!membroConfigurador?.displayName?.trim()
-      && membroConfigurador.displayName.trim().toLocaleLowerCase("pt-BR")
-        === garantirPerfilPersistido().displayName.trim().toLocaleLowerCase("pt-BR"),
+      && nomesCompativeis(membroConfigurador.displayName, garantirPerfilPersistido().displayName),
     reivindicando,
     reivindicar,
     salvarConfig,

@@ -441,6 +441,29 @@ h3 {
   background: #f4f3f0;
 }
 
+.ghost-action {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border, #e6e3dd);
+  border-radius: 9px;
+  color: var(--text-secondary, #6b6670);
+  display: flex;
+  font-weight: 600;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.ghost-action:hover {
+  background: var(--surface-elevated, #f6f6f4);
+  color: var(--text-primary, #15131a);
+}
+
+.ghost-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .primary-action.ghost-disabled {
   background: #d0cece;
   border-color: #d0cece;
