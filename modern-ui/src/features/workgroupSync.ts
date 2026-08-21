@@ -176,6 +176,23 @@ function salvarTombstones(tombstones: SyncTombstones) {
   localStorage.setItem(WORKGROUP_SYNC_TOMBSTONES_KEY, JSON.stringify(tombstones));
 }
 
+function normalizarNome(valor: string): string[] {
+  return valor.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean);
+}
+
+// Compara dois nomes de exibição por prefixo de palavras (não por igualdade
+// exata) pra reconhecer a mesma pessoa com nomes diferentes — ex.: configurou
+// como "Thiago" e, numa reinstalação, o grupo de trabalho já tinha "Thiago
+// Henrique Santos" cadastrado. Exige bater palavra inteira em sequência (não
+// substring solta), pra "Ana" não casar com "Mariana".
+export function nomesCompativeis(a: string, b: string): boolean {
+  const palavrasA = normalizarNome(a);
+  const palavrasB = normalizarNome(b);
+  if (palavrasA.length === 0 || palavrasB.length === 0) return false;
+  const [menor, maior] = palavrasA.length <= palavrasB.length ? [palavrasA, palavrasB] : [palavrasB, palavrasA];
+  return menor.every((palavra, indice) => palavra === maior[indice]);
+}
+
 export function carregarMembrosSincronizacao(): WorkgroupSyncMember[] {
   try {
     const salvos = localStorage.getItem(WORKGROUP_SYNC_MEMBERS_KEY);
@@ -184,6 +201,38 @@ export function carregarMembrosSincronizacao(): WorkgroupSyncMember[] {
   } catch {
     return [];
   }
+}
+
+export type WorkgroupSyncMemberAgrupado = WorkgroupSyncMember & { dispositivos: string[] };
+
+// Cada `userId` é um identificador local (UUID em localStorage) — reformatar
+// o PC, trocar de máquina ou dar boot noutro sistema operacional (dual boot)
+// gera um `userId` novo, mesmo sendo a mesma pessoa. Sem agrupar, ela ia se
+// "multiplicando" nas listas que usam esse roster (ex.: sugestão de
+// responsável no Kanban): um cartão pra cada `userId`, em vez de um só pra
+// cada pessoa de fato. Agrupa por nome compatível (exato ou por prefixo, ver
+// `nomesCompativeis`) e mantém o cartão mais recente como principal — os
+// nomes de dispositivo dos demais ficam em `dispositivos`, só pra
+// transparência ("também visto em: Linux, Windows").
+//
+// Não apaga nem funde os `userId` de origem — quem precisa da identidade
+// exata (ex.: `configurado_por_user_id` no Planejamento/PEI) continua usando
+// `carregarMembrosSincronizacao()` sem agrupar.
+export function agruparMembrosPorPessoa(membros: WorkgroupSyncMember[]): WorkgroupSyncMemberAgrupado[] {
+  const grupos: { principal: WorkgroupSyncMember; dispositivos: Set<string> }[] = [];
+
+  const ordenados = [...membros].sort((a, b) => (Date.parse(b.updatedAt ?? "") || 0) - (Date.parse(a.updatedAt ?? "") || 0));
+
+  for (const membro of ordenados) {
+    const grupo = grupos.find((g) => nomesCompativeis(g.principal.displayName, membro.displayName));
+    if (grupo) {
+      if (membro.deviceName) grupo.dispositivos.add(membro.deviceName);
+    } else {
+      grupos.push({ principal: membro, dispositivos: new Set(membro.deviceName ? [membro.deviceName] : []) });
+    }
+  }
+
+  return grupos.map((g) => ({ ...g.principal, dispositivos: Array.from(g.dispositivos) }));
 }
 
 function salvarMembrosSincronizacao(membros: WorkgroupSyncMember[]) {

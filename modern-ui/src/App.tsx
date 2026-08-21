@@ -322,6 +322,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.0.1": [
+    "Novo: 'Criar relatório', na Central de Relatórios, ganhou um construtor visual em blocos — monte relatórios do zero escolhendo campos, filtros, ordenação, textos e o cabeçalho institucional, na ordem que quiser, sem precisar de uma atualização do programa. Um tutorial explica o construtor e o repositório no primeiro acesso à tela.",
+    "Novo: 'Repositório de relatórios' reúne modelos prontos pra baixar — os oficiais (Tarefas Realizadas, Prova Paulista e Educação Física, que deixaram de vir instalados por padrão) e os enviados pela comunidade de coordenadores. Cada relatório mostra quem montou.",
+    "O relatório 'Top 60' virou 'Top Alunos' e a quantidade de alunos listados por período passa a ser escolhida na hora de gerar, em vez de fixa em 60.",
+    "A imagem de cabeçalho institucional (configurada em Configurações › Instituição) agora também aparece nos relatórios exportados em Excel e PDF — já aparecia no Word.",
+    "Corrigido: depois de reformatar o computador e reinstalar o app, reentrar no grupo de trabalho com o mesmo nome não bastava pra recuperar a configuração automática de Planejamento/PEI feita antes da formatação — agora aparece um botão 'Essa configuração é minha' pra reivindicar a configuração de um perfil antigo com o mesmo nome de exibição.",
+  ],
   "3.0.0": [
     "Novo: 'Criar relatório', na Central de Relatórios, ganhou um construtor visual em blocos — monte relatórios do zero escolhendo campos, filtros, ordenação, textos e o cabeçalho institucional, na ordem que quiser, sem precisar de uma atualização do programa. Um tutorial explica o construtor e o repositório no primeiro acesso à tela.",
     "Novo: 'Repositório de relatórios' reúne modelos prontos pra baixar — os oficiais (Tarefas Realizadas, Prova Paulista e Educação Física, que deixaram de vir instalados por padrão) e os enviados pela comunidade de coordenadores. Cada relatório mostra quem montou.",

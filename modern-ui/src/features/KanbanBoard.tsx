@@ -53,8 +53,10 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import {
+  agruparMembrosPorPessoa,
   carregarMembrosSincronizacao,
   iniciaisPerfil,
+  nomesCompativeis,
   registrarExclusaoSincronizacao,
   WORKGROUP_SYNC_APPLIED_EVENT,
   type WorkgroupSyncMember,
@@ -347,7 +349,13 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   );
 
   const sugestoesResponsavel = useMemo(() => {
-    return Array.from(new Set(membrosParaCards.map((membro) => membro.displayName).filter(Boolean)))
+    // Agrupa por pessoa (não só por string exata) antes de sugerir — sem
+    // isso, a mesma pessoa configurada com nomes ligeiramente diferentes (ou
+    // vista em mais de um `userId`, ex.: dual boot) aparecia como duas
+    // sugestões distintas.
+    return agruparMembrosPorPessoa(membrosParaCards)
+      .map((membro) => membro.displayName)
+      .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [membrosParaCards]);
 
@@ -1129,7 +1137,11 @@ function KanbanTaskCard({
   const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
   const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
   const responsaveis = obterResponsaveisTarefa(tarefa);
-  const membroResponsavel = membros.find((membro) => responsaveis.some((nome) => normalizarTextoGestao(nome) === normalizarTextoGestao(membro.displayName)));
+  // Nome compatível (não só igualdade exata) pra achar o avatar mesmo quando
+  // o responsável foi digitado com um nome ligeiramente diferente do que
+  // está no roster (ex.: "Thiago" no cartão, "Thiago Henrique Santos" no
+  // registro mais recente do mesmo coordenador).
+  const membroResponsavel = membros.find((membro) => responsaveis.some((nome) => nomesCompativeis(nome, membro.displayName)));
   const usarAvatarPerfil = Boolean(membroResponsavel?.avatarDataUrl);
   const vinculos = obterVinculosTarefa(tarefa);
   const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));

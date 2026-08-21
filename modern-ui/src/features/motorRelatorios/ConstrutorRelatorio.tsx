@@ -410,6 +410,46 @@ export function ConstrutorRelatorio({
     atualizarSecao(indiceSecao, (secaoAtual) => ({ ordenacao: secaoAtual.ordenacao.filter((_, i) => i !== indice) }));
   }
 
+  // Liga/desliga o limite de linhas ser um parâmetro editável na hora de
+  // gerar (mesmo mecanismo do "Top Alunos" embutido — ver AgrupamentoRelatorio
+  // no backend). Ligar cria um parâmetro numérico novo pré-preenchido com o
+  // limite atual; desligar só desvincula, volta a ser o número fixo (não
+  // apaga o parâmetro — quem quiser removê-lo faz isso no bloco Parâmetros).
+  function alternarLimiteEditavel(indiceSecao: number) {
+    setDefinicao((atual) => {
+      const secaoAtual = atual.secoes[indiceSecao];
+      if (!secaoAtual) return atual;
+      const agrupamento = secaoAtual.agrupamento;
+
+      if (agrupamento.limite_parametro) {
+        return {
+          ...atual,
+          secoes: atual.secoes.map((s, i) =>
+            i !== indiceSecao ? s : { ...s, agrupamento: { ...s.agrupamento, limite_parametro: null } }
+          ),
+        };
+      }
+
+      const valorInicial = agrupamento.limite_por_grupo ?? 20;
+      const idParametro = idLocal("parametro");
+      const novoParametro: DefinicaoParametro = {
+        id: idParametro,
+        rotulo: secaoAtual.titulo ? `Quantidade de linhas — ${secaoAtual.titulo}` : "Quantidade de linhas",
+        tipo: "numero",
+        valor_padrao: { tipo: "numero", valor: valorInicial },
+      };
+      return {
+        ...atual,
+        parametros: [...atual.parametros, novoParametro],
+        secoes: atual.secoes.map((s, i) =>
+          i !== indiceSecao
+            ? s
+            : { ...s, agrupamento: { ...s.agrupamento, limite_por_grupo: valorInicial, limite_parametro: idParametro } }
+        ),
+      };
+    });
+  }
+
   function alternarListaFonte(lista: string[], valor: string): string[] {
     return lista.includes(valor) ? lista.filter((item) => item !== valor) : [...lista, valor];
   }
@@ -699,6 +739,7 @@ export function ConstrutorRelatorio({
                 adicionarOrdenacao={adicionarOrdenacao}
                 mudarOrdenacao={mudarOrdenacao}
                 removerOrdenacao={removerOrdenacao}
+                alternarLimiteEditavel={alternarLimiteEditavel}
                 atualizarSecao={atualizarSecao}
                 parametros={definicao.parametros}
                 adicionarParametro={adicionarParametro}
@@ -827,6 +868,7 @@ function InspetorBloco({
   adicionarOrdenacao,
   mudarOrdenacao,
   removerOrdenacao,
+  alternarLimiteEditavel,
   atualizarSecao,
   parametros,
   adicionarParametro,
@@ -853,6 +895,7 @@ function InspetorBloco({
   adicionarOrdenacao: (indiceSecao: number) => void;
   mudarOrdenacao: (indiceSecao: number, indice: number, mudanca: Partial<OrdenacaoRelatorio>) => void;
   removerOrdenacao: (indiceSecao: number, indice: number) => void;
+  alternarLimiteEditavel: (indiceSecao: number) => void;
   atualizarSecao: (indiceSecao: number, mudanca: Partial<SecaoRelatorio>) => void;
   parametros: DefinicaoParametro[];
   adicionarParametro: () => void;
@@ -1022,6 +1065,7 @@ function InspetorBloco({
             adicionarOrdenacao={adicionarOrdenacao}
             mudarOrdenacao={mudarOrdenacao}
             removerOrdenacao={removerOrdenacao}
+            alternarLimiteEditavel={alternarLimiteEditavel}
           />
         )}
       </div>
@@ -1050,6 +1094,7 @@ function InspetorTabela({
   adicionarOrdenacao,
   mudarOrdenacao,
   removerOrdenacao,
+  alternarLimiteEditavel,
 }: {
   indiceSecao: number;
   secao: SecaoRelatorio;
@@ -1071,6 +1116,7 @@ function InspetorTabela({
   adicionarOrdenacao: (indiceSecao: number) => void;
   mudarOrdenacao: (indiceSecao: number, indice: number, mudanca: Partial<OrdenacaoRelatorio>) => void;
   removerOrdenacao: (indiceSecao: number, indice: number) => void;
+  alternarLimiteEditavel: (indiceSecao: number) => void;
 }) {
   const [colunaExpandidaId, setColunaExpandidaId] = useState<string | null>(null);
   const totalColunasAnterior = useRef(secao?.colunas.length ?? 0);
@@ -1250,7 +1296,15 @@ function InspetorTabela({
           <input
             type="checkbox"
             checked={secao.agrupamento.limite_por_grupo != null}
-            onChange={(e) => atualizarSecao(indiceSecao, { agrupamento: { ...secao.agrupamento, limite_por_grupo: e.target.checked ? 20 : null } })}
+            onChange={(e) =>
+              atualizarSecao(indiceSecao, {
+                agrupamento: {
+                  ...secao.agrupamento,
+                  limite_por_grupo: e.target.checked ? 20 : null,
+                  limite_parametro: e.target.checked ? secao.agrupamento.limite_parametro : null,
+                },
+              })
+            }
           />
           Mostrar só as primeiras
           <input
@@ -1262,6 +1316,24 @@ function InspetorTabela({
           />
           linhas {secao.agrupamento.campo ? "por grupo" : "no total"}
         </label>
+
+        {secao.agrupamento.limite_por_grupo != null && (
+          <label className="cb-checkbox">
+            <input
+              type="checkbox"
+              checked={!!secao.agrupamento.limite_parametro}
+              onChange={() => alternarLimiteEditavel(indiceSecao)}
+            />
+            Deixar essa quantidade editável na hora de gerar
+          </label>
+        )}
+        {secao.agrupamento.limite_parametro && (
+          <p className="cb-ajuda">
+            Criado um parâmetro numérico pra isso — edite o rótulo dele no bloco <strong>Parâmetros</strong>, se quiser.
+            A pessoa que gerar o relatório vai poder escolher a quantidade antes de rodar (como já acontece no Top
+            Alunos).
+          </p>
+        )}
 
         <label className="cb-checkbox">
           <input

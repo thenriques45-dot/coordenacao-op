@@ -521,9 +521,74 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
         }
     }
 
+    // atendimentos: lista de registros com id próprio (cada atendimento feito
+    // num dispositivo é um item novo, não a edição de um campo fixo como
+    // frequência/médias) — o merge certo é UNIÃO por id, nunca "local sempre
+    // vence" nem "o objeto inteiro do incoming vence". Sem isso, atendimentos
+    // feitos numa máquina nunca chegavam às outras via sincronização — e se a
+    // máquina de origem fosse formatada sem backup, o atendimento sumia de vez.
+    mesclar_atendimentos(local_obj, inc_obj);
+
     // Campos de conselho e encaminhamentos: local sempre vence (edições intencionais)
     // ajustes_medias_conselho, encaminhamentos_conselho, deliberados_conselho,
     // lideranca_sala, deficiencias, comentario_educacao_especial — não tocamos
+}
+
+fn mesclar_atendimentos(local_obj: &mut serde_json::Map<String, Value>, inc_obj: &serde_json::Map<String, Value>) {
+    let Some(inc_lista) = inc_obj.get("atendimentos").and_then(Value::as_array) else { return; };
+    let local_valor = local_obj
+        .entry("atendimentos".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let Some(local_lista) = local_valor.as_array_mut() else { return; };
+
+    for inc_item in inc_lista {
+        let Some(inc_id) = inc_item.get("id").and_then(Value::as_str).map(str::to_string) else { continue; };
+        match local_lista
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(inc_id.as_str()))
+        {
+            Some(local_item) => mesclar_atendimento(local_item, inc_item),
+            None => local_lista.push(inc_item.clone()),
+        }
+    }
+}
+
+// Mesmo raciocínio pros followups aninhados (timeline de acompanhamento de um
+// atendimento): união por id. O registro em si (fora followups) vence pelo
+// atualizado_em mais recente; os followups são unidos independente de quem
+// venceu ali, pra não perder um follow-up adicionado só de um dos lados.
+fn mesclar_atendimento(local: &mut Value, incoming: &Value) {
+    let followups_inc = incoming.get("followups").and_then(Value::as_array).cloned();
+
+    let em_local = local.get("atualizado_em").and_then(Value::as_str).unwrap_or("").to_string();
+    let em_inc = incoming.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+    if em_inc > em_local.as_str() {
+        *local = incoming.clone();
+    }
+
+    let Some(inc_followups) = followups_inc else { return; };
+    let Some(local_obj) = local.as_object_mut() else { return; };
+    let local_followups_valor = local_obj
+        .entry("followups".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let Some(local_followups) = local_followups_valor.as_array_mut() else { return; };
+
+    for inc_followup in inc_followups {
+        let Some(inc_id) = inc_followup.get("id").and_then(Value::as_str).map(str::to_string) else { continue; };
+        match local_followups
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(inc_id.as_str()))
+        {
+            Some(local_followup) => {
+                let em_l = local_followup.get("atualizado_em").and_then(Value::as_str).unwrap_or("").to_string();
+                let em_i = inc_followup.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+                if em_i > em_l.as_str() {
+                    *local_followup = inc_followup;
+                }
+            }
+            None => local_followups.push(inc_followup),
+        }
+    }
 }
 
 pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
@@ -942,4 +1007,112 @@ pub(crate) fn salvar_marcador_sincronizacao_institucional(valor: &str) -> io::Re
         fs::create_dir_all(parent)?;
     }
     fs::write(path, valor)
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use serde_json::json;
+
+    /// Reproduz o bug real: um atendimento feito só na máquina A nunca
+    /// aparecia na máquina B depois de sincronizar, porque `mesclar_aluno`
+    /// simplesmente não tocava no campo `atendimentos`. Se a máquina A fosse
+    /// reformatada sem backup, o atendimento sumia de vez — em nenhum lugar
+    /// do grupo de trabalho ele tinha sido replicado.
+    #[test]
+    fn atendimento_so_no_incoming_e_incorporado_ao_local() {
+        let mut local = json!({ "atendimentos": [] });
+        let incoming = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Conversa com a família", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let lista = local["atendimentos"].as_array().unwrap();
+        assert_eq!(lista.len(), 1);
+        assert_eq!(lista[0]["id"], "atendimento-1");
+    }
+
+    /// Dois dispositivos criaram atendimentos diferentes pro mesmo aluno
+    /// (ids diferentes) — os dois precisam sobreviver ao merge, não só um.
+    #[test]
+    fn atendimentos_com_ids_diferentes_dos_dois_lados_sao_unidos() {
+        let mut local = json!({
+            "atendimentos": [
+                { "id": "atendimento-local", "descricao": "Feito no dispositivo A", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                { "id": "atendimento-remoto", "descricao": "Feito no dispositivo B", "atualizado_em": "2026-08-02T10:00:00-03:00" }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let mut ids: Vec<&str> = local["atendimentos"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["id"].as_str().unwrap())
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["atendimento-local", "atendimento-remoto"]);
+    }
+
+    /// Mesmo atendimento (mesmo id) editado nos dois lados — vence a edição
+    /// com `atualizado_em` mais recente, igual já acontece com conselhos.
+    #[test]
+    fn atendimento_editado_dos_dois_lados_vence_o_mais_recente() {
+        let mut local = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Versão antiga", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Versão editada depois", "atualizado_em": "2026-08-03T10:00:00-03:00" }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert_eq!(local["atendimentos"][0]["descricao"], "Versão editada depois");
+    }
+
+    /// Follow-up adicionado só do lado remoto, num atendimento que também
+    /// existe (com followups próprios) do lado local — os followups dos
+    /// dois lados precisam se unir, não um substituir o outro.
+    #[test]
+    fn followups_de_um_atendimento_sao_unidos_por_id() {
+        let mut local = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Original",
+                    "atualizado_em": "2026-08-01T10:00:00-03:00",
+                    "followups": [
+                        { "id": "followup-local", "descricao": "Follow-up feito no dispositivo A", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+                    ]
+                }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Original",
+                    "atualizado_em": "2026-08-01T10:00:00-03:00",
+                    "followups": [
+                        { "id": "followup-remoto", "descricao": "Follow-up feito no dispositivo B", "atualizado_em": "2026-08-02T10:00:00-03:00" }
+                    ]
+                }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let mut ids: Vec<&str> = local["atendimentos"][0]["followups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|item| item["id"].as_str().unwrap())
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["followup-local", "followup-remoto"]);
+    }
 }
