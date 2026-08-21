@@ -70,6 +70,41 @@ fn substituir_variaveis(texto: &str, bimestre: &str) -> String {
     texto.replace("{bimestre}", &rotulo_bimestre(bimestre))
 }
 
+/// A mesma imagem institucional configurada em Configurações › Instituição
+/// (`localizar_imagem_cabecalho`, em docx.rs) — o Word já a embute sozinho
+/// como cabeçalho de página em todo `.docx` gerado (ver `escrever_docx`),
+/// então só Excel e PDF precisam deste carregamento explícito aqui.
+fn carregar_imagem_cabecalho_bytes() -> Option<Vec<u8>> {
+    let caminho = localizar_imagem_cabecalho()?;
+    fs::read(caminho).ok()
+}
+
+fn tem_bloco_cabecalho_ativo(definicao: &ReportDefinition) -> bool {
+    definicao.blocos.iter().any(|bloco| bloco.ativo && matches!(bloco.conteudo, ConteudoBloco::Cabecalho))
+}
+
+/// Carrega a imagem institucional já redimensionada pro PDF, mirando
+/// `largura_alvo_mm` de largura (o genpdf calcula o tamanho físico a partir
+/// do "dpi" declarado + pixels da imagem, então a gente reverte a conta: dpi
+/// = polegadas-por-pixel necessárias pra bater a largura desejada).
+/// PNGs com transparência são convertidos pra RGB — o genpdf rejeita canal
+/// alfa — em vez de falhar a geração inteira por causa do cabeçalho.
+fn carregar_imagem_cabecalho_pdf(largura_alvo_mm: f64) -> Option<genpdf::elements::Image> {
+    use image::GenericImageView;
+
+    let bytes = carregar_imagem_cabecalho_bytes()?;
+    let decodificada = image::load_from_memory(&bytes).ok()?;
+    let sem_alfa = image::DynamicImage::ImageRgb8(decodificada.to_rgb8());
+    let (largura_px, _) = sem_alfa.dimensions();
+    if largura_px == 0 {
+        return None;
+    }
+    let dpi = 25.4 * largura_px as f64 / largura_alvo_mm;
+    genpdf::elements::Image::from_dynamic_image(sem_alfa)
+        .ok()
+        .map(|imagem| imagem.with_dpi(dpi).with_alignment(genpdf::Alignment::Center))
+}
+
 // ───────────────────────────── DOCX ─────────────────────────────
 
 fn preencher_tabela_docx(documento: &mut DocumentoDocx, secao: &SecaoResultado) {
@@ -422,14 +457,30 @@ fn renderizar_xlsx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
         // por padrão (ver `escrever_secao_xlsx`).
         let planilha = workbook.add_worksheet();
         planilha.set_name("Capa").map_err(|err| err.to_string())?;
-        for (indice, (texto, negrito)) in linhas_capa.iter().enumerate() {
+
+        let mut linha_atual = 0u32;
+        if tem_bloco_cabecalho_ativo(definicao) {
+            if let Some(bytes) = carregar_imagem_cabecalho_bytes() {
+                if let Ok(imagem) = rust_xlsxwriter::Image::new_from_buffer(&bytes) {
+                    planilha.set_row_height_pixels(0, 90).map_err(|err| err.to_string())?;
+                    planilha.set_column_width_pixels(0, 260).map_err(|err| err.to_string())?;
+                    planilha
+                        .insert_image_fit_to_cell(0, 0, &imagem, true)
+                        .map_err(|err| err.to_string())?;
+                    linha_atual = 2;
+                }
+            }
+        }
+
+        for (texto, negrito) in linhas_capa.iter() {
             if *negrito {
                 planilha
-                    .write_with_format(indice as u32, 0, texto, &fmt_titulo)
+                    .write_with_format(linha_atual, 0, texto, &fmt_titulo)
                     .map_err(|err| err.to_string())?;
             } else {
-                planilha.write_string(indice as u32, 0, texto).map_err(|err| err.to_string())?;
+                planilha.write_string(linha_atual, 0, texto).map_err(|err| err.to_string())?;
             }
+            linha_atual += 1;
         }
         teve_aba = true;
     }
@@ -637,6 +688,10 @@ fn renderizar_pdf_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
         }
         match &bloco.conteudo {
             ConteudoBloco::Cabecalho => {
+                if let Some(imagem) = carregar_imagem_cabecalho_pdf(160.0) {
+                    documento.push(imagem);
+                    documento.push(Break::new(0.5));
+                }
                 documento.push(Paragraph::new(&definicao.nome).aligned(Alignment::Center).styled(Style::new().bold().with_font_size(16)));
                 documento.push(
                     Paragraph::new(format!("Coordenação Pedagógica · {}", rotulo_bimestre(bimestre))).aligned(Alignment::Center),

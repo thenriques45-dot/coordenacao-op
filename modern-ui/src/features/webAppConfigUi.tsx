@@ -38,6 +38,13 @@ type ConfiguradoPorOutroBannerProps = {
   carregando: boolean;
   onCarregarAgora: () => void;
   onVerConfiguracoes: () => void;
+  // Reatribui a config pro perfil local atual (mesmo UUID de quem
+  // configurou originalmente não bate mais — reinstalação, formatação de
+  // PC, limpeza de perfil). Só existe quando o nome de exibição bate com o
+  // do usuário atual — ver `Planejamento.tsx`/`PEI.tsx`. `undefined` some
+  // com o botão inteiro.
+  onReivindicar?: () => void;
+  reivindicando?: boolean;
 };
 
 // Card "Fulano já configurou isso" mostrado quando outro coordenador do
@@ -45,7 +52,7 @@ type ConfiguradoPorOutroBannerProps = {
 // abre a tela pela primeira vez seja forçado a passar pela modal técnica de
 // configuração. Idêntico entre PEI.tsx e Planejamento.tsx, só o texto muda.
 export function ConfiguradoPorOutroBanner({
-  membro, rotulo, carregando, onCarregarAgora, onVerConfiguracoes,
+  membro, rotulo, carregando, onCarregarAgora, onVerConfiguracoes, onReivindicar, reivindicando,
 }: ConfiguradoPorOutroBannerProps) {
   return (
     <div
@@ -65,6 +72,7 @@ export function ConfiguradoPorOutroBanner({
       <p style={{ margin: 0, flex: 1, minWidth: "220px", fontSize: "0.88rem" }}>
         <strong>{membro?.displayName || "Outro coordenador da equipe"}</strong> já configurou o {rotulo}{" "}
         automático para a escola — não é preciso criar um novo.
+        {onReivindicar && " Esse nome é o seu de um perfil antigo (reinstalação, formatação)?"}
       </p>
       <button type="button" className="primary-action" onClick={onCarregarAgora} disabled={carregando}>
         <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar agora"}
@@ -72,6 +80,11 @@ export function ConfiguradoPorOutroBanner({
       <button type="button" className="ghost-action" onClick={onVerConfiguracoes}>
         Ver configurações avançadas
       </button>
+      {onReivindicar && (
+        <button type="button" className="ghost-action" onClick={onReivindicar} disabled={reivindicando}>
+          {reivindicando ? "Reivindicando..." : "Essa configuração é minha"}
+        </button>
+      )}
     </div>
   );
 }

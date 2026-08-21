@@ -116,7 +116,10 @@ function ItemRepositorioCard({
         <strong>{item.nome}</strong>
         <span>{item.descricao}</span>
         <div className="report-actions" style={{ marginTop: 10 }}>
-          <span className="report-path">{ROTULOS_FORMATO[item.formato_saida]}</span>
+          <span className="report-path">
+            {ROTULOS_FORMATO[item.formato_saida]}
+            {item.autor && ` · por ${item.autor}`}
+          </span>
           <button type="button" className="secondary-action" disabled={baixando} onClick={onBaixar}>
             <Download size={14} /> {baixando ? "Baixando..." : "Baixar"}
           </button>

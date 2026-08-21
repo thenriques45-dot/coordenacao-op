@@ -136,6 +136,7 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
     carregando, erro, setErro, ultimaBusca, registros, gerando, statusGeracao,
     pastaGeral, criandoWebApp, erroWebApp, linkRecebido, setLinkRecebido,
     importandoLink, statusImportarLink, configuradoPorOutro, membroConfigurador,
+    podeReivindicar, reivindicando, reivindicar,
     salvarConfig, carregar: carregarPlanejamentos, criarWebAppAutomatico,
     importarLinkRecebido,
   } = useWebAppConfig<ConfigPlanejamento, RegistroPlanejamento>({
@@ -386,6 +387,8 @@ export function TelaPlanejamento({ turmas }: { turmas: TurmaResumo[] }) {
           carregando={carregando}
           onCarregarAgora={carregarPlanejamentos}
           onVerConfiguracoes={() => setConfigAberta(true)}
+          onReivindicar={podeReivindicar ? reivindicar : undefined}
+          reivindicando={reivindicando}
         />
       )}
 

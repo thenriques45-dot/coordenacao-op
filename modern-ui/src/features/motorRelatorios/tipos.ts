@@ -132,6 +132,8 @@ export type ReportDefinition = {
   id: string;
   nome: string;
   descricao: string;
+  // Nome de quem publicou — só usado pra crédito no Repositório de relatórios.
+  autor?: string | null;
   embutido: boolean;
   fonte: FiltroTurmas;
   parametros: DefinicaoParametro[];
@@ -149,6 +151,7 @@ export type ItemRepositorio = {
   categoria: CategoriaRepositorio;
   nome: string;
   descricao: string;
+  autor?: string | null;
   formato_saida: FormatoSaida;
 };
 

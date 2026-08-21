@@ -139,6 +139,7 @@ export function TelaPEI() {
     carregando, erro, setErro, ultimaBusca, registros, gerando, statusGeracao,
     pastaGeral, criandoWebApp, erroWebApp, linkRecebido, setLinkRecebido,
     importandoLink, statusImportarLink, configuradoPorOutro, membroConfigurador,
+    podeReivindicar, reivindicando, reivindicar,
     salvarConfig, carregar: carregarPeis, criarWebAppAutomatico: criarWebAppPeiAutomatico,
     importarLinkRecebido,
   } = useWebAppConfig<ConfigPei, RegistroPei>({
@@ -337,6 +338,8 @@ export function TelaPEI() {
           carregando={carregando}
           onCarregarAgora={carregarPeis}
           onVerConfiguracoes={() => setConfigAberta(true)}
+          onReivindicar={podeReivindicar ? reivindicar : undefined}
+          reivindicando={reivindicando}
         />
       )}
 

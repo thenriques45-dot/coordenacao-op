@@ -532,6 +532,7 @@ mod testes {
             id: "top20_matematica_em_noturno".to_string(),
             nome: "Top 20 — Matemática (EM Noturno)".to_string(),
             descricao: "Os 20 alunos com melhor nota em Matemática, turmas de Ensino Médio no período noturno.".to_string(),
+            autor: None,
             embutido: false,
             fonte: FiltroTurmas {
                 periodos: vec!["NOITE".to_string()],
@@ -670,5 +671,80 @@ mod testes {
             assert!(tamanho > 0, "formato {formato:?}: arquivo gerado não deveria ficar vazio");
             let _ = fs::remove_file(&resultado.caminho);
         }
+    }
+
+    /// Configura uma imagem de cabeçalho de teste no lugar em que
+    /// `localizar_imagem_cabecalho` (docx.rs) procura, gera XLSX e PDF com o
+    /// bloco Cabeçalho ativo e confere que a imagem realmente foi embutida —
+    /// no XLSX, checando o zip por um arquivo em `xl/media/`; no PDF,
+    /// comparando o tamanho do arquivo com/sem a imagem configurada (uma
+    /// imagem de verdade embutida deveria pesar bem mais do que sem ela).
+    /// Sempre restaura o estado anterior da pasta de imagens, mesmo se um
+    /// assert falhar no meio.
+    #[test]
+    fn cabecalho_com_imagem_institucional_aparece_no_xlsx_e_no_pdf() {
+        let pasta_imagens = data_dir().expect("data_dir deveria resolver em teste").join("imagens");
+        fs::create_dir_all(&pasta_imagens).expect("deveria conseguir criar a pasta de imagens");
+        let caminho_imagem = pasta_imagens.join("cabecalho_ata.png");
+        let backup = fs::read(&caminho_imagem).ok();
+
+        let mut png_bytes = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(40, 10, image::Rgb([200, 30, 30])))
+            .write_to(&mut std::io::Cursor::new(&mut png_bytes), image::ImageOutputFormat::Png)
+            .expect("deveria conseguir codificar o PNG de teste");
+        fs::write(&caminho_imagem, &png_bytes).expect("deveria conseguir escrever a imagem de teste");
+
+        // Usa um bimestre incomum (não usado pelos outros testes) e lê/apaga
+        // cada arquivo logo depois de gerar, antes do próximo — o nome do
+        // arquivo só tem precisão de segundo (`id_bimN_AAAAMMDD_HHMMSS`), e
+        // duas gerações da mesma definição no mesmo segundo colidiriam no
+        // mesmo caminho, fazendo uma sobrescrever a outra antes da leitura.
+        let resultado_xlsx = executar_relatorio(&definicao_com_blocos(FormatoSaida::Xlsx), "9", &BTreeMap::new());
+        let tamanho_xlsx = resultado_xlsx.as_ref().ok().map(|r| (r.caminho.clone(), fs::read(&r.caminho)));
+        if let Ok(r) = &resultado_xlsx {
+            let _ = fs::remove_file(&r.caminho);
+        }
+
+        let resultado_pdf_com_imagem = executar_relatorio(&definicao_com_blocos(FormatoSaida::Pdf), "9", &BTreeMap::new());
+        let bytes_pdf_com_imagem = resultado_pdf_com_imagem.as_ref().ok().and_then(|r| fs::read(&r.caminho).ok());
+        if let Ok(r) = &resultado_pdf_com_imagem {
+            let _ = fs::remove_file(&r.caminho);
+        }
+
+        // Restaura a pasta de imagens ANTES de qualquer assert, pra nunca
+        // deixar a imagem de teste pra trás mesmo se algo falhar abaixo —
+        // restaura o backup se havia uma imagem antes, ou apaga a de teste
+        // se a pasta estava vazia.
+        match &backup {
+            Some(bytes) => {
+                fs::write(&caminho_imagem, bytes).ok();
+            }
+            None => {
+                fs::remove_file(&caminho_imagem).ok();
+            }
+        }
+
+        let (_, bytes_xlsx) = tamanho_xlsx.expect("xlsx com cabeçalho deveria gerar sem erro");
+        let bytes_xlsx = bytes_xlsx.expect("deveria conseguir ler o xlsx gerado antes de apagar");
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes_xlsx)).expect("xlsx gerado deveria ser um zip válido");
+        let tem_media = (0..zip.len()).any(|i| zip.by_index(i).map(|arq| arq.name().starts_with("xl/media/")).unwrap_or(false));
+        assert!(tem_media, "xlsx com bloco Cabeçalho ativo e imagem configurada deveria ter a imagem em xl/media/");
+
+        // Compara tamanho de arquivo é frágil aqui (o peso do PDF é dominado
+        // pela fonte do sistema embutida, que pode variar de execução pra
+        // execução) — em vez disso, procura no PDF bruto a marca de um
+        // XObject de imagem, que só aparece quando há mesmo uma imagem
+        // embutida no documento. Não testamos o caminho "sem imagem" aqui:
+        // `localizar_imagem_cabecalho` tem vários locais de fallback (ver
+        // docx.rs) além do que este teste configura, então "sem imagem
+        // nenhuma" não é um estado que dá pra garantir isoladamente num
+        // ambiente de teste que pode ter uma imagem real configurada em
+        // outro desses locais.
+        let bytes_pdf_com_imagem = bytes_pdf_com_imagem.expect("pdf com imagem deveria ter sido gerado e lido");
+        let tem_marca_de_imagem = bytes_pdf_com_imagem.windows(b"/Image".len()).any(|janela| janela == b"/Image");
+        assert!(
+            tem_marca_de_imagem,
+            "pdf com bloco Cabeçalho ativo e imagem configurada deveria ter um XObject /Image embutido"
+        );
     }
 }

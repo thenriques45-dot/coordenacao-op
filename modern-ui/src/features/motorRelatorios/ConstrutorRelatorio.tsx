@@ -677,6 +677,7 @@ export function ConstrutorRelatorio({
               <InspetorBloco
                 bloco={blocoSelecionado}
                 definicao={definicao}
+                atualizarAutor={(autor) => setDefinicao((atual) => ({ ...atual, autor }))}
                 campos={campos}
                 disciplinas={disciplinas}
                 seriesConhecidas={seriesConhecidas}
@@ -809,6 +810,7 @@ export function ConstrutorRelatorio({
 function InspetorBloco({
   bloco,
   definicao,
+  atualizarAutor,
   campos,
   disciplinas,
   seriesConhecidas,
@@ -834,6 +836,7 @@ function InspetorBloco({
 }: {
   bloco: BlocoRelatorio;
   definicao: ReportDefinition;
+  atualizarAutor: (autor: string) => void;
   campos: CampoRelatorioInfo[];
   disciplinas: string[];
   seriesConhecidas: string[];
@@ -871,7 +874,23 @@ function InspetorBloco({
 
       <div className="cb-inspetor-corpo">
         {bloco.tipo === "cabecalho" && (
-          <p className="cb-ajuda">O cabeçalho usa o nome do relatório (definido no topo da tela) e o bimestre em que ele for gerado. Não precisa configurar nada aqui.</p>
+          <>
+            <p className="cb-ajuda">
+              O cabeçalho usa o nome do relatório (definido no topo da tela), o bimestre em que ele for gerado e a
+              imagem institucional configurada em Configurações › Instituição (Word, Excel e PDF — planilha .csv não
+              carrega imagem).
+            </p>
+            <label className="cb-campo">
+              Autor (opcional)
+              <input
+                type="text"
+                placeholder="Seu nome ou da sua equipe"
+                value={definicao.autor ?? ""}
+                onChange={(e) => atualizarAutor(e.target.value)}
+              />
+            </label>
+            <p className="cb-ajuda">Aparece como crédito se este relatório for publicado no Repositório de relatórios.</p>
+          </>
         )}
 
         {bloco.tipo === "texto" && (

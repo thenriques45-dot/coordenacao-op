@@ -106,6 +106,7 @@ pub(crate) fn definicao_top60() -> ReportDefinition {
              frequência anual acumulada, depois menor número de médias vermelhas. Turmas de período \
              Integral não entram."
                 .to_string(),
+        autor: None,
         embutido: true,
         fonte: FiltroTurmas {
             periodos: vec!["MANHA".to_string(), "TARDE".to_string(), "NOITE".to_string()],
@@ -208,6 +209,7 @@ pub(crate) fn definicao_alunos_criticos() -> ReportDefinition {
         nome: "Relatório de Alunos Críticos".to_string(),
         descricao: "Alunos com frequência anual abaixo de 75% ou média global do bimestre abaixo da nota mínima configurada."
             .to_string(),
+        autor: None,
         embutido: true,
         fonte: FiltroTurmas::default(),
         parametros: vec![],
@@ -301,6 +303,7 @@ pub(crate) fn definicao_alteracoes_notas() -> ReportDefinition {
         nome: "Alterações de Notas Pós-Conselho".to_string(),
         descricao: "Compara, disciplina por disciplina, as notas decididas no conselho com o último mapão importado."
             .to_string(),
+        autor: None,
         embutido: true,
         fonte: FiltroTurmas::default(),
         parametros: vec![],
@@ -424,6 +427,7 @@ pub(crate) fn definicao_elegiveis_recuperacao() -> ReportDefinition {
         descricao: "Alunos com X% ou mais de notas vermelhas (limiar ajustável abaixo) somando todos os bimestres, \
                      e a sugestão de qual nota a prova de recuperação substitui em cada disciplina."
             .to_string(),
+        autor: None,
         embutido: true,
         fonte: FiltroTurmas::default(),
         parametros: vec![DefinicaoParametro {
@@ -444,6 +448,7 @@ pub(crate) fn definicao_pendencia_lancamento() -> ReportDefinition {
         nome: "Pendência de Lançamento de Notas".to_string(),
         descricao: "Por turma, disciplina e bimestre: quantos alunos ativos ainda não têm nota lançada no mapão."
             .to_string(),
+        autor: None,
         embutido: true,
         fonte: FiltroTurmas::default(),
         parametros: vec![],

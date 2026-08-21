@@ -173,6 +173,105 @@ type ReportDefinitionResumo = {
   embutido: boolean;
 };
 
+const TUTORIAL_RELATORIOS_KEY = "coordenacaoop:tutorial-relatorios-visto:v1";
+
+function TutorialRelatorios({
+  onFechar,
+  onAbrirRepositorio,
+}: {
+  onFechar: () => void;
+  onAbrirRepositorio: () => void;
+}) {
+  const [passo, setPasso] = useState(0);
+  const totalPassos = 2;
+  return (
+    <div className="modal-backdrop">
+      <section className="sync-wizard" role="dialog" aria-modal="true" aria-labelledby="tutorial-relatorios-titulo">
+        <div className="sync-wizard-progress" aria-label={`Etapa ${passo + 1} de ${totalPassos}`}>
+          {Array.from({ length: totalPassos }).map((_, indice) => (
+            <span key={indice} className={indice <= passo ? "active" : ""} />
+          ))}
+        </div>
+        {passo === 0 && (
+          <>
+            <span className="eyebrow">Central de relatórios</span>
+            <h2 id="tutorial-relatorios-titulo">Monte o relatório do seu jeito</h2>
+            <p>
+              Além dos relatórios prontos, o botão <strong>Criar relatório</strong> abre um construtor visual — dá
+              pra escolher campos, filtros, ordenação e a imagem de cabeçalho da escola, sem depender de uma
+              atualização do programa.
+            </p>
+            <div className="sync-wizard-grid">
+              <article>
+                <RefreshCw size={20} />
+                <strong>Blocos de conteúdo</strong>
+                <span>Adicione tabelas, textos e o cabeçalho institucional na ordem que quiser.</span>
+              </article>
+              <article>
+                <ClipboardList size={20} />
+                <strong>Filtros e ordenação</strong>
+                <span>Escolha turmas, disciplinas, critério de corte e como ordenar cada tabela.</span>
+              </article>
+              <article>
+                <FileText size={20} />
+                <strong>Rascunho automático</strong>
+                <span>Se sair no meio da edição, o relatório fica salvo como rascunho pra continuar depois.</span>
+              </article>
+            </div>
+          </>
+        )}
+        {passo === 1 && (
+          <>
+            <span className="eyebrow">Repositório de relatórios</span>
+            <h2 id="tutorial-relatorios-titulo">Aproveite o que outros coordenadores já montaram</h2>
+            <p>
+              O <strong>Repositório de relatórios</strong> reúne modelos prontos pra baixar: os <strong>oficiais</strong>{" "}
+              (como Tarefas Realizadas, Prova Paulista e Educação Física) e os enviados pela <strong>comunidade</strong>{" "}
+              de coordenadores.
+            </p>
+            <div className="sync-wizard-grid">
+              <article>
+                <FolderGit2 size={20} />
+                <strong>Baixar é rápido</strong>
+                <span>Encontre o relatório que precisa e baixe — ele aparece junto dos seus, prontinho pra gerar.</span>
+              </article>
+              <article>
+                <Users size={20} />
+                <strong>Autoria visível</strong>
+                <span>Cada relatório mostra quem montou, pra você saber a origem antes de usar.</span>
+              </article>
+            </div>
+          </>
+        )}
+        <div className="modal-actions">
+          <button type="button" onClick={onFechar}>
+            Pular
+          </button>
+          {passo > 0 && (
+            <button type="button" onClick={() => setPasso((atual) => atual - 1)}>
+              Voltar
+            </button>
+          )}
+          {passo < totalPassos - 1 ? (
+            <button type="button" className="primary-action" onClick={() => setPasso((atual) => atual + 1)}>
+              Próximo
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onFechar}>
+                Entendi
+              </button>
+              <button type="button" className="primary-action" onClick={onAbrirRepositorio}>
+                <FolderGit2 size={16} /> Ver repositório
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function RelatoriosMenu({
   onAbrirRelatorioMotor,
   onAbrirAtendimentos,
@@ -188,6 +287,22 @@ export function RelatoriosMenu({
 }) {
   const [definicoes, setDefinicoes] = useState<ReportDefinitionResumo[]>([]);
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [mostrarTutorial, setMostrarTutorial] = useState(() => {
+    try {
+      return localStorage.getItem(TUTORIAL_RELATORIOS_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+
+  function fecharTutorial() {
+    try {
+      localStorage.setItem(TUTORIAL_RELATORIOS_KEY, "sim");
+    } catch {
+      // localStorage indisponível (ex.: navegação privada) — só não persiste a preferência.
+    }
+    setMostrarTutorial(false);
+  }
 
   function recarregarDefinicoes() {
     invokeApp<ReportDefinitionResumo[]>("listar_definicoes_relatorio")
@@ -316,6 +431,16 @@ export function RelatoriosMenu({
             ))}
           </section>
         </>
+      )}
+
+      {mostrarTutorial && (
+        <TutorialRelatorios
+          onFechar={fecharTutorial}
+          onAbrirRepositorio={() => {
+            fecharTutorial();
+            onAbrirRepositorio();
+          }}
+        />
       )}
     </section>
   );

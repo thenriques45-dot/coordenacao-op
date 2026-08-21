@@ -104,6 +104,7 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
   const [statusImportarLink, setStatusImportarLink] = useState("");
   const [configuradoPorOutro, setConfiguradoPorOutro] = useState(false);
   const [membroConfigurador, setMembroConfigurador] = useState<WorkgroupSyncMember | null>(null);
+  const [reivindicando, setReivindicando] = useState(false);
 
   useEffect(() => {
     invokeApp<TConfig>(comandos.carregarConfig)
@@ -145,6 +146,26 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
 
   function salvarConfig(): Promise<void> {
     return invokeApp(comandos.salvarConfig, { config }).then(() => {});
+  }
+
+  // Reatribui a config já existente pro perfil local atual, sem tocar em
+  // nada no Google (planilha/Web App continuam os mesmos) — resolve o caso
+  // de reinstalação/formatação de PC, onde o `userId` (UUID local, ver
+  // workgroupSync.ts) muda mesmo sendo a mesma pessoa/nome de exibição.
+  // Diferente de `criarWebAppAutomatico`, que reprovisiona de verdade.
+  function reivindicar(): Promise<void> {
+    setReivindicando(true);
+    setErro("");
+    const perfilLocal = garantirPerfilPersistido();
+    const novaConfig = { ...config, configurado_por_user_id: perfilLocal.userId };
+    setConfig(novaConfig);
+    return invokeApp(comandos.salvarConfig, { config: novaConfig })
+      .then(() => {
+        setConfiguradoPorOutro(false);
+        setMembroConfigurador(null);
+      })
+      .catch((e) => setErro(e instanceof Error ? e.message : String(e)))
+      .finally(() => setReivindicando(false));
   }
 
   function gerarLote(recs: TRegistro[]) {
@@ -264,6 +285,16 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
     statusImportarLink,
     configuradoPorOutro,
     membroConfigurador,
+    // Só oferece "essa configuração é minha" quando o nome de exibição de
+    // quem configurou bate com o do perfil local atual — evita que alguém
+    // reivindique a configuração de outra pessoa por engano.
+    podeReivindicar:
+      configuradoPorOutro
+      && !!membroConfigurador?.displayName?.trim()
+      && membroConfigurador.displayName.trim().toLocaleLowerCase("pt-BR")
+        === garantirPerfilPersistido().displayName.trim().toLocaleLowerCase("pt-BR"),
+    reivindicando,
+    reivindicar,
     salvarConfig,
     carregar,
     criarWebAppAutomatico,

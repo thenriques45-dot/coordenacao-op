@@ -5,6 +5,9 @@
 // mantenedor pra oficiais, Pull Request revisado pra comunidade), não neste
 // código — esta tela só lista e baixa o que já está lá.
 
+use std::sync::mpsc;
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
 use super::comandos::salvar_definicao_relatorio;
@@ -16,6 +19,10 @@ const GITHUB_BRANCH: &str = "main";
 const PASTA_OFICIAIS: &str = "relatorios_repositorio/oficiais";
 const PASTA_COMUNIDADE: &str = "relatorios_repositorio/comunidade";
 const USER_AGENT: &str = "CoordenacaoOP-App";
+
+const MENSAGEM_TIMEOUT: &str = "O repositório de relatórios não respondeu a tempo. Confira sua conexão com a \
+     internet — redes de escola/institucionais às vezes bloqueiam ou atrasam muito o acesso a sites externos \
+     como o GitHub — e tente de novo.";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +37,7 @@ pub(crate) struct ItemRepositorio {
     pub(crate) categoria: CategoriaRepositorio,
     pub(crate) nome: String,
     pub(crate) descricao: String,
+    pub(crate) autor: Option<String>,
     pub(crate) formato_saida: FormatoSaida,
 }
 
@@ -42,8 +50,29 @@ struct EntradaConteudoGithub {
     download_url: Option<String>,
 }
 
-fn cliente() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::new()
+/// Roda `tarefa` numa thread separada e espera no máximo `limite` — um teto
+/// de tempo absoluto que não depende do timeout interno do reqwest (que em
+/// algumas redes com proxy/DNS problemático pode não disparar do jeito
+/// esperado). Se o prazo estourar, a thread de rede fica pra trás sozinha
+/// (eventualmente termina ou não, mas não trava mais a tela) e devolvemos
+/// um erro claro na hora certa.
+fn com_teto_de_tempo<T: Send + 'static>(limite: Duration, tarefa: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(tarefa());
+    });
+    rx.recv_timeout(limite).unwrap_or_else(|_| Err(MENSAGEM_TIMEOUT.to_string()))
+}
+
+/// Timeout por requisição HTTP individual — mais curto que o teto absoluto
+/// de cada comando, já que um comando pode fazer várias requisições em
+/// sequência (uma por arquivo listado).
+fn cliente() -> Result<reqwest::blocking::Client, String> {
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(8))
+        .connect_timeout(Duration::from_secs(6))
+        .build()
+        .map_err(|err| format!("Erro ao preparar a conexão com o repositório: {err}"))
 }
 
 fn listar_pasta(client: &reqwest::blocking::Client, pasta: &str) -> Result<Vec<EntradaConteudoGithub>, String> {
@@ -82,9 +111,8 @@ fn baixar_definicao(client: &reqwest::blocking::Client, download_url: &str) -> R
     serde_json::from_str(&texto).map_err(|err| format!("Relatório do repositório em formato inválido: {err}"))
 }
 
-#[tauri::command(async)]
-pub(crate) fn listar_repositorio_relatorios() -> Result<Vec<ItemRepositorio>, String> {
-    let client = cliente();
+fn listar_repositorio_relatorios_interno() -> Result<Vec<ItemRepositorio>, String> {
+    let client = cliente()?;
     let mut itens = Vec::new();
 
     for (pasta, categoria) in [
@@ -105,6 +133,7 @@ pub(crate) fn listar_repositorio_relatorios() -> Result<Vec<ItemRepositorio>, St
                     categoria,
                     nome: definicao.nome,
                     descricao: definicao.descricao,
+                    autor: definicao.autor,
                     formato_saida: definicao.formato_saida,
                 });
             }
@@ -115,11 +144,18 @@ pub(crate) fn listar_repositorio_relatorios() -> Result<Vec<ItemRepositorio>, St
 }
 
 #[tauri::command(async)]
+pub(crate) fn listar_repositorio_relatorios() -> Result<Vec<ItemRepositorio>, String> {
+    com_teto_de_tempo(Duration::from_secs(25), listar_repositorio_relatorios_interno)
+}
+
+#[tauri::command(async)]
 pub(crate) fn baixar_relatorio_repositorio(caminho: String) -> Result<ReportDefinition, String> {
-    let client = cliente();
-    let url = format!("https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{caminho}");
-    let mut definicao = baixar_definicao(&client, &url)?;
-    definicao.embutido = false;
-    salvar_definicao_relatorio(definicao.clone())?;
-    Ok(definicao)
+    com_teto_de_tempo(Duration::from_secs(15), move || {
+        let client = cliente()?;
+        let url = format!("https://raw.githubusercontent.com/{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{caminho}");
+        let mut definicao = baixar_definicao(&client, &url)?;
+        definicao.embutido = false;
+        salvar_definicao_relatorio(definicao.clone())?;
+        Ok(definicao)
+    })
 }

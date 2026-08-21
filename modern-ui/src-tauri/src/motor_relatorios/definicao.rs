@@ -257,6 +257,10 @@ pub(crate) struct ReportDefinition {
     pub(crate) nome: String,
     #[serde(default)]
     pub(crate) descricao: String,
+    /// Nome de quem publicou o relatório — só usado pra exibição no
+    /// Repositório de relatórios (crédito ao autor), não afeta a execução.
+    #[serde(default)]
+    pub(crate) autor: Option<String>,
     /// Relatórios embutidos (Top 60, Educação Física, etc.) vêm com o app e
     /// não podem ser apagados — só duplicados para customizar. Relatórios do
     /// usuário são sempre `false`.
