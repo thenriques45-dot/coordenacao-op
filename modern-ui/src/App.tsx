@@ -35,7 +35,7 @@ import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
-import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
+import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
@@ -57,7 +57,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -1453,6 +1453,7 @@ export function App() {
             onImportarAlunosLote={() => navegarPara("importar-alunos-lote")}
             onImportarTarefas={() => navegarPara("importar-tarefas")}
             onImportarProvaPaulista={() => navegarPara("importar-prova-paulista")}
+            onImportarExpansoes={() => navegarPara("importar-expansoes")}
           />
         )}
         {tela === "importar-fotos" && <ImportarFotos />}
@@ -1464,6 +1465,9 @@ export function App() {
         )}
         {tela === "importar-prova-paulista" && (
           <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+        )}
+        {tela === "importar-expansoes" && (
+          <ImportarExpansoes onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
         {tela === "importar-notas" && (
           <ImportarNotas

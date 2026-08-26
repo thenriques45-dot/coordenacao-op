@@ -118,6 +118,7 @@ export type ConteudoBloco =
   | { tipo: "texto"; titulo?: string | null; corpo: string }
   | { tipo: "tabela"; secao_index: number }
   | { tipo: "quebra_pagina" }
+  | { tipo: "espacador" }
   | { tipo: "assinaturas"; nomes: string[] }
   | { tipo: "parametros" };
 
@@ -158,7 +159,7 @@ export type ItemRepositorio = {
 export type CampoRelatorioInfo = {
   id: string;
   rotulo: string;
-  categoria: "aluno" | "turma" | "notas" | "frequencia" | "configuracao";
+  categoria: "aluno" | "turma" | "notas" | "frequencia" | "configuracao" | "expansoes";
   tipo: "texto" | "numero" | "percentual" | "booleano";
   requer_parametro: boolean;
 };

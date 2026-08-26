@@ -521,6 +521,18 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
         }
     }
 
+    // expansao_online: histórico datado (um snapshot por importação, ver
+    // importador_expansoes.rs). Cada dispositivo pode ter importado exports
+    // de datas diferentes, então o merge certo é UNIÃO por data — nunca
+    // "local vence", nem substituir o objeto inteiro. União também é a
+    // única regra que funciona nos dois sentidos: a reintegração de
+    // pendrive (conselho_pendrive.rs) chama esta mesma mesclar_aluno com
+    // local/incoming invertidos. Sem esta função, o campo inteiro do
+    // incoming era descartado sempre que o aluno já existisse localmente —
+    // o mesmo problema, ainda não corrigido, que afeta hoje tarefas/
+    // prova_paulista/diagnostico_aprendizagem.
+    mesclar_expansao_online(local_obj, inc_obj);
+
     // atendimentos: lista de registros com id próprio (cada atendimento feito
     // num dispositivo é um item novo, não a edição de um campo fixo como
     // frequência/médias) — o merge certo é UNIÃO por id, nunca "local sempre
@@ -532,6 +544,45 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
     // Campos de conselho e encaminhamentos: local sempre vence (edições intencionais)
     // ajustes_medias_conselho, encaminhamentos_conselho, deliberados_conselho,
     // lideranca_sala, deficiencias, comentario_educacao_especial — não tocamos
+}
+
+/// Mesma forma de mesclar_medias, mas chaveada por data de importação em
+/// vez de bimestre×disciplina — cada snapshot já carrega seu próprio
+/// bimestre (ver importador_expansoes.rs), então uma chave só basta.
+fn mesclar_expansao_online(local_obj: &mut serde_json::Map<String, Value>, inc_obj: &serde_json::Map<String, Value>) {
+    let Some(inc) = inc_obj.get("expansao_online").and_then(Value::as_object) else { return; };
+    let local_valor = local_obj
+        .entry("expansao_online".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(local_map) = local_valor.as_object_mut() else { return; };
+
+    // email é estável (identifica a correspondência por RA); não há
+    // conflito real a resolver, só preencher se o local ainda não tiver.
+    if !local_map.contains_key("email") {
+        if let Some(email) = inc.get("email") {
+            local_map.insert("email".to_string(), email.clone());
+        }
+    }
+
+    let Some(snaps_inc) = inc.get("snapshots").and_then(Value::as_object) else { return; };
+    let snaps_local = local_map
+        .entry("snapshots".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(snaps_local_obj) = snaps_local.as_object_mut() else { return; };
+
+    for (data, snap_inc) in snaps_inc {
+        let em_inc = snap_inc.get("em").and_then(Value::as_str).unwrap_or("");
+        let em_local = snaps_local_obj.get(data).and_then(|s| s.get("em")).and_then(Value::as_str).unwrap_or("");
+        // Mesma regra de mesclar_medias: incoming vence se for mais novo,
+        // se só ele tem carimbo, ou se nenhum dos dois tem.
+        if !snaps_local_obj.contains_key(data)
+            || em_inc > em_local
+            || (!em_inc.is_empty() && em_local.is_empty())
+            || (em_inc.is_empty() && em_local.is_empty())
+        {
+            snaps_local_obj.insert(data.clone(), snap_inc.clone());
+        }
+    }
 }
 
 fn mesclar_atendimentos(local_obj: &mut serde_json::Map<String, Value>, inc_obj: &serde_json::Map<String, Value>) {
@@ -1114,5 +1165,95 @@ mod testes {
             .collect();
         ids.sort();
         assert_eq!(ids, vec!["followup-local", "followup-remoto"]);
+    }
+
+    /// Reproduz o mesmo bug de classe do teste de atendimentos, mas para
+    /// expansao_online: o aluno já existe localmente (sem o campo), e uma
+    /// importação feita só na outra máquina não pode ser descartada.
+    #[test]
+    fn expansao_online_so_no_incoming_e_incorporada_ao_local() {
+        let mut local = json!({ "nome": "AGATHA" });
+        let incoming = json!({
+            "nome": "AGATHA",
+            "expansao_online": {
+                "email": "00001136866978sp@al.educacao.sp.gov.br",
+                "snapshots": { "2026-08-25": { "bimestre": "3", "progresso": 80.0, "em": "2026-08-25T21:00:00-03:00" } }
+            }
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert_eq!(local["expansao_online"]["email"], json!("00001136866978sp@al.educacao.sp.gov.br"));
+        assert_eq!(local["expansao_online"]["snapshots"]["2026-08-25"]["progresso"], json!(80.0));
+    }
+
+    /// Cada dispositivo importou um export de data diferente — as duas
+    /// datas precisam sobreviver no aluno mesclado, não só uma.
+    #[test]
+    fn snapshots_de_datas_diferentes_dos_dois_lados_sao_unidos() {
+        let mut local = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "bimestre": "3", "progresso": 80.0, "em": "2026-08-25T21:00:00-03:00" } }
+            }
+        });
+        let incoming = json!({
+            "expansao_online": {
+                "snapshots": { "2026-09-08": { "bimestre": "3", "progresso": 90.0, "em": "2026-09-08T21:00:00-03:00" } }
+            }
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let snaps = local["expansao_online"]["snapshots"].as_object().unwrap();
+        assert_eq!(snaps.len(), 2);
+        assert_eq!(snaps["2026-08-25"]["progresso"], json!(80.0));
+        assert_eq!(snaps["2026-09-08"]["progresso"], json!(90.0));
+    }
+
+    /// Mesma data importada nos dois lados (ex.: os dois dispositivos
+    /// reimportaram o mesmo CSV) — vence o snapshot com "em" mais recente,
+    /// igual já acontece com medias.
+    #[test]
+    fn snapshot_da_mesma_data_vence_o_em_mais_recente() {
+        let mut local = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "progresso": 80.0, "em": "2026-08-25T10:00:00-03:00" } }
+            }
+        });
+        let incoming = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "progresso": 85.0, "em": "2026-08-25T18:00:00-03:00" } }
+            }
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert_eq!(local["expansao_online"]["snapshots"]["2026-08-25"]["progresso"], json!(85.0));
+    }
+
+    /// O merge precisa ser simétrico: a reintegração de pendrive
+    /// (conselho_pendrive.rs) chama mesclar_arquivo_turma/mesclar_aluno com
+    /// os lados invertidos em relação ao sync normal — se a regra não for
+    /// simétrica, um dos dois sentidos perde dado.
+    #[test]
+    fn merge_de_expansao_e_simetrico() {
+        let a = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "progresso": 80.0, "em": "2026-08-25T10:00:00-03:00" } }
+            }
+        });
+        let b = json!({
+            "expansao_online": {
+                "snapshots": { "2026-09-08": { "progresso": 90.0, "em": "2026-09-08T10:00:00-03:00" } }
+            }
+        });
+
+        let mut a_recebe_b = a.clone();
+        mesclar_aluno(&mut a_recebe_b, &b);
+        let mut b_recebe_a = b.clone();
+        mesclar_aluno(&mut b_recebe_a, &a);
+
+        let datas_de = |v: &Value| -> Vec<String> {
+            let mut datas: Vec<String> =
+                v["expansao_online"]["snapshots"].as_object().unwrap().keys().cloned().collect();
+            datas.sort();
+            datas
+        };
+        assert_eq!(datas_de(&a_recebe_b), vec!["2026-08-25", "2026-09-08"]);
+        assert_eq!(datas_de(&b_recebe_a), vec!["2026-08-25", "2026-09-08"]);
     }
 }

@@ -1276,6 +1276,37 @@ pub(crate) fn indice_alunos_por_nome(
     indice
 }
 
+/// Espelho de indice_alunos_por_nome, chaveado pelas variantes de matrícula
+/// (ver importador_alunos::variantes_matricula) em vez do nome normalizado.
+/// Só alunos ATIVOS: a mesma matrícula aparece em mais de um arquivo de
+/// turma quando o aluno é transferido — a cópia antiga fica ativo:false.
+/// Sem esse filtro, uma importação por RA pode gravar no registro morto e o
+/// dado nunca aparece nos relatórios.
+pub(crate) fn indice_alunos_por_ra(
+    turmas: &[(PathBuf, TurmaArquivo)],
+) -> BTreeMap<String, Vec<(usize, String)>> {
+    let mut indice: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+    for (turma_idx, (_, turma)) in turmas.iter().enumerate() {
+        if let Some(alunos) = &turma.alunos {
+            for (matricula, info) in alunos {
+                if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                    continue;
+                }
+                for variante in variantes_matricula(matricula) {
+                    indice
+                        .entry(variante)
+                        .or_default()
+                        .push((turma_idx, matricula.clone()));
+                }
+            }
+        }
+    }
+    for candidatos in indice.values_mut() {
+        candidatos.dedup();
+    }
+    indice
+}
+
 pub(crate) fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>) -> Result<(), String> {
     for entrada in fs::read_dir(pasta).map_err(|err| err.to_string())? {
         let entrada = entrada.map_err(|err| err.to_string())?;

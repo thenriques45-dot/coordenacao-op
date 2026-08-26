@@ -45,6 +45,7 @@ const ROTULOS_CATEGORIA: Record<CampoRelatorioInfo["categoria"], string> = {
   notas: "Notas",
   frequencia: "Frequência",
   configuracao: "Configuração",
+  expansoes: "Expansão (online)",
 };
 
 const ROTULOS_OPERADOR_ARITMETICO: Record<OperadorAritmetico, string> = {

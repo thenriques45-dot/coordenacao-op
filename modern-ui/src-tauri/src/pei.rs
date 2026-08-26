@@ -850,6 +850,197 @@ pub(crate) fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> R
     doc.salvar(caminho)
 }
 
+// ── Exportar PEI: um PDF combinando todos os documentos do aluno ───────────
+//
+// O app não tem nenhuma forma de converter .docx em PDF nem de juntar PDFs
+// (sem docx-rs/libreoffice/lopdf no Cargo.toml — ver investigação no plano).
+// Em vez de converter os .docx já escritos acima, o PDF é gerado direto dos
+// mesmos RegistroPei, com o genpdf que o motor de relatórios já usa
+// (carregar_familia_fonte_pdf, motor_relatorios/renderers.rs). Isto DUPLICA
+// o conteúdo/layout do PEI num segundo formato — se o texto de alguma
+// pergunta ou rótulo mudar em escrever_pei_docx_individual (acima), mudar
+// aqui também. genpdf::style::Effect não tem sublinhado, então
+// "acessibilidade" sai em negrito no lugar do sublinhado do .docx.
+
+fn campo_pei_pdf(rotulo: &str, valor: &str) -> genpdf::elements::Paragraph {
+    use genpdf::elements::Paragraph;
+    use genpdf::style::Effect;
+
+    let mut p = Paragraph::default();
+    p.push_styled(format!("{rotulo} "), Effect::Bold);
+    if !valor.trim().is_empty() {
+        p.push(valor.to_string());
+    }
+    p
+}
+
+fn periodo_pei_pdf(bimestre: &str) -> genpdf::elements::Paragraph {
+    use genpdf::elements::Paragraph;
+    use genpdf::style::Effect;
+
+    let opcoes = [("1", "1\u{00b0} Bimestre"), ("2", "2\u{00ba} Bimestre"), ("3", "3\u{00ba} Bimestre"), ("4", "4\u{00ba} Bimestre")];
+    let texto = opcoes
+        .iter()
+        .map(|(b, rotulo)| {
+            let marca = if *b == bimestre { "X" } else { " " };
+            format!("( {marca} ) {rotulo}")
+        })
+        .collect::<Vec<_>>()
+        .join("   ");
+    let mut p = Paragraph::default();
+    p.push_styled("Per\u{00ed}odo: ", Effect::Bold);
+    p.push(texto);
+    p
+}
+
+/// Diferente de questao_pei (docx): quando a resposta está vazia, o .docx
+/// deixa 3 linhas em branco pra preenchimento manual (documento que pode
+/// ser impresso e completado à mão); o PDF exportado é um arquivo final
+/// pronto pra arquivo/entrega, então mostra "(sem resposta preenchida)" em
+/// itálico em vez de espaço em branco sem explicação.
+fn questao_pei_pdf(documento: &mut genpdf::Document, pergunta: &str, resposta: &str) {
+    use genpdf::elements::{Break, Paragraph};
+    use genpdf::style::{Effect, Style};
+    use genpdf::Element as _;
+
+    documento.push(Break::new(0.3));
+    documento.push(Paragraph::new(pergunta.to_string()).styled(Effect::Bold));
+    if resposta.trim().is_empty() {
+        documento.push(Paragraph::new("(sem resposta preenchida)").styled(Style::new().italic()));
+    } else {
+        for linha in resposta.lines() {
+            documento.push(Paragraph::new(linha.to_string()));
+        }
+    }
+}
+
+/// Espelho simplificado de assinaturas_pei_final (docx): mesmos 4 rótulos,
+/// em coluna única em vez de grade 2×2 — mais simples de montar com o
+/// genpdf e igualmente completo (todo o conteúdo está presente).
+fn assinaturas_pei_pdf(documento: &mut genpdf::Document) {
+    use genpdf::elements::{Break, Paragraph};
+    use genpdf::style::Style;
+    use genpdf::{Alignment, Element as _};
+
+    documento.push(Break::new(1.0));
+    for rotulo in [
+        "Nome e Assinatura do Coordenador(a) de Gest\u{00e3}o Pedag\u{00f3}gica:",
+        "Nome e Assinatura do Professor(a) Especializado(a) da Educa\u{00e7}\u{00e3}o Especial:",
+        "Nome e Assinatura do Professor(a) Especializado(a) do Projeto Ensino Colaborativo:",
+        "Nome e Assinatura do Professor(a) Regente de classes, turmas ou componentes curriculares:",
+    ] {
+        documento.push(Paragraph::new("______________________________").aligned(Alignment::Center));
+        documento.push(Paragraph::new(rotulo).aligned(Alignment::Center).styled(Style::new().with_font_size(9)));
+        documento.push(Break::new(0.8));
+    }
+}
+
+/// Uma "página" do PEI combinado — mesmo conteúdo/ordem de
+/// escrever_pei_docx_individual (título, intro, campos, 4 perguntas,
+/// assinaturas), empurrado direto no Document compartilhado por
+/// escrever_pei_pdf_combinado.
+fn escrever_secao_pei_pdf(documento: &mut genpdf::Document, r: &RegistroPei) {
+    use genpdf::elements::{Break, Paragraph};
+    use genpdf::style::{Effect, Style};
+    use genpdf::{Alignment, Element as _};
+
+    documento.push(
+        Paragraph::new("ANEXO IV \u{2013} PLANO EDUCACIONAL INDIVIDUALIZADO \u{2013} PEI")
+            .aligned(Alignment::Center)
+            .styled(Style::new().bold().with_font_size(12)),
+    );
+    documento.push(Break::new(0.5));
+
+    let mut intro = Paragraph::default();
+    intro.push("PEI: Plano Educacional Individualizado \u{2013} documento que estabelece a ");
+    intro.push_styled("acessibilidade".to_string(), Effect::Bold);
+    intro.push(
+        " curricular, adapta\u{00e7}\u{00f5}es e estrat\u{00e9}gias para o acesso ao curr\u{00ed}culo comum. \
+         (Resolu\u{00e7}\u{00e3}o SEDUC N\u{00ba} 129, de 30 de setembro de 2025)",
+    );
+    documento.push(intro);
+    documento.push(Break::new(0.5));
+
+    documento.push(campo_pei_pdf("Nome do Estudante:", &nome_titulo(&r.nome_aluno)));
+    documento.push(campo_pei_pdf("Nome do Professor Regente:", &r.professor));
+    documento.push(campo_pei_pdf("Nome do Professor Especializado da Educa\u{00e7}\u{00e3}o Especial:", ""));
+    documento.push(campo_pei_pdf("Componente Curricular:", &r.disciplina.to_uppercase()));
+    documento.push(periodo_pei_pdf(&r.bimestre));
+    documento.push(Break::new(0.5));
+
+    questao_pei_pdf(
+        documento,
+        "Quais conte\u{00fa}dos e habilidades do Curr\u{00ed}culo da Rede Estadual Paulista ser\u{00e3}o desenvolvidos no bimestre?",
+        &r.conteudos,
+    );
+    questao_pei_pdf(
+        documento,
+        "Quais estrat\u{00e9}gias, interven\u{00e7}\u{00f5}es pedag\u{00f3}gicas e recursos de acessibilidade ser\u{00e3}o utilizados para favorecer o acesso, a participa\u{00e7}\u{00e3}o e a aprendizagem do estudante?",
+        &r.estrategias,
+    );
+    questao_pei_pdf(
+        documento,
+        "Quais instrumentos ser\u{00e3}o utilizados para acompanhar o aprendizado do estudante de forma inclusiva e individualizada?",
+        &r.instrumentos,
+    );
+    questao_pei_pdf(
+        documento,
+        "Quais v\u{00ed}deos, livros, jogos, exerc\u{00ed}cios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?",
+        &r.recursos,
+    );
+
+    assinaturas_pei_pdf(documento);
+}
+
+fn escrever_pei_pdf_combinado(caminho: &Path, nome_aluno: &str, registros: &[RegistroPei]) -> Result<(), String> {
+    use genpdf::elements::PageBreak;
+
+    let familia_fonte = carregar_familia_fonte_pdf()?;
+    let mut documento = genpdf::Document::new(familia_fonte);
+    documento.set_title(format!("PEI - {}", nome_titulo(nome_aluno)));
+    documento.set_line_spacing(1.2);
+    let mut decorador = genpdf::SimplePageDecorator::new();
+    decorador.set_margins(10);
+    documento.set_page_decorator(decorador);
+
+    for (indice, r) in registros.iter().enumerate() {
+        if indice > 0 {
+            documento.push(PageBreak::new());
+        }
+        escrever_secao_pei_pdf(&mut documento, r);
+    }
+
+    documento.render_to_file(caminho).map_err(|err| err.to_string())
+}
+
+/// Junta todos os PEIs de um aluno (todas as disciplinas/bimestres já
+/// recebidos) num único PDF nomeado com o nome do aluno, salvo na mesma
+/// pasta dos .docx individuais. `registros` vem pronto do frontend
+/// (PEI.tsx já casa os registros com o aluno selecionado por nome
+/// normalizado — mesmo padrão de gerar_peis_lote, que também recebe a
+/// lista pronta em vez de buscar sozinho).
+#[tauri::command(async)]
+pub(crate) fn exportar_pei_aluno(nome_aluno: String, registros: Vec<RegistroPei>) -> Result<String, String> {
+    let _dados = travar_dados();
+    if registros.is_empty() {
+        return Err("Nenhum PEI encontrado para este aluno.".to_string());
+    }
+    let mut ordenados = registros;
+    ordenados.sort_by(|a, b| (&a.bimestre, &a.disciplina).cmp(&(&b.bimestre, &b.disciplina)));
+
+    let pasta = data_dir()
+        .map_err(|e| e.to_string())?
+        .join("relatorios")
+        .join("pei")
+        .join(sanitizar_segmento(&nome_aluno));
+    fs::create_dir_all(&pasta).map_err(|e| e.to_string())?;
+    let caminho = pasta.join(format!("{}.pdf", sanitizar_segmento(&nome_aluno)));
+
+    escrever_pei_pdf_combinado(&caminho, &nome_aluno, &ordenados)?;
+    abrir_arquivo(&caminho)?;
+    Ok(caminho.to_string_lossy().to_string())
+}
+
 // ── fim PEI ──────────────────────────────────────────────────────────────────
 
 // ── Planejamento dos Professores ──────────────────────────────────────────────

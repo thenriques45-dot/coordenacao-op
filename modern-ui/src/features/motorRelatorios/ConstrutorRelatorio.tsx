@@ -17,6 +17,7 @@
 
 import { save as salvarDialogoArquivo, open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import {
+  AlignVerticalSpaceAround,
   BarChart3,
   FileDown,
   FileUp,
@@ -90,6 +91,7 @@ const BIBLIOTECA: ItemBiblioteca[] = [
   { tipo: null, icone: LayoutGrid, titulo: "Indicadores", descricao: "Números-resumo em destaque — em breve", emBreve: true },
   { tipo: null, icone: BarChart3, titulo: "Gráfico de barras", descricao: "Comparação por turma ou disciplina — em breve", emBreve: true },
   { tipo: "quebra_pagina", icone: SeparatorHorizontal, titulo: "Quebra de página", descricao: "Começa uma nova folha" },
+  { tipo: "espacador", icone: AlignVerticalSpaceAround, titulo: "Espaçador", descricao: "Duas linhas em branco entre os itens" },
   { tipo: "assinaturas", icone: PenLine, titulo: "Assinaturas", descricao: "Linhas para direção e coordenação" },
   { tipo: "parametros", icone: Settings2, titulo: "Parâmetros", descricao: "O que a pessoa preenche antes de gerar" },
 ];
@@ -186,6 +188,8 @@ function resumoBloco(bloco: BlocoRelatorio, secoes: SecaoRelatorio[]): string {
     }
     case "quebra_pagina":
       return "Início de uma nova página";
+    case "espacador":
+      return "Duas linhas em branco";
     case "assinaturas":
       return bloco.nomes.length > 0 ? bloco.nomes.join(", ") : "Nenhum nome ainda";
     case "parametros":
@@ -327,6 +331,9 @@ export function ConstrutorRelatorio({
       }
       if (tipo === "quebra_pagina") {
         return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "quebra_pagina" }] };
+      }
+      if (tipo === "espacador") {
+        return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "espacador" }] };
       }
       return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "parametros" }] };
     });
@@ -475,16 +482,24 @@ export function ConstrutorRelatorio({
 
   // ── Ações de topo ──
 
-  async function salvar() {
-    if (!definicao.nome.trim()) {
-      setErro("Dê um nome ao relatório antes de salvar.");
-      return;
-    }
+  /** Erro de validação a bloquear antes de salvar OU gerar — as duas ações
+   * chamam salvar_definicao_relatorio por baixo, então uma definição
+   * inválida não pode escapar por nenhuma das duas (ver bug real: "Gerar
+   * agora" salvava uma tabela sem coluna que "Salvar" corretamente recusava
+   * depois, deixando o relatório salvo quebrado nos bastidores). */
+  function validarAntesDeSalvar(): string {
+    if (!definicao.nome.trim()) return "Dê um nome ao relatório antes de salvar.";
     const tabelaSemColuna = definicao.blocos.find(
       (b) => b.ativo && b.tipo === "tabela" && (definicao.secoes[b.secao_index]?.colunas.length ?? 0) === 0
     );
-    if (tabelaSemColuna) {
-      setErro("Toda tabela de alunos ligada precisa de pelo menos uma coluna.");
+    if (tabelaSemColuna) return "Toda tabela de alunos ligada precisa de pelo menos uma coluna.";
+    return "";
+  }
+
+  async function salvar() {
+    const erroValidacao = validarAntesDeSalvar();
+    if (erroValidacao) {
+      setErro(erroValidacao);
       return;
     }
     setProcessando(true);
@@ -502,8 +517,9 @@ export function ConstrutorRelatorio({
   }
 
   async function gerarAgora() {
-    if (!definicao.nome.trim()) {
-      setErro("Dê um nome ao relatório antes de gerar.");
+    const erroValidacao = validarAntesDeSalvar();
+    if (erroValidacao) {
+      setErro(erroValidacao);
       return;
     }
     setProcessando(true);
@@ -827,6 +843,9 @@ export function ConstrutorRelatorio({
                 if (bloco.tipo === "quebra_pagina") {
                   return <div key={bloco.id} className="cb-preview-quebra">— nova página —</div>;
                 }
+                if (bloco.tipo === "espacador") {
+                  return <div key={bloco.id} className="cb-preview-espacador">espaço</div>;
+                }
                 if (bloco.tipo === "assinaturas") {
                   return (
                     <div key={bloco.id} className="cb-preview-assinaturas">
@@ -952,6 +971,10 @@ function InspetorBloco({
 
         {bloco.tipo === "quebra_pagina" && (
           <p className="cb-ajuda">Este bloco não tem configuração — tudo depois dele começa em uma nova página (no Word e no PDF).</p>
+        )}
+
+        {bloco.tipo === "espacador" && (
+          <p className="cb-ajuda">Este bloco não tem configuração — acrescenta duas linhas em branco entre os itens ao redor dele.</p>
         )}
 
         {bloco.tipo === "assinaturas" && (

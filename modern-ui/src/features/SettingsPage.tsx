@@ -24,6 +24,13 @@ type TurmaConfiguracoes = {
   ciclo: string | null;
 };
 
+type GrupoDisciplinaDuplicada = {
+  forma_canonica: string;
+  grafias: string[];
+  turmas: string[];
+  alunos_afetados: number;
+};
+
 export type OpcaoCriterioPerfil = {
   nivel: string;
   label: string;
@@ -134,6 +141,7 @@ type SettingsSection =
   | "sync-institucional"
   | "assistente"
   | "backup"
+  | "manutencao-dados"
   | "atualizacao";
 
 function rotuloCiclo(ciclo: string) {
@@ -199,6 +207,9 @@ export function Configuracoes({
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
   const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
   const [autostartAtivo, setAutostartAtivo] = useState(false);
+  const [duplicatasDisciplinas, setDuplicatasDisciplinas] = useState<GrupoDisciplinaDuplicada[] | null>(null);
+  const [processandoDuplicatas, setProcessandoDuplicatas] = useState(false);
+  const [mensagemDuplicatas, setMensagemDuplicatas] = useState("");
   const ciclosExistentes = useMemo(() => {
     const ciclos = Array.from(new Set(turmas.map((turma) => turma.ciclo || "Sem ciclo").filter(Boolean)));
     return ciclos.sort((a, b) => rotuloCiclo(a).localeCompare(rotuloCiclo(b), "pt-BR", { numeric: true }));
@@ -808,6 +819,7 @@ export function Configuracoes({
       itens: [
         { id: "assistente", label: "Assistente pedagógico" },
         { id: "backup", label: "Backup" },
+        { id: "manutencao-dados", label: "Manutenção de dados" },
         { id: "atualizacao", label: "Atualização" },
       ],
     },
@@ -1233,6 +1245,86 @@ export function Configuracoes({
           }}>
             Substituir dados pelo backup
           </button>
+        </article>
+        )}
+
+        {secaoConfig === "manutencao-dados" && (
+        <article className="settings-card">
+          <h2>Manutenção de dados</h2>
+          <p>
+            Encontra disciplinas gravadas com grafias diferentes (ex.: com e sem hífen) que
+            deveriam ser a mesma matéria — resíduo de importações antigas, antes da normalização
+            atual existir. Revise a lista antes de corrigir: a correção funde as notas sob uma
+            única grafia, preferindo sempre o valor mais recente.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              setMensagemDuplicatas("");
+              setProcessandoDuplicatas(true);
+              try {
+                const res = await invokeApp<GrupoDisciplinaDuplicada[]>("analisar_disciplinas_duplicadas");
+                setDuplicatasDisciplinas(res);
+                if (res.length === 0) setMensagemDuplicatas("Nenhuma duplicidade encontrada.");
+              } catch (e) {
+                setErro(e instanceof Error ? e.message : String(e));
+              } finally {
+                setProcessandoDuplicatas(false);
+              }
+            }}
+            disabled={processandoDuplicatas}
+          >
+            {processandoDuplicatas ? "Verificando..." : "Verificar disciplinas duplicadas"}
+          </button>
+
+          {mensagemDuplicatas && <span className="settings-version">{mensagemDuplicatas}</span>}
+
+          {duplicatasDisciplinas && duplicatasDisciplinas.length > 0 && (
+            <>
+              <div className="students-table-wrap">
+                <table className="students-table">
+                  <thead>
+                    <tr>
+                      <th>Disciplina</th>
+                      <th>Grafias encontradas</th>
+                      <th>Turmas</th>
+                      <th>Alunos afetados</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {duplicatasDisciplinas.map((grupo, i) => (
+                      <tr key={i}>
+                        <td><strong>{grupo.forma_canonica}</strong></td>
+                        <td>{grupo.grafias.join(" · ")}</td>
+                        <td>{grupo.turmas.length}</td>
+                        <td>{grupo.alunos_afetados}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                type="button"
+                className="file-action"
+                disabled={processandoDuplicatas}
+                onClick={async () => {
+                  setProcessandoDuplicatas(true);
+                  setMensagemDuplicatas("");
+                  try {
+                    const total = await invokeApp<number>("corrigir_disciplinas_duplicadas");
+                    setMensagemDuplicatas(`${total} duplicidade(s) corrigida(s).`);
+                    setDuplicatasDisciplinas(null);
+                  } catch (e) {
+                    setErro(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setProcessandoDuplicatas(false);
+                  }
+                }}
+              >
+                Corrigir {duplicatasDisciplinas.reduce((acc, g) => acc + g.grafias.length - 1, 0)} duplicidade(s)
+              </button>
+            </>
+          )}
         </article>
         )}
 

@@ -5,6 +5,7 @@
 // etc., de docx.rs/turmas.rs/pendencias.rs) — nada de reimplementar a
 // leitura do dado do zero.
 
+use chrono::{Local, NaiveDate};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -60,6 +61,7 @@ pub(crate) enum CategoriaCampo {
     Notas,
     Frequencia,
     Configuracao,
+    Expansoes,
 }
 
 pub(crate) struct CampoRelatorio {
@@ -338,6 +340,103 @@ pub(crate) const CAMPOS: &[CampoRelatorio] = &[
         tipo: TipoCampo::Texto,
         requer_parametro: false,
         extrator: campo_recuperacao_disciplinas_vermelhas,
+    },
+    // Expansão (online): disciplinas de expansão cursadas numa plataforma
+    // externa pelos alunos do noturno (ver importador_expansoes.rs). NÃO
+    // CONFUNDIR com TurmaArquivo.disciplinas_expansao — aquilo é uma lista
+    // de nomes de disciplina em nível de turma, isto é progresso/nota por
+    // aluno. Todo campo abaixo respeita duas regras, ver snapshots_expansao:
+    // (1) nunca mostra dado de um bimestre diferente de ctx.bimestre — um
+    // campo "atual" só olha snapshots com bimestre == ctx.bimestre; (2) sem
+    // dado, devolve Nulo, nunca 0.0 — 0.0 tornaria "sem dado" indistinguível
+    // de "estagnado", que é a distinção que estes campos existem para dar.
+    CampoRelatorio {
+        id: "expansao_progresso_atual",
+        rotulo: "Expansão — Progresso Atual (%)",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Percentual,
+        requer_parametro: false,
+        extrator: campo_expansao_progresso_atual,
+    },
+    CampoRelatorio {
+        id: "expansao_nota_atual",
+        rotulo: "Expansão — Nota Média Atual (0–10)",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_nota_atual,
+    },
+    CampoRelatorio {
+        id: "expansao_progresso_delta_recente",
+        rotulo: "Expansão — Progresso Ganho desde a Importação Anterior (p.p.)",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_progresso_delta_recente,
+    },
+    CampoRelatorio {
+        id: "expansao_nota_delta_recente",
+        rotulo: "Expansão — Nota Ganha desde a Importação Anterior",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_nota_delta_recente,
+    },
+    CampoRelatorio {
+        id: "expansao_progresso_delta_bimestre",
+        rotulo: "Expansão — Progresso Ganho no Bimestre (p.p.)",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_progresso_delta_bimestre,
+    },
+    CampoRelatorio {
+        id: "expansao_nota_delta_bimestre",
+        rotulo: "Expansão — Nota Ganha no Bimestre",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_nota_delta_bimestre,
+    },
+    CampoRelatorio {
+        id: "expansao_dias_sem_acesso",
+        rotulo: "Expansão — Dias sem Acessar a Plataforma",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_dias_sem_acesso,
+    },
+    CampoRelatorio {
+        id: "expansao_ultimo_acesso",
+        rotulo: "Expansão — Data do Último Acesso",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_expansao_ultimo_acesso,
+    },
+    CampoRelatorio {
+        id: "expansao_data_ultima_importacao",
+        rotulo: "Expansão — Data da Última Importação",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_expansao_data_ultima_importacao,
+    },
+    CampoRelatorio {
+        id: "expansao_qtd_importacoes_bimestre",
+        rotulo: "Expansão — Nº de Importações no Bimestre",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_expansao_qtd_importacoes_bimestre,
+    },
+    CampoRelatorio {
+        id: "expansao_turma_origem",
+        rotulo: "Expansão — Turma na Plataforma",
+        categoria: CategoriaCampo::Expansoes,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_expansao_turma_origem,
     },
 ];
 
@@ -744,5 +843,365 @@ fn campo_recuperacao_disciplinas_vermelhas(ctx: &ContextoLinha, _parametro: Opti
         ValorExpressao::Texto("-".to_string())
     } else {
         ValorExpressao::Texto(lista.join(", "))
+    }
+}
+
+// ---- Expansão (online) ----
+// Ver o comentário no bloco de CAMPOS acima para as duas regras que todo
+// extrator abaixo segue (isolamento por bimestre; Nulo em vez de 0.0).
+
+struct SnapshotExpansao<'a> {
+    /// Chave do snapshot ("AAAA-MM-DD" — a data da exportação, não de hoje).
+    data: &'a str,
+    bimestre: Option<&'a str>,
+    nota: Option<f64>,
+    progresso: Option<f64>,
+    ultimo_acesso: Option<NaiveDate>,
+    turma_origem: Option<&'a str>,
+}
+
+/// Snapshots do aluno em ordem cronológica — a ordem vem de graça da chave
+/// ISO ("AAAA-MM-DD") + serde_json::Map ser BTreeMap (sem preserve_order no
+/// Cargo.toml, ver Cargo.toml). Formato gravado em importador_expansoes.rs.
+fn snapshots_expansao(aluno: &Value) -> Vec<SnapshotExpansao<'_>> {
+    let Some(snaps) = aluno.get("expansao_online").and_then(|env| env.get("snapshots")).and_then(Value::as_object)
+    else {
+        return Vec::new();
+    };
+    snaps
+        .iter()
+        .map(|(data, snap)| SnapshotExpansao {
+            data,
+            bimestre: snap.get("bimestre").and_then(Value::as_str),
+            nota: snap.get("nota").and_then(Value::as_f64),
+            progresso: snap.get("progresso").and_then(Value::as_f64),
+            ultimo_acesso: snap
+                .get("ultimo_acesso")
+                .and_then(Value::as_str)
+                .and_then(|v| NaiveDate::parse_from_str(v, "%Y-%m-%d").ok()),
+            turma_origem: snap.get("turma_origem").and_then(Value::as_str),
+        })
+        .collect()
+}
+
+/// Snapshot mais recente (por data) cujo bimestre bate com `bimestre` — é o
+/// que ancora todo campo "atual": nunca mostra dado de outro bimestre.
+fn ultimo_snapshot_do_bimestre<'a>(
+    snapshots: &'a [SnapshotExpansao<'a>],
+    bimestre: &str,
+) -> Option<&'a SnapshotExpansao<'a>> {
+    snapshots.iter().rev().find(|s| s.bimestre == Some(bimestre))
+}
+
+/// Diferença entre a última importação e a penúltima (qualquer bimestre),
+/// só reportada quando a mais recente já é do bimestre pedido — senão a
+/// "variação recente" de um aluno sem import neste bimestre mostraria o
+/// salto do bimestre anterior como se fosse dele.
+fn delta_recente(
+    snapshots: &[SnapshotExpansao],
+    bimestre: &str,
+    campo: impl Fn(&SnapshotExpansao) -> Option<f64>,
+) -> Option<f64> {
+    if snapshots.len() < 2 {
+        return None;
+    }
+    let ultimo = &snapshots[snapshots.len() - 1];
+    if ultimo.bimestre != Some(bimestre) {
+        return None;
+    }
+    let penultimo = &snapshots[snapshots.len() - 2];
+    Some(campo(ultimo)? - campo(penultimo)?)
+}
+
+/// Variação dentro do bimestre: ultimo−primeiro entre os snapshots daquele
+/// bimestre. Com um único snapshot no bimestre, usa como base a medição
+/// imediatamente anterior a ele (de qualquer bimestre — é a única correta,
+/// já que datas são cronológicas e só há 1 ponto neste bimestre) em vez de
+/// devolver 0, que classificaria como estagnado um aluno que só ainda não
+/// foi reimportado desde o fechamento do bimestre anterior.
+fn delta_bimestre(
+    snapshots: &[SnapshotExpansao],
+    bimestre: &str,
+    campo: impl Fn(&SnapshotExpansao) -> Option<f64>,
+) -> Option<f64> {
+    let indices: Vec<usize> =
+        snapshots.iter().enumerate().filter(|(_, s)| s.bimestre == Some(bimestre)).map(|(i, _)| i).collect();
+    match indices.len() {
+        0 => None,
+        1 => {
+            let idx = indices[0];
+            if idx == 0 {
+                return None;
+            }
+            Some(campo(&snapshots[idx])? - campo(&snapshots[idx - 1])?)
+        }
+        _ => {
+            let primeiro = *indices.first()?;
+            let ultimo = *indices.last()?;
+            Some(campo(&snapshots[ultimo])? - campo(&snapshots[primeiro])?)
+        }
+    }
+}
+
+fn campo_expansao_progresso_atual(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    ultimo_snapshot_do_bimestre(&snapshots, ctx.bimestre)
+        .and_then(|s| s.progresso)
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_nota_atual(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    ultimo_snapshot_do_bimestre(&snapshots, ctx.bimestre)
+        .and_then(|s| s.nota)
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_progresso_delta_recente(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    delta_recente(&snapshots, ctx.bimestre, |s| s.progresso).map(ValorExpressao::Numero).unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_nota_delta_recente(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    delta_recente(&snapshots, ctx.bimestre, |s| s.nota).map(ValorExpressao::Numero).unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_progresso_delta_bimestre(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    delta_bimestre(&snapshots, ctx.bimestre, |s| s.progresso).map(ValorExpressao::Numero).unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_nota_delta_bimestre(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    delta_bimestre(&snapshots, ctx.bimestre, |s| s.nota).map(ValorExpressao::Numero).unwrap_or(ValorExpressao::Nulo)
+}
+
+/// Ancorado em "hoje" (Local::now()), não na data da importação: a
+/// pergunta que este campo responde é "há quantos dias, a partir de agora,
+/// o aluno não acessa" — ancorar na importação tornaria a coluna
+/// incomparável entre alunos vindos de arquivos importados em dias
+/// diferentes. Contrapartida aceita: o relatório não é reproduzível ao
+/// regerar depois (mesmo comportamento de "Gerado em" nos renderers).
+fn campo_expansao_dias_sem_acesso(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    let Some(ultimo_acesso) = ultimo_snapshot_do_bimestre(&snapshots, ctx.bimestre).and_then(|s| s.ultimo_acesso)
+    else {
+        return ValorExpressao::Nulo;
+    };
+    let dias = (Local::now().date_naive() - ultimo_acesso).num_days();
+    ValorExpressao::Numero(dias.max(0) as f64)
+}
+
+fn campo_expansao_ultimo_acesso(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    ultimo_snapshot_do_bimestre(&snapshots, ctx.bimestre)
+        .and_then(|s| s.ultimo_acesso)
+        .map(|data| ValorExpressao::Texto(data.format("%d/%m/%Y").to_string()))
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_expansao_data_ultima_importacao(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    let Some(snapshot) = ultimo_snapshot_do_bimestre(&snapshots, ctx.bimestre) else { return ValorExpressao::Nulo };
+    NaiveDate::parse_from_str(snapshot.data, "%Y-%m-%d")
+        .ok()
+        .map(|data| ValorExpressao::Texto(data.format("%d/%m/%Y").to_string()))
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+/// Contagem, não presença: 0 é resposta legítima aqui (aluno existe, mas
+/// não foi importado neste bimestre ainda) — só quando não há linha de
+/// aluno nenhuma (ctx.aluno == None) é que o campo devolve Nulo.
+fn campo_expansao_qtd_importacoes_bimestre(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    let qtd = snapshots.iter().filter(|s| s.bimestre == Some(ctx.bimestre)).count();
+    ValorExpressao::Numero(qtd as f64)
+}
+
+fn campo_expansao_turma_origem(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    let snapshots = snapshots_expansao(aluno);
+    snapshots
+        .last()
+        .and_then(|s| s.turma_origem)
+        .map(|turma| ValorExpressao::Texto(turma.to_string()))
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+#[cfg(test)]
+mod testes {
+    use super::*;
+    use serde_json::json;
+
+    fn turma_fixture() -> TurmaArquivo {
+        serde_json::from_value(json!({ "codigo": "1A", "ano": 2026, "alunos": {} })).unwrap()
+    }
+
+    fn ctx_fixture<'a>(turma: &'a TurmaArquivo, aluno: &'a Value, bimestre: &'a str, parametros: &'a BTreeMap<String, ValorExpressao>) -> ContextoLinha<'a> {
+        ContextoLinha {
+            turma,
+            matricula: None,
+            aluno: Some(aluno),
+            bimestre,
+            nota_minima: 5.0,
+            disciplina_contexto: None,
+            item: None,
+            parametros,
+        }
+    }
+
+    /// O aluno só tem snapshot do bimestre 3; pedir "atual" no bimestre 2
+    /// não pode devolver o valor do 3 — mostraria o número errado numa
+    /// linha rotulada com o bimestre errado.
+    #[test]
+    fn progresso_atual_de_outro_bimestre_nao_vaza_para_a_linha() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "bimestre": "3", "progresso": 80.0, "nota": 5.28 } }
+            }
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "2", &parametros);
+        assert_eq!(campo_expansao_progresso_atual(&ctx, None), ValorExpressao::Nulo);
+
+        let ctx3 = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_progresso_atual(&ctx3, None), ValorExpressao::Numero(80.0));
+    }
+
+    /// Sem um segundo snapshot para comparar, a variação recente tem que
+    /// ser Nulo — nunca 0.0, que tornaria "sem dado" indistinguível de
+    /// "estagnado" (a distinção que este campo existe para dar).
+    #[test]
+    fn delta_recente_e_nulo_sem_historico_suficiente() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "bimestre": "3", "progresso": 80.0 } }
+            }
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_progresso_delta_recente(&ctx, None), ValorExpressao::Nulo);
+    }
+
+    /// A variação recente só é reportada quando a importação mais recente
+    /// do aluno já é do bimestre pedido — senão o salto do bimestre
+    /// anterior apareceria como se fosse variação do bimestre atual.
+    #[test]
+    fn delta_recente_e_nulo_quando_o_ultimo_snapshot_e_de_outro_bimestre() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": {
+                    "2026-06-01": { "bimestre": "2", "progresso": 50.0 },
+                    "2026-08-25": { "bimestre": "3", "progresso": 80.0 }
+                }
+            }
+        });
+        let parametros = BTreeMap::new();
+        // pedindo o bimestre 2, mas o snapshot mais recente já é do 3
+        let ctx = ctx_fixture(&turma, &aluno, "2", &parametros);
+        assert_eq!(campo_expansao_progresso_delta_recente(&ctx, None), ValorExpressao::Nulo);
+    }
+
+    /// Com um único snapshot no bimestre, a base da variação é a medição
+    /// imediatamente anterior (de qualquer bimestre) — não 0. Sem isso, um
+    /// aluno que avançou 30 p.p. desde o fechamento do bimestre anterior
+    /// apareceria como estagnado só por ainda não ter uma segunda
+    /// importação dentro do bimestre atual.
+    #[test]
+    fn delta_bimestre_com_um_unico_snapshot_usa_a_medicao_anterior_como_base() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": {
+                    "2026-06-01": { "bimestre": "2", "progresso": 50.0 },
+                    "2026-08-25": { "bimestre": "3", "progresso": 80.0 }
+                }
+            }
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_progresso_delta_bimestre(&ctx, None), ValorExpressao::Numero(30.0));
+    }
+
+    /// Um único snapshot no bimestre e nenhuma medição anterior (primeira
+    /// importação da vida do aluno): não há base nenhuma para a variação.
+    #[test]
+    fn delta_bimestre_com_um_snapshot_e_sem_historico_anterior_e_nulo() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": { "2026-08-25": { "bimestre": "3", "progresso": 80.0 } }
+            }
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_progresso_delta_bimestre(&ctx, None), ValorExpressao::Nulo);
+    }
+
+    /// Contagem, não presença: aluno existente sem nenhuma importação no
+    /// bimestre pedido é 0 (resposta legítima), não Nulo.
+    #[test]
+    fn qtd_importacoes_bimestre_devolve_zero_quando_aluno_existe_sem_import_no_bimestre() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "expansao_online": {
+                "snapshots": { "2026-06-01": { "bimestre": "2", "progresso": 50.0 } }
+            }
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_qtd_importacoes_bimestre(&ctx, None), ValorExpressao::Numero(0.0));
+    }
+
+    #[test]
+    fn aluno_sem_expansao_online_devolve_nulo_em_todos_os_campos() {
+        let turma = turma_fixture();
+        let aluno = json!({ "nome": "SEM EXPANSAO" });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_expansao_progresso_atual(&ctx, None), ValorExpressao::Nulo);
+        assert_eq!(campo_expansao_nota_atual(&ctx, None), ValorExpressao::Nulo);
+        assert_eq!(campo_expansao_dias_sem_acesso(&ctx, None), ValorExpressao::Nulo);
+        assert_eq!(campo_expansao_qtd_importacoes_bimestre(&ctx, None), ValorExpressao::Numero(0.0));
+    }
+
+    /// Prova que os 11 ids de expansão realmente entraram no catálogo — o
+    /// construtor visual e o executor só enxergam um campo por id, então um
+    /// id digitado errado no array CAMPOS falharia silenciosamente (o
+    /// avaliador de expressão devolve Nulo pra id desconhecido, não erro).
+    #[test]
+    fn todos_os_campos_de_expansao_estao_registrados_no_catalogo() {
+        for id in [
+            "expansao_progresso_atual",
+            "expansao_nota_atual",
+            "expansao_progresso_delta_recente",
+            "expansao_nota_delta_recente",
+            "expansao_progresso_delta_bimestre",
+            "expansao_nota_delta_bimestre",
+            "expansao_dias_sem_acesso",
+            "expansao_ultimo_acesso",
+            "expansao_data_ultima_importacao",
+            "expansao_qtd_importacoes_bimestre",
+            "expansao_turma_origem",
+        ] {
+            assert!(buscar_campo(id).is_some(), "campo {id} deveria estar registrado em CAMPOS");
+            assert_eq!(buscar_campo(id).unwrap().categoria, CategoriaCampo::Expansoes);
+        }
     }
 }

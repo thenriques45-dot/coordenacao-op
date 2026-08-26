@@ -9298,6 +9298,16 @@ th:nth-child(3) {
   border-bottom: 1px dashed var(--border);
 }
 
+.cb-preview-espacador {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  padding: 18px 0;
+}
+
 .cb-preview-assinaturas {
   display: flex;
   flex-wrap: wrap;

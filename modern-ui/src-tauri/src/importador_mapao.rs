@@ -7,9 +7,11 @@ use crate::*;
 
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
 use chrono::Local;
+use serde::Serialize;
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fs,
     io::Cursor,
     path::PathBuf,
 };
@@ -1180,6 +1182,144 @@ pub(crate) fn ja_existe_disciplina_regular(
 
 pub(crate) fn normalizar_nome_busca(valor: &str) -> String {
     normalizar_texto_basico(valor)
+}
+
+// ── Correção de disciplinas duplicadas por grafia diferente ────────────────
+//
+// A normalização em normalizar_disciplina_mapao (usada na importação de
+// mapão hoje) já evita que uma disciplina seja gravada duas vezes com
+// grafias diferentes (ex.: com/sem hífen) — mas não desfaz o que já foi
+// gravado antes dela existir. As funções abaixo detectam e fundem essas
+// chaves residuais dentro de `medias` de um aluno.
+
+/// Agrupa as chaves de disciplina de `medias` (todas as usadas em
+/// qualquer bimestre) pela forma normalizada. Só devolve grupos com mais
+/// de uma grafia — é o que sobra pra revisar/corrigir. Só lê, não muda
+/// nada (usado tanto pela prévia quanto pela aplicação).
+pub(crate) fn agrupar_grafias_duplicadas(medias: &serde_json::Map<String, Value>) -> BTreeMap<String, Vec<String>> {
+    let mut todas: BTreeSet<String> = BTreeSet::new();
+    for bimestre in medias.values() {
+        if let Some(obj) = bimestre.as_object() {
+            todas.extend(obj.keys().cloned());
+        }
+    }
+    let mut grupos: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for chave in todas {
+        grupos.entry(normalizar_texto_basico(&chave)).or_default().push(chave);
+    }
+    grupos.retain(|_, variantes| variantes.len() > 1);
+    grupos
+}
+
+/// Mesma regra de mesclar_medias (sync.rs): quem tem "em" mais recente
+/// vence; entre um valor com timestamp e um sem (formato legado, número
+/// cru), o com timestamp vence.
+fn valor_de_disciplina_vence(candidato: &Value, atual: &Value) -> bool {
+    let em_cand = candidato.get("em").and_then(Value::as_str).unwrap_or("");
+    let em_atual = atual.get("em").and_then(Value::as_str).unwrap_or("");
+    em_cand > em_atual || (!em_cand.is_empty() && em_atual.is_empty())
+}
+
+/// Aplica a fusão em `medias` de UM aluno: pra cada grupo de grafias
+/// duplicadas, funde bimestre a bimestre sob a forma canônica (a
+/// normalizada — é a mesma que qualquer importação nova já grava) e
+/// remove as grafias antigas. Devolve os grupos realmente fundidos.
+pub(crate) fn desduplicar_disciplinas_aluno(medias: &mut serde_json::Map<String, Value>) -> Vec<(String, Vec<String>)> {
+    let grupos = agrupar_grafias_duplicadas(medias);
+    for (canonica, variantes) in &grupos {
+        for bimestre in medias.values_mut() {
+            let Some(obj) = bimestre.as_object_mut() else { continue };
+            let mut vencedor: Option<Value> = None;
+            for variante in variantes {
+                if let Some(valor) = obj.get(variante) {
+                    vencedor = Some(match vencedor {
+                        Some(atual) if !valor_de_disciplina_vence(valor, &atual) => atual,
+                        _ => valor.clone(),
+                    });
+                }
+            }
+            for variante in variantes {
+                obj.remove(variante);
+            }
+            if let Some(valor) = vencedor {
+                obj.insert(canonica.clone(), valor);
+            }
+        }
+    }
+    grupos.into_iter().collect()
+}
+
+#[derive(Serialize)]
+pub(crate) struct GrupoDisciplinaDuplicada {
+    pub(crate) forma_canonica: String,
+    pub(crate) grafias: Vec<String>,
+    pub(crate) turmas: Vec<String>,
+    pub(crate) alunos_afetados: usize,
+}
+
+#[tauri::command(async)]
+pub(crate) fn analisar_disciplinas_duplicadas() -> Result<Vec<GrupoDisciplinaDuplicada>, String> {
+    let _dados = travar_dados();
+    let turmas = carregar_turmas_com_caminho()?;
+
+    let mut por_canonica: BTreeMap<String, GrupoDisciplinaDuplicada> = BTreeMap::new();
+    for (_, turma) in &turmas {
+        let Some(alunos) = &turma.alunos else { continue };
+        for aluno in alunos.values() {
+            let Some(medias) = aluno.get("medias").and_then(Value::as_object) else { continue };
+            for (canonica, variantes) in agrupar_grafias_duplicadas(medias) {
+                let entrada = por_canonica.entry(canonica.clone()).or_insert_with(|| GrupoDisciplinaDuplicada {
+                    forma_canonica: canonica,
+                    grafias: Vec::new(),
+                    turmas: Vec::new(),
+                    alunos_afetados: 0,
+                });
+                for variante in variantes {
+                    if !entrada.grafias.contains(&variante) {
+                        entrada.grafias.push(variante);
+                    }
+                }
+                if !entrada.turmas.contains(&turma.codigo) {
+                    entrada.turmas.push(turma.codigo.clone());
+                }
+                entrada.alunos_afetados += 1;
+            }
+        }
+    }
+
+    Ok(por_canonica.into_values().collect())
+}
+
+#[tauri::command(async)]
+pub(crate) fn corrigir_disciplinas_duplicadas() -> Result<usize, String> {
+    let _dados = travar_dados();
+    let turmas = carregar_turmas_com_caminho()?;
+    let mut total = 0usize;
+
+    for (caminho, _) in &turmas {
+        let texto = fs::read_to_string(caminho).map_err(|err| format!("Nao consegui ler a turma: {err}"))?;
+        let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+        let mut mudou = false;
+
+        if let Some(alunos) = dados.get_mut("alunos").and_then(Value::as_object_mut) {
+            for aluno in alunos.values_mut() {
+                if let Some(medias) = aluno.get_mut("medias").and_then(Value::as_object_mut) {
+                    let fundidas = desduplicar_disciplinas_aluno(medias);
+                    if !fundidas.is_empty() {
+                        total += fundidas.len();
+                        mudou = true;
+                    }
+                }
+            }
+        }
+
+        if mudou {
+            let novo_texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+            escrever_json_atomicamente(caminho, &novo_texto).map_err(|err| err.to_string())?;
+        }
+    }
+
+    Ok(total)
 }
 
 pub(crate) fn normalizar_texto_basico_preservando_pontuacao(valor: &str) -> String {

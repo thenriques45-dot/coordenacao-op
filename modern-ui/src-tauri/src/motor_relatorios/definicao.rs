@@ -239,6 +239,8 @@ pub(crate) enum ConteudoBloco {
     },
     /// Início de uma nova página (docx/pdf). Sem configuração.
     QuebraPagina,
+    /// Duas linhas em branco entre os itens ao redor. Sem configuração.
+    Espacador,
     /// Uma linha de assinatura por nome.
     Assinaturas {
         #[serde(default)]

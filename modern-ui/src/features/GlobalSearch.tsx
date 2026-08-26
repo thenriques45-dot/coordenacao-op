@@ -143,6 +143,7 @@ export function BuscaGlobal({ turmas, onFechar, onAbrirTurma, onAbrirAluno, onNa
     { id: "importar-alunos-lote",         label: "Importar Alunos em Lote",          icone: <Upload size={16} />,     palavras: ["importar", "alunos", "lote", "batch"] },
     { id: "importar-tarefas",             label: "Importar Tarefas Realizadas",      icone: <Upload size={16} />,     palavras: ["importar", "tarefas", "realizadas", "atividades"] },
     { id: "importar-prova-paulista",      label: "Importar Prova Paulista",          icone: <Upload size={16} />,     palavras: ["importar", "prova", "paulista", "avaliacao", "nota"] },
+    { id: "importar-expansoes",           label: "Importar Disciplinas de Expansão", icone: <Upload size={16} />,     palavras: ["importar", "expansao", "expansoes", "online", "progresso", "noturno"] },
   ], []);
 
   const telasFiltradas = temQuery

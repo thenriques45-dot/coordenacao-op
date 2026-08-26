@@ -11,6 +11,7 @@ mod fotos;
 mod google_oauth;
 mod ia;
 mod importador_alunos;
+mod importador_expansoes;
 mod importador_mapao;
 mod infra;
 mod motor_relatorios;
@@ -31,7 +32,7 @@ mod turmas;
 pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
-    importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
@@ -149,6 +150,8 @@ fn main() {
             turmas::excluir_turma,
             importador_mapao::analisar_mapoes_lote,
             importador_mapao::aplicar_mapoes_lote,
+            importador_mapao::analisar_disciplinas_duplicadas,
+            importador_mapao::corrigir_disciplinas_duplicadas,
             turmas::carregar_turma,
             turmas::salvar_ajustes_media,
             turmas::salvar_encaminhamentos,
@@ -175,6 +178,7 @@ fn main() {
             pei::salvar_url_pei,
             pei::carregar_url_pei,
             pei::abrir_pei_docx,
+            pei::exportar_pei_aluno,
             pei::gerar_peis_lote,
             pei::carregar_peis_locais,
             pei::listar_alunos_elegiveis_com_disciplinas,
@@ -194,6 +198,8 @@ fn main() {
             importador_alunos::aplicar_lote_alunos,
             importador_alunos::analisar_tarefas,
             importador_alunos::aplicar_tarefas,
+            importador_expansoes::analisar_expansoes,
+            importador_expansoes::aplicar_expansoes,
             prova_paulista::analisar_prova_paulista,
             prova_paulista::aplicar_prova_paulista,
             motor_relatorios::listar_definicoes_relatorio,
@@ -708,6 +714,99 @@ mod tests {
             vec![Data::String("Turma:".into()), Data::String("1ª Série A".into())],
         ];
         assert!(!mapao_eh_expansao(&linhas, linhas.len()));
+    }
+
+    // Reproduz o caso real reportado: "ORIENTACAO DE ESTUDO - LINGUA
+    // PORTUGUESA" (hífen, resíduo de antes da normalização atual existir) e
+    // "ORIENTACAO DE ESTUDO LINGUA PORTUGUESA" (sem hífen, forma que
+    // qualquer importação atual já grava) precisam cair no mesmo grupo.
+    #[test]
+    fn agrupar_grafias_duplicadas_reconhece_variacao_de_hifen() {
+        let medias = json!({
+            "1": {
+                "ORIENTACAO DE ESTUDO - LINGUA PORTUGUESA": {"v": 7.0},
+                "ORIENTACAO DE ESTUDO LINGUA PORTUGUESA": {"v": 6.0, "em": "2026-08-13T10:00:00-03:00"},
+                "MATEMATICA": {"v": 8.0}
+            }
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+        let grupos = agrupar_grafias_duplicadas(&medias);
+        assert_eq!(grupos.len(), 1, "MATEMATICA não devia entrar — só tem uma grafia");
+        let variantes = grupos.get("ORIENTACAO DE ESTUDO LINGUA PORTUGUESA").unwrap();
+        assert_eq!(variantes.len(), 2);
+    }
+
+    // O caso real: a grafia com hífen só tem valor cru (sem "em", formato
+    // legado); a sem hífen tem timestamp real. A com timestamp tem que
+    // vencer — é sempre a mais nova/confiável nesse cenário.
+    #[test]
+    fn desduplicar_disciplinas_aluno_prefere_valor_com_timestamp() {
+        let mut medias = json!({
+            "1": {
+                "ORIENTACAO DE ESTUDO - MATEMATICA": 3.0,
+                "ORIENTACAO DE ESTUDO MATEMATICA": {"v": 3.5, "em": "2026-08-13T10:00:00-03:00"}
+            }
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+
+        let fundidas = desduplicar_disciplinas_aluno(&mut medias);
+        assert_eq!(fundidas.len(), 1);
+
+        let bimestre1 = medias.get("1").unwrap().as_object().unwrap();
+        assert_eq!(bimestre1.len(), 1, "só devia sobrar a chave canônica");
+        assert!(bimestre1.contains_key("ORIENTACAO DE ESTUDO MATEMATICA"));
+        assert_eq!(bimestre1["ORIENTACAO DE ESTUDO MATEMATICA"]["v"], json!(3.5));
+    }
+
+    // Quando só a grafia com hífen tem valor num bimestre (caso real: ela é
+    // 100% bimestre 1), o valor não pode ser perdido na fusão — só muda de
+    // chave.
+    #[test]
+    fn desduplicar_disciplinas_aluno_preserva_valor_unico_sem_timestamp() {
+        let mut medias = json!({
+            "1": { "ORIENTACAO DE ESTUDO - MATEMATICA": 3.0 },
+            "2": { "ORIENTACAO DE ESTUDO MATEMATICA": {"v": 4.0, "em": "2026-08-13T10:00:00-03:00"} }
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+
+        desduplicar_disciplinas_aluno(&mut medias);
+
+        assert_eq!(medias["1"]["ORIENTACAO DE ESTUDO MATEMATICA"], json!(3.0));
+        assert_eq!(medias["2"]["ORIENTACAO DE ESTUDO MATEMATICA"]["v"], json!(4.0));
+    }
+
+    #[test]
+    fn desduplicar_disciplinas_aluno_e_idempotente() {
+        let mut medias = json!({
+            "1": {
+                "ORIENTACAO DE ESTUDO - MATEMATICA": 3.0,
+                "ORIENTACAO DE ESTUDO MATEMATICA": {"v": 3.5, "em": "2026-08-13T10:00:00-03:00"}
+            }
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+
+        desduplicar_disciplinas_aluno(&mut medias);
+        let fundidas_segunda_vez = desduplicar_disciplinas_aluno(&mut medias);
+        assert!(fundidas_segunda_vez.is_empty(), "rodar de novo não deveria achar mais nada pra fundir");
+    }
+
+    #[test]
+    fn disciplina_sem_duplicata_nao_e_alterada() {
+        let mut medias = json!({ "1": { "MATEMATICA": {"v": 8.0, "em": "2026-08-13T10:00:00-03:00"} } })
+            .as_object()
+            .unwrap()
+            .clone();
+        let fundidas = desduplicar_disciplinas_aluno(&mut medias);
+        assert!(fundidas.is_empty());
+        assert_eq!(medias["1"]["MATEMATICA"]["v"], json!(8.0));
     }
 
     // Só "Projeto de Vida" não tem professor de componente que escreva Plano

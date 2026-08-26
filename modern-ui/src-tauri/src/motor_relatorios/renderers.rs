@@ -187,6 +187,10 @@ fn renderizar_docx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
                 }
             }
             ConteudoBloco::QuebraPagina => documento.quebra_pagina(),
+            ConteudoBloco::Espacador => {
+                documento.paragrafo("");
+                documento.paragrafo("");
+            }
             ConteudoBloco::Assinaturas { nomes } => {
                 assinatura_docx(&mut documento, nomes);
                 teve_conteudo = teve_conteudo || !nomes.is_empty();
@@ -294,6 +298,7 @@ fn renderizar_csv_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
                 }
             }
             ConteudoBloco::QuebraPagina => conteudo.push('\n'),
+            ConteudoBloco::Espacador => conteudo.push_str("\n\n"),
             ConteudoBloco::Assinaturas { nomes } => {
                 for nome in nomes {
                     conteudo.push_str(&format!("_____________________;{nome}\n"));
@@ -438,6 +443,10 @@ fn renderizar_xlsx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
                 linhas_capa.push((String::new(), false));
             }
             ConteudoBloco::Tabela { secao_index } => indices_tabela.push(*secao_index),
+            ConteudoBloco::Espacador => {
+                linhas_capa.push((String::new(), false));
+                linhas_capa.push((String::new(), false));
+            }
             ConteudoBloco::QuebraPagina | ConteudoBloco::Parametros => {}
             ConteudoBloco::Assinaturas { nomes } => {
                 for nome in nomes {
@@ -570,6 +579,23 @@ const CANDIDATOS_FONTE_PDF: &[CandidatoFontePdf] = &[
         italico: "LiberationSans-Italic.ttf",
         negrito_italico: "LiberationSans-BoldItalic.ttf",
     },
+    // Distros baseadas em RPM (Fedora, RHEL, openSUSE) empacotam essas
+    // mesmas fontes num caminho diferente do padrão Debian/Ubuntu acima —
+    // sem isto, o AppImage falha em gerar PDF mesmo com a fonte instalada.
+    CandidatoFontePdf {
+        base: "/usr/share/fonts/dejavu-sans-fonts",
+        regular: "DejaVuSans.ttf",
+        negrito: "DejaVuSans-Bold.ttf",
+        italico: "DejaVuSans-Oblique.ttf",
+        negrito_italico: "DejaVuSans-BoldOblique.ttf",
+    },
+    CandidatoFontePdf {
+        base: "/usr/share/fonts/liberation-sans-fonts",
+        regular: "LiberationSans-Regular.ttf",
+        negrito: "LiberationSans-Bold.ttf",
+        italico: "LiberationSans-Italic.ttf",
+        negrito_italico: "LiberationSans-BoldItalic.ttf",
+    },
 ];
 
 /// Carrega uma família de fontes já instalada no sistema (Calibri/Arial no
@@ -577,7 +603,10 @@ const CANDIDATOS_FONTE_PDF: &[CandidatoFontePdf] = &[
 /// O projeto não embute nenhuma fonte TTF própria; se nenhum desses
 /// candidatos existir na máquina, a geração de PDF falha com uma mensagem
 /// clara em vez de silenciosamente sair errada.
-fn carregar_familia_fonte_pdf() -> Result<genpdf::fonts::FontFamily<genpdf::fonts::FontData>, String> {
+///
+/// pub(crate) porque o exportador de PEI em PDF (pei.rs) reusa esta mesma
+/// lógica de fallback em vez de duplicar a lista de fontes candidatas.
+pub(crate) fn carregar_familia_fonte_pdf() -> Result<genpdf::fonts::FontFamily<genpdf::fonts::FontData>, String> {
     for candidato in CANDIDATOS_FONTE_PDF {
         let base = Path::new(candidato.base);
         let caminhos = [
@@ -718,6 +747,7 @@ fn renderizar_pdf_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
                 }
             }
             ConteudoBloco::QuebraPagina => documento.push(PageBreak::new()),
+            ConteudoBloco::Espacador => documento.push(Break::new(2.0)),
             ConteudoBloco::Assinaturas { nomes } => {
                 assinatura_pdf(&mut documento, nomes);
                 teve_conteudo = teve_conteudo || !nomes.is_empty();

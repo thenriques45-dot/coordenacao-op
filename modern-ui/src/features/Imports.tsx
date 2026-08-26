@@ -2,7 +2,7 @@ import { BarChart3, Check, ImagePlus, Upload, Users } from "lucide-react";
 import { Fragment, useState } from "react";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
-import { normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
+import { dividirLinhaCsv, normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
 import { carregarPerfilSincronizacao } from "./workgroupSync";
 
 type TurmaResumoImportacao = {
@@ -113,6 +113,7 @@ export function ImportarDados({
   onImportarAlunosLote,
   onImportarTarefas,
   onImportarProvaPaulista,
+  onImportarExpansoes,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
@@ -121,6 +122,7 @@ export function ImportarDados({
   onImportarAlunosLote: () => void;
   onImportarTarefas: () => void;
   onImportarProvaPaulista: () => void;
+  onImportarExpansoes: () => void;
 }) {
   return (
     <>
@@ -180,6 +182,13 @@ export function ImportarDados({
           <div>
             <strong>Importar Prova Paulista</strong>
             <span>Carregue a planilha de resultados da Prova Paulista e registre as notas por disciplina e bimestre.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarExpansoes}>
+          <BarChart3 size={24} />
+          <div>
+            <strong>Importar Disciplinas de Expansão</strong>
+            <span>Carregue as planilhas de progresso das expansões (noturno) e guarde o histórico para o construtor de relatórios.</span>
           </div>
         </button>
       </section>
@@ -1490,6 +1499,438 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
             <span>{resultado.atualizados} aluno(s) atualizados em {resultado.turmas_atualizadas} turma(s).</span>
             {resultado.nao_encontrados.length > 0 && (
               <span>Não encontrados: {resultado.nao_encontrados.join(", ")}</span>
+            )}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+// ---- Importador de Disciplinas de Expansão (online) ----
+
+type LinhaExpansaoPayload = {
+  nome: string;
+  email: string;
+  turma_origem: string;
+  escola: string;
+  bimestre: string;
+  nota: string;
+  progresso: string;
+  ultimo_acesso: string;
+};
+
+type ArquivoExpansaoPayload = {
+  nome_arquivo: string;
+  data_importacao: string;
+  bimestre_override: string | null;
+  linhas: LinhaExpansaoPayload[];
+};
+
+type PreviaExpansaoAluno = {
+  nome_csv: string;
+  ra: string;
+  turma: string | null;
+  bimestre: string | null;
+  nota: number | null;
+  progresso: number | null;
+  ultimo_acesso: string | null;
+  modo: string;
+  encontrado: boolean;
+  ambiguo: boolean;
+  resolvido: boolean;
+  ja_existe: boolean;
+};
+
+type PreviaExpansaoArquivo = {
+  nome_arquivo: string;
+  data_importacao: string;
+  turma_origem: string;
+  bimestres_detectados: string[];
+  total_csv: number;
+  encontrados: number;
+  por_ra: number;
+  por_nome: number;
+  nao_encontrados: number;
+  ambiguos: number;
+  resolvidos: number;
+  sobrescritos: number;
+  erro: string | null;
+  matches: PreviaExpansaoAluno[];
+};
+
+type PreviaExpansoes = {
+  arquivos: PreviaExpansaoArquivo[];
+  total_encontrados: number;
+  total_nao_encontrados: number;
+  total_ambiguos: number;
+};
+
+type ResultadoExpansoes = {
+  arquivos_aplicados: number;
+  atualizados: number;
+  turmas_atualizadas: number;
+  snapshots_sobrescritos: number;
+  nao_encontrados: string[];
+  ambiguos: string[];
+};
+
+type ArquivoExpansaoState = {
+  nomeArquivo: string;
+  /// ISO ("AAAA-MM-DD"), editável — pré-preenchida a partir do nome do arquivo.
+  dataImportacao: string;
+  /// "" = usar o bimestre de cada linha do CSV.
+  bimestreOverride: string;
+  linhas: LinhaExpansaoPayload[];
+};
+
+const opcoesBimestreExpansao = [
+  { valor: "", rotulo: "usar o do arquivo" },
+  { valor: "1", rotulo: "1º bimestre" },
+  { valor: "2", rotulo: "2º bimestre" },
+  { valor: "3", rotulo: "3º bimestre" },
+  { valor: "4", rotulo: "4º bimestre/conselho final" },
+];
+
+/// "...relatorio_turma_X_20260825.csv" → "2026-08-25" ; sem sufixo → "".
+/// Só pré-preenche o campo de data na tela — o usuário pode editar, e o
+/// backend faz a mesma checagem como última defesa (ver data_efetiva no
+/// importador_expansoes.rs).
+function dataDoNomeArquivo(nomeArquivo: string): string {
+  const m = nomeArquivo.match(/_(\d{4})(\d{2})(\d{2})\.csv$/i);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
+}
+
+/// Só fatia as colunas — não converte vírgula decimal, "%" nem data
+/// dd/mm/aaaa. Essas conversões ficam no Rust (importador_expansoes.rs),
+/// que tem cobertura de teste; este arquivo não tem test runner de TS.
+function parseCsvExpansao(texto: string): LinhaExpansaoPayload[] {
+  const linhas = texto.split(/\r?\n/).filter((linha) => linha.trim() !== "");
+
+  let headerIdx = -1;
+  let cabecalho: string[] = [];
+  for (let i = 0; i < linhas.length; i++) {
+    const colunas = dividirLinhaCsv(linhas[i]).map(normalizarTextoCsv);
+    if (colunas.includes("ALUNO") && colunas.includes("EMAIL") && colunas.includes("PROGRESSO MEDIO")) {
+      headerIdx = i;
+      cabecalho = colunas;
+      break;
+    }
+  }
+  if (headerIdx === -1) return [];
+
+  const idx = (nome: string) => cabecalho.indexOf(nome);
+  const idxTurma = idx("TURMA");
+  const idxEscola = idx("ESCOLA");
+  const idxAluno = idx("ALUNO");
+  const idxEmail = idx("EMAIL");
+  const idxAcesso = idx("ULTIMO ACESSO");
+  const idxBimestre = idx("BIMESTRE");
+  const idxNota = idx("NOTA MEDIA");
+  const idxProgresso = idx("PROGRESSO MEDIO");
+  if (idxAluno === -1 || idxEmail === -1) return [];
+
+  const resultado: LinhaExpansaoPayload[] = [];
+  for (let i = headerIdx + 1; i < linhas.length; i++) {
+    const campos = dividirLinhaCsv(linhas[i]);
+    const nome = campos[idxAluno]?.trim() ?? "";
+    if (!nome) continue;
+    resultado.push({
+      nome,
+      email: campos[idxEmail]?.trim() ?? "",
+      turma_origem: idxTurma >= 0 ? campos[idxTurma]?.trim() ?? "" : "",
+      escola: idxEscola >= 0 ? campos[idxEscola]?.trim() ?? "" : "",
+      bimestre: idxBimestre >= 0 ? campos[idxBimestre]?.trim() ?? "" : "",
+      nota: idxNota >= 0 ? campos[idxNota]?.trim() ?? "" : "",
+      progresso: idxProgresso >= 0 ? campos[idxProgresso]?.trim() ?? "" : "",
+      ultimo_acesso: idxAcesso >= 0 ? campos[idxAcesso]?.trim() ?? "" : "",
+    });
+  }
+  return resultado;
+}
+
+export function ImportarExpansoes({ onAplicado }: { onAplicado: () => void }) {
+  const [arquivos, setArquivos] = useState<ArquivoExpansaoState[]>([]);
+  const [previa, setPrevia] = useState<PreviaExpansoes | null>(null);
+  const [resultado, setResultado] = useState<ResultadoExpansoes | null>(null);
+  const [processando, setProcessando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function selecionarArquivos(lista: FileList | null) {
+    if (!lista || lista.length === 0) return;
+    setErro("");
+    setPrevia(null);
+    setResultado(null);
+    try {
+      const novos: ArquivoExpansaoState[] = [];
+      for (const arquivo of Array.from(lista)) {
+        const texto = await arquivo.text();
+        const linhas = parseCsvExpansao(texto);
+        if (linhas.length) {
+          novos.push({
+            nomeArquivo: arquivo.name,
+            dataImportacao: dataDoNomeArquivo(arquivo.name),
+            bimestreOverride: "",
+            linhas,
+          });
+        }
+      }
+      if (!novos.length) {
+        throw new Error("Nenhum aluno encontrado nos arquivos selecionados. Verifique se são planilhas de expansão.");
+      }
+      setArquivos(novos);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setArquivos([]);
+    }
+  }
+
+  function payload(): ArquivoExpansaoPayload[] {
+    return arquivos.map((a) => ({
+      nome_arquivo: a.nomeArquivo,
+      data_importacao: a.dataImportacao,
+      bimestre_override: a.bimestreOverride || null,
+      linhas: a.linhas,
+    }));
+  }
+
+  function atualizarData(indice: number, valor: string) {
+    setArquivos((atual) => atual.map((a, i) => (i === indice ? { ...a, dataImportacao: valor } : a)));
+    setPrevia(null);
+  }
+
+  function atualizarBimestre(indice: number, valor: string) {
+    setArquivos((atual) => atual.map((a, i) => (i === indice ? { ...a, bimestreOverride: valor } : a)));
+    setPrevia(null);
+  }
+
+  async function analisar() {
+    if (!arquivos.length) return;
+    setProcessando(true);
+    setErro("");
+    setPrevia(null);
+    try {
+      const res = await invokeApp<PreviaExpansoes>("analisar_expansoes", { arquivos: payload() });
+      setPrevia(res);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function aplicar() {
+    if (!previa || previa.total_encontrados === 0) return;
+    setProcessando(true);
+    setErro("");
+    try {
+      const res = await invokeApp<ResultadoExpansoes>("aplicar_expansoes", { arquivos: payload() });
+      setResultado(res);
+      setPrevia(null);
+      setArquivos([]);
+      onAplicado();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  const todosMatches = previa
+    ? previa.arquivos.flatMap((a) => a.matches.map((m) => ({ ...m, arquivo: a.nome_arquivo })))
+    : [];
+
+  return (
+    <>
+      <header className="topbar">
+        <div>
+          <span className="eyebrow">Importações</span>
+          <h1>Importar Disciplinas de Expansão</h1>
+          <p>
+            Carregue as planilhas de progresso das disciplinas de expansão (período noturno),
+            uma ou várias de uma vez. O app localiza cada aluno pelo RA (extraído do e-mail
+            institucional) e, quando não encontra, pelo nome. Cada importação vira um registro
+            datado: reimportar a mesma data substitui aquele registro; datas diferentes se
+            acumulam, formando o histórico de progresso. Esses dados não aparecem na ficha do
+            aluno — só ficam disponíveis no construtor de relatórios.
+          </p>
+        </div>
+      </header>
+
+      <section className="panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <label className="file-picker-button" style={{ alignSelf: "flex-start", cursor: "pointer" }}>
+          <Upload size={18} />
+          <span>Selecionar planilhas CSV</span>
+          <input
+            type="file"
+            accept=".csv"
+            multiple
+            style={{ display: "none" }}
+            disabled={processando}
+            onChange={(event) => {
+              void selecionarArquivos(event.target.files);
+              event.target.value = "";
+            }}
+          />
+        </label>
+
+        {erro && <div className="notice error">{erro}</div>}
+
+        {arquivos.length > 0 && (
+          <>
+            <div className="students-table-wrap">
+              <table className="students-table">
+                <thead>
+                  <tr>
+                    <th>Arquivo</th>
+                    <th>Data da importação</th>
+                    <th>Bimestre</th>
+                    <th>Alunos na planilha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arquivos.map((a, i) => (
+                    <tr key={i}>
+                      <td><strong>{a.nomeArquivo}</strong></td>
+                      <td>
+                        <input
+                          type="date"
+                          value={a.dataImportacao}
+                          onChange={(e) => atualizarData(i, e.target.value)}
+                          disabled={processando}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          value={a.bimestreOverride}
+                          onChange={(e) => atualizarBimestre(i, e.target.value)}
+                          disabled={processando}
+                        >
+                          {opcoesBimestreExpansao.map((o) => (
+                            <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>{a.linhas.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!previa && (
+              <button
+                type="button"
+                className="primary-action"
+                style={{ alignSelf: "flex-start" }}
+                onClick={() => void analisar()}
+                disabled={processando}
+              >
+                {processando ? "Analisando..." : `Analisar ${arquivos.length} arquivo(s)`}
+              </button>
+            )}
+          </>
+        )}
+
+        {previa && (
+          <>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              <span className="active-badge">✓ {previa.total_encontrados} encontrado(s)</span>
+              {previa.total_nao_encontrados > 0 && (
+                <span className="inactive-badge">⚠ {previa.total_nao_encontrados} não encontrado(s)</span>
+              )}
+              {previa.total_ambiguos > 0 && (
+                <span className="inactive-badge">⚠ {previa.total_ambiguos} ambíguo(s)</span>
+              )}
+            </div>
+
+            {previa.arquivos.some((a) => a.erro) && (
+              <div className="notice error">
+                {previa.arquivos.filter((a) => a.erro).map((a) => (
+                  <div key={a.nome_arquivo}>{a.nome_arquivo}: {a.erro}</div>
+                ))}
+              </div>
+            )}
+
+            <div className="students-table-wrap">
+              <table className="students-table">
+                <thead>
+                  <tr>
+                    <th>Arquivo</th>
+                    <th>Nome (planilha)</th>
+                    <th>Turma</th>
+                    <th>Bimestre</th>
+                    <th>Nota</th>
+                    <th>Progresso</th>
+                    <th>Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {todosMatches.map((m, i) => (
+                    <tr key={i} className={m.encontrado ? "" : "student-table-row inactive"}>
+                      <td>{m.arquivo}</td>
+                      <td>{m.nome_csv}</td>
+                      <td>{m.turma ?? "—"}</td>
+                      <td>{m.bimestre ?? "—"}</td>
+                      <td>{m.nota != null ? m.nota.toFixed(2).replace(".", ",") : "—"}</td>
+                      <td>{m.progresso != null ? `${m.progresso.toFixed(0)}%` : "—"}</td>
+                      <td>
+                        {m.resolvido ? (
+                          <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>inferido</span>
+                        ) : m.encontrado ? (
+                          <span className="active-badge">{m.modo === "ra" ? "ok · RA" : "ok · nome"}</span>
+                        ) : m.ambiguo ? (
+                          <span className="inactive-badge">ambíguo</span>
+                        ) : (
+                          <span className="inactive-badge">não encontrado</span>
+                        )}
+                        {m.ja_existe && (
+                          <span className="inactive-badge" style={{ marginLeft: "0.35rem" }}>sobrescreve</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {previa.arquivos.some((a) => a.resolvidos > 0) && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos "inferidos" foram identificados pela turma com mais colegas presentes na mesma planilha.
+              </p>
+            )}
+            {(previa.total_nao_encontrados > 0 || previa.total_ambiguos > 0) && (
+              <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
+                Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="primary-action"
+              style={{ alignSelf: "flex-start" }}
+              disabled={processando || previa.total_encontrados === 0}
+              onClick={() => void aplicar()}
+            >
+              {processando ? "Importando..." : `Importar ${previa.total_encontrados} aluno(s)`}
+            </button>
+          </>
+        )}
+
+        {resultado && (
+          <div className="notice success">
+            <strong>Importação concluída.</strong>
+            <span>
+              {resultado.atualizados} aluno(s) atualizados em {resultado.turmas_atualizadas} turma(s)
+              ({resultado.arquivos_aplicados} arquivo(s)).
+            </span>
+            {resultado.snapshots_sobrescritos > 0 && (
+              <span>{resultado.snapshots_sobrescritos} registro(s) já existente(s) nesta data foram sobrescritos.</span>
+            )}
+            {resultado.nao_encontrados.length > 0 && (
+              <span>Não encontrados: {resultado.nao_encontrados.join(", ")}</span>
+            )}
+            {resultado.ambiguos.length > 0 && (
+              <span>Ambíguos: {resultado.ambiguos.join(", ")}</span>
             )}
           </div>
         )}

@@ -620,6 +620,76 @@ mod testes {
         assert_eq!(notas, notas_ordenadas, "as linhas da prévia deveriam vir ordenadas por nota decrescente");
     }
 
+    /// Réplica do que o construtor visual produziria pro relatório de
+    /// "Estacionados na Expansão" (ver plano da feature): filtro composto
+    /// (NãoVazio + MenorIgual + MaiorIgual) sobre os novos campos, ordenado
+    /// decrescente. Prova que os `campo_id` de expansão existem em
+    /// `buscar_campo` (um id digitado errado cairia silenciosamente em
+    /// Nulo, não erro) e que o pipeline inteiro — filtro, ordenação,
+    /// prévia — roda sem panicar mesmo sem nenhum aluno do fixture ter
+    /// dado de expansão (0 linhas é esperado aqui; o teste não afirma
+    /// contagem, só ausência de erro).
+    #[test]
+    fn relatorio_de_estacionados_na_expansao_roda_de_ponta_a_ponta() {
+        let definicao = ReportDefinition {
+            id: "estacionados_expansao".to_string(),
+            nome: "Estacionados na Expansão".to_string(),
+            descricao: "Alunos do noturno sem avanço recente nas disciplinas de expansão.".to_string(),
+            autor: None,
+            embutido: false,
+            fonte: FiltroTurmas { periodos: vec!["NOITE".to_string()], ..Default::default() },
+            parametros: vec![],
+            secoes: vec![SecaoRelatorio {
+                titulo: None,
+                fonte_linhas: FonteLinhas::PorAluno,
+                filtros: GrupoFiltros {
+                    combinador: Combinador::E,
+                    condicoes: vec![
+                        FiltroCondicao { campo: campo("expansao_progresso_atual"), operador: Operador::NaoVazio, valor: None },
+                        FiltroCondicao {
+                            campo: campo("expansao_progresso_delta_recente"),
+                            operador: Operador::MenorIgual,
+                            valor: Some(ExpressaoNo::Literal { valor: ValorExpressao::Numero(2.0) }),
+                        },
+                        FiltroCondicao {
+                            campo: campo("expansao_dias_sem_acesso"),
+                            operador: Operador::MaiorIgual,
+                            valor: Some(ExpressaoNo::Literal { valor: ValorExpressao::Numero(7.0) }),
+                        },
+                    ],
+                },
+                colunas: vec![
+                    ColunaRelatorio {
+                        id: "nome".to_string(),
+                        rotulo: "Aluno".to_string(),
+                        expressao: campo("aluno_nome"),
+                        largura: None,
+                        alinhamento: Alinhamento::Esquerda,
+                    },
+                    ColunaRelatorio {
+                        id: "dias".to_string(),
+                        rotulo: "Dias sem Acesso".to_string(),
+                        expressao: campo("expansao_dias_sem_acesso"),
+                        largura: None,
+                        alinhamento: Alinhamento::Centro,
+                    },
+                ],
+                ordenacao: vec![OrdenacaoRelatorio { coluna_id: "dias".to_string(), decrescente: true }],
+                agrupamento: AgrupamentoRelatorio { campo: None, limite_por_grupo: None, limite_parametro: None, ordem_grupos: None },
+            }],
+            blocos: Vec::new(),
+            formato_saida: FormatoSaida::Docx,
+        };
+
+        let preview = pre_visualizar_relatorio(&definicao, "1", &BTreeMap::new(), 50)
+            .expect("relatório com campos de expansão deveria rodar sem erro mesmo sem dado real no fixture");
+        assert!(!preview.is_empty(), "deveria ter ao menos uma seção montada");
+
+        let resultado = executar_relatorio(&definicao, "1", &BTreeMap::new())
+            .expect("gerar o docx também deveria rodar sem erro");
+        let _ = std::fs::remove_file(&resultado.caminho);
+    }
+
     /// Mesma consulta do teste acima, mas com `blocos` preenchido (o que o
     /// construtor de blocos novo produz) e passando por cabeçalho, texto,
     /// tabela, quebra de página, assinaturas e parâmetros — prova que o
@@ -643,6 +713,7 @@ mod testes {
             },
             BlocoRelatorio { id: "blk_3".to_string(), ativo: true, conteudo: ConteudoBloco::Tabela { secao_index: 0 } },
             BlocoRelatorio { id: "blk_4".to_string(), ativo: true, conteudo: ConteudoBloco::QuebraPagina },
+            BlocoRelatorio { id: "blk_4b".to_string(), ativo: true, conteudo: ConteudoBloco::Espacador },
             BlocoRelatorio {
                 id: "blk_5".to_string(),
                 ativo: true,

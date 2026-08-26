@@ -170,6 +170,7 @@ export function TelaPEI() {
   const [alunosElegiveis, setAlunosElegiveis] = useState<AlunoElegivelComDisciplinas[]>([]);
   const [alunoSelecionado, setAlunoSelecionado] = useState<AlunoElegivelComDisciplinas | null>(null);
   const [erroPeiAbrir, setErroPeiAbrir] = useState("");
+  const [exportandoPei, setExportandoPei] = useState(false);
   const [gerandoPend, setGerandoPend] = useState(false);
   const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
 
@@ -689,6 +690,29 @@ export function TelaPEI() {
                     )}
                   </p>
                 </div>
+                {registrosDoAluno.length > 0 && (
+                  <button
+                    type="button"
+                    className="primary-action"
+                    disabled={exportandoPei}
+                    onClick={async () => {
+                      setErroPeiAbrir("");
+                      setExportandoPei(true);
+                      try {
+                        await invokeApp("exportar_pei_aluno", {
+                          nomeAluno: alunoSelecionado!.nome,
+                          registros: registrosDoAluno,
+                        });
+                      } catch (e) {
+                        setErroPeiAbrir(e instanceof Error ? e.message : String(e));
+                      } finally {
+                        setExportandoPei(false);
+                      }
+                    }}
+                  >
+                    <FileText size={16} /> {exportandoPei ? "Exportando..." : "Exportar PEI (PDF)"}
+                  </button>
+                )}
               </div>
 
               {/* Tabela matriz */}
