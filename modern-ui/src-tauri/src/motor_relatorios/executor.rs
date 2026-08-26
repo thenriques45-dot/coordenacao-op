@@ -467,6 +467,7 @@ mod testes {
     use super::super::definicao::{Alinhamento, FiltroCondicao, Operador};
     use super::super::embutidos::definicao_top60;
     use super::super::expressoes::ExpressaoNo;
+    use serde_json::json;
 
     #[test]
     fn pre_visualizar_nao_grava_arquivo_e_respeita_limite() {
@@ -483,6 +484,42 @@ mod testes {
         }
     }
 
+    /// Fixture em memória (sem tocar disco nem `data_dir()`) — turma NOITE
+    /// com alunos ativos com média de bimestre e frequência calculáveis, pra
+    /// exercitar "Top Alunos" sem depender de dados reais só existentes na
+    /// máquina de quem escreveu o teste (era por isso que ele só passava
+    /// localmente e falhava sempre no CI, ver plano de correção).
+    fn turma_fixture(json: Value) -> TurmaArquivo {
+        serde_json::from_value(json).expect("fixture de turma deveria desserializar")
+    }
+
+    fn turma_top_alunos_fixture() -> TurmaArquivo {
+        turma_fixture(json!({
+            "codigo": "3ª Série C",
+            "ano": 2026,
+            "serie": "3ª Série",
+            "periodo": "NOITE",
+            "ciclo": "EM",
+            "alunos": {
+                "1": {
+                    "nome": "ALUNO UM", "ativo": true, "numero_chamada": 1,
+                    "frequencia_percentual": 95.0,
+                    "medias": { "1": { "MATEMATICA": 9.0, "PORTUGUES": 8.0 } }
+                },
+                "2": {
+                    "nome": "ALUNO DOIS", "ativo": true, "numero_chamada": 2,
+                    "frequencia_percentual": 90.0,
+                    "medias": { "1": { "MATEMATICA": 7.0, "PORTUGUES": 7.5 } }
+                },
+                "3": {
+                    "nome": "ALUNO TRES", "ativo": true, "numero_chamada": 3,
+                    "frequencia_percentual": 88.0,
+                    "medias": { "1": { "MATEMATICA": 6.0, "PORTUGUES": 6.5 } }
+                }
+            }
+        }))
+    }
+
     /// "Top Alunos" (ex-Top 60) agora aceita um parâmetro `quantidade_top`
     /// que sobrepõe o `limite_por_grupo` fixo da definição — prova que
     /// `limite_efetivo` realmente lê o parâmetro passado na hora de gerar,
@@ -493,17 +530,11 @@ mod testes {
         let mut parametros = BTreeMap::new();
         parametros.insert("quantidade_top".to_string(), ValorExpressao::Numero(2.0));
 
-        let resultado = executar_relatorio(&definicao, "1", &parametros)
-            .expect("Top Alunos com parâmetro customizado deveria rodar sem erro");
+        let turmas = vec![(PathBuf::from("fixture_top_alunos.json"), turma_top_alunos_fixture())];
+        let (_, total_linhas, total_grupos, _) = montar_secoes(&definicao, &turmas, "1", 5.0, &parametros);
 
-        assert!(resultado.grupos > 0, "deveria ter pelo menos um período com dado real no fixture");
-        assert!(
-            resultado.linhas <= resultado.grupos * 2,
-            "com quantidade_top=2, nenhum período deveria trazer mais que 2 linhas (grupos={}, linhas={})",
-            resultado.grupos,
-            resultado.linhas
-        );
-        let _ = std::fs::remove_file(&resultado.caminho);
+        assert_eq!(total_grupos, 1, "3 alunos noturnos deveriam cair num único grupo (período Noite)");
+        assert_eq!(total_linhas, 2, "com quantidade_top=2 e 3 alunos com média, só os 2 melhores deveriam entrar");
     }
 
     fn campo(id: &str) -> ExpressaoNo {
@@ -597,27 +628,60 @@ mod testes {
         }
     }
 
+    /// 25 alunos ativos com nota de Matemática distinta (pra cortar o top 20
+    /// de verdade, não só passar por ter poucos alunos), mais um inativo e
+    /// um sem nota de Matemática — os dois não deveriam entrar. Fixture em
+    /// memória: mesma razão da `turma_top_alunos_fixture` acima.
+    fn turma_top20_matematica_fixture() -> TurmaArquivo {
+        let mut alunos = serde_json::Map::new();
+        for i in 0..25 {
+            alunos.insert(
+                i.to_string(),
+                json!({
+                    "nome": format!("ALUNO {i:02}"),
+                    "ativo": true,
+                    "numero_chamada": i + 1,
+                    "medias": { "1": { "MATEMATICA": 10.0 - (i as f64) * 0.3 } }
+                }),
+            );
+        }
+        alunos.insert(
+            "inativo".to_string(),
+            json!({ "nome": "ALUNO INATIVO", "ativo": false, "numero_chamada": 99, "medias": { "1": { "MATEMATICA": 10.0 } } }),
+        );
+        alunos.insert(
+            "sem_nota".to_string(),
+            json!({ "nome": "ALUNO SEM NOTA", "ativo": true, "numero_chamada": 100, "medias": { "1": { "PORTUGUES": 8.0 } } }),
+        );
+        turma_fixture(json!({
+            "codigo": "1ª Série A",
+            "ano": 2026,
+            "serie": "1ª Série",
+            "periodo": "NOITE",
+            "ciclo": "EM",
+            "alunos": Value::Object(alunos)
+        }))
+    }
+
     #[test]
     fn top20_matematica_em_noturno_roda_e_respeita_o_limite_sem_agrupamento() {
         let definicao = definicao_top20_matematica_em_noturno();
-        let resultado =
-            executar_relatorio(&definicao, "1", &BTreeMap::new()).expect("o relatório montado pelo construtor deveria rodar sem erro");
+        let turmas = vec![(PathBuf::from("fixture_top20.json"), turma_top20_matematica_fixture())];
+        let (secoes, total_linhas, total_grupos, _) = montar_secoes(&definicao, &turmas, "1", 5.0, &BTreeMap::new());
 
-        assert!(resultado.linhas <= 20, "não deveria trazer mais que 20 alunos mesmo sem campo de agrupamento");
-        assert!(resultado.linhas > 0, "teste precisa de dados reais no fixture — 0 alunos não prova nada (1a SERIE A é EM/NOITE e tem MATEMATICA lançada no bimestre 1)");
-        assert_eq!(resultado.grupos, 1, "sem campo de agrupamento, tudo cai num bloco só");
+        assert_eq!(total_linhas, 20, "25 alunos ativos com nota deveriam ser cortados em exatamente 20 (o inativo e o sem nota ficam de fora)");
+        assert_eq!(total_grupos, 1, "sem campo de agrupamento, tudo cai num bloco só");
 
-        // Confere que realmente veio ordenado por nota decrescente, olhando
-        // a prévia (que expõe as células como texto já formatado).
-        let preview = pre_visualizar_relatorio(&definicao, "1", &BTreeMap::new(), 20).expect("prévia deveria rodar sem erro");
-        let notas: Vec<f64> = preview[0]
-            .linhas
+        let (_, linhas) = &secoes[0].blocos[0];
+        let notas: Vec<f64> = linhas
             .iter()
-            .filter_map(|linha| linha.last().and_then(|texto| texto.parse::<f64>().ok()))
+            .filter_map(|linha| linha.valores.iter().find(|(id, _)| id.as_str() == "nota"))
+            .filter_map(|(_, valor)| valor.como_numero())
             .collect();
+        assert_eq!(notas.len(), 20);
         let mut notas_ordenadas = notas.clone();
         notas_ordenadas.sort_by(|a, b| b.partial_cmp(a).unwrap());
-        assert_eq!(notas, notas_ordenadas, "as linhas da prévia deveriam vir ordenadas por nota decrescente");
+        assert_eq!(notas, notas_ordenadas, "as linhas deveriam vir ordenadas por nota decrescente");
     }
 
     /// Réplica do que o construtor visual produziria pro relatório de
