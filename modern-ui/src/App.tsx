@@ -322,6 +322,14 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.1.0": [
+    "Novo: importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.",
+    "Novo: 'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.",
+    "Novo bloco 'Espaçador' no construtor de relatórios: acrescenta duas linhas em branco entre itens do documento (ex.: entre o cabeçalho e o título).",
+    "Nova seção 'Manutenção de dados', em Configurações: encontra e corrige disciplinas gravadas com grafias diferentes que são a mesma matéria (ex.: 'Orientação de Estudo - Matemática' e 'Orientação de Estudo Matemática') — sem essa correção, as notas ficavam divididas entre duas linhas em vez de uma só. Mostra a lista antes de corrigir; a correção mantém sempre a nota mais recente.",
+    "Corrigido: no construtor de relatórios, 'Gerar agora' podia salvar um relatório com uma tabela sem nenhuma coluna configurada, mesmo o botão 'Salvar' recusando isso pelo mesmo motivo — agora as duas ações usam a mesma checagem.",
+    "Corrigido: em algumas distribuições Linux (ex.: Fedora), gerar relatórios em PDF falhava mesmo com a fonte certa instalada, porque o app só procurava fontes nos caminhos do Ubuntu/Debian.",
+  ],
   "3.0.1": [
     "Novo: 'Criar relatório', na Central de Relatórios, ganhou um construtor visual em blocos — monte relatórios do zero escolhendo campos, filtros, ordenação, textos e o cabeçalho institucional, na ordem que quiser, sem precisar de uma atualização do programa. Um tutorial explica o construtor e o repositório no primeiro acesso à tela.",
     "Novo: 'Repositório de relatórios' reúne modelos prontos pra baixar — os oficiais (Tarefas Realizadas, Prova Paulista e Educação Física, que deixaram de vir instalados por padrão) e os enviados pela comunidade de coordenadores. Cada relatório mostra quem montou.",
