@@ -6,6 +6,7 @@ mod apps_script_webapp_pei_conteudo;
 mod backup;
 mod config;
 mod conselho_pendrive;
+mod diagnosticos;
 mod docx;
 mod fotos;
 mod google_oauth;
@@ -31,7 +32,7 @@ mod turmas;
 #[allow(unused_imports)]
 pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
-    conselho_pendrive::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
+    conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
@@ -200,6 +201,8 @@ fn main() {
             importador_alunos::aplicar_tarefas,
             importador_expansoes::analisar_expansoes,
             importador_expansoes::aplicar_expansoes,
+            diagnosticos::verificar_alunos_multiplas_turmas,
+            diagnosticos::dispensar_caso_multiplas_turmas,
             prova_paulista::analisar_prova_paulista,
             prova_paulista::aplicar_prova_paulista,
             motor_relatorios::listar_definicoes_relatorio,

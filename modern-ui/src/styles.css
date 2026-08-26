@@ -4571,6 +4571,11 @@ th:nth-child(3) {
   color: #a81c1c;
 }
 
+.notice.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
 @media (max-width: 1100px) {
   .settings-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -6561,6 +6566,12 @@ th:nth-child(3) {
   background: #3a2528;
   border-color: #7f343d;
   color: #ffd7dc;
+}
+
+.theme-dark .notice.warning {
+  background: #3a2f14;
+  border-color: #92650f;
+  color: #fde7a8;
 }
 
 .theme-dark .kanban-image-attachments img {
@@ -9023,6 +9034,22 @@ th:nth-child(3) {
   color: var(--text-secondary);
   line-height: 1.5;
   margin: 0;
+}
+
+.cb-parametros-secao {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cb-parametros-avancado summary {
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
 }
 
 .cb-campo {

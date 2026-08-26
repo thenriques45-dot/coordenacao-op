@@ -322,6 +322,13 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.1.1": [
+    "Importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.",
+    "'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.",
+    "Novo bloco 'Espaçador' no construtor de relatórios: acrescenta duas linhas em branco entre itens do documento (ex.: entre o cabeçalho e o título).",
+    "Nova seção 'Manutenção de dados', em Configurações: encontra e corrige disciplinas gravadas com grafias diferentes que são a mesma matéria (ex.: 'Orientação de Estudo - Matemática' e 'Orientação de Estudo Matemática') — sem essa correção, as notas ficavam divididas entre duas linhas em vez de uma só. Mostra a lista antes de corrigir; a correção mantém sempre a nota mais recente.",
+    "Correções e refinamentos: a Dashboard passa a avisar quando um aluno aparece ativo em duas turmas ao mesmo tempo (com opção de 'Dispensar' o aviso, que ainda assim continua sendo verificado por trás — se resolver sozinho depois, você é avisado); o bloco 'Parâmetros' do construtor de relatórios foi reorganizado pra mostrar direto onde cada parâmetro pode ser aplicado (filtro ou quantidade de linhas), permitindo criar e vincular tudo num clique só, sem precisar visitar filtros/colunas separadamente; no construtor, a seção 'Colunas' passa a vir antes de 'Condições' (mais lógico montar a planilha antes de filtrar) e o nome da coluna é preenchido automaticamente a partir do campo escolhido, podendo ser editado à mão.",
+  ],
   "3.1.0": [
     "Novo: importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.",
     "Novo: 'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.",
@@ -1393,6 +1400,7 @@ export function App() {
             onOpenTurmas={() => navegarPara("turmas")}
             onOpenKanban={() => navegarPara("kanban")}
             onOpenCalendario={() => navegarPara("calendario")}
+            onImportarAlunosLote={() => navegarPara("importar-alunos-lote")}
           />
         )}
         {tela === "conselhos" && (

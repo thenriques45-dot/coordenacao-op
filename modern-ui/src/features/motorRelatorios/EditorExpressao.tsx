@@ -158,10 +158,15 @@ function noPadrao(tipo: ExpressaoNo["tipo"], campos: CampoRelatorioInfo[]): Expr
   }
 }
 
-/** Um nó "cabe" no modo compacto quando é só um Campo ou um Valor Fixo — os
- * dois casos que dão pra ler como uma frase curta sem árvore visível. */
+/** Um nó "cabe" no modo compacto quando é um Campo, um Valor Fixo ou um
+ * Parâmetro — os três casos que dão pra ler como uma frase curta sem árvore
+ * visível. Parâmetro entrou aqui pra ficar alcançável direto do modo
+ * simples (um botão "usar parâmetro" ao lado do valor fixo) em vez de só
+ * escondido atrás de "fórmula avançada", onde ficava perdido entre Cálculo/
+ * SE-ENTÃO/Função — nada daquilo tem a ver com "um valor que a pessoa
+ * preenche na hora de gerar". */
 function cabeNoModoCompacto(no: ExpressaoNo): boolean {
-  return no.tipo === "campo" || no.tipo === "literal";
+  return no.tipo === "campo" || no.tipo === "literal" || no.tipo === "parametro";
 }
 
 type Props = {
@@ -236,6 +241,31 @@ export function EditorExpressao({ no, onMudar, campos, parametros, disciplinas, 
               }
             />
           ))}
+        {no.tipo === "literal" && parametros.length > 0 && (
+          <button
+            type="button"
+            className="editor-expressao-remover"
+            onClick={() => onMudar({ tipo: "parametro", id: parametros[0]?.id ?? "" })}
+            title="Em vez de um valor fixo, deixar a pessoa escolher na hora de gerar o relatório"
+          >
+            🔤 usar parâmetro
+          </button>
+        )}
+        {no.tipo === "parametro" && (
+          <>
+            <select value={no.id} onChange={(evento) => onMudar({ ...no, id: evento.target.value })}>
+              <option value="">Selecione um parâmetro...</option>
+              {parametros.map((parametro) => (
+                <option key={parametro.id} value={parametro.id}>
+                  {parametro.rotulo}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="editor-expressao-remover" onClick={() => onMudar(noPadrao("literal", campos))}>
+              usar valor fixo
+            </button>
+          </>
+        )}
         <button type="button" className="editor-expressao-remover" onClick={() => setModoAvancado(true)} title="Trocar por um cálculo, comparação ou outro tipo de bloco">
           🔧 fórmula avançada
         </button>

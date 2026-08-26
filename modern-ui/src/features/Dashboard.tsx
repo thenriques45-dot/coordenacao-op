@@ -1,5 +1,6 @@
-import { CalendarClock, Check, GraduationCap, Search, TrendingUp, Users } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, GraduationCap, Search, TrendingUp, Users } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { invokeApp } from "./appBridge";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -35,6 +36,18 @@ type TurmaDashboard = {
   alunos_elegiveis: number;
   conselhos_com_ajustes: number;
 };
+
+type CasoAlunoMultiplasTurmas = {
+  matricula_identidade: string;
+  nome: string;
+  turmas: string[];
+  reimportado_sem_resolver: boolean;
+};
+
+type RelatorioAlunosMultiplasTurmas = {
+  pendentes: CasoAlunoMultiplasTurmas[];
+  resolvidos: string[];
+};
 function formatarDataAtual(): string {
   return new Intl.DateTimeFormat("pt-BR", {
     weekday: "long",
@@ -50,6 +63,7 @@ export function Dashboard({
   onOpenTurmas,
   onOpenKanban,
   onOpenCalendario,
+  onImportarAlunosLote,
 }: {
   turmas: TurmaDashboard[];
   erroTurmas: string;
@@ -57,6 +71,7 @@ export function Dashboard({
   onOpenTurmas: () => void;
   onOpenKanban: () => void;
   onOpenCalendario: () => void;
+  onImportarAlunosLote: () => void;
 }) {
   const totalAlunos = turmas.reduce((total, turma) => total + turma.alunos_ativos, 0);
   const totalElegiveis = turmas.reduce((total, turma) => total + turma.alunos_elegiveis, 0);
@@ -64,11 +79,29 @@ export function Dashboard({
 
   const [versao, setVersao] = useState(0);
   const [atrasadosExpandidos, setAtrasadosExpandidos] = useState(false);
+  const [diagnosticoTurmas, setDiagnosticoTurmas] = useState<RelatorioAlunosMultiplasTurmas | null>(null);
 
   useEffect(() => {
     const atualizar = () => setVersao((v) => v + 1);
     window.addEventListener(KANBAN_UPDATED_EVENT, atualizar);
     return () => window.removeEventListener(KANBAN_UPDATED_EVENT, atualizar);
+  }, []);
+
+  useEffect(() => {
+    invokeApp<RelatorioAlunosMultiplasTurmas>("verificar_alunos_multiplas_turmas")
+      .then(setDiagnosticoTurmas)
+      .catch(() => setDiagnosticoTurmas(null));
+  }, []);
+
+  const dispensarCaso = useCallback(async (matriculaIdentidade: string) => {
+    setDiagnosticoTurmas((atual) =>
+      atual ? { ...atual, pendentes: atual.pendentes.filter((c) => c.matricula_identidade !== matriculaIdentidade) } : atual
+    );
+    try {
+      await invokeApp("dispensar_caso_multiplas_turmas", { matriculaIdentidade });
+    } catch {
+      // Se a chamada falhar, a próxima visita ao Dashboard volta a mostrar o aviso.
+    }
   }, []);
 
   const proximasTarefas = useMemo(() => carregarTarefasKanbanDashboard(), [versao]);
@@ -126,6 +159,51 @@ export function Dashboard({
       </section>
 
       {erroTurmas && <div className="data-warning">{erroTurmas}</div>}
+
+      {diagnosticoTurmas && (diagnosticoTurmas.pendentes.length > 0 || diagnosticoTurmas.resolvidos.length > 0) && (
+        <div className="notice warning" style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {diagnosticoTurmas.resolvidos.map((nome) => (
+            <div key={`resolvido-${nome}`}>✓ {nome} não está mais em duas turmas — a reimportação corrigiu.</div>
+          ))}
+          {diagnosticoTurmas.pendentes.map((caso) => (
+            <div key={caso.nome} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: "0.15rem" }} />
+                <span>
+                  {caso.reimportado_sem_resolver ? (
+                    <>
+                      A reimportação da planilha não corrigiu <strong>{caso.nome}</strong> — continua ativo em{" "}
+                      {caso.turmas.join(" e ")}. Isso indica que o problema está na planilha exportada pelo sistema
+                      oficial (SED), não em algo que o CoordenacaoOP possa corrigir sozinho. Confira a planilha de
+                      origem dessas turmas antes de reimportar de novo.
+                    </>
+                  ) : (
+                    <>
+                      <strong>{caso.nome}</strong> está ativo em duas turmas ao mesmo tempo: {caso.turmas.join(" e ")}.
+                      Reimporte a planilha dessas turmas para corrigir.
+                    </>
+                  )}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+                {!caso.reimportado_sem_resolver && (
+                  <button type="button" className="secondary-action" onClick={onImportarAlunosLote}>
+                    Reimportar turmas
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="ghost-action"
+                  title="Parar de mostrar este aviso — se o problema resolver sozinho no futuro, você ainda será avisado"
+                  onClick={() => void dispensarCaso(caso.matricula_identidade)}
+                >
+                  Dispensar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <section className="dashboard-grid">
         <div className="panel activity-panel timeline-dashboard-panel">

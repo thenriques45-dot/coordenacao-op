@@ -51,6 +51,7 @@ import {
   SecaoRelatorio,
   TipoBloco,
   TipoParametro,
+  ValorExpressao,
   idLocal,
   valorExpressaoParaTexto,
 } from "./tipos";
@@ -108,6 +109,29 @@ function tituloParaTipo(tipo: TipoBloco): string {
 
 function campoPadrao(campos: CampoRelatorioInfo[]): ExpressaoNo {
   return { tipo: "campo", campo_id: campos[0]?.id ?? "aluno_nome", parametro: null };
+}
+
+/** Rótulo do campo referenciado por uma expressão simples (`{tipo:"campo"}`),
+ * usado pra manter o nome da coluna em sincronia com "de onde vem o valor" —
+ * `null` quando a expressão não é uma referência direta a um campo (uso
+ * avançado), caso em que o rótulo digitado pelo usuário fica intocado. */
+function rotuloParaExpressao(expressao: ExpressaoNo, campos: CampoRelatorioInfo[]): string | null {
+  if (expressao.tipo !== "campo") return null;
+  return campos.find((c) => c.id === expressao.campo_id)?.rotulo ?? null;
+}
+
+/** Frase curta pra um filtro elegível a virar parâmetro (ex.: "Nota em
+ * Matemática é maior que 5") — usada na listagem do bloco Parâmetros. `null`
+ * quando o filtro não é do formato simples campo→operador→valor fixo
+ * (uso avançado, continua só acessível pelo próprio filtro). */
+function descreverFiltro(condicao: FiltroCondicao, campos: CampoRelatorioInfo[]): string | null {
+  const campoNo = condicao.campo;
+  if (campoNo.tipo !== "campo") return null;
+  const campoInfo = campos.find((c) => c.id === campoNo.campo_id);
+  if (!campoInfo) return null;
+  const operadorTexto = ROTULOS_OPERADOR_FILTRO[condicao.operador];
+  const valorTexto = condicao.valor?.tipo === "literal" ? valorExpressaoParaTexto(condicao.valor.valor) : "";
+  return `${campoInfo.rotulo} ${operadorTexto}${valorTexto ? ` ${valorTexto}` : ""}`;
 }
 
 function slugificar(texto: string): string {
@@ -362,7 +386,8 @@ export function ConstrutorRelatorio({
   // ── Colunas/filtros/ordenação/agrupamento de uma tabela (indexada por `indiceSecao`) ──
 
   function adicionarColuna(indiceSecao: number) {
-    const nova: ColunaRelatorio = { id: idLocal("coluna"), rotulo: "Nova coluna", expressao: campoPadrao(campos), largura: null, alinhamento: "centro" };
+    const expressao = campoPadrao(campos);
+    const nova: ColunaRelatorio = { id: idLocal("coluna"), rotulo: rotuloParaExpressao(expressao, campos) ?? "Nova coluna", expressao, largura: null, alinhamento: "centro" };
     atualizarSecao(indiceSecao, (secaoAtual) => ({ colunas: [...secaoAtual.colunas, nova] }));
   }
 
@@ -452,6 +477,79 @@ export function ConstrutorRelatorio({
           i !== indiceSecao
             ? s
             : { ...s, agrupamento: { ...s.agrupamento, limite_por_grupo: valorInicial, limite_parametro: idParametro } }
+        ),
+      };
+    });
+  }
+
+  // Generalização de alternarLimiteEditavel pro valor de um filtro: cria um
+  // DefinicaoParametro (rótulo herdado do campo do filtro, tipo/valor
+  // herdados do valor fixo atual) e já vincula o filtro a ele, num clique
+  // só — pra não precisar sair do bloco Parâmetros pra ir mexer no filtro.
+  function tornarFiltroParametro(indiceSecao: number, indiceFiltro: number) {
+    setDefinicao((atual) => {
+      const secaoAtual = atual.secoes[indiceSecao];
+      const condicao = secaoAtual?.filtros.condicoes[indiceFiltro];
+      if (!secaoAtual || !condicao || condicao.valor?.tipo !== "literal") return atual;
+
+      const valorAtual = condicao.valor.valor;
+      const idParametro = idLocal("parametro");
+      const campoNo = condicao.campo;
+      const campoInfo = campoNo.tipo === "campo" ? campos.find((c) => c.id === campoNo.campo_id) : undefined;
+      const novoParametro: DefinicaoParametro = {
+        id: idParametro,
+        rotulo: campoInfo?.rotulo ?? "Novo parâmetro",
+        tipo: valorAtual.tipo === "numero" ? "numero" : "texto",
+        valor_padrao: valorAtual,
+      };
+
+      return {
+        ...atual,
+        parametros: [...atual.parametros, novoParametro],
+        secoes: atual.secoes.map((s, i) =>
+          i !== indiceSecao
+            ? s
+            : {
+                ...s,
+                filtros: {
+                  ...s.filtros,
+                  condicoes: s.filtros.condicoes.map((c, j) =>
+                    j !== indiceFiltro ? c : { ...c, valor: { tipo: "parametro", id: idParametro } }
+                  ),
+                },
+              }
+        ),
+      };
+    });
+  }
+
+  // Contraparte de tornarFiltroParametro: só desvincula o filtro (volta a
+  // ser um valor fixo, preenchido com o valor padrão atual do parâmetro
+  // pra não perder o número) — não apaga o DefinicaoParametro, mesma
+  // política de "desligar" do limite de linhas editável.
+  function desvincularFiltro(indiceSecao: number, indiceFiltro: number) {
+    setDefinicao((atual) => {
+      const secaoAtual = atual.secoes[indiceSecao];
+      const condicao = secaoAtual?.filtros.condicoes[indiceFiltro];
+      const valorNo = condicao?.valor;
+      if (!secaoAtual || !condicao || valorNo?.tipo !== "parametro") return atual;
+      const parametro = atual.parametros.find((p) => p.id === valorNo.id);
+      const valorFixo: ValorExpressao = parametro?.valor_padrao ?? { tipo: "numero", valor: 0 };
+
+      return {
+        ...atual,
+        secoes: atual.secoes.map((s, i) =>
+          i !== indiceSecao
+            ? s
+            : {
+                ...s,
+                filtros: {
+                  ...s.filtros,
+                  condicoes: s.filtros.condicoes.map((c, j) =>
+                    j !== indiceFiltro ? c : { ...c, valor: { tipo: "literal", valor: valorFixo } }
+                  ),
+                },
+              }
         ),
       };
     });
@@ -761,6 +859,8 @@ export function ConstrutorRelatorio({
                 adicionarParametro={adicionarParametro}
                 mudarParametro={mudarParametro}
                 removerParametro={removerParametro}
+                tornarFiltroParametro={tornarFiltroParametro}
+                desvincularFiltro={desvincularFiltro}
                 reordenarParametros={reordenarParametros}
               />
             )}
@@ -893,6 +993,8 @@ function InspetorBloco({
   adicionarParametro,
   mudarParametro,
   removerParametro,
+  tornarFiltroParametro,
+  desvincularFiltro,
   reordenarParametros,
 }: {
   bloco: BlocoRelatorio;
@@ -920,6 +1022,8 @@ function InspetorBloco({
   adicionarParametro: () => void;
   mudarParametro: (indice: number, mudanca: Partial<DefinicaoParametro>) => void;
   removerParametro: (indice: number) => void;
+  tornarFiltroParametro: (indiceSecao: number, indiceFiltro: number) => void;
+  desvincularFiltro: (indiceSecao: number, indiceFiltro: number) => void;
   reordenarParametros: (nova: DefinicaoParametro[]) => void;
 }) {
   const Icone = iconeParaTipo(bloco.tipo);
@@ -1028,40 +1132,132 @@ function InspetorBloco({
 
         {bloco.tipo === "parametros" && (
           <>
-            <p className="cb-ajuda">Campos que a pessoa preenche antes de gerar — como o bimestre já faz — ex.: um limiar ajustável.</p>
-            <ListaOrdenavel
-              itens={parametros}
-              chave={(p) => p.id}
-              onReordenar={reordenarParametros}
-              vazio={<p className="report-path">Nenhum parâmetro adicional.</p>}
-              renderItem={(parametro, indice) => (
-                <div className="editor-expressao-linha">
-                  <input type="text" placeholder="Rótulo" value={parametro.rotulo} onChange={(e) => mudarParametro(indice, { rotulo: e.target.value })} />
-                  <select
-                    value={parametro.tipo}
-                    onChange={(e) => {
-                      const tipo = e.target.value as TipoParametro;
-                      mudarParametro(indice, { tipo, valor_padrao: tipo === "numero" ? { tipo: "numero", valor: 0 } : { tipo: "texto", valor: "" } });
-                    }}
-                  >
-                    <option value="numero">Número</option>
-                    <option value="texto">Texto</option>
-                  </select>
-                  <input
-                    type={parametro.tipo === "numero" ? "number" : "text"}
-                    placeholder="Valor padrão"
-                    value={valorExpressaoParaTexto(parametro.valor_padrao)}
-                    onChange={(e) =>
-                      mudarParametro(indice, {
-                        valor_padrao: parametro.tipo === "numero" ? { tipo: "numero", valor: Number(e.target.value) || 0 } : { tipo: "texto", valor: e.target.value },
-                      })
+            <p className="cb-ajuda">
+              Campos que a pessoa preenche antes de gerar — como o bimestre já faz. Escolha abaixo onde cada um se
+              aplica, sem precisar ir até o filtro.
+            </p>
+
+            {definicao.secoes.map((secao, indiceSecao) => {
+              const filtrosElegiveis = secao.filtros.condicoes
+                .map((condicao, indiceFiltro) => ({ condicao, indiceFiltro }))
+                .filter(
+                  ({ condicao }) =>
+                    condicao.campo.tipo === "campo" && (condicao.valor?.tipo === "literal" || condicao.valor?.tipo === "parametro")
+                );
+              const temLimite = secao.agrupamento.limite_por_grupo != null;
+              if (filtrosElegiveis.length === 0 && !temLimite) return null;
+
+              const tituloSecao = secao.titulo?.trim() || `Tabela ${indiceSecao + 1}`;
+
+              return (
+                <div key={indiceSecao} className="cb-parametros-secao">
+                  <strong>{tituloSecao}</strong>
+
+                  {filtrosElegiveis.map(({ condicao, indiceFiltro }) => {
+                    const valor = condicao.valor;
+
+                    if (valor?.tipo === "parametro") {
+                      const indiceParametro = parametros.findIndex((p) => p.id === valor.id);
+                      const parametro = parametros[indiceParametro];
+                      if (!parametro) return null;
+                      return (
+                        <div key={indiceFiltro} className="editor-expressao-linha">
+                          <input
+                            type="text"
+                            placeholder="Rótulo"
+                            value={parametro.rotulo}
+                            onChange={(e) => mudarParametro(indiceParametro, { rotulo: e.target.value })}
+                          />
+                          <input
+                            type={parametro.tipo === "numero" ? "number" : "text"}
+                            placeholder="Valor padrão"
+                            value={valorExpressaoParaTexto(parametro.valor_padrao)}
+                            onChange={(e) =>
+                              mudarParametro(indiceParametro, {
+                                valor_padrao:
+                                  parametro.tipo === "numero"
+                                    ? { tipo: "numero", valor: Number(e.target.value) || 0 }
+                                    : { tipo: "texto", valor: e.target.value },
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="editor-expressao-remover"
+                            onClick={() => desvincularFiltro(indiceSecao, indiceFiltro)}
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      );
                     }
-                  />
-                  <button type="button" className="editor-expressao-remover" onClick={() => removerParametro(indice)}>Remover</button>
+
+                    const descricao = descreverFiltro(condicao, campos);
+                    if (!descricao) return null;
+                    return (
+                      <div key={indiceFiltro} className="editor-expressao-linha">
+                        <span>{descricao}</span>
+                        <button
+                          type="button"
+                          className="secondary-action"
+                          onClick={() => tornarFiltroParametro(indiceSecao, indiceFiltro)}
+                        >
+                          🔤 Tornar parâmetro
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {temLimite && (
+                    <label className="cb-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={!!secao.agrupamento.limite_parametro}
+                        onChange={() => alternarLimiteEditavel(indiceSecao)}
+                      />
+                      Quantidade de linhas ({secao.agrupamento.limite_por_grupo}) editável na hora de gerar
+                    </label>
+                  )}
                 </div>
-              )}
-            />
-            <button type="button" className="secondary-action" onClick={adicionarParametro}>+ Adicionar parâmetro</button>
+              );
+            })}
+
+            <details className="cb-parametros-avancado">
+              <summary>Avançado — gerenciar todos os parâmetros</summary>
+              <ListaOrdenavel
+                itens={parametros}
+                chave={(p) => p.id}
+                onReordenar={reordenarParametros}
+                vazio={<p className="report-path">Nenhum parâmetro ainda.</p>}
+                renderItem={(parametro, indice) => (
+                  <div className="editor-expressao-linha">
+                    <input type="text" placeholder="Rótulo" value={parametro.rotulo} onChange={(e) => mudarParametro(indice, { rotulo: e.target.value })} />
+                    <select
+                      value={parametro.tipo}
+                      onChange={(e) => {
+                        const tipo = e.target.value as TipoParametro;
+                        mudarParametro(indice, { tipo, valor_padrao: tipo === "numero" ? { tipo: "numero", valor: 0 } : { tipo: "texto", valor: "" } });
+                      }}
+                    >
+                      <option value="numero">Número</option>
+                      <option value="texto">Texto</option>
+                    </select>
+                    <input
+                      type={parametro.tipo === "numero" ? "number" : "text"}
+                      placeholder="Valor padrão"
+                      value={valorExpressaoParaTexto(parametro.valor_padrao)}
+                      onChange={(e) =>
+                        mudarParametro(indice, {
+                          valor_padrao: parametro.tipo === "numero" ? { tipo: "numero", valor: Number(e.target.value) || 0 } : { tipo: "texto", valor: e.target.value },
+                        })
+                      }
+                    />
+                    <button type="button" className="editor-expressao-remover" onClick={() => removerParametro(indice)}>Remover</button>
+                  </div>
+                )}
+              />
+              <button type="button" className="secondary-action" onClick={adicionarParametro}>+ Criar parâmetro solto</button>
+            </details>
           </>
         )}
 
@@ -1188,43 +1384,6 @@ function InspetorTabela({
       </section>
 
       <section className="cb-inspetor-secao">
-        <div className="cb-titulo-secao-linha">
-          <span className="cb-titulo-secao">Condições</span>
-          {secao.filtros.condicoes.length > 1 && <small className="cb-nota-direita">todas precisam ser verdadeiras</small>}
-        </div>
-        <ListaOrdenavel
-          itens={secao.filtros.condicoes.map((condicao, indice) => ({ id: `filtro_${indice}`, condicao, indice }))}
-          chave={(item) => item.id}
-          onReordenar={(nova) => atualizarSecao(indiceSecao, { filtros: { ...secao.filtros, condicoes: nova.map((item) => item.condicao) } })}
-          vazio={<p className="cb-ajuda">Nenhuma condição — entram todos os alunos das turmas selecionadas acima.</p>}
-          renderItem={(item) => (
-            <div className="cb-condicao">
-              <strong className="cb-condicao-prefixo">{item.indice === 0 ? "Se" : "e"}</strong>
-              <EditorExpressao no={item.condicao.campo} onMudar={(novo) => mudarFiltro(indiceSecao, item.indice, { campo: novo })} campos={campos} parametros={parametros} disciplinas={disciplinas} />
-              <div className="editor-expressao-linha">
-                <select value={item.condicao.operador} onChange={(e) => mudarFiltro(indiceSecao, item.indice, { operador: e.target.value as OperadorFiltro })}>
-                  {Object.entries(ROTULOS_OPERADOR_FILTRO).map(([valor, rotulo]) => (
-                    <option key={valor} value={valor}>{rotulo}</option>
-                  ))}
-                </select>
-              </div>
-              {item.condicao.operador !== "vazio" && item.condicao.operador !== "nao_vazio" && (
-                <EditorExpressao
-                  no={item.condicao.valor ?? { tipo: "literal", valor: { tipo: "texto", valor: "" } }}
-                  onMudar={(novo) => mudarFiltro(indiceSecao, item.indice, { valor: novo })}
-                  campos={campos}
-                  parametros={parametros}
-                  disciplinas={disciplinas}
-                />
-              )}
-              <button type="button" className="editor-expressao-remover" onClick={() => removerFiltro(indiceSecao, item.indice)}>× Remover condição</button>
-            </div>
-          )}
-        />
-        <button type="button" className="cb-adicionar-tracejado" onClick={() => adicionarFiltro(indiceSecao)}>+ Condição</button>
-      </section>
-
-      <section className="cb-inspetor-secao">
         <span className="cb-titulo-secao">Colunas</span>
         <ListaOrdenavel
           itens={secao.colunas.map((coluna, indice) => ({ id: coluna.id, coluna, indice }))}
@@ -1259,7 +1418,12 @@ function InspetorTabela({
                     <span className="cb-microrrotulo">De onde vem o valor</span>
                     <EditorExpressao
                       no={item.coluna.expressao}
-                      onMudar={(novo) => mudarColuna(indiceSecao, item.indice, { expressao: novo })}
+                      onMudar={(novo) =>
+                        mudarColuna(indiceSecao, item.indice, {
+                          expressao: novo,
+                          rotulo: rotuloParaExpressao(novo, campos) ?? item.coluna.rotulo,
+                        })
+                      }
                       campos={campos}
                       parametros={parametros}
                       disciplinas={disciplinas}
@@ -1277,6 +1441,43 @@ function InspetorTabela({
           }}
         />
         <button type="button" className="cb-adicionar-tracejado" onClick={() => adicionarColuna(indiceSecao)}>+ Coluna</button>
+      </section>
+
+      <section className="cb-inspetor-secao">
+        <div className="cb-titulo-secao-linha">
+          <span className="cb-titulo-secao">Condições</span>
+          {secao.filtros.condicoes.length > 1 && <small className="cb-nota-direita">todas precisam ser verdadeiras</small>}
+        </div>
+        <ListaOrdenavel
+          itens={secao.filtros.condicoes.map((condicao, indice) => ({ id: `filtro_${indice}`, condicao, indice }))}
+          chave={(item) => item.id}
+          onReordenar={(nova) => atualizarSecao(indiceSecao, { filtros: { ...secao.filtros, condicoes: nova.map((item) => item.condicao) } })}
+          vazio={<p className="cb-ajuda">Nenhuma condição — entram todos os alunos das turmas selecionadas acima.</p>}
+          renderItem={(item) => (
+            <div className="cb-condicao">
+              <strong className="cb-condicao-prefixo">{item.indice === 0 ? "Se" : "e"}</strong>
+              <EditorExpressao no={item.condicao.campo} onMudar={(novo) => mudarFiltro(indiceSecao, item.indice, { campo: novo })} campos={campos} parametros={parametros} disciplinas={disciplinas} />
+              <div className="editor-expressao-linha">
+                <select value={item.condicao.operador} onChange={(e) => mudarFiltro(indiceSecao, item.indice, { operador: e.target.value as OperadorFiltro })}>
+                  {Object.entries(ROTULOS_OPERADOR_FILTRO).map(([valor, rotulo]) => (
+                    <option key={valor} value={valor}>{rotulo}</option>
+                  ))}
+                </select>
+              </div>
+              {item.condicao.operador !== "vazio" && item.condicao.operador !== "nao_vazio" && (
+                <EditorExpressao
+                  no={item.condicao.valor ?? { tipo: "literal", valor: { tipo: "texto", valor: "" } }}
+                  onMudar={(novo) => mudarFiltro(indiceSecao, item.indice, { valor: novo })}
+                  campos={campos}
+                  parametros={parametros}
+                  disciplinas={disciplinas}
+                />
+              )}
+              <button type="button" className="editor-expressao-remover" onClick={() => removerFiltro(indiceSecao, item.indice)}>× Remover condição</button>
+            </div>
+          )}
+        />
+        <button type="button" className="cb-adicionar-tracejado" onClick={() => adicionarFiltro(indiceSecao)}>+ Condição</button>
       </section>
 
       <section className="cb-inspetor-secao">

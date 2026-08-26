@@ -1307,6 +1307,56 @@ pub(crate) fn indice_alunos_por_ra(
     indice
 }
 
+/// Forma reduzida da matrícula usada só pra decidir "é o mesmo aluno" —
+/// mesma normalização de variantes_matricula (alnum + maiúsculas + sem
+/// zeros à esquerda), sem gerar todas as variantes: aqui cada aluno só
+/// precisa de UMA chave de identidade, não um índice de busca.
+fn identidade_matricula(matricula: &str) -> String {
+    normalizar_matricula_elegiveis(matricula.to_string()).trim_start_matches('0').to_string()
+}
+
+pub(crate) struct CasoMultiplasTurmas {
+    pub(crate) matricula_identidade: String,
+    pub(crate) nome: String,
+    pub(crate) turmas: Vec<String>,
+}
+
+/// Alunos ativos (`ativo != false`) na mesma matrícula em mais de uma
+/// turma ao mesmo tempo — sinal de transferência mal feita (a matrícula
+/// antiga não foi desativada na turma de origem). Usada pelo diagnóstico
+/// do Dashboard (diagnosticos.rs); não decide sozinha qual turma é a
+/// certa, só relata.
+pub(crate) fn detectar_alunos_multiplas_turmas(turmas: &[(PathBuf, TurmaArquivo)]) -> Vec<CasoMultiplasTurmas> {
+    let mut grupos: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+    for (turma_idx, (_, turma)) in turmas.iter().enumerate() {
+        let Some(alunos) = &turma.alunos else { continue };
+        for (matricula, info) in alunos {
+            if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                continue;
+            }
+            let identidade = identidade_matricula(matricula);
+            if identidade.is_empty() {
+                continue;
+            }
+            let nome = info.get("nome").and_then(Value::as_str).unwrap_or("").to_string();
+            grupos.entry(identidade).or_default().push((turma_idx, nome));
+        }
+    }
+
+    let mut casos = Vec::new();
+    for (identidade, entradas) in grupos {
+        let turma_idxs: BTreeSet<usize> = entradas.iter().map(|(idx, _)| *idx).collect();
+        if turma_idxs.len() < 2 {
+            continue;
+        }
+        let nome = entradas.first().map(|(_, n)| n.clone()).unwrap_or_default();
+        let turmas_codigos: Vec<String> =
+            turma_idxs.iter().filter_map(|idx| turmas.get(*idx).map(|(_, t)| t.codigo.clone())).collect();
+        casos.push(CasoMultiplasTurmas { matricula_identidade: identidade, nome, turmas: turmas_codigos });
+    }
+    casos
+}
+
 pub(crate) fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>) -> Result<(), String> {
     for entrada in fs::read_dir(pasta).map_err(|err| err.to_string())? {
         let entrada = entrada.map_err(|err| err.to_string())?;
