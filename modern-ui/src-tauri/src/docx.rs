@@ -1453,9 +1453,12 @@ impl DocumentoDocx {
         ));
     }
 
-    /// Quatro blocos de assinatura em tabela 2×2, centralizados, ao final da página.
-    /// Cada bloco tem espaço para assinar/carimbar, linha de sublinhar e rótulo.
-    pub(crate) fn assinaturas_pei_final(&mut self) {
+    /// Blocos de assinatura em tabela de 2 colunas, centralizados, ao final da
+    /// página. Cada bloco: espaço para assinar/carimbar, o nome do signatário
+    /// (quando informado) impresso acima da linha, a linha de sublinhar e o
+    /// rótulo do cargo. `blocos` são pares (rótulo, nome) — nome vazio deixa só
+    /// a linha, para preenchimento manual (caso do responsável).
+    pub(crate) fn assinaturas_pei_final(&mut self, blocos: &[(&str, &str)]) {
         let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
         let sz_label = r#"<w:sz w:val="20"/>"#; // 10pt para os rótulos de assinatura
 
@@ -1465,7 +1468,7 @@ impl DocumentoDocx {
             fonte = fonte
         ));
 
-        // Tabela 2 colunas × 2 linhas, sem bordas
+        // Tabela de 2 colunas, sem bordas
         self.corpo.push_str(concat!(
             r#"<w:tbl><w:tblPr>"#,
             r#"<w:tblStyle w:val="TableGrid"/>"#,
@@ -1478,38 +1481,46 @@ impl DocumentoDocx {
             r#"<w:tblGrid><w:gridCol w:w="5550"/><w:gridCol w:w="5550"/></w:tblGrid>"#
         ));
 
-        let pares = [
-            (
-                "Nome e Assinatura do Coordenador(a) de Gestão Pedagógica:",
-                "Nome e Assinatura do Professor(a) Especializado(a) da Educação Especial:",
-            ),
-            (
-                "Nome e Assinatura do Professor(a) Especializado(a) do Projeto Ensino Colaborativo:",
-                "Nome e Assinatura do Professor(a) Regente de classes, turmas ou componentes curriculares:",
-            ),
-        ];
-
-        for (esq, dir) in pares {
+        for par in blocos.chunks(2) {
             self.corpo.push_str("<w:tr>");
-            for rotulo in [esq, dir] {
+            for indice_coluna in 0..2 {
                 self.corpo.push_str("<w:tc><w:tcPr><w:vAlign w:val=\"top\"/></w:tcPr>");
-                // Linhas em branco para espaço de assinatura e carimbo
-                for _ in 0..5 {
-                    self.corpo.push_str(&format!(
-                        r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t></w:t></w:r></w:p>"#,
-                        fonte = fonte, sz_label = sz_label
-                    ));
+                match par.get(indice_coluna) {
+                    Some((rotulo, nome)) => {
+                        // Linhas em branco para espaço de assinatura e carimbo
+                        for _ in 0..3 {
+                            self.corpo.push_str(&format!(
+                                r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t></w:t></w:r></w:p>"#,
+                                fonte = fonte, sz_label = sz_label
+                            ));
+                        }
+                        // Nome do signatário impresso acima da linha, sempre em
+                        // maiúsculas independente de como foi digitado.
+                        if !nome.trim().is_empty() {
+                            self.corpo.push_str(&format!(
+                                r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t xml:space="preserve">{n}</w:t></w:r></w:p>"#,
+                                fonte = fonte, sz_label = sz_label, n = escape_xml(&nome.trim().to_uppercase())
+                            ));
+                        }
+                        // Linha de sublinhar
+                        self.corpo.push_str(&format!(
+                            r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t>______________________________</w:t></w:r></w:p>"#,
+                            fonte = fonte, sz_label = sz_label
+                        ));
+                        // Rótulo
+                        self.corpo.push_str(&format!(
+                            r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="20" w:after="480"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t xml:space="preserve">{r}</w:t></w:r></w:p>"#,
+                            fonte = fonte, sz_label = sz_label, r = escape_xml(rotulo)
+                        ));
+                    }
+                    None => {
+                        // Coluna vazia (número ímpar de blocos) — célula em branco.
+                        self.corpo.push_str(&format!(
+                            r#"<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t></w:t></w:r></w:p>"#,
+                            fonte = fonte, sz_label = sz_label
+                        ));
+                    }
                 }
-                // Linha de sublinhar
-                self.corpo.push_str(&format!(
-                    r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t>______________________________</w:t></w:r></w:p>"#,
-                    fonte = fonte, sz_label = sz_label
-                ));
-                // Rótulo
-                self.corpo.push_str(&format!(
-                    r#"<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="20" w:after="480"/></w:pPr><w:r><w:rPr>{fonte}{sz_label}</w:rPr><w:t xml:space="preserve">{r}</w:t></w:r></w:p>"#,
-                    fonte = fonte, sz_label = sz_label, r = escape_xml(rotulo)
-                ));
                 self.corpo.push_str("</w:tc>");
             }
             self.corpo.push_str("</w:tr>");
@@ -2147,6 +2158,35 @@ mod testes_rodape {
         let mut documento = DocumentoDocx::new();
         documento.titulo_ata("ATA DE REUNIÃO");
         assert!(documento.corpo.contains(r#"<w:sz w:val="28"/>"#), "titulo_ata não pode ter mudado de tamanho");
+    }
+
+    #[test]
+    fn assinaturas_pei_imprimem_nome_acima_da_linha_e_deixam_responsavel_em_branco() {
+        let mut documento = DocumentoDocx::new();
+        let blocos = [
+            ("Coordenador de Gestão Pedagógica", "Ana Coord"),
+            ("Educação Especial", "Ana Coord"),
+            ("MATEMÁTICA", "prof regente"),
+            ("Direção", "Hilda Diretora"),
+            ("Responsável pelo estudante", ""),
+        ];
+        documento.assinaturas_pei_final(&blocos);
+
+        let xml = &documento.corpo;
+        // Nomes acima da linha sempre em maiúsculas, seja como for digitado.
+        assert!(xml.contains("<w:t xml:space=\"preserve\">PROF REGENTE</w:t>"));
+        assert!(xml.contains("<w:t xml:space=\"preserve\">HILDA DIRETORA</w:t>"));
+        assert!(!xml.contains("prof regente"));
+        // Nome do regente impresso antes da linha de sublinhar do seu bloco.
+        let pos_nome = xml.find("PROF REGENTE").expect("nome do regente deve aparecer");
+        let pos_linha = xml[pos_nome..].find("______________________________").expect("linha após o nome");
+        assert!(pos_linha > 0);
+        // Rótulos curtos, só a função/disciplina — sem "Nome e Assinatura do...".
+        assert!(!xml.contains("Nome e Assinatura"));
+        assert!(xml.contains("<w:t xml:space=\"preserve\">Direção</w:t>"));
+        assert!(xml.contains("<w:t xml:space=\"preserve\">MATEMÁTICA</w:t>"));
+        // 5 blocos ⇒ 5 linhas de sublinhar (uma por bloco).
+        assert_eq!(xml.matches("______________________________").count(), 5);
     }
 
     #[test]

@@ -160,6 +160,8 @@ fn main() {
             turmas::salvar_aluno_deliberado,
             turmas::salvar_tempo_conselho,
             turmas::salvar_coordenador_turma,
+            turmas::salvar_pessoas_pei_turma,
+            turmas::salvar_responsavel_pei_aluno,
             turmas::salvar_elegibilidade_aluno,
             turmas::salvar_lideranca_aluno,
             turmas::salvar_educacao_especial_aluno,
@@ -635,6 +637,7 @@ mod tests {
         let config_teste = ConfiguracoesApp {
             direcao_nome: "DIRECAO".to_string(),
             direcao_pronome: "F".to_string(),
+            vice_direcao: vec![],
             nota_minima: 5.0,
             cabecalho_ata: None,
             lider_ativo: false,

@@ -508,8 +508,16 @@ mod testes_reconciliacao_disco {
 }
 
 #[tauri::command(async)]
-pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLoteResultado, String> {
+pub(crate) fn gerar_peis_lote(
+    registros: Vec<RegistroPei>,
+    // "Regerar todos": quando true, ignora o índice e reescreve todo .docx —
+    // usado para aplicar o novo bloco de assinaturas a PEIs já gerados, cujo
+    // RegistroPei não mudou. Ausente/false mantém o comportamento incremental.
+    forcar: Option<bool>,
+) -> Result<GerarPeisLoteResultado, String> {
     let _dados = travar_dados();
+    let forcar = forcar.unwrap_or(false);
+    let assinantes_pei = MapaAssinantesPei::carregar();
     let pasta_base = data_dir()
         .map_err(|err| err.to_string())?
         .join("relatorios")
@@ -541,7 +549,9 @@ pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLo
         // Mesmo conteúdo do que já está no índice E o arquivo ainda existe:
         // pula a reescrita — recarregar vira um no-op na prática.
         let chave = chave_registro_pei(r);
-        let inalterado = indice.get(&chave).is_some_and(|anterior| anterior == r) && caminho.exists();
+        let inalterado = !forcar
+            && indice.get(&chave).is_some_and(|anterior| anterior == r)
+            && caminho.exists();
         if inalterado {
             pulados += 1;
             continue;
@@ -551,7 +561,7 @@ pub(crate) fn gerar_peis_lote(registros: Vec<RegistroPei>) -> Result<GerarPeisLo
             erros.push(format!("{} — pasta: {e}", r.nome_aluno));
             continue;
         }
-        match escrever_pei_docx_individual(&caminho, r) {
+        match escrever_pei_docx_individual(&caminho, r, &assinantes_pei.para(r)) {
             Ok(_) => {
                 arquivos += 1;
                 indice.insert(chave, r.clone());
@@ -577,7 +587,7 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
     let turmas = carregar_turmas_com_caminho()?;
     let mut resultado = Vec::new();
 
-    for (_, turma) in &turmas {
+    for (caminho_turma, turma) in &turmas {
         let alunos = match &turma.alunos {
             Some(a) => a,
             None => continue,
@@ -650,12 +660,21 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
                 .unwrap_or("")
                 .to_string();
 
+            let responsavel = info
+                .get("responsavel_pei")
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_string);
+
             resultado.push(AlunoElegiveisComDisciplinas {
                 matricula: matricula.clone(),
                 nome,
                 turma: rotulo_turma(turma),
+                turma_caminho: caminho_turma.to_string_lossy().to_string(),
                 disciplinas: disciplinas.clone(),
                 disciplinas_por_bimestre: disciplinas_por_bimestre.clone(),
+                responsavel,
             });
         }
     }
@@ -806,7 +825,188 @@ pub(crate) fn separar_nome_turma_pei(texto: &str) -> (String, String) {
     }
 }
 
-pub(crate) fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> Result<(), String> {
+// ── Assinantes do PEI ────────────────────────────────────────────────────────
+//
+// O nome de cada signatário é impresso acima da respectiva linha de assinatura
+// (nenhuma rubrica é gerada — a assinatura continua sendo um ato da pessoa). O
+// regente vem do próprio RegistroPei; os demais papéis são configurados por
+// turma (ver turmas::salvar_pessoas_pei_turma) com estes fallbacks:
+//   - especializado / ensino colaborativo vazios ⟶ coordenador de gestão da turma
+//   - direção vazia ⟶ direcao_nome de configuracoes.json
+//   - responsável só é impresso se cadastrado no aluno (senão, linha em branco)
+
+// Rótulo abaixo da linha de assinatura: só a função (o nome já vai impresso
+// acima da linha). O regente é rotulado apenas com a disciplina.
+const ROTULO_ASSIN_COORD: &str = "Coordenador de Gestão Pedagógica";
+const ROTULO_ASSIN_ESPECIALIZADO: &str = "Educação Especial";
+const ROTULO_ASSIN_COLABORATIVO: &str = "Ensino Colaborativo";
+const ROTULO_ASSIN_DIRECAO: &str = "Direção";
+const ROTULO_ASSIN_RESPONSAVEL: &str = "Responsável pelo estudante";
+
+#[derive(Default, Clone)]
+pub(crate) struct AssinantesTurmaPei {
+    coordenador_gestao: String,
+    // Mesma pessoa assina "Especializado da Educação Especial" e "Ensino
+    // Colaborativo" — um valor só.
+    especializado: String,
+    // true quando a turma tem um professor especializado próprio; false quando
+    // caiu no coordenador. Sem especializado próprio, o bloco de "Ensino
+    // Colaborativo" nem aparece (evita repetir o coordenador três vezes).
+    especializado_proprio: bool,
+    direcao: String,
+    // nome do aluno normalizado -> nome do responsável
+    responsaveis: std::collections::HashMap<String, String>,
+}
+
+pub(crate) struct MapaAssinantesPei {
+    direcao_padrao: String,
+    por_rotulo_turma: std::collections::HashMap<String, AssinantesTurmaPei>,
+    por_aluno: std::collections::HashMap<String, AssinantesTurmaPei>,
+}
+
+// Fallbacks dos assinantes de uma turma (pura, testável): o professor
+// especializado (que também assina como ensino colaborativo) vazio cai no
+// coordenador de gestão; direção vazia cai na direção padrão (direcao_nome).
+// Devolve (coordenador, especializado, especializado_proprio, direção).
+fn resolver_nomes_assinantes(
+    pei_coord: Option<&str>,
+    pei_esp: Option<&str>,
+    pei_dir: Option<&str>,
+    direcao_padrao: &str,
+) -> (String, String, bool, String) {
+    let limpa = |v: Option<&str>| v.unwrap_or("").trim().to_string();
+    let coord = limpa(pei_coord);
+    let esp_txt = limpa(pei_esp);
+    let esp_proprio = !esp_txt.is_empty();
+    let esp = if esp_proprio { esp_txt } else { coord.clone() };
+    let dir = {
+        let t = limpa(pei_dir);
+        if t.is_empty() { direcao_padrao.trim().to_string() } else { t }
+    };
+    (coord, esp, esp_proprio, dir)
+}
+
+impl MapaAssinantesPei {
+    pub(crate) fn carregar() -> Self {
+        let (direcao_padrao, _) = obter_direcao_configurada();
+        let turmas = carregar_turmas_com_caminho().unwrap_or_default();
+        let mut por_rotulo_turma = std::collections::HashMap::new();
+        let mut por_aluno = std::collections::HashMap::new();
+
+        for (_, turma) in &turmas {
+            let (coord, esp, esp_proprio, dir) = resolver_nomes_assinantes(
+                turma.pei_coordenador_gestao.as_deref(),
+                turma.pei_prof_especializado.as_deref(),
+                turma.pei_direcao.as_deref(),
+                &direcao_padrao,
+            );
+
+            let mut responsaveis = std::collections::HashMap::new();
+            if let Some(alunos) = &turma.alunos {
+                for info in alunos.values() {
+                    let nome = info.get("nome").and_then(Value::as_str).unwrap_or("");
+                    let resp = info
+                        .get("responsavel_pei")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .trim();
+                    if !nome.is_empty() && !resp.is_empty() {
+                        responsaveis.insert(normalizar_nome_busca(nome), resp.to_string());
+                    }
+                }
+            }
+
+            let assinantes = AssinantesTurmaPei {
+                coordenador_gestao: coord,
+                especializado: esp,
+                especializado_proprio: esp_proprio,
+                direcao: dir,
+                responsaveis,
+            };
+
+            por_rotulo_turma.insert(normalizar_nome_busca(&rotulo_turma(turma)), assinantes.clone());
+            if let Some(alunos) = &turma.alunos {
+                for info in alunos.values() {
+                    if let Some(nome) = info.get("nome").and_then(Value::as_str) {
+                        por_aluno.insert(normalizar_nome_busca(nome), assinantes.clone());
+                    }
+                }
+            }
+        }
+
+        Self { direcao_padrao, por_rotulo_turma, por_aluno }
+    }
+
+    // Assinantes aplicáveis a um registro: casa pela turma (rótulo) e, na
+    // falta — registro legado do Forms ou reconstruído do disco sem turma —,
+    // pelo nome do aluno.
+    pub(crate) fn para(&self, r: &RegistroPei) -> AssinantesTurmaPei {
+        self.por_rotulo_turma
+            .get(&normalizar_nome_busca(&r.turma_aluno))
+            .or_else(|| self.por_aluno.get(&normalizar_nome_busca(&r.nome_aluno)))
+            .cloned()
+            .unwrap_or_else(|| AssinantesTurmaPei {
+                direcao: self.direcao_padrao.clone(),
+                ..Default::default()
+            })
+    }
+}
+
+impl AssinantesTurmaPei {
+    fn responsavel_de(&self, nome_aluno: &str) -> String {
+        self.responsaveis
+            .get(&normalizar_nome_busca(nome_aluno))
+            .cloned()
+            .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod testes_assinantes_pei {
+    use super::resolver_nomes_assinantes;
+
+    #[test]
+    fn especializado_vazio_cai_no_coordenador_e_nao_e_proprio() {
+        let (coord, esp, esp_proprio, dir) = resolver_nomes_assinantes(
+            Some("ANA COORDENADORA"),
+            Some("   "),
+            None,
+            "HILDA DIRETORA",
+        );
+        assert_eq!(coord, "ANA COORDENADORA");
+        assert_eq!(esp, "ANA COORDENADORA");
+        assert!(!esp_proprio, "sem especializado próprio ⇒ bloco de colaborativo some");
+        assert_eq!(dir, "HILDA DIRETORA");
+    }
+
+    #[test]
+    fn valores_informados_sao_preservados() {
+        let (_, esp, esp_proprio, dir) = resolver_nomes_assinantes(
+            Some("ANA"),
+            Some("BRUNO ESPECIALISTA"),
+            Some("VERA VICE"),
+            "HILDA DIRETORA",
+        );
+        assert_eq!(esp, "BRUNO ESPECIALISTA");
+        assert!(esp_proprio);
+        assert_eq!(dir, "VERA VICE");
+    }
+
+    #[test]
+    fn sem_coordenador_especializado_fica_vazio_para_preencher_a_mao() {
+        let (coord, esp, esp_proprio, _) =
+            resolver_nomes_assinantes(None, None, None, "HILDA DIRETORA");
+        assert_eq!(coord, "");
+        assert_eq!(esp, "");
+        assert!(!esp_proprio);
+    }
+}
+
+pub(crate) fn escrever_pei_docx_individual(
+    caminho: &Path,
+    r: &RegistroPei,
+    assinantes: &AssinantesTurmaPei,
+) -> Result<(), String> {
     let mut doc = DocumentoDocx::new();
 
     // Título conforme modelo oficial
@@ -821,7 +1021,10 @@ pub(crate) fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> R
     // Campos de identificação
     doc.campo_pei("Nome do Estudante:", &nome_titulo(&r.nome_aluno));
     doc.campo_pei("Nome do Professor Regente:", &r.professor);
-    doc.campo_pei("Nome do Professor Especializado da Educação Especial:", "");
+    doc.campo_pei(
+        "Nome do Professor Especializado da Educação Especial:",
+        &assinantes.especializado,
+    );
     doc.campo_pei("Componente Curricular:", &r.disciplina.to_uppercase());
     doc.periodo_pei(&r.bimestre);
     doc.paragrafo("");
@@ -844,8 +1047,24 @@ pub(crate) fn escrever_pei_docx_individual(caminho: &Path, r: &RegistroPei) -> R
         &r.recursos,
     );
 
-    // Quatro assinaturas centralizadas ao final da página, duas de cada lado
-    doc.assinaturas_pei_final();
+    // Blocos de assinatura ao final da página, com o nome de cada signatário
+    // impresso acima da linha (responsável fica só com a linha, se não houver
+    // nome cadastrado).
+    let responsavel = assinantes.responsavel_de(&r.nome_aluno);
+    let disciplina_regente = r.disciplina.to_uppercase();
+    let mut blocos: Vec<(&str, &str)> = vec![
+        (ROTULO_ASSIN_COORD, assinantes.coordenador_gestao.as_str()),
+        (ROTULO_ASSIN_ESPECIALIZADO, assinantes.especializado.as_str()),
+    ];
+    // Ensino Colaborativo só entra quando há um especializado próprio — senão
+    // seria o coordenador assinando a mesma linha de novo.
+    if assinantes.especializado_proprio {
+        blocos.push((ROTULO_ASSIN_COLABORATIVO, assinantes.especializado.as_str()));
+    }
+    blocos.push((disciplina_regente.as_str(), r.professor.as_str()));
+    blocos.push((ROTULO_ASSIN_DIRECAO, assinantes.direcao.as_str()));
+    blocos.push((ROTULO_ASSIN_RESPONSAVEL, responsavel.as_str()));
+    doc.assinaturas_pei_final(&blocos);
 
     doc.salvar(caminho)
 }
@@ -914,32 +1133,77 @@ fn questao_pei_pdf(documento: &mut genpdf::Document, pergunta: &str, resposta: &
     }
 }
 
-/// Espelho simplificado de assinaturas_pei_final (docx): mesmos 4 rótulos,
-/// em coluna única em vez de grade 2×2 — mais simples de montar com o
-/// genpdf e igualmente completo (todo o conteúdo está presente).
-fn assinaturas_pei_pdf(documento: &mut genpdf::Document) {
+/// Um bloco de assinatura no PDF: nome do signatário (quando informado)
+/// acima da linha, a linha e o rótulo do cargo.
+fn bloco_assinatura_pdf(documento: &mut genpdf::Document, rotulo: &str, nome: &str) {
     use genpdf::elements::{Break, Paragraph};
     use genpdf::style::Style;
     use genpdf::{Alignment, Element as _};
 
-    documento.push(Break::new(1.0));
-    for rotulo in [
-        "Nome e Assinatura do Coordenador(a) de Gest\u{00e3}o Pedag\u{00f3}gica:",
-        "Nome e Assinatura do Professor(a) Especializado(a) da Educa\u{00e7}\u{00e3}o Especial:",
-        "Nome e Assinatura do Professor(a) Especializado(a) do Projeto Ensino Colaborativo:",
-        "Nome e Assinatura do Professor(a) Regente de classes, turmas ou componentes curriculares:",
-    ] {
-        documento.push(Paragraph::new("______________________________").aligned(Alignment::Center));
-        documento.push(Paragraph::new(rotulo).aligned(Alignment::Center).styled(Style::new().with_font_size(9)));
-        documento.push(Break::new(0.8));
+    documento.push(Break::new(1.4));
+    if !nome.trim().is_empty() {
+        // Nome sempre em maiúsculas, como no .docx.
+        documento.push(
+            Paragraph::new(nome.trim().to_uppercase())
+                .aligned(Alignment::Center)
+                .styled(Style::new().with_font_size(10)),
+        );
     }
+    documento.push(Paragraph::new("______________________________").aligned(Alignment::Center));
+    documento.push(
+        Paragraph::new(rotulo.to_string())
+            .aligned(Alignment::Center)
+            .styled(Style::new().with_font_size(9)),
+    );
+}
+
+/// Folha única de assinaturas no final do PDF combinado — separada do corpo
+/// por uma quebra de página. Um bloco de regente por componente curricular
+/// (os regentes variam entre os PEIs do aluno); os demais papéis, um bloco
+/// cada, com o nome já preenchido pela configuração da turma.
+fn folha_assinaturas_pei_pdf(
+    documento: &mut genpdf::Document,
+    nome_aluno: &str,
+    turma: &str,
+    assinantes: &AssinantesTurmaPei,
+    regentes_por_componente: &[(String, String)],
+) {
+    use genpdf::elements::{Break, Paragraph};
+    use genpdf::style::Style;
+    use genpdf::{Alignment, Element as _};
+
+    documento.push(
+        Paragraph::new("FOLHA DE ASSINATURAS \u{2013} PEI")
+            .aligned(Alignment::Center)
+            .styled(Style::new().bold().with_font_size(12)),
+    );
+    documento.push(Break::new(0.4));
+    documento.push(campo_pei_pdf("Estudante:", &nome_titulo(nome_aluno)));
+    if !turma.trim().is_empty() {
+        documento.push(campo_pei_pdf("Turma:", turma.trim()));
+    }
+
+    bloco_assinatura_pdf(documento, ROTULO_ASSIN_COORD, &assinantes.coordenador_gestao);
+    bloco_assinatura_pdf(documento, ROTULO_ASSIN_ESPECIALIZADO, &assinantes.especializado);
+    if assinantes.especializado_proprio {
+        bloco_assinatura_pdf(documento, ROTULO_ASSIN_COLABORATIVO, &assinantes.especializado);
+    }
+    for (disciplina, professor) in regentes_por_componente {
+        bloco_assinatura_pdf(documento, &disciplina.to_uppercase(), professor);
+    }
+    bloco_assinatura_pdf(documento, ROTULO_ASSIN_DIRECAO, &assinantes.direcao);
+    bloco_assinatura_pdf(
+        documento,
+        ROTULO_ASSIN_RESPONSAVEL,
+        &assinantes.responsavel_de(nome_aluno),
+    );
 }
 
 /// Uma "página" do PEI combinado — mesmo conteúdo/ordem de
-/// escrever_pei_docx_individual (título, intro, campos, 4 perguntas,
-/// assinaturas), empurrado direto no Document compartilhado por
-/// escrever_pei_pdf_combinado.
-fn escrever_secao_pei_pdf(documento: &mut genpdf::Document, r: &RegistroPei) {
+/// escrever_pei_docx_individual (título, intro, campos, 4 perguntas). As
+/// assinaturas NÃO entram aqui: vão todas numa folha única ao final (ver
+/// folha_assinaturas_pei_pdf).
+fn escrever_secao_pei_pdf(documento: &mut genpdf::Document, r: &RegistroPei, especializado: &str) {
     use genpdf::elements::{Break, Paragraph};
     use genpdf::style::{Effect, Style};
     use genpdf::{Alignment, Element as _};
@@ -963,7 +1227,10 @@ fn escrever_secao_pei_pdf(documento: &mut genpdf::Document, r: &RegistroPei) {
 
     documento.push(campo_pei_pdf("Nome do Estudante:", &nome_titulo(&r.nome_aluno)));
     documento.push(campo_pei_pdf("Nome do Professor Regente:", &r.professor));
-    documento.push(campo_pei_pdf("Nome do Professor Especializado da Educa\u{00e7}\u{00e3}o Especial:", ""));
+    documento.push(campo_pei_pdf(
+        "Nome do Professor Especializado da Educa\u{00e7}\u{00e3}o Especial:",
+        especializado,
+    ));
     documento.push(campo_pei_pdf("Componente Curricular:", &r.disciplina.to_uppercase()));
     documento.push(periodo_pei_pdf(&r.bimestre));
     documento.push(Break::new(0.5));
@@ -988,13 +1255,12 @@ fn escrever_secao_pei_pdf(documento: &mut genpdf::Document, r: &RegistroPei) {
         "Quais v\u{00ed}deos, livros, jogos, exerc\u{00ed}cios ou outras atividades podem ser indicados para apoiar, complementar, suplementar e fortalecer o aprendizado do estudante neste componente curricular, considerando suas potencialidades, especificidades e ritmo de aprendizagem?",
         &r.recursos,
     );
-
-    assinaturas_pei_pdf(documento);
 }
 
 fn escrever_pei_pdf_combinado(caminho: &Path, nome_aluno: &str, registros: &[RegistroPei]) -> Result<(), String> {
     use genpdf::elements::PageBreak;
 
+    let assinantes_pei = MapaAssinantesPei::carregar();
     let familia_fonte = carregar_familia_fonte_pdf()?;
     let mut documento = genpdf::Document::new(familia_fonte);
     documento.set_title(format!("PEI - {}", nome_titulo(nome_aluno)));
@@ -1007,7 +1273,28 @@ fn escrever_pei_pdf_combinado(caminho: &Path, nome_aluno: &str, registros: &[Reg
         if indice > 0 {
             documento.push(PageBreak::new());
         }
-        escrever_secao_pei_pdf(&mut documento, r);
+        escrever_secao_pei_pdf(&mut documento, r, &assinantes_pei.para(r).especializado);
+    }
+
+    // Folha única de assinaturas ao final: um regente por componente
+    // curricular, mais os papéis configurados na turma.
+    if let Some(primeiro) = registros.first() {
+        let assinantes = assinantes_pei.para(primeiro);
+        let mut regentes: Vec<(String, String)> = Vec::new();
+        for r in registros {
+            let disc = r.disciplina.to_uppercase();
+            if !regentes.iter().any(|(d, _)| *d == disc) {
+                regentes.push((disc, r.professor.clone()));
+            }
+        }
+        documento.push(PageBreak::new());
+        folha_assinaturas_pei_pdf(
+            &mut documento,
+            nome_aluno,
+            &primeiro.turma_aluno,
+            &assinantes,
+            &regentes,
+        );
     }
 
     documento.render_to_file(caminho).map_err(|err| err.to_string())

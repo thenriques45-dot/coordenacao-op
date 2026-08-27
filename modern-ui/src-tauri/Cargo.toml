@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "3.2.2"
+version = "3.3.0"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
@@ -29,7 +29,11 @@ sevenz-rust = "0.6"
 rust_xlsxwriter = "0.79"
 sha2 = "0.10"
 rand = "0.8"
-keyring = "3"
+# Backends nativos por plataforma. SEM nenhum destes, o keyring 3 cai no
+# store "mock" (em memória), que devolve uma credencial vazia a cada
+# `Entry::new()` — o token do GitHub/Google era "salvo" e nunca mais lido,
+# quebrando a publicação no repositório e forçando reautorização a cada uso.
+keyring = { version = "3", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 url = "2"
 genpdf = { version = "0.2.0", features = ["images"] }
 image = { version = "0.23", default-features = false, features = ["jpeg", "png"] }

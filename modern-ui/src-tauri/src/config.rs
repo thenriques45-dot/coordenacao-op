@@ -72,6 +72,7 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
     let config = ConfiguracoesApp {
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
+        vice_direcao: normalizar_lista_texto(&input.vice_direcao),
         nota_minima: input.nota_minima,
         cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
         lider_ativo: input.lider_ativo,
@@ -266,6 +267,18 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .and_then(Value::as_str)
             .unwrap_or("F")
             .to_string(),
+        vice_direcao: dados
+            .get("vice_direcao")
+            .and_then(Value::as_array)
+            .map(|lista| {
+                lista
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .map(|lista| normalizar_lista_texto(&lista))
+            .unwrap_or_default(),
         nota_minima: dados
             .get("nota_minima")
             .and_then(valor_para_f64)
@@ -393,6 +406,7 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
     let dados = serde_json::json!({
         "direcao_nome": config.direcao_nome,
         "direcao_pronome": config.direcao_pronome,
+        "vice_direcao": config.vice_direcao,
         "nota_minima": config.nota_minima,
         "cabecalho_ata": config.cabecalho_ata,
         "lider_ativo": config.lider_ativo,

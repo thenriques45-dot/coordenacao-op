@@ -47,6 +47,8 @@ pub(crate) struct OpcaoEncaminhamento {
 pub(crate) struct ConfiguracoesApp {
     pub(crate) direcao_nome: String,
     pub(crate) direcao_pronome: String,
+    // Nomes dos vice-diretores — assinam o PEI quando indicados por turma.
+    pub(crate) vice_direcao: Vec<String>,
     pub(crate) nota_minima: f64,
     pub(crate) cabecalho_ata: Option<String>,
     pub(crate) lider_ativo: bool,
@@ -71,6 +73,8 @@ pub(crate) struct ConfiguracoesApp {
 pub(crate) struct ConfiguracoesInput {
     pub(crate) direcao_nome: String,
     pub(crate) direcao_pronome: String,
+    #[serde(default)]
+    pub(crate) vice_direcao: Vec<String>,
     pub(crate) nota_minima: f64,
     pub(crate) lider_ativo: bool,
     pub(crate) lider_rotulo: String,
@@ -247,6 +251,12 @@ pub(crate) struct TurmaResumo {
     pub(crate) periodo: Option<String>,
     pub(crate) ciclo: Option<String>,
     pub(crate) coordenador_turma: Option<String>,
+    // Assinantes do PEI configurados nesta turma (ver salvar_pessoas_pei_turma).
+    // `pei_prof_especializado` cobre tanto "Especializado da Educação Especial"
+    // quanto "Ensino Colaborativo" — na prática é a mesma pessoa.
+    pub(crate) pei_coordenador_gestao: Option<String>,
+    pub(crate) pei_prof_especializado: Option<String>,
+    pub(crate) pei_direcao: Option<String>,
     pub(crate) lider_sala: Option<String>,
     pub(crate) vice_lider_sala: Option<String>,
     pub(crate) total_alunos: usize,
@@ -402,6 +412,12 @@ pub(crate) struct TurmaArquivo {
     pub(crate) periodo: Option<String>,
     pub(crate) ciclo: Option<String>,
     pub(crate) coordenador_turma: Option<String>,
+    #[serde(default)]
+    pub(crate) pei_coordenador_gestao: Option<String>,
+    #[serde(default)]
+    pub(crate) pei_prof_especializado: Option<String>,
+    #[serde(default)]
+    pub(crate) pei_direcao: Option<String>,
     pub(crate) carga_horaria: Option<serde_json::Map<String, Value>>,
     pub(crate) textos_ata: Option<serde_json::Map<String, Value>>,
     pub(crate) conselhos: Option<serde_json::Map<String, Value>>,
@@ -442,6 +458,19 @@ pub(crate) fn modo_notas_ata_valido(valor: &str) -> bool {
 #[derive(Deserialize)]
 pub(crate) struct CoordenadorTurmaInput {
     pub(crate) coordenador: String,
+}
+
+// Assinantes do PEI de uma turma — cada campo vazio tem um fallback aplicado
+// em pei::resolver_assinantes_pei (especializado/colaborativo caem no
+// coordenador de gestão; direção cai em direcao_nome).
+#[derive(Deserialize)]
+pub(crate) struct PessoasPeiTurmaInput {
+    #[serde(default)]
+    pub(crate) coordenador_gestao: String,
+    #[serde(default)]
+    pub(crate) prof_especializado: String,
+    #[serde(default)]
+    pub(crate) direcao: String,
 }
 
 #[derive(Deserialize)]
@@ -675,8 +704,14 @@ pub(crate) struct AlunoElegiveisComDisciplinas {
     pub(crate) matricula: String,
     pub(crate) nome: String,
     pub(crate) turma: String,
+    // Caminho do arquivo da turma — usado pela tela de PEI para gravar o
+    // responsável do aluno (salvar_responsavel_pei_aluno).
+    pub(crate) turma_caminho: String,
     pub(crate) disciplinas: Vec<String>,
     pub(crate) disciplinas_por_bimestre: BTreeMap<String, Vec<String>>,
+    // Nome do responsável pelo estudante, para impressão acima da linha de
+    // assinatura do PEI (campo `responsavel_pei` no objeto do aluno).
+    pub(crate) responsavel: Option<String>,
 }
 
 #[derive(Serialize)]

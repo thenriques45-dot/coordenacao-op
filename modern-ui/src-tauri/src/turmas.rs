@@ -371,6 +371,66 @@ pub(crate) fn salvar_coordenador_turma(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
+fn ajustar_chave_texto(objeto: &mut serde_json::Map<String, Value>, chave: &str, valor: &str) {
+    let valor = valor.trim();
+    if valor.is_empty() {
+        objeto.remove(chave);
+    } else {
+        objeto.insert(chave.to_string(), Value::from(valor));
+    }
+}
+
+// Grava os assinantes do PEI desta turma. Campos vazios são removidos do
+// arquivo — o fallback (coordenador de gestão / direcao_nome) é aplicado só
+// na hora de gerar o documento, em pei::resolver_assinantes_pei.
+#[tauri::command]
+pub(crate) fn salvar_pessoas_pei_turma(
+    caminho: String,
+    input: PessoasPeiTurmaInput,
+) -> Result<(), String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let Some(objeto) = dados.as_object_mut() else {
+        return Err("Arquivo da turma esta invalido.".to_string());
+    };
+    ajustar_chave_texto(objeto, "pei_coordenador_gestao", &input.coordenador_gestao);
+    ajustar_chave_texto(objeto, "pei_prof_especializado", &input.prof_especializado);
+    ajustar_chave_texto(objeto, "pei_direcao", &input.direcao);
+    // Chave antiga (campo separado de ensino colaborativo) — hoje unificada.
+    objeto.remove("pei_prof_colaborativo");
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
+// Grava o responsável pelo estudante (impresso acima da linha de assinatura
+// do PEI). Vazio remove a chave.
+#[tauri::command]
+pub(crate) fn salvar_responsavel_pei_aluno(
+    caminho: String,
+    matricula: String,
+    responsavel: String,
+) -> Result<(), String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(&matricula))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+    ajustar_chave_texto(aluno, "responsavel_pei", &responsavel);
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
 #[tauri::command]
 pub(crate) fn salvar_elegibilidade_aluno(
     caminho: String,
@@ -1473,6 +1533,9 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         periodo: turma.periodo,
         ciclo: turma.ciclo,
         coordenador_turma: turma.coordenador_turma,
+        pei_coordenador_gestao: turma.pei_coordenador_gestao,
+        pei_prof_especializado: turma.pei_prof_especializado,
+        pei_direcao: turma.pei_direcao,
         lider_sala,
         vice_lider_sala,
         total_alunos,

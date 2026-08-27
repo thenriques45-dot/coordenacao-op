@@ -1,9 +1,25 @@
-import { BookMarked, ClipboardList, Copy, ExternalLink, FileText, FolderOpen, RefreshCw, Settings, Sparkles, X } from "lucide-react";
+import { BookMarked, ClipboardList, Copy, ExternalLink, FileText, FolderOpen, PenLine, RefreshCw, Settings, Sparkles, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { semestreAtivo, type PrazosSemestre } from "./semestre";
 import { useWebAppConfig } from "./useWebAppConfig";
 import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral } from "./webAppConfigUi";
+import { agruparMembrosPorPessoa, carregarMembrosSincronizacao, garantirPerfilPersistido } from "./workgroupSync";
+
+type TurmaResumoPei = {
+  codigo: string;
+  serie: string | null;
+  caminho: string;
+  pei_coordenador_gestao?: string | null;
+  pei_prof_especializado?: string | null;
+  pei_direcao?: string | null;
+};
+
+type PessoasPeiTurma = {
+  coordenador_gestao: string;
+  prof_especializado: string;
+  direcao: string;
+};
 
 type RegistroPei = {
   timestamp: string;
@@ -44,8 +60,10 @@ type AlunoElegivelComDisciplinas = {
   matricula: string;
   nome: string;
   turma: string;
+  turma_caminho: string;
   disciplinas: string[];
   disciplinas_por_bimestre: Record<string, string[]>;
+  responsavel: string | null;
 };
 
 const PEI_ULTIMA_BUSCA_KEY = "coordenacaoop:pei-ultima-busca";
@@ -133,14 +151,14 @@ const estiloTextoPassoPEI: React.CSSProperties = {
   color: "var(--text-secondary)",
 };
 
-export function TelaPEI() {
+export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResumoPei[]; onTurmasAlteradas?: () => void }) {
   const {
     config, setConfig, configAberta, setConfigAberta, abaConfig, setAbaConfig,
     carregando, erro, setErro, ultimaBusca, registros, gerando, statusGeracao,
     pastaGeral, criandoWebApp, erroWebApp, linkRecebido, setLinkRecebido,
     importandoLink, statusImportarLink, configuradoPorOutro, membroConfigurador,
     podeReivindicar, reivindicando, reivindicar,
-    salvarConfig, carregar: carregarPeis, criarWebAppAutomatico: criarWebAppPeiAutomatico,
+    salvarConfig, carregar: carregarPeis, gerarLote, criarWebAppAutomatico: criarWebAppPeiAutomatico,
     importarLinkRecebido,
   } = useWebAppConfig<ConfigPei, RegistroPei>({
     configPadrao: CONFIG_PEI_PADRAO,
@@ -174,11 +192,85 @@ export function TelaPEI() {
   const [gerandoPend, setGerandoPend] = useState(false);
   const [prazos, setPrazos] = useState<PrazosSemestre>({ prazo_1_semestre: "", prazo_2_semestre: "" });
 
+  // Tela de assinaturas do PEI: nomes impressos acima das linhas de assinatura.
+  const [assinAberta, setAssinAberta] = useState(false);
+  // Config completo do app (para gravar vice_direcao sem perder os demais campos).
+  const [cfgApp, setCfgApp] = useState<Record<string, unknown> | null>(null);
+  const [viceTexto, setViceTexto] = useState("");
+  const [pessoasPorTurma, setPessoasPorTurma] = useState<Record<string, PessoasPeiTurma>>({});
+  const [salvandoAssin, setSalvandoAssin] = useState(false);
+  const [msgAssin, setMsgAssin] = useState("");
+  const [respAluno, setRespAluno] = useState("");
+  const [salvandoResp, setSalvandoResp] = useState(false);
+
   useEffect(() => {
-    invokeApp<PrazosSemestre>("carregar_configuracoes")
-      .then((c) => setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre }))
+    invokeApp<PrazosSemestre & { vice_direcao?: string[]; direcao_nome?: string }>("carregar_configuracoes")
+      .then((c) => {
+        setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre });
+        setCfgApp(c as unknown as Record<string, unknown>);
+        setViceTexto((c.vice_direcao ?? []).join("\n"));
+      })
       .catch(() => {});
   }, []);
+
+  // Semente do editor por turma a partir do que já está salvo em cada turma.
+  useEffect(() => {
+    setPessoasPorTurma((atual) => {
+      const proximo = { ...atual };
+      for (const t of turmas) {
+        if (!proximo[t.caminho]) {
+          proximo[t.caminho] = {
+            coordenador_gestao: t.pei_coordenador_gestao ?? "",
+            prof_especializado: t.pei_prof_especializado ?? "",
+            direcao: t.pei_direcao ?? "",
+          };
+        }
+      }
+      return proximo;
+    });
+  }, [turmas]);
+
+  // Só as turmas que têm aluno elegível (as demais não geram PEI).
+  const caminhosComElegivel = useMemo(
+    () => new Set(alunosElegiveis.map((a) => a.turma_caminho)),
+    [alunosElegiveis]
+  );
+
+  // Nomes do grupo de trabalho, para a menção "@nome" nos campos de assinante.
+  const membrosGrupo = useMemo(() => {
+    const s = new Set<string>();
+    for (const m of agruparMembrosPorPessoa(carregarMembrosSincronizacao())) {
+      if (m.displayName?.trim()) s.add(m.displayName.trim());
+    }
+    const perfil = garantirPerfilPersistido();
+    if (perfil.displayName?.trim()) s.add(perfil.displayName.trim());
+    return Array.from(s);
+  }, []);
+
+  // "@wilton" -> nome completo do membro do grupo cujo nome começa com "wilton".
+  // Sem correspondência, mantém o texto como digitado (nome livre).
+  function resolverMencao(texto: string): string {
+    const m = texto.trim().match(/^@(.+)$/);
+    if (!m) return texto;
+    const alvo = normalizarNome(m[1]);
+    const achado = membrosGrupo.find((nome) => normalizarNome(nome).startsWith(alvo));
+    return achado ?? texto;
+  }
+
+  const direcaoNome = (cfgApp?.direcao_nome as string) ?? "";
+  const opcoesDirecao = useMemo(() => {
+    const vices = viceTexto.split("\n").map((v) => v.trim()).filter(Boolean);
+    return [direcaoNome, ...vices].filter(Boolean);
+  }, [direcaoNome, viceTexto]);
+
+  const turmasOrdenadas = useMemo(
+    () => turmas
+      .filter((t) => caminhosComElegivel.has(t.caminho))
+      .sort((a, b) =>
+        (a.serie ?? "").localeCompare(b.serie ?? "", "pt-BR") || a.codigo.localeCompare(b.codigo, "pt-BR")
+      ),
+    [turmas, caminhosComElegivel]
+  );
 
   useEffect(() => {
     invokeApp<AlunoElegivelComDisciplinas[]>("listar_alunos_elegiveis_com_disciplinas")
@@ -227,6 +319,99 @@ export function TelaPEI() {
 
   function atualizarUrlLegado(valor: string) {
     setConfig((c) => ({ ...c, url_legado: valor }));
+  }
+
+  useEffect(() => {
+    setRespAluno(alunoSelecionado?.responsavel ?? "");
+  }, [alunoSelecionado]);
+
+  function editarPessoaTurma(caminho: string, campo: keyof PessoasPeiTurma, valor: string) {
+    setPessoasPorTurma((atual) => ({
+      ...atual,
+      [caminho]: { ...atual[caminho], [campo]: valor },
+    }));
+  }
+
+  // "Repetir para as turmas abaixo": copia o valor deste campo para todas as
+  // todas as turmas da lista — conveniência de digitação, não agregação.
+  function repetirEmTodas(campo: keyof PessoasPeiTurma) {
+    const primeira = turmasOrdenadas[0];
+    if (!primeira) return;
+    const base = resolverMencao(pessoasPorTurma[primeira.caminho]?.[campo] ?? "");
+    setPessoasPorTurma((atual) => {
+      const proximo = { ...atual };
+      for (const t of turmasOrdenadas) {
+        proximo[t.caminho] = { ...proximo[t.caminho], [campo]: base };
+      }
+      return proximo;
+    });
+  }
+
+  async function salvarAssinaturas() {
+    setSalvandoAssin(true);
+    setMsgAssin("");
+    try {
+      const vice = viceTexto.split("\n").map((v) => v.trim()).filter(Boolean);
+      if (cfgApp) {
+        const atualizado = { ...cfgApp, vice_direcao: vice };
+        await invokeApp("salvar_configuracoes", { input: atualizado });
+        setCfgApp(atualizado);
+      }
+      for (const t of turmas) {
+        const p = pessoasPorTurma[t.caminho];
+        if (!p) continue;
+        const original = {
+          coordenador_gestao: t.pei_coordenador_gestao ?? "",
+          prof_especializado: t.pei_prof_especializado ?? "",
+          direcao: t.pei_direcao ?? "",
+        };
+        const mudou = (Object.keys(original) as (keyof PessoasPeiTurma)[]).some(
+          (k) => (p[k] ?? "").trim() !== original[k].trim()
+        );
+        if (mudou) {
+          await invokeApp("salvar_pessoas_pei_turma", { caminho: t.caminho, input: p });
+        }
+      }
+      onTurmasAlteradas?.();
+      setMsgAssin("Assinaturas salvas. Use “Regerar todos” para aplicar aos PEIs já gerados.");
+    } catch (e) {
+      setMsgAssin(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvandoAssin(false);
+    }
+  }
+
+  async function salvarResponsavel() {
+    if (!alunoSelecionado) return;
+    setSalvandoResp(true);
+    setErroPeiAbrir("");
+    try {
+      await invokeApp("salvar_responsavel_pei_aluno", {
+        caminho: alunoSelecionado.turma_caminho,
+        matricula: alunoSelecionado.matricula,
+        responsavel: respAluno,
+      });
+      setAlunosElegiveis((lista) =>
+        lista.map((a) =>
+          a.matricula === alunoSelecionado.matricula && a.turma_caminho === alunoSelecionado.turma_caminho
+            ? { ...a, responsavel: respAluno.trim() || null }
+            : a
+        )
+      );
+      setAlunoSelecionado((a) => (a ? { ...a, responsavel: respAluno.trim() || null } : a));
+    } catch (e) {
+      setErroPeiAbrir(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvandoResp(false);
+    }
+  }
+
+  function regerarTodos() {
+    if (registros.length === 0) return;
+    if (!window.confirm(
+      `Regerar os ${registros.length} PEI(s) já registrados, reescrevendo todos os .docx com os nomes de assinatura atuais? Os PDFs são regerados quando você exporta cada aluno.`
+    )) return;
+    gerarLote(registros, true);
   }
 
   // Relatório de pendências: por aluno elegível, disciplinas sem PEI até o
@@ -314,6 +499,16 @@ export function TelaPEI() {
             <button onClick={gerarRelatorioPendencias} disabled={gerandoPend} title="Gerar relatório dos PEIs que faltam">
               <ClipboardList size={18} />
               {gerandoPend ? "Gerando…" : "Pendências"}
+            </button>
+          )}
+          <button onClick={() => setAssinAberta(true)} title="Definir os nomes que aparecem acima das linhas de assinatura">
+            <PenLine size={18} />
+            Assinaturas
+          </button>
+          {registros.length > 0 && (
+            <button onClick={regerarTodos} disabled={gerando} title="Reescreve todos os .docx já gerados com os nomes de assinatura atuais">
+              <RefreshCw size={18} />
+              Regerar todos
             </button>
           )}
           {pastaGeral && (
@@ -610,6 +805,134 @@ export function TelaPEI() {
       )}
 
 
+      {/* Diálogo modal de assinaturas do PEI */}
+      {assinAberta && (
+        <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setAssinAberta(false); }}>
+          <section
+            className="whats-new-modal"
+            role="dialog"
+            aria-modal="true"
+            style={{ maxWidth: "1120px", width: "96vw", maxHeight: "88vh", overflowY: "auto", textAlign: "left" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+              <div>
+                <span className="eyebrow">PEI</span>
+                <h2 style={{ margin: "0.15rem 0 0" }}>Assinaturas do PEI</h2>
+              </div>
+              <button type="button" className="ghost-action" onClick={() => setAssinAberta(false)} style={{ marginTop: "0.25rem" }} title="Fechar">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ marginBottom: "1rem", fontSize: "0.86rem", color: "var(--text-secondary)" }}>
+              O nome de cada pessoa é impresso acima da linha de assinatura — o app não gera rubricas, a
+              assinatura continua sendo feita por quem assina. O <strong>professor regente</strong> vem
+              automaticamente de quem respondeu o PEI. O <strong>responsável</strong> pelo estudante é
+              definido na ficha do aluno (painel à direita) e fica em branco se não cadastrado.
+            </p>
+
+            <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "0.85rem 1rem", marginBottom: "1.2rem" }}>
+              <strong>Direção</strong>
+              <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0.3rem 0 0.5rem" }}>
+                Diretor(a): <strong>{direcaoNome || "defina em Configurações"}</strong>. Um vice-diretor por
+                linha — ficam disponíveis para escolher em cada turma abaixo.
+              </p>
+              <textarea
+                value={viceTexto}
+                onChange={(e) => setViceTexto(e.target.value)}
+                rows={3}
+                placeholder={"NOME DO VICE-DIRETOR 1\nNOME DO VICE-DIRETOR 2"}
+                style={{ width: "100%", resize: "vertical" }}
+              />
+            </div>
+
+            <strong>Por turma</strong>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0.3rem 0 0.6rem" }}>
+              Só aparecem as turmas com aluno elegível. Digite o nome do coordenador ou{" "}
+              <strong>@nome</strong> para puxar do grupo de trabalho. Deixe o professor especializado em
+              branco se a escola não tem essa pessoa — a linha recebe o coordenador de gestão da turma.
+              “Repetir em todas” copia o valor da primeira turma para as demais.
+            </p>
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem", tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: "90px" }} />
+                  <col style={{ width: "34%" }} />
+                  <col style={{ width: "34%" }} />
+                  <col />
+                </colgroup>
+                <thead>
+                  <tr style={{ textAlign: "left", color: "var(--text-secondary)", verticalAlign: "bottom" }}>
+                    <th style={{ padding: "0.3rem 0.4rem" }}>Turma</th>
+                    <th style={{ padding: "0.3rem 0.4rem" }}>
+                      Coord. de Gestão Pedagógica
+                      <button type="button" className="ghost-action" style={{ display: "block", padding: 0, fontSize: "0.72rem", fontWeight: 400 }}
+                        onClick={() => repetirEmTodas("coordenador_gestao")}>↓ repetir em todas</button>
+                    </th>
+                    <th style={{ padding: "0.3rem 0.4rem" }}>
+                      Prof. Especializado / Ensino Colaborativo
+                      <button type="button" className="ghost-action" style={{ display: "block", padding: 0, fontSize: "0.72rem", fontWeight: 400 }}
+                        onClick={() => repetirEmTodas("prof_especializado")}>↓ repetir em todas</button>
+                    </th>
+                    <th style={{ padding: "0.3rem 0.4rem" }}>
+                      Direção
+                      <button type="button" className="ghost-action" style={{ display: "block", padding: 0, fontSize: "0.72rem", fontWeight: 400 }}
+                        onClick={() => repetirEmTodas("direcao")}>↓ repetir em todas</button>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {turmasOrdenadas.length === 0 && (
+                    <tr><td colSpan={4} style={{ padding: "0.6rem 0.4rem", color: "var(--text-secondary)" }}>
+                      Nenhuma turma com aluno elegível.
+                    </td></tr>
+                  )}
+                  {turmasOrdenadas.map((t) => {
+                    const p = pessoasPorTurma[t.caminho] ?? { coordenador_gestao: "", prof_especializado: "", direcao: "" };
+                    const campoTexto = (campo: keyof PessoasPeiTurma) => (
+                      <input
+                        value={p[campo]}
+                        onChange={(e) => editarPessoaTurma(t.caminho, campo, e.target.value)}
+                        onBlur={(e) => {
+                          const resolvido = resolverMencao(e.target.value);
+                          if (resolvido !== e.target.value) editarPessoaTurma(t.caminho, campo, resolvido);
+                        }}
+                        placeholder="Nome ou @nome"
+                        style={{ width: "100%", boxSizing: "border-box" }}
+                      />
+                    );
+                    return (
+                      <tr key={t.caminho} style={{ borderTop: "1px solid var(--border)" }}>
+                        <td style={{ padding: "0.3rem 0.4rem", whiteSpace: "nowrap" }}>{t.codigo}</td>
+                        <td style={{ padding: "0.3rem 0.4rem" }}>{campoTexto("coordenador_gestao")}</td>
+                        <td style={{ padding: "0.3rem 0.4rem" }}>{campoTexto("prof_especializado")}</td>
+                        <td style={{ padding: "0.3rem 0.4rem" }}>
+                          <select value={p.direcao} onChange={(e) => editarPessoaTurma(t.caminho, "direcao", e.target.value)} style={{ width: "100%", boxSizing: "border-box" }}>
+                            <option value="">{direcaoNome ? `Padrão (${direcaoNome})` : "Padrão"}</option>
+                            {opcoesDirecao.map((n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {msgAssin && <div className="notice" style={{ marginTop: "0.75rem" }}>{msgAssin}</div>}
+
+            <div className="modal-actions" style={{ marginTop: "0.8rem", gap: "0.6rem" }}>
+              <button onClick={() => setAssinAberta(false)}>Fechar</button>
+              <button className="primary-action" onClick={salvarAssinaturas} disabled={salvandoAssin}>
+                {salvandoAssin ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+
       <section className="council-workspace">
         {/* Lista de alunos elegíveis */}
         <aside className="panel student-list-panel">
@@ -713,6 +1036,26 @@ export function TelaPEI() {
                     <FileText size={16} /> {exportandoPei ? "Exportando..." : "Exportar PEI (PDF)"}
                   </button>
                 )}
+              </div>
+
+              {/* Responsável pelo estudante — impresso acima da linha de assinatura do PEI */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", margin: "0.25rem 0 0.5rem" }}>
+                <label style={{ fontSize: "0.82rem", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+                  Responsável pelo estudante
+                </label>
+                <input
+                  value={respAluno}
+                  onChange={(e) => setRespAluno(e.target.value)}
+                  placeholder="Nome de quem assina como responsável (opcional)"
+                  style={{ flex: 1, minWidth: "220px" }}
+                />
+                <button
+                  type="button"
+                  onClick={salvarResponsavel}
+                  disabled={salvandoResp || respAluno.trim() === (alunoSelecionado.responsavel ?? "").trim()}
+                >
+                  {salvandoResp ? "Salvando..." : "Salvar"}
+                </button>
               </div>
 
               {/* Tabela matriz */}

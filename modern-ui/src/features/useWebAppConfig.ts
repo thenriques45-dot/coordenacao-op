@@ -168,11 +168,15 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
       .finally(() => setReivindicando(false));
   }
 
-  function gerarLote(recs: TRegistro[]) {
+  // `forcar` (só o PEI usa): reescreve todo documento ignorando o índice —
+  // para aplicar mudanças de layout a documentos já gerados cujo registro
+  // não mudou. Omitido do payload quando falso, para não alterar o contrato
+  // do comando de Planejamento.
+  function gerarLote(recs: TRegistro[], forcar = false) {
     if (recs.length === 0) return;
     setGerando(true);
     setStatusGeracao(`Gerando ${textos.gerando}...`);
-    invokeApp<GerarLoteResultado<TRegistro>>(comandos.gerarLote, { registros: recs })
+    invokeApp<GerarLoteResultado<TRegistro>>(comandos.gerarLote, forcar ? { registros: recs, forcar: true } : { registros: recs })
       .then((res) => {
         setPastaGeral(res.pasta);
         // Fonte de verdade da tela vira o índice mesclado (local + esta
@@ -297,6 +301,7 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
     reivindicar,
     salvarConfig,
     carregar,
+    gerarLote,
     criarWebAppAutomatico,
     importarLinkRecebido,
   };

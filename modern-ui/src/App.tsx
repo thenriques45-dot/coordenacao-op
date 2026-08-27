@@ -196,6 +196,9 @@ type TurmaResumo = {
   periodo: string | null;
   ciclo: string | null;
   coordenador_turma: string | null;
+  pei_coordenador_gestao?: string | null;
+  pei_prof_especializado?: string | null;
+  pei_direcao?: string | null;
   lider_sala: string | null;
   vice_lider_sala: string | null;
   total_alunos: number;
@@ -322,6 +325,12 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.3.0": [
+    "Novo: 'Assinaturas', na tela de PEI — define por turma quem assina cada PEI (coordenador de gestão pedagógica, professor especializado, direção), e o nome já sai impresso acima da linha de assinatura no documento. O professor regente vem automático de quem respondeu o PEI; o responsável pelo estudante é preenchido na ficha do aluno e fica em branco se não cadastrado. Digite '@nome' num campo para puxar alguém do grupo de trabalho.",
+    "Novo: ao exportar o PEI de um aluno em PDF, as assinaturas de todos os componentes passam para uma folha única no final — uma folha por aluno para assinar e digitalizar, em vez de um bloco repetido a cada disciplina.",
+    "Novo: botão 'Regerar todos' na tela de PEI, para reescrever os PEIs já gerados com os nomes de assinatura atuais.",
+    "Corrigido: 'Publicar no repositório' recusava o envio com erro de autenticação mesmo depois de fazer login com o GitHub, e pedia login a cada uso — a sessão nunca era realmente guardada no chaveiro do sistema. O mesmo afetava a autorização do Google (Planejamento/PEI). Agora a sessão fica salva de verdade entre usos.",
+  ],
   "3.2.2": [
     "Corrigido: mesmo já logado, 'Publicar no repositório' podia recusar o envio pedindo login de novo — uma rede lenta ou instável na hora de confirmar a conta (comum em rede de escola) era tratada como sessão inválida. Agora tenta de novo automaticamente antes de desistir, e o aviso de erro (quando acontece) deixa claro que é a rede, não a sessão salva.",
   ],
@@ -1586,7 +1595,7 @@ export function App() {
             onSalvo={() => navegarPara("relatorios")}
           />
         )}
-        {tela === "pei" && <TelaPEI />}
+        {tela === "pei" && <TelaPEI turmas={turmas} onTurmasAlteradas={recarregarDadosTurmas} />}
         {tela === "planejamento" && <TelaPlanejamento turmas={turmas} />}
       </section>
       {buscaGlobalAberta && (
