@@ -322,6 +322,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.2.2": [
+    "Corrigido: mesmo já logado, 'Publicar no repositório' podia recusar o envio pedindo login de novo — uma rede lenta ou instável na hora de confirmar a conta (comum em rede de escola) era tratada como sessão inválida. Agora tenta de novo automaticamente antes de desistir, e o aviso de erro (quando acontece) deixa claro que é a rede, não a sessão salva.",
+  ],
   "3.2.1": [
     "Corrigido: no 'Publicar no repositório' (novo na 3.2.0), confirmar o envio fechava o construtor de relatórios no meio do processo, antes da publicação terminar — o relatório não chegava a subir pro GitHub, e nenhum erro aparecia. O construtor agora fica aberto até o fim do envio, mostrando confirmação ou erro.",
   ],

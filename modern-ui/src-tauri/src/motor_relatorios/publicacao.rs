@@ -20,7 +20,7 @@ use super::definicao::ReportDefinition;
 use super::repositorio::{
     cliente, com_teto_de_tempo, CategoriaRepositorio, GITHUB_BRANCH, GITHUB_OWNER, GITHUB_REPO, PASTA_COMUNIDADE, PASTA_OFICIAIS,
 };
-use crate::github_oauth::{consultar_usuario_autenticado, token_github_valido, USER_AGENT};
+use crate::github_oauth::{carregar_token, consultar_usuario_autenticado_com_retentativa, USER_AGENT};
 
 #[derive(Serialize)]
 pub(crate) struct PublicarRelatorioResultado {
@@ -229,8 +229,12 @@ fn descricao_para_pr(definicao: &ReportDefinition, login: &str) -> String {
 }
 
 fn publicar_interno(id: &str) -> Result<PublicarRelatorioResultado, String> {
-    let token = token_github_valido().ok_or_else(|| "Faça login com o GitHub antes de publicar.".to_string())?;
-    let login = consultar_usuario_autenticado(&token)?;
+    // Só checa se existe uma sessão salva aqui — se ela existir mas a
+    // confirmação de identidade falhar (rede instável, comum em rede de
+    // escola), `consultar_usuario_autenticado_com_retentativa` já dá uma
+    // mensagem que não diz "faça login" pra quem já tinha logado.
+    let token = carregar_token().ok_or_else(|| "Faça login com o GitHub antes de publicar.".to_string())?;
+    let login = consultar_usuario_autenticado_com_retentativa(&token)?;
     let client = cliente()?;
 
     let mut definicao = listar_definicoes_relatorio()?

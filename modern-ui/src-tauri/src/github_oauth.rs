@@ -102,7 +102,14 @@ fn salvar_token(token: &str) -> Result<(), String> {
     entrada_keyring()?.set_password(token).map_err(|err| format!("Erro ao salvar o token do GitHub: {err}"))
 }
 
-fn carregar_token() -> Option<String> {
+/// Só o token salvo, sem checar se ele ainda é aceito pelo GitHub — quem
+/// chama decide como validar (ver `consultar_usuario_autenticado_com_retentativa`
+/// abaixo). Separado de `token_github_valido` justamente pra distinguir
+/// "nenhuma sessão salva" (aí sim, precisa logar) de "sessão salva, mas a
+/// checagem de rede falhou agora" — duas causas bem diferentes pro usuário,
+/// que `token_github_valido` (usado só pro check leve de UI) conflava numa
+/// mensagem só de "faça login".
+pub(crate) fn carregar_token() -> Option<String> {
     entrada_keyring().ok()?.get_password().ok()
 }
 
@@ -133,11 +140,22 @@ pub(crate) fn consultar_usuario_autenticado(token: &str) -> Result<String, Strin
         .map_err(|err| format!("Erro ao interpretar a identidade do GitHub: {err}"))
 }
 
-/// Token salvo de uma sessão anterior, já validado contra a API (um token
-/// revogado pelo próprio usuário no GitHub, por exemplo, não volta aqui).
-pub(crate) fn token_github_valido() -> Option<String> {
-    let token = carregar_token()?;
-    consultar_usuario_autenticado(&token).ok().map(|_| token)
+/// Uma consulta de identidade pode falhar por uma rede lenta/instável
+/// (comum em rede de escola — o resto do app já lida com isso, ver
+/// MENSAGEM_TIMEOUT em repositorio.rs) mesmo com o token perfeitamente
+/// válido. Sem essa nova tentativa, um soluço de rede vira um "faça login
+/// de novo" enganoso bem no meio de uma publicação — o usuário já tinha
+/// logado, a sessão continua boa, só a checagem falhou uma vez.
+pub(crate) fn consultar_usuario_autenticado_com_retentativa(token: &str) -> Result<String, String> {
+    if let Ok(login) = consultar_usuario_autenticado(token) {
+        return Ok(login);
+    }
+    std::thread::sleep(Duration::from_secs(2));
+    consultar_usuario_autenticado(token).map_err(|err| {
+        format!(
+            "Não foi possível confirmar sua conta do GitHub agora ({err}). Sua sessão continua salva — tente publicar de novo em instantes. Se continuar falhando, a rede pode estar bloqueando o acesso ao GitHub."
+        )
+    })
 }
 
 #[derive(Serialize, Clone)]
@@ -164,9 +182,9 @@ pub(crate) struct DispositivoLoginInfo {
 /// o GitHub.
 #[tauri::command(async)]
 pub(crate) fn verificar_login_github() -> Result<Option<String>, String> {
-    com_teto_de_tempo(Duration::from_secs(15), || {
+    com_teto_de_tempo(Duration::from_secs(20), || {
         let Some(token) = carregar_token() else { return Ok(None) };
-        Ok(consultar_usuario_autenticado(&token).ok())
+        Ok(consultar_usuario_autenticado_com_retentativa(&token).ok())
     })
 }
 
