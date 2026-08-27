@@ -322,6 +322,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.2.1": [
+    "Corrigido: no 'Publicar no repositório' (novo na 3.2.0), confirmar o envio fechava o construtor de relatórios no meio do processo, antes da publicação terminar — o relatório não chegava a subir pro GitHub, e nenhum erro aparecia. O construtor agora fica aberto até o fim do envio, mostrando confirmação ou erro.",
+  ],
   "3.2.0": [
     "Novo: 'Publicar no repositório', no construtor de relatórios — envia um relatório seu direto pro repositório público do GitHub sem precisar sair do app. Se for você, atualiza direto o relatório oficial; se for outro coordenador, abre um Pull Request pedindo entrada em 'comunidade', que só vale depois de revisado e aceito.",
     "Novo: o nome do relatório virou um bloco próprio ('Título do relatório'), separado do 'Cabeçalho institucional' — permite colocar um Espaçador entre a imagem da escola e o título, e agora dá pra escolher o tamanho e a cor do título (algumas opções prontas ou qualquer código de cor).",

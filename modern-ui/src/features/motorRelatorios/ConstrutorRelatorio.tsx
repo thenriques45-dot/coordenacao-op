@@ -821,8 +821,11 @@ export function ConstrutorRelatorio({
     const login = publicacao.login;
     setPublicacao({ fase: "enviando", login });
     try {
+      // Só salva localmente (garante que é a versão atual que vai pro
+      // GitHub) — sem chamar onSalvo(), que navega de volta pra lista de
+      // relatórios e fechava o editor no meio da publicação, cortando o
+      // fluxo antes de mostrar confirmação ou erro nenhum.
       await invokeApp("salvar_definicao_relatorio", { definicao });
-      onSalvo();
       const resultado = await invokeApp<{ url: string; categoria: "oficial" | "comunidade" }>("publicar_relatorio_repositorio", {
         id: definicao.id,
       });
