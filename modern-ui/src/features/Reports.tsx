@@ -779,6 +779,31 @@ function valorPadraoTexto(valor: ValorExpressaoDTO): string {
   return "";
 }
 
+/** Ids de parâmetros de fato referenciados em algum filtro, coluna ou
+ * limite de linhas do relatório — varre `secoes`/`blocos` procurando nós
+ * `{tipo:"parametro", id}` e `limite_parametro` em qualquer profundidade.
+ * Um `DefinicaoParametro` pode ficar "solto" (criado e depois desvinculado,
+ * ou herdado de um relatório duplicado cujo filtro foi apagado/trocado) —
+ * sem esse filtro, ele continuaria aparecendo pra preencher na hora de
+ * gerar mesmo sem afetar nada no resultado. */
+function idsParametrosUsados(definicao: ReportDefinition): Set<string> {
+  const usados = new Set<string>();
+  function visitar(valor: unknown) {
+    if (Array.isArray(valor)) {
+      valor.forEach(visitar);
+      return;
+    }
+    if (!valor || typeof valor !== "object") return;
+    const obj = valor as Record<string, unknown>;
+    if (obj.tipo === "parametro" && typeof obj.id === "string") usados.add(obj.id);
+    if (typeof obj.limite_parametro === "string") usados.add(obj.limite_parametro);
+    Object.values(obj).forEach(visitar);
+  }
+  visitar(definicao.secoes);
+  visitar(definicao.blocos);
+  return usados;
+}
+
 export function MotorRelatorios({
   onVoltar,
   definicaoIdInicial,
@@ -813,13 +838,18 @@ export function MotorRelatorios({
   }, [definicaoIdInicial]);
 
   const definicaoSelecionada = definicoes.find((definicao) => definicao.id === selecionadaId) ?? null;
+  const parametrosUsados = useMemo(
+    () => (definicaoSelecionada ? (definicaoSelecionada.parametros ?? []).filter((p) => idsParametrosUsados(definicaoSelecionada).has(p.id)) : []),
+    [definicaoSelecionada]
+  );
 
   useEffect(() => {
     const iniciais: Record<string, string> = {};
-    for (const parametro of definicaoSelecionada?.parametros ?? []) {
+    for (const parametro of parametrosUsados) {
       iniciais[parametro.id] = valorPadraoTexto(parametro.valor_padrao);
     }
     setValoresParametros(iniciais);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selecionadaId]);
 
   function gerarRelatorio() {
@@ -829,7 +859,7 @@ export function MotorRelatorios({
     setMensagem("");
     setResultado(null);
     const parametros: Record<string, ValorExpressaoDTO> = {};
-    for (const parametro of definicaoSelecionada.parametros ?? []) {
+    for (const parametro of parametrosUsados) {
       const texto = valoresParametros[parametro.id] ?? valorPadraoTexto(parametro.valor_padrao);
       parametros[parametro.id] =
         parametro.tipo === "numero" ? { tipo: "numero", valor: Number(texto) || 0 } : { tipo: "texto", valor: texto };
@@ -904,7 +934,7 @@ export function MotorRelatorios({
               ))}
             </select>
           </label>
-          {(definicaoSelecionada?.parametros ?? []).map((parametro) => (
+          {parametrosUsados.map((parametro) => (
             <label key={parametro.id}>
               {parametro.rotulo}
               <input

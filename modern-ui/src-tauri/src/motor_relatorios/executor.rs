@@ -773,11 +773,13 @@ mod testes {
                 conteudo: ConteudoBloco::Texto {
                     titulo: Some("Apresentação".to_string()),
                     corpo: "Lista referente ao {bimestre}.".to_string(),
+                    tamanho_titulo: 14,
+                    tamanho_corpo: 11,
                 },
             },
             BlocoRelatorio { id: "blk_3".to_string(), ativo: true, conteudo: ConteudoBloco::Tabela { secao_index: 0 } },
             BlocoRelatorio { id: "blk_4".to_string(), ativo: true, conteudo: ConteudoBloco::QuebraPagina },
-            BlocoRelatorio { id: "blk_4b".to_string(), ativo: true, conteudo: ConteudoBloco::Espacador },
+            BlocoRelatorio { id: "blk_4b".to_string(), ativo: true, conteudo: ConteudoBloco::Espacador { linhas: 2 } },
             BlocoRelatorio {
                 id: "blk_5".to_string(),
                 ativo: true,
@@ -788,7 +790,12 @@ mod testes {
             BlocoRelatorio {
                 id: "blk_7".to_string(),
                 ativo: false,
-                conteudo: ConteudoBloco::Texto { titulo: None, corpo: "Não deveria aparecer.".to_string() },
+                conteudo: ConteudoBloco::Texto {
+                    titulo: None,
+                    corpo: "Não deveria aparecer.".to_string(),
+                    tamanho_titulo: 14,
+                    tamanho_corpo: 11,
+                },
             },
         ];
         definicao

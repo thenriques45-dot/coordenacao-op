@@ -322,6 +322,16 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.2.0": [
+    "Novo: 'Publicar no repositório', no construtor de relatórios — envia um relatório seu direto pro repositório público do GitHub sem precisar sair do app. Se for você, atualiza direto o relatório oficial; se for outro coordenador, abre um Pull Request pedindo entrada em 'comunidade', que só vale depois de revisado e aceito.",
+    "Novo: o nome do relatório virou um bloco próprio ('Título do relatório'), separado do 'Cabeçalho institucional' — permite colocar um Espaçador entre a imagem da escola e o título, e agora dá pra escolher o tamanho e a cor do título (algumas opções prontas ou qualquer código de cor).",
+    "Novo: nos blocos de texto do construtor, o tamanho da fonte do título e do corpo passa a ser editável (antes era fixo). O bloco 'Título e texto' foi renomeado só para 'Texto'.",
+    "Novo: o bloco 'Espaçador' deixa escolher quantas linhas em branco ele gera, em vez de sempre duas.",
+    "Novo: toda tabela de alunos nova já vem com as colunas 'Nº de Chamada' e 'Nome do Aluno' prontas, pra identificar o aluno de cara e mostrar que dá pra adicionar mais colunas ali.",
+    "O dropdown de campos do construtor só mostra 'Expansão' e 'Prova Paulista' quando a escola realmente tem esse tipo de dado importado — menos opções irrelevantes poluindo a lista.",
+    "Corrigido: 'Coordenação Pedagógica · Nº bimestre' ficava embutido no corpo do documento Word, colado no título — agora vira um rodapé que repete em toda página, e o espaçador finalmente separa a imagem institucional do título como esperado.",
+    "Corrigido: parâmetros desvinculados de um filtro (ou de 'quantidade de linhas editável') continuavam aparecendo na tela de gerar relatório mesmo sem afetar nada — e o botão 'usar parâmetro' num filtro podia acabar vinculando ao parâmetro errado sem avisar. As duas coisas causavam relatórios que pareciam configurados mas geravam valores sem sentido.",
+  ],
   "3.1.1": [
     "Importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.",
     "'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.",

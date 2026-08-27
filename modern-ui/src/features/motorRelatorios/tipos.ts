@@ -115,10 +115,11 @@ export type SecaoRelatorio = {
 // `ReportDefinition.secoes`, no mesmo índice.
 export type ConteudoBloco =
   | { tipo: "cabecalho" }
-  | { tipo: "texto"; titulo?: string | null; corpo: string }
+  | { tipo: "titulo"; tamanho: number; cor: string }
+  | { tipo: "texto"; titulo?: string | null; corpo: string; tamanho_titulo: number; tamanho_corpo: number }
   | { tipo: "tabela"; secao_index: number }
   | { tipo: "quebra_pagina" }
-  | { tipo: "espacador" }
+  | { tipo: "espacador"; linhas: number }
   | { tipo: "assinaturas"; nomes: string[] }
   | { tipo: "parametros" };
 

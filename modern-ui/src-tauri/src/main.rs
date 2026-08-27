@@ -9,6 +9,7 @@ mod conselho_pendrive;
 mod diagnosticos;
 mod docx;
 mod fotos;
+mod github_oauth;
 mod google_oauth;
 mod ia;
 mod importador_alunos;
@@ -32,7 +33,7 @@ mod turmas;
 #[allow(unused_imports)]
 pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
-    conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, google_oauth::*, ia::*, importador_alunos::*,
+    conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
@@ -216,6 +217,11 @@ fn main() {
             motor_relatorios::importar_definicao_relatorio,
             motor_relatorios::listar_repositorio_relatorios,
             motor_relatorios::baixar_relatorio_repositorio,
+            motor_relatorios::publicar_relatorio_repositorio,
+            github_oauth::verificar_login_github,
+            github_oauth::iniciar_login_github,
+            github_oauth::concluir_login_github,
+            github_oauth::esquecer_login_github,
             planejamento::buscar_planejamentos,
             planejamento::salvar_config_planejamento,
             planejamento::carregar_config_planejamento,

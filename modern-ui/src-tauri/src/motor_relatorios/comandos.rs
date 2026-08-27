@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use crate::*;
 
 use super::campos::{CategoriaCampo, TipoCampo, CAMPOS};
-use super::definicao::ReportDefinition;
+use super::definicao::{BlocoRelatorio, ConteudoBloco, ReportDefinition};
 use super::embutidos::definicoes_embutidas;
 use super::executor::{executar_relatorio, RelatorioGenericoResultado, SecaoPreview};
 use super::expressoes::ValorExpressao;
@@ -65,10 +65,64 @@ pub(crate) fn listar_disciplinas_conhecidas() -> Result<Vec<String>, String> {
     Ok(disciplinas.into_iter().collect())
 }
 
+/// true se algum aluno de alguma turma tem pelo menos um snapshot de
+/// Expansão (online) importado — ver importador_expansoes.rs. Sem isso,
+/// os 11 campos de "Expansões" não servem pra nada (não fazem sentido nem
+/// pra escolas 100% diurnas, que nunca terão esse dado) e só poluem o
+/// dropdown de campos do construtor de relatórios.
+fn tem_dados_expansao(turmas: &[(PathBuf, TurmaArquivo)]) -> bool {
+    turmas.iter().any(|(_, turma)| {
+        turma.alunos.as_ref().is_some_and(|alunos| {
+            alunos.values().any(|aluno| {
+                aluno
+                    .get("expansao_online")
+                    .and_then(|env| env.get("snapshots"))
+                    .and_then(Value::as_object)
+                    .is_some_and(|snaps| !snaps.is_empty())
+            })
+        })
+    })
+}
+
+/// Mesma ideia, pros 3 campos de "Prova Paulista" — nem toda escola/série
+/// participa dessa avaliação externa.
+fn tem_dados_prova_paulista(turmas: &[(PathBuf, TurmaArquivo)]) -> bool {
+    turmas.iter().any(|(_, turma)| {
+        turma.alunos.as_ref().is_some_and(|alunos| {
+            alunos.values().any(|aluno| {
+                aluno
+                    .get("prova_paulista")
+                    .and_then(Value::as_object)
+                    .is_some_and(|bimestres| !bimestres.is_empty())
+            })
+        })
+    })
+}
+
+/// Só lista campos que fazem sentido pros dados que este usuário realmente
+/// tem — uma lista com todos os campos de todas as categorias, sempre,
+/// deixava o dropdown do construtor carregado com opções que nunca dão
+/// resultado (ex.: Expansão pra uma escola só diurna, Prova Paulista pra
+/// quem nunca importou essa planilha). Falha aberta (mostra tudo) se não
+/// conseguir ler as turmas, pra nunca esconder campo por um erro passageiro.
 #[tauri::command(async)]
 pub(crate) fn listar_campos_disponiveis() -> Vec<CampoRelatorioInfo> {
+    let (expansao_ok, prova_paulista_ok) = match carregar_turmas_com_caminho() {
+        Ok(turmas) => (tem_dados_expansao(&turmas), tem_dados_prova_paulista(&turmas)),
+        Err(_) => (true, true),
+    };
+
     CAMPOS
         .iter()
+        .filter(|campo| {
+            if campo.categoria == CategoriaCampo::Expansoes && !expansao_ok {
+                return false;
+            }
+            if campo.id.starts_with("prova_paulista_") && !prova_paulista_ok {
+                return false;
+            }
+            true
+        })
         .map(|campo| CampoRelatorioInfo {
             id: campo.id.to_string(),
             rotulo: campo.rotulo.to_string(),
@@ -87,10 +141,45 @@ fn pasta_definicoes_personalizadas() -> Result<PathBuf, String> {
     Ok(pasta)
 }
 
-fn sanitizar_id_arquivo(id: &str) -> String {
+pub(crate) fn sanitizar_id_arquivo(id: &str) -> String {
     id.chars()
         .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
         .collect()
+}
+
+/// Migra relatórios salvos antes de o título virar um bloco próprio: o
+/// bloco Cabeçalho costumava gerar o nome do relatório junto com a imagem
+/// institucional (ver `ConteudoBloco::Cabecalho`) — agora só cuida da
+/// imagem/rodapé, e o nome é o bloco `Titulo`, separado e endereçável (dá
+/// pra pôr um Espaçador entre os dois, por exemplo). Sem esta migração,
+/// todo relatório salvo antes dessa mudança perderia o título
+/// silenciosamente na próxima geração. Idempotente — só insere se ainda
+/// não existir nenhum bloco `Titulo`; relatórios sem `blocos` (formato
+/// antigo/embutidos) usam outro caminho de renderização que já gera o
+/// título sozinho, então ficam de fora.
+fn migrar_titulo_separado_do_cabecalho(definicao: &mut ReportDefinition) {
+    if definicao.blocos.is_empty() {
+        return;
+    }
+    let ja_tem_titulo = definicao.blocos.iter().any(|b| matches!(b.conteudo, ConteudoBloco::Titulo { .. }));
+    if ja_tem_titulo {
+        return;
+    }
+    let Some(posicao_cabecalho) = definicao
+        .blocos
+        .iter()
+        .position(|b| b.ativo && matches!(b.conteudo, ConteudoBloco::Cabecalho))
+    else {
+        return;
+    };
+    definicao.blocos.insert(
+        posicao_cabecalho + 1,
+        BlocoRelatorio {
+            id: format!("{}_titulo_migrado", definicao.id),
+            ativo: true,
+            conteudo: ConteudoBloco::Titulo { tamanho: 14, cor: "#800080".to_string() },
+        },
+    );
 }
 
 fn carregar_definicoes_personalizadas() -> Result<Vec<ReportDefinition>, String> {
@@ -107,7 +196,8 @@ fn carregar_definicoes_personalizadas() -> Result<Vec<ReportDefinition>, String>
         };
         // Ignora arquivo corrompido/de outra versão em vez de derrubar a
         // listagem inteira — o usuário só não vê aquele relatório na lista.
-        if let Ok(definicao) = serde_json::from_str::<ReportDefinition>(&texto) {
+        if let Ok(mut definicao) = serde_json::from_str::<ReportDefinition>(&texto) {
+            migrar_titulo_separado_do_cabecalho(&mut definicao);
             definicoes.push(definicao);
         }
     }
@@ -202,4 +292,114 @@ pub(crate) fn importar_definicao_relatorio(caminho: String) -> Result<ReportDefi
     definicao.embutido = false;
     salvar_definicao_relatorio(definicao.clone())?;
     Ok(definicao)
+}
+
+#[cfg(test)]
+mod testes_migracao_titulo {
+    use super::*;
+    use serde_json::json;
+
+    fn definicao_fixture(blocos: serde_json::Value) -> ReportDefinition {
+        serde_json::from_value(json!({
+            "id": "rel_teste",
+            "nome": "Alunos com baixa progressão de expansões",
+            "fonte": { "series": [], "periodos": [], "ciclos": [], "codigos": [] },
+            "secoes": [],
+            "blocos": blocos,
+            "formato_saida": "docx",
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn insere_titulo_logo_apos_o_cabecalho() {
+        let mut definicao = definicao_fixture(json!([
+            { "id": "b1", "ativo": true, "tipo": "cabecalho" },
+            { "id": "b2", "ativo": true, "tipo": "espacador" },
+            { "id": "b3", "ativo": true, "tipo": "tabela", "secao_index": 0 },
+        ]));
+
+        migrar_titulo_separado_do_cabecalho(&mut definicao);
+
+        assert!(matches!(definicao.blocos[0].conteudo, ConteudoBloco::Cabecalho));
+        assert!(matches!(definicao.blocos[1].conteudo, ConteudoBloco::Titulo { .. }), "título deveria entrar logo depois do cabeçalho");
+        assert!(matches!(definicao.blocos[2].conteudo, ConteudoBloco::Espacador { .. }));
+        assert_eq!(definicao.blocos.len(), 4);
+    }
+
+    #[test]
+    fn nao_duplica_titulo_se_ja_existir() {
+        let mut definicao = definicao_fixture(json!([
+            { "id": "b1", "ativo": true, "tipo": "cabecalho" },
+            { "id": "b2", "ativo": true, "tipo": "titulo" },
+            { "id": "b3", "ativo": true, "tipo": "tabela", "secao_index": 0 },
+        ]));
+
+        migrar_titulo_separado_do_cabecalho(&mut definicao);
+
+        assert_eq!(definicao.blocos.len(), 3, "não deveria inserir um segundo bloco título");
+    }
+
+    #[test]
+    fn nao_mexe_em_relatorio_sem_blocos() {
+        let mut definicao = definicao_fixture(json!([]));
+        migrar_titulo_separado_do_cabecalho(&mut definicao);
+        assert!(definicao.blocos.is_empty(), "relatório sem blocos usa o caminho de renderização antigo — não migra");
+    }
+
+    #[test]
+    fn sem_cabecalho_ativo_nao_insere_titulo() {
+        let mut definicao = definicao_fixture(json!([
+            { "id": "b1", "ativo": false, "tipo": "cabecalho" },
+            { "id": "b2", "ativo": true, "tipo": "tabela", "secao_index": 0 },
+        ]));
+        migrar_titulo_separado_do_cabecalho(&mut definicao);
+        assert_eq!(definicao.blocos.len(), 2, "cabeçalho desativado não deveria ganhar título");
+    }
+}
+
+#[cfg(test)]
+mod testes_relevancia_campos {
+    use super::*;
+    use serde_json::json;
+
+    fn turma_fixture(alunos_json: serde_json::Value) -> (PathBuf, TurmaArquivo) {
+        let valor = json!({ "codigo": "6º Ano A", "ano": 2026, "alunos": alunos_json });
+        (PathBuf::new(), serde_json::from_value(valor).unwrap())
+    }
+
+    #[test]
+    fn sem_nenhum_snapshot_de_expansao_nao_tem_dados() {
+        let turmas = vec![turma_fixture(json!({ "1": { "nome": "SAMUEL" } }))];
+        assert!(!tem_dados_expansao(&turmas));
+    }
+
+    #[test]
+    fn snapshot_vazio_nao_conta_como_dado() {
+        // Envelope existe (ex.: criado por um import que não achou o aluno)
+        // mas sem nenhum snapshot dentro — não é dado de verdade.
+        let turmas = vec![turma_fixture(json!({ "1": { "nome": "SAMUEL", "expansao_online": { "snapshots": {} } } }))];
+        assert!(!tem_dados_expansao(&turmas));
+    }
+
+    #[test]
+    fn um_snapshot_em_qualquer_aluno_de_qualquer_turma_basta() {
+        let turmas = vec![
+            turma_fixture(json!({ "1": { "nome": "SAMUEL" } })),
+            turma_fixture(json!({ "2": { "nome": "MARIA", "expansao_online": { "snapshots": { "2026-08-01": { "progresso": 10.0 } } } } })),
+        ];
+        assert!(tem_dados_expansao(&turmas));
+    }
+
+    #[test]
+    fn sem_prova_paulista_nao_tem_dados() {
+        let turmas = vec![turma_fixture(json!({ "1": { "nome": "SAMUEL" } }))];
+        assert!(!tem_dados_prova_paulista(&turmas));
+    }
+
+    #[test]
+    fn prova_paulista_com_algum_bimestre_lancado_tem_dados() {
+        let turmas = vec![turma_fixture(json!({ "1": { "nome": "SAMUEL", "prova_paulista": { "1": { "participou": true, "geral": 250 } } } }))];
+        assert!(tem_dados_prova_paulista(&turmas));
+    }
 }

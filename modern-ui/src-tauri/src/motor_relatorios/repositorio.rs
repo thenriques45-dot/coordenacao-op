@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 use super::comandos::salvar_definicao_relatorio;
 use super::definicao::{FormatoSaida, ReportDefinition};
 
-const GITHUB_OWNER: &str = "thenriques45-dot";
-const GITHUB_REPO: &str = "coordenacao-op";
-const GITHUB_BRANCH: &str = "main";
-const PASTA_OFICIAIS: &str = "relatorios_repositorio/oficiais";
-const PASTA_COMUNIDADE: &str = "relatorios_repositorio/comunidade";
-const USER_AGENT: &str = "CoordenacaoOP-App";
+pub(crate) const GITHUB_OWNER: &str = "thenriques45-dot";
+pub(crate) const GITHUB_REPO: &str = "coordenacao-op";
+pub(crate) const GITHUB_BRANCH: &str = "main";
+pub(crate) const PASTA_OFICIAIS: &str = "relatorios_repositorio/oficiais";
+pub(crate) const PASTA_COMUNIDADE: &str = "relatorios_repositorio/comunidade";
+pub(crate) const USER_AGENT: &str = "CoordenacaoOP-App";
 
 const MENSAGEM_TIMEOUT: &str = "O repositório de relatórios não respondeu a tempo. Confira sua conexão com a \
      internet — redes de escola/institucionais às vezes bloqueiam ou atrasam muito o acesso a sites externos \
@@ -56,7 +56,7 @@ struct EntradaConteudoGithub {
 /// esperado). Se o prazo estourar, a thread de rede fica pra trás sozinha
 /// (eventualmente termina ou não, mas não trava mais a tela) e devolvemos
 /// um erro claro na hora certa.
-fn com_teto_de_tempo<T: Send + 'static>(limite: Duration, tarefa: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+pub(crate) fn com_teto_de_tempo<T: Send + 'static>(limite: Duration, tarefa: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let _ = tx.send(tarefa());
@@ -67,7 +67,7 @@ fn com_teto_de_tempo<T: Send + 'static>(limite: Duration, tarefa: impl FnOnce() 
 /// Timeout por requisição HTTP individual — mais curto que o teto absoluto
 /// de cada comando, já que um comando pode fazer várias requisições em
 /// sequência (uma por arquivo listado).
-fn cliente() -> Result<reqwest::blocking::Client, String> {
+pub(crate) fn cliente() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(8))
         .connect_timeout(Duration::from_secs(6))

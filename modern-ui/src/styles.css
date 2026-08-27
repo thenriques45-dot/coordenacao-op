@@ -4571,6 +4571,35 @@ th:nth-child(3) {
   color: #a81c1c;
 }
 
+.cb-publicacao-aviso {
+  font-weight: 400;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cb-publicacao-aviso p {
+  margin: 0;
+}
+.cb-publicacao-aviso strong {
+  font-weight: 800;
+}
+.cb-publicacao-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.cb-link-inline {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
 .notice.warning {
   background: #fef3c7;
   color: #92400e;
@@ -9078,6 +9107,58 @@ th:nth-child(3) {
   gap: 6px;
 }
 
+.cb-tamanho-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+}
+.cb-tamanho-linha .cb-pilulas {
+  margin-left: 2px;
+}
+.cb-tamanho-rotulo {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cb-cores {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cb-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid var(--border-inner);
+  cursor: pointer;
+  padding: 0;
+}
+.cb-swatch.ativa {
+  border-color: var(--text-body);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+.cb-color-picker {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--border-inner);
+  border-radius: 999px;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+}
+.cb-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.cb-color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 999px;
+}
+
 .cb-pilula {
   height: 30px;
   padding: 0 12px;
@@ -9271,6 +9352,16 @@ th:nth-child(3) {
 .cb-preview-legenda {
   font-size: 13.5px;
   color: var(--text-secondary);
+}
+
+.cb-preview-titulo {
+  text-align: center;
+  padding: 6px 0;
+}
+.cb-preview-titulo strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
 }
 
 .cb-preview-texto h3 {

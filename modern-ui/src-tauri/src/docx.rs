@@ -1064,6 +1064,7 @@ pub(crate) fn formatar_numero_sem_decimal(valor: f64) -> String {
 
 pub(crate) struct DocumentoDocx {
     pub(crate) corpo: String,
+    rodape: Option<String>,
 }
 
 #[derive(Clone)]
@@ -1146,11 +1147,36 @@ impl DocumentoDocx {
     pub(crate) fn new() -> Self {
         Self {
             corpo: String::new(),
+            rodape: None,
         }
+    }
+
+    /// Texto fixo alinhado à direita no rodapé de toda página (como o
+    /// cabeçalho institucional, que já repete via imagem em todo página) —
+    /// hoje só usado pra "Coordenação Pedagógica · Nº bimestre", que antes
+    /// ficava embutido no corpo logo abaixo do título e disputava espaço
+    /// com o bloco Espaçador do construtor de relatórios.
+    pub(crate) fn definir_rodape_direita(&mut self, texto: &str) {
+        self.rodape = Some(texto.to_string());
     }
 
     pub(crate) fn paragrafo(&mut self, texto: &str) {
         self.corpo.push_str(&paragrafo_docx(texto, false));
+    }
+
+    /// Parágrafo normal com tamanho escolhido pelo usuário, em pontos
+    /// (`w:sz` é em meio-ponto — a conversão fica aqui pra quem chama não
+    /// precisar saber disso).
+    pub(crate) fn paragrafo_com_tamanho(&mut self, texto: &str, tamanho_pt: u32) {
+        self.corpo
+            .push_str(&paragrafo_docx_formatado(texto, false, Some((tamanho_pt * 2) as i32), None, None));
+    }
+
+    /// Como `paragrafo_com_tamanho`, mas em negrito — usado pelo título de
+    /// um bloco Texto (o tamanho vem do construtor de relatórios).
+    pub(crate) fn paragrafo_negrito_com_tamanho(&mut self, texto: &str, tamanho_pt: u32) {
+        self.corpo
+            .push_str(&paragrafo_docx_formatado(texto, true, Some((tamanho_pt * 2) as i32), None, None));
     }
 
     pub(crate) fn paragrafo_negrito(&mut self, texto: &str) {
@@ -1171,12 +1197,29 @@ impl DocumentoDocx {
     }
 
     pub(crate) fn titulo_ata(&mut self, texto: &str) {
+        self.titulo_ata_com_tamanho(texto, 14);
+    }
+
+    /// Como `titulo_ata`, mas com tamanho escolhido pelo usuário (bloco
+    /// "Título do relatório" do construtor) — mesma cor roxa centralizada,
+    /// só o tamanho muda.
+    pub(crate) fn titulo_ata_com_tamanho(&mut self, texto: &str, tamanho_pt: u32) {
+        self.titulo_ata_personalizado(texto, tamanho_pt, "800080");
+    }
+
+    /// Como `titulo_ata_com_tamanho`, mas com a cor escolhida pelo usuário
+    /// (bloco "Título do relatório" do construtor) — `cor` aceita hex com
+    /// ou sem "#"; qualquer coisa que não seja um hex de 6 dígitos válido
+    /// cai no roxo padrão.
+    pub(crate) fn titulo_ata_personalizado(&mut self, texto: &str, tamanho_pt: u32, cor: &str) {
+        let (r, g, b) = cor_rgb_de_hex(cor);
+        let cor_hex = format!("{r:02X}{g:02X}{b:02X}");
         self.corpo.push_str(&paragrafo_docx_formatado(
             texto,
             true,
-            Some(28),
+            Some((tamanho_pt * 2) as i32),
             Some("center"),
-            Some("800080"),
+            Some(&cor_hex),
         ));
     }
 
@@ -1302,7 +1345,7 @@ impl DocumentoDocx {
     }
 
     pub(crate) fn salvar(self, caminho: &Path) -> Result<(), String> {
-        escrever_docx(caminho, &self.corpo)
+        escrever_docx(caminho, &self.corpo, self.rodape.as_deref())
     }
 
     // ── Métodos específicos para o PEI ──────────────────────────────────────
@@ -1476,7 +1519,7 @@ impl DocumentoDocx {
     }
 }
 
-pub(crate) fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
+pub(crate) fn escrever_docx(caminho: &Path, corpo: &str, rodape: Option<&str>) -> Result<(), String> {
     let arquivo = fs::File::create(caminho).map_err(|err| err.to_string())?;
     let mut zip = ZipWriter::new(arquivo);
     let options = SimpleFileOptions::default();
@@ -1494,19 +1537,31 @@ pub(crate) fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
     };
     let cabecalho = cabecalho_path.and_then(|path| fs::read(path).ok());
     let tem_cabecalho = cabecalho.is_some();
+    let tem_rodape = rodape.is_some();
 
     zip.start_file("[Content_Types].xml", options)
         .map_err(|err| err.to_string())?;
-    let content_types = if tem_cabecalho {
-        if cabecalho_ext == "png" {
-            br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>"#.as_slice()
-        } else {
-            br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>"#.as_slice()
-        }
+    let extensoes_imagem = if !tem_cabecalho {
+        ""
+    } else if cabecalho_ext == "png" {
+        r#"<Default Extension="png" ContentType="image/png"/>"#
     } else {
-        br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>"#.as_slice()
+        r#"<Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/>"#
     };
-    zip.write_all(content_types)
+    let override_header = if tem_cabecalho {
+        r#"<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>"#
+    } else {
+        ""
+    };
+    let override_footer = if tem_rodape {
+        r#"<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>"#
+    } else {
+        ""
+    };
+    let content_types = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>{extensoes_imagem}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>{override_header}{override_footer}</Types>"#
+    );
+    zip.write_all(content_types.as_bytes())
         .map_err(|err| err.to_string())?;
 
     zip.add_directory("_rels/", options)
@@ -1522,13 +1577,21 @@ pub(crate) fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
         .map_err(|err| err.to_string())?;
     zip.start_file("word/_rels/document.xml.rels", options)
         .map_err(|err| err.to_string())?;
-    if tem_cabecalho {
-        zip.write_all(br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/></Relationships>"#)
-            .map_err(|err| err.to_string())?;
+    let rel_header = if tem_cabecalho {
+        r#"<Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>"#
     } else {
-        zip.write_all(br#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>"#)
-            .map_err(|err| err.to_string())?;
-    }
+        ""
+    };
+    let rel_footer = if tem_rodape {
+        r#"<Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>"#
+    } else {
+        ""
+    };
+    let document_rels = format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rel_header}{rel_footer}</Relationships>"#
+    );
+    zip.write_all(document_rels.as_bytes())
+        .map_err(|err| err.to_string())?;
 
     if let Some(imagem) = cabecalho {
         zip.start_file("word/header1.xml", options)
@@ -1546,6 +1609,13 @@ pub(crate) fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
             .map_err(|err| err.to_string())?;
     }
 
+    if let Some(texto_rodape) = rodape {
+        zip.start_file("word/footer1.xml", options)
+            .map_err(|err| err.to_string())?;
+        zip.write_all(rodape_docx_xml(texto_rodape).as_bytes())
+            .map_err(|err| err.to_string())?;
+    }
+
     zip.start_file("word/document.xml", options)
         .map_err(|err| err.to_string())?;
     let referencia_cabecalho = if tem_cabecalho {
@@ -1553,8 +1623,13 @@ pub(crate) fn escrever_docx(caminho: &Path, corpo: &str) -> Result<(), String> {
     } else {
         ""
     };
+    let referencia_rodape = if tem_rodape {
+        r#"<w:footerReference w:type="default" r:id="rIdFooter1"/>"#
+    } else {
+        ""
+    };
     let xml = format!(
-        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>{corpo}<w:sectPr>{referencia_cabecalho}<w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="567" w:right="567" w:bottom="567" w:left="567" w:header="360" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>"#
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>{corpo}<w:sectPr>{referencia_cabecalho}{referencia_rodape}<w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="567" w:right="567" w:bottom="567" w:left="567" w:header="360" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>"#
     );
     zip.write_all(xml.as_bytes())
         .map_err(|err| err.to_string())?;
@@ -1612,6 +1687,37 @@ pub(crate) fn extensao_imagem_cabecalho(nome: &str) -> Option<&'static str> {
 
 pub(crate) fn cabecalho_docx_xml() -> String {
     r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="4320000" cy="752000"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="1" name="Cabeçalho"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="cabecalho.jpg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rIdCabecalho"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4320000" cy="752000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:hdr>"#.to_string()
+}
+
+/// Rodapé de página com um único parágrafo alinhado à direita — usado pra
+/// texto que deve repetir em toda página (ex.: "Coordenação Pedagógica ·
+/// Nº bimestre") sem ocupar espaço no corpo, no mesmo espírito do
+/// cabeçalho institucional (que repete via imagem).
+pub(crate) fn rodape_docx_xml(texto: &str) -> String {
+    let fonte = r#"<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>"#;
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="right"/></w:pPr><w:r><w:rPr>{fonte}<w:sz w:val="16"/><w:color w:val="666666"/></w:rPr><w:t xml:space="preserve">{}</w:t></w:r></w:p></w:ftr>"#,
+        escape_xml(texto)
+    )
+}
+
+/// Converte um hex de 6 dígitos (com ou sem "#") em RGB — usado tanto pro
+/// Word (que volta a formatar como hex pro `w:color`) quanto pro PDF (que
+/// usa RGB direto, via genpdf). Entrada que não é um hex de 6 dígitos
+/// válido (cor customizada digitada errada, arquivo editado à mão etc.)
+/// cai no roxo padrão do título em vez de gerar um documento quebrado.
+pub(crate) fn cor_rgb_de_hex(cor: &str) -> (u8, u8, u8) {
+    let limpo = cor.trim().trim_start_matches('#');
+    if limpo.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&limpo[0..2], 16),
+            u8::from_str_radix(&limpo[2..4], 16),
+            u8::from_str_radix(&limpo[4..6], 16),
+        ) {
+            return (r, g, b);
+        }
+    }
+    (128, 0, 128)
 }
 
 pub(crate) fn paragrafo_docx(texto: &str, negrito: bool) -> String {
@@ -1945,5 +2051,138 @@ pub(crate) fn rotulo_turma(turma: &TurmaArquivo) -> String {
         codigo.to_string()
     } else {
         serie.to_string()
+    }
+}
+
+#[cfg(test)]
+mod testes_rodape {
+    use super::*;
+    use std::io::Read;
+
+    /// Lê um arquivo de dentro do .docx (que é um zip) como texto — usado
+    /// pra inspecionar word/document.xml e word/footer1.xml gerados.
+    fn ler_parte_docx(caminho: &Path, nome_parte: &str) -> Option<String> {
+        let arquivo = fs::File::open(caminho).ok()?;
+        let mut zip = zip::ZipArchive::new(arquivo).ok()?;
+        let mut entrada = zip.by_name(nome_parte).ok()?;
+        let mut conteudo = String::new();
+        entrada.read_to_string(&mut conteudo).ok()?;
+        Some(conteudo)
+    }
+
+    /// Reproduz o bug relatado: "Coordenação Pedagógica · Nº bimestre"
+    /// ficava embutido no corpo logo abaixo do título, disputando espaço
+    /// com o bloco Espaçador do construtor (o espaçador acabava "colado"
+    /// nessa linha em vez de separar o bloco Cabeçalho do próximo bloco de
+    /// verdade). Agora esse texto vira um rodapé de página repetido — não
+    /// deve mais aparecer no corpo do documento.
+    #[test]
+    fn rodape_direita_nao_aparece_no_corpo_e_gera_footer_alinhado_a_direita() {
+        let pasta = std::env::temp_dir().join(format!("coordenacaoop_docx_rodape_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&pasta);
+        fs::create_dir_all(&pasta).unwrap();
+        let caminho = pasta.join("teste_rodape.docx");
+
+        let mut documento = DocumentoDocx::new();
+        documento.titulo_ata("ALUNOS COM BAIXA PROGRESSÃO DE EXPANSÕES");
+        documento.definir_rodape_direita("Coordenação Pedagógica · 3º bimestre");
+        documento.paragrafo_negrito("Alunos com baixa progressão nas expansões.");
+        documento.salvar(&caminho).unwrap();
+
+        let document_xml = ler_parte_docx(&caminho, "word/document.xml").expect("document.xml deveria existir");
+        assert!(
+            !document_xml.contains("Coordenação Pedagógica"),
+            "o texto do rodapé não deveria mais estar embutido no corpo do documento"
+        );
+        assert!(
+            document_xml.contains(r#"<w:footerReference w:type="default" r:id="rIdFooter1"/>"#),
+            "sectPr precisa referenciar o footer criado"
+        );
+
+        let footer_xml = ler_parte_docx(&caminho, "word/footer1.xml").expect("word/footer1.xml deveria existir");
+        assert!(footer_xml.contains("Coordenação Pedagógica · 3º bimestre"));
+        assert!(footer_xml.contains(r#"<w:jc w:val="right"/>"#), "rodapé precisa estar alinhado à direita");
+    }
+
+    /// Sem `definir_rodape_direita`, nada de footer deveria ser criado —
+    /// garante que a mudança não afeta documentos que não usam rodapé
+    /// (PEI, planejamento, pendências etc., que continuam chamando
+    /// `salvar` sem rodapé).
+    #[test]
+    fn sem_rodape_definido_nao_gera_footer() {
+        let pasta = std::env::temp_dir().join(format!("coordenacaoop_docx_sem_rodape_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&pasta);
+        fs::create_dir_all(&pasta).unwrap();
+        let caminho = pasta.join("teste_sem_rodape.docx");
+
+        let mut documento = DocumentoDocx::new();
+        documento.paragrafo("Sem rodapé.");
+        documento.salvar(&caminho).unwrap();
+
+        let document_xml = ler_parte_docx(&caminho, "word/document.xml").unwrap();
+        assert!(!document_xml.contains("w:footerReference"));
+        assert!(ler_parte_docx(&caminho, "word/footer1.xml").is_none());
+    }
+
+    /// `w:sz` do OOXML é em meio-ponto — a conversão pt→meio-ponto fica
+    /// escondida dentro de `paragrafo_com_tamanho`/`paragrafo_negrito_com_tamanho`,
+    /// então este teste confere que 18pt vira "36" no XML, não "18".
+    #[test]
+    fn tamanho_em_pontos_e_convertido_para_meio_ponto_no_xml() {
+        let mut documento = DocumentoDocx::new();
+        documento.paragrafo_negrito_com_tamanho("Título grande", 18);
+        documento.paragrafo_com_tamanho("Corpo normal", 11);
+
+        assert!(documento.corpo.contains(r#"<w:sz w:val="36"/>"#), "18pt deveria virar w:sz=36 (meio-ponto)");
+        assert!(documento.corpo.contains(r#"<w:sz w:val="22"/>"#), "11pt deveria virar w:sz=22 (meio-ponto)");
+    }
+
+    /// `titulo_ata` (usado por ata/pendências, sem tamanho configurável)
+    /// precisa continuar exatamente igual depois de virar um atalho pra
+    /// `titulo_ata_com_tamanho(texto, 14)` — 14pt não pode ter mudado o
+    /// meio-ponto gravado (28), senão todo documento que já usava
+    /// `titulo_ata` mudaria de tamanho sem ninguém pedir.
+    #[test]
+    fn titulo_ata_continua_com_o_mesmo_tamanho_fixo_de_sempre() {
+        let mut documento = DocumentoDocx::new();
+        documento.titulo_ata("ATA DE REUNIÃO");
+        assert!(documento.corpo.contains(r#"<w:sz w:val="28"/>"#), "titulo_ata não pode ter mudado de tamanho");
+    }
+
+    #[test]
+    fn titulo_ata_com_tamanho_personalizado_usa_o_valor_escolhido() {
+        let mut documento = DocumentoDocx::new();
+        documento.titulo_ata_com_tamanho("Meu Relatório", 20);
+        assert!(documento.corpo.contains(r#"<w:sz w:val="40"/>"#), "20pt deveria virar w:sz=40 (meio-ponto)");
+    }
+
+    #[test]
+    fn cor_rgb_de_hex_aceita_com_ou_sem_cerquilha() {
+        assert_eq!(cor_rgb_de_hex("#E8202A"), (0xE8, 0x20, 0x2A));
+        assert_eq!(cor_rgb_de_hex("e8202a"), (0xE8, 0x20, 0x2A));
+    }
+
+    /// Cor customizada digitada errada (ou um arquivo de relatório editado
+    /// à mão com lixo no campo) não pode quebrar a geração — cai no roxo
+    /// padrão de sempre.
+    #[test]
+    fn cor_rgb_de_hex_invalida_cai_no_roxo_padrao() {
+        assert_eq!(cor_rgb_de_hex("não é uma cor"), (128, 0, 128));
+        assert_eq!(cor_rgb_de_hex("#ZZZZZZ"), (128, 0, 128));
+        assert_eq!(cor_rgb_de_hex(""), (128, 0, 128));
+    }
+
+    #[test]
+    fn titulo_ata_personalizado_usa_a_cor_escolhida() {
+        let mut documento = DocumentoDocx::new();
+        documento.titulo_ata_personalizado("Meu Relatório", 14, "#1E90FF");
+        assert!(documento.corpo.contains(r#"<w:color w:val="1E90FF"/>"#), "deveria gravar a cor customizada em maiúsculas");
+    }
+
+    #[test]
+    fn titulo_ata_personalizado_com_cor_invalida_cai_no_roxo() {
+        let mut documento = DocumentoDocx::new();
+        documento.titulo_ata_personalizado("Meu Relatório", 14, "lixo");
+        assert!(documento.corpo.contains(r#"<w:color w:val="800080"/>"#));
     }
 }

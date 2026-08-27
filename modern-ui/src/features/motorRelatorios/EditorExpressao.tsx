@@ -245,8 +245,8 @@ export function EditorExpressao({ no, onMudar, campos, parametros, disciplinas, 
           <button
             type="button"
             className="editor-expressao-remover"
-            onClick={() => onMudar({ tipo: "parametro", id: parametros[0]?.id ?? "" })}
-            title="Em vez de um valor fixo, deixar a pessoa escolher na hora de gerar o relatório"
+            onClick={() => onMudar({ tipo: "parametro", id: "" })}
+            title="Reusar um parâmetro já criado (ex.: no bloco Parâmetros) em vez de um valor fixo"
           >
             🔤 usar parâmetro
           </button>

@@ -15,11 +15,12 @@ mod definicao;
 mod embutidos;
 mod executor;
 mod expressoes;
+mod publicacao;
 mod renderers;
 mod repositorio;
 
 #[allow(unused_imports)]
 pub(crate) use {
-    comandos::*, definicao::*, executor::RelatorioGenericoResultado, renderers::carregar_familia_fonte_pdf,
+    comandos::*, definicao::*, executor::RelatorioGenericoResultado, publicacao::*, renderers::carregar_familia_fonte_pdf,
     repositorio::*,
 };

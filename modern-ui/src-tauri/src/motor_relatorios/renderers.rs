@@ -165,18 +165,21 @@ fn renderizar_docx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
         }
         match &bloco.conteudo {
             ConteudoBloco::Cabecalho => {
-                documento.titulo_ata(&definicao.nome.to_uppercase());
-                documento.paragrafo(&format!("Coordenação Pedagógica · {}", rotulo_bimestre(bimestre)));
+                documento.definir_rodape_direita(&format!("Coordenação Pedagógica · {}", rotulo_bimestre(bimestre)));
                 teve_conteudo = true;
             }
-            ConteudoBloco::Texto { titulo, corpo } => {
+            ConteudoBloco::Titulo { tamanho, cor } => {
+                documento.titulo_ata_personalizado(&definicao.nome.to_uppercase(), *tamanho, cor);
+                teve_conteudo = true;
+            }
+            ConteudoBloco::Texto { titulo, corpo, tamanho_titulo, tamanho_corpo } => {
                 if let Some(titulo) = titulo {
                     if !titulo.trim().is_empty() {
-                        documento.paragrafo_negrito(titulo);
+                        documento.paragrafo_negrito_com_tamanho(titulo, *tamanho_titulo);
                     }
                 }
                 if !corpo.trim().is_empty() {
-                    documento.paragrafo(&substituir_variaveis(corpo, bimestre));
+                    documento.paragrafo_com_tamanho(&substituir_variaveis(corpo, bimestre), *tamanho_corpo);
                 }
                 teve_conteudo = true;
             }
@@ -187,9 +190,10 @@ fn renderizar_docx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
                 }
             }
             ConteudoBloco::QuebraPagina => documento.quebra_pagina(),
-            ConteudoBloco::Espacador => {
-                documento.paragrafo("");
-                documento.paragrafo("");
+            ConteudoBloco::Espacador { linhas } => {
+                for _ in 0..*linhas {
+                    documento.paragrafo("");
+                }
             }
             ConteudoBloco::Assinaturas { nomes } => {
                 assinatura_docx(&mut documento, nomes);
@@ -272,11 +276,14 @@ fn renderizar_csv_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
         }
         match &bloco.conteudo {
             ConteudoBloco::Cabecalho => {
-                conteudo.push_str(&format!("{}\n", definicao.nome));
                 conteudo.push_str(&format!("Coordenação Pedagógica · {}\n\n", rotulo_bimestre(bimestre)));
                 teve_conteudo = true;
             }
-            ConteudoBloco::Texto { titulo, corpo } => {
+            ConteudoBloco::Titulo { .. } => {
+                conteudo.push_str(&format!("{}\n", definicao.nome));
+                teve_conteudo = true;
+            }
+            ConteudoBloco::Texto { titulo, corpo, .. } => {
                 if let Some(titulo) = titulo {
                     if !titulo.trim().is_empty() {
                         conteudo.push_str(&format!("{titulo}\n"));
@@ -298,7 +305,7 @@ fn renderizar_csv_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
                 }
             }
             ConteudoBloco::QuebraPagina => conteudo.push('\n'),
-            ConteudoBloco::Espacador => conteudo.push_str("\n\n"),
+            ConteudoBloco::Espacador { linhas } => conteudo.push_str(&"\n".repeat(*linhas as usize)),
             ConteudoBloco::Assinaturas { nomes } => {
                 for nome in nomes {
                     conteudo.push_str(&format!("_____________________;{nome}\n"));
@@ -427,11 +434,14 @@ fn renderizar_xlsx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
         }
         match &bloco.conteudo {
             ConteudoBloco::Cabecalho => {
-                linhas_capa.push((definicao.nome.clone(), true));
                 linhas_capa.push((format!("Coordenação Pedagógica · {}", rotulo_bimestre(bimestre)), false));
                 linhas_capa.push((String::new(), false));
             }
-            ConteudoBloco::Texto { titulo, corpo } => {
+            ConteudoBloco::Titulo { .. } => {
+                linhas_capa.push((definicao.nome.clone(), true));
+                linhas_capa.push((String::new(), false));
+            }
+            ConteudoBloco::Texto { titulo, corpo, .. } => {
                 if let Some(titulo) = titulo {
                     if !titulo.trim().is_empty() {
                         linhas_capa.push((titulo.clone(), true));
@@ -443,9 +453,10 @@ fn renderizar_xlsx_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado
                 linhas_capa.push((String::new(), false));
             }
             ConteudoBloco::Tabela { secao_index } => indices_tabela.push(*secao_index),
-            ConteudoBloco::Espacador => {
-                linhas_capa.push((String::new(), false));
-                linhas_capa.push((String::new(), false));
+            ConteudoBloco::Espacador { linhas } => {
+                for _ in 0..*linhas {
+                    linhas_capa.push((String::new(), false));
+                }
             }
             ConteudoBloco::QuebraPagina | ConteudoBloco::Parametros => {}
             ConteudoBloco::Assinaturas { nomes } => {
@@ -697,7 +708,7 @@ fn assinatura_pdf(documento: &mut genpdf::Document, nomes: &[String]) {
 
 fn renderizar_pdf_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado], bimestre: &str, caminho: &Path) -> Result<(), String> {
     use genpdf::elements::{Break, PageBreak, Paragraph};
-    use genpdf::style::Style;
+    use genpdf::style::{Color, Style};
     use genpdf::Alignment;
     use genpdf::Element as _;
 
@@ -721,21 +732,32 @@ fn renderizar_pdf_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
                     documento.push(imagem);
                     documento.push(Break::new(0.5));
                 }
-                documento.push(Paragraph::new(&definicao.nome).aligned(Alignment::Center).styled(Style::new().bold().with_font_size(16)));
                 documento.push(
                     Paragraph::new(format!("Coordenação Pedagógica · {}", rotulo_bimestre(bimestre))).aligned(Alignment::Center),
                 );
                 documento.push(Break::new(1.0));
                 teve_conteudo = true;
             }
-            ConteudoBloco::Texto { titulo, corpo } => {
+            ConteudoBloco::Titulo { tamanho, cor } => {
+                let (r, g, b) = cor_rgb_de_hex(cor);
+                documento.push(
+                    Paragraph::new(&definicao.nome)
+                        .aligned(Alignment::Center)
+                        .styled(Style::new().bold().with_font_size(*tamanho as u8).with_color(Color::Rgb(r, g, b))),
+                );
+                documento.push(Break::new(1.0));
+                teve_conteudo = true;
+            }
+            ConteudoBloco::Texto { titulo, corpo, tamanho_titulo, tamanho_corpo } => {
                 if let Some(titulo) = titulo {
                     if !titulo.trim().is_empty() {
-                        documento.push(Paragraph::new(titulo.clone()).styled(Style::new().bold().with_font_size(13)));
+                        documento.push(Paragraph::new(titulo.clone()).styled(Style::new().bold().with_font_size(*tamanho_titulo as u8)));
                     }
                 }
                 if !corpo.trim().is_empty() {
-                    documento.push(Paragraph::new(substituir_variaveis(corpo, bimestre)));
+                    documento.push(
+                        Paragraph::new(substituir_variaveis(corpo, bimestre)).styled(Style::new().with_font_size(*tamanho_corpo as u8)),
+                    );
                 }
                 documento.push(Break::new(1.0));
                 teve_conteudo = true;
@@ -747,7 +769,7 @@ fn renderizar_pdf_blocos(definicao: &ReportDefinition, secoes: &[SecaoResultado]
                 }
             }
             ConteudoBloco::QuebraPagina => documento.push(PageBreak::new()),
-            ConteudoBloco::Espacador => documento.push(Break::new(2.0)),
+            ConteudoBloco::Espacador { linhas } => documento.push(Break::new(*linhas as f64)),
             ConteudoBloco::Assinaturas { nomes } => {
                 assinatura_pdf(&mut documento, nomes);
                 teve_conteudo = teve_conteudo || !nomes.is_empty();
@@ -798,4 +820,61 @@ fn renderizar_pdf(definicao: &ReportDefinition, secoes: &[SecaoResultado], bimes
     }
 
     documento.render_to_file(caminho).map_err(|err| err.to_string())
+}
+
+#[cfg(test)]
+mod testes_espacador {
+    use super::*;
+    use super::super::definicao::{BlocoRelatorio, FiltroTurmas};
+
+    /// Dois blocos de texto ("A" e "B") ao redor de um Espaçador — pra
+    /// conseguir contar exatamente quantas linhas em branco caem entre os
+    /// dois, sem cair no aviso de "relatório vazio" (que apareceria se o
+    /// Espaçador fosse o único bloco ativo).
+    fn definicao_texto_espacador_texto(linhas: u32) -> ReportDefinition {
+        use super::super::definicao::ConteudoBloco::{Espacador, Texto};
+        ReportDefinition {
+            id: "rel_teste".to_string(),
+            nome: "Teste".to_string(),
+            descricao: String::new(),
+            autor: None,
+            embutido: false,
+            fonte: FiltroTurmas { series: vec![], periodos: vec![], ciclos: vec![], codigos: vec![] },
+            parametros: vec![],
+            secoes: vec![],
+            blocos: vec![
+                BlocoRelatorio {
+                    id: "a".to_string(),
+                    ativo: true,
+                    conteudo: Texto { titulo: None, corpo: "A".to_string(), tamanho_titulo: 14, tamanho_corpo: 11 },
+                },
+                BlocoRelatorio { id: "b".to_string(), ativo: true, conteudo: Espacador { linhas } },
+                BlocoRelatorio {
+                    id: "c".to_string(),
+                    ativo: true,
+                    conteudo: Texto { titulo: None, corpo: "B".to_string(), tamanho_titulo: 14, tamanho_corpo: 11 },
+                },
+            ],
+            formato_saida: FormatoSaida::Csv,
+        }
+    }
+
+    /// Antes disso ser configurável, o Espaçador sempre gerava exatamente 2
+    /// linhas em branco — agora precisa respeitar o número escolhido pelo
+    /// usuário, tanto pra mais (5) quanto pra menos (1) que o antigo padrão.
+    #[test]
+    fn respeita_a_quantidade_de_linhas_configurada() {
+        for linhas in [1u32, 2, 5] {
+            let definicao = definicao_texto_espacador_texto(linhas);
+            let caminho = std::env::temp_dir().join(format!("coordenacaoop_espacador_teste_{linhas}_{}.csv", std::process::id()));
+            renderizar_csv_blocos(&definicao, &[], "1", &caminho).unwrap();
+            let conteudo = fs::read_to_string(&caminho).unwrap();
+            let _ = fs::remove_file(&caminho);
+            let corpo = conteudo.trim_start_matches('\u{FEFF}');
+            // "A\n\n" (bloco de texto sempre termina em linha em branco) +
+            // as `linhas` do Espaçador + "B\n\n".
+            let esperado = format!("A\n\n{}B\n\n", "\n".repeat(linhas as usize));
+            assert_eq!(corpo, esperado, "esperava {linhas} linha(s) em branco entre A e B");
+        }
+    }
 }

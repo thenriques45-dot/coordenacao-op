@@ -216,20 +216,67 @@ fn valor_true() -> bool {
     true
 }
 
+fn espacador_linhas_padrao() -> u32 {
+    2
+}
+
+fn tamanho_titulo_padrao() -> u32 {
+    14
+}
+
+fn tamanho_corpo_padrao() -> u32 {
+    11
+}
+
+fn tamanho_titulo_relatorio_padrao() -> u32 {
+    14
+}
+
+fn cor_titulo_relatorio_padrao() -> String {
+    "#800080".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "tipo", rename_all = "snake_case")]
 pub(crate) enum ConteudoBloco {
-    /// Nome do relatório + "Coordenação Pedagógica · Nº bimestre" no topo.
-    /// Sem configuração — usa `ReportDefinition.nome` e o bimestre de
-    /// execução.
+    /// A imagem institucional (Configurações › Instituição) no topo da
+    /// página — em docx repete via cabeçalho de página nativo do Word; em
+    /// pdf/xlsx entra como o primeiro elemento. Sem configuração. Não gera
+    /// mais o título do relatório nem "Coordenação Pedagógica · Nº
+    /// bimestre" — isso agora é o bloco `Titulo` (o nome) e um rodapé de
+    /// página automático (o bimestre), respectivamente, justamente pra dar
+    /// independência de posição entre a imagem e o título (ex.: Espaçador
+    /// entre os dois).
     Cabecalho,
+    /// Nome do relatório (`ReportDefinition.nome`) em destaque — sempre
+    /// espelha o nome atual, então renomear o relatório não deixa esse
+    /// bloco desatualizado como aconteceria se o texto fosse copiado pra
+    /// um bloco `Texto` comum. `tamanho` em pontos, mesma unidade do bloco
+    /// `Texto`.
+    Titulo {
+        #[serde(default = "tamanho_titulo_relatorio_padrao")]
+        tamanho: u32,
+        /// Hex de 6 dígitos, com ou sem "#" (o construtor sempre manda com
+        /// "#", mas aceita as duas formas na leitura). Cor inválida cai no
+        /// roxo padrão na hora de gerar, em vez de quebrar o documento.
+        #[serde(default = "cor_titulo_relatorio_padrao")]
+        cor: String,
+    },
     /// Parágrafo livre. `corpo` aceita `{bimestre}`, substituído pelo
-    /// rótulo do bimestre em que o relatório está sendo gerado.
+    /// rótulo do bimestre em que o relatório está sendo gerado. Tamanhos em
+    /// pontos (pt, a unidade que o Word já mostra) — relatórios salvos
+    /// antes disso ser configurável caem nos defaults, que reproduzem o
+    /// visual fixo de sempre (título maior/negrito, corpo em tamanho normal
+    /// de texto).
     Texto {
         #[serde(default)]
         titulo: Option<String>,
         #[serde(default)]
         corpo: String,
+        #[serde(default = "tamanho_titulo_padrao")]
+        tamanho_titulo: u32,
+        #[serde(default = "tamanho_corpo_padrao")]
+        tamanho_corpo: u32,
     },
     /// `secao_index` é a posição da tabela correspondente em
     /// `ReportDefinition.secoes` — quem executa a consulta é o motor de
@@ -239,8 +286,12 @@ pub(crate) enum ConteudoBloco {
     },
     /// Início de uma nova página (docx/pdf). Sem configuração.
     QuebraPagina,
-    /// Duas linhas em branco entre os itens ao redor. Sem configuração.
-    Espacador,
+    /// `linhas` linhas em branco entre os itens ao redor. Relatórios
+    /// salvos antes de isso ser configurável (sempre 2) caem no default.
+    Espacador {
+        #[serde(default = "espacador_linhas_padrao")]
+        linhas: u32,
+    },
     /// Uma linha de assinatura por nome.
     Assinaturas {
         #[serde(default)]

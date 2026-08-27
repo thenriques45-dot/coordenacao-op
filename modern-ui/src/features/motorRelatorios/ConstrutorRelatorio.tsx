@@ -21,8 +21,11 @@ import {
   BarChart3,
   FileDown,
   FileUp,
+  Github,
   Heading,
+  Heading1,
   LayoutGrid,
+  Palette,
   PenLine,
   SeparatorHorizontal,
   Settings2,
@@ -59,6 +62,72 @@ import {
 const PERIODOS_DISPONIVEIS = ["MANHA", "TARDE", "NOITE", "INTEGRAL"];
 const CICLOS_DISPONIVEIS = ["EI", "EFAI", "EFAF", "EM"];
 
+/** Tamanhos oferecidos pro título/corpo de um bloco Texto — nomeados em vez
+ * de um número solto (mais fácil pra quem não tem intimidade com "pontos de
+ * fonte"), e cada opção é renderizada no seu próprio tamanho, então o botão
+ * já mostra visualmente o que ele faz. */
+const TAMANHOS_TITULO = [
+  { valor: 12, rotulo: "Pequeno" },
+  { valor: 14, rotulo: "Normal" },
+  { valor: 18, rotulo: "Grande" },
+  { valor: 24, rotulo: "Enorme" },
+];
+const TAMANHOS_CORPO = [
+  { valor: 10, rotulo: "Pequeno" },
+  { valor: 11, rotulo: "Normal" },
+  { valor: 13, rotulo: "Grande" },
+];
+
+/** Opções rápidas de cor pro bloco "Título do relatório" — a roxa é o
+ * padrão de sempre; as outras cobrem os casos mais comuns sem obrigar
+ * ninguém a digitar um código. */
+const CORES_TITULO = [
+  { valor: "#800080", rotulo: "Roxo (padrão)" },
+  { valor: "#E8202A", rotulo: "Vermelho da marca" },
+  { valor: "#1D4ED8", rotulo: "Azul" },
+  { valor: "#15803D", rotulo: "Verde" },
+  { valor: "#1A1A1A", rotulo: "Preto" },
+];
+
+/** Aceita qualquer código de cor que o CSS entende (hex, "rebeccapurple",
+ * `rgb(...)`, `hsl(...)`...) e devolve um hex de 6 dígitos — deixa o
+ * próprio navegador validar/converter em vez de reimplementar um parser de
+ * cor CSS. `null` quando o navegador não reconhece o texto como cor. */
+function normalizarCorCss(valor: string): string | null {
+  const texto = valor.trim();
+  if (!texto) return null;
+  const elemento = document.createElement("div");
+  elemento.style.color = "";
+  elemento.style.color = texto;
+  if (!elemento.style.color) return null;
+  document.body.appendChild(elemento);
+  const computado = getComputedStyle(elemento).color;
+  document.body.removeChild(elemento);
+  const partes = computado.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!partes) return null;
+  const paraHex = (n: string) => Number(n).toString(16).padStart(2, "0");
+  return `#${paraHex(partes[1])}${paraHex(partes[2])}${paraHex(partes[3])}`.toUpperCase();
+}
+
+type DispositivoLoginGithub = {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  interval: number;
+  expires_in: number;
+};
+
+/** Passos do fluxo de "Publicar no repositório": autorizar com o GitHub
+ * (só na primeira vez, ou se a sessão salva não valer mais), confirmar pra
+ * onde vai (a conta autenticada decide sozinha — oficial pro mantenedor,
+ * Pull Request pra comunidade pra qualquer outra conta) e então enviar. */
+type EstadoPublicacao =
+  | { fase: "inativo" }
+  | { fase: "autorizando"; userCode: string; verificationUri: string }
+  | { fase: "confirmando"; login: string }
+  | { fase: "enviando"; login: string }
+  | { fase: "concluido"; url: string; categoria: "oficial" | "comunidade"; login: string };
+
 const ROTULOS_PERIODO: Record<string, string> = { MANHA: "Manhã", TARDE: "Tarde", NOITE: "Noite", INTEGRAL: "Integral" };
 const ROTULOS_CICLO: Record<string, string> = { EI: "Ed. Infantil", EFAI: "Anos iniciais", EFAF: "Anos finais", EM: "Ens. médio" };
 
@@ -86,18 +155,19 @@ type ItemBiblioteca =
   | { tipo: null; icone: LucideIcon; titulo: string; descricao: string; emBreve: true };
 
 const BIBLIOTECA: ItemBiblioteca[] = [
-  { tipo: "cabecalho", icone: Heading, titulo: "Cabeçalho institucional", descricao: "Nome da escola e bimestre no topo" },
-  { tipo: "texto", icone: Type, titulo: "Título e texto", descricao: "Parágrafo introdutório ou observações" },
+  { tipo: "cabecalho", icone: Heading, titulo: "Cabeçalho institucional", descricao: "Imagem da escola e bimestre no topo" },
+  { tipo: "titulo", icone: Heading1, titulo: "Título do relatório", descricao: "Nome deste relatório em destaque" },
+  { tipo: "texto", icone: Type, titulo: "Texto", descricao: "Parágrafo introdutório ou observações, com título opcional" },
   { tipo: "tabela", icone: TableIcon, titulo: "Tabela de alunos", descricao: "Uma linha por aluno, colunas à sua escolha" },
   { tipo: null, icone: LayoutGrid, titulo: "Indicadores", descricao: "Números-resumo em destaque — em breve", emBreve: true },
   { tipo: null, icone: BarChart3, titulo: "Gráfico de barras", descricao: "Comparação por turma ou disciplina — em breve", emBreve: true },
   { tipo: "quebra_pagina", icone: SeparatorHorizontal, titulo: "Quebra de página", descricao: "Começa uma nova folha" },
-  { tipo: "espacador", icone: AlignVerticalSpaceAround, titulo: "Espaçador", descricao: "Duas linhas em branco entre os itens" },
+  { tipo: "espacador", icone: AlignVerticalSpaceAround, titulo: "Espaçador", descricao: "Linhas em branco entre os itens — você escolhe quantas" },
   { tipo: "assinaturas", icone: PenLine, titulo: "Assinaturas", descricao: "Linhas para direção e coordenação" },
   { tipo: "parametros", icone: Settings2, titulo: "Parâmetros", descricao: "O que a pessoa preenche antes de gerar" },
 ];
 
-const TIPOS_UNICOS: TipoBloco[] = ["cabecalho", "parametros"];
+const TIPOS_UNICOS: TipoBloco[] = ["cabecalho", "titulo", "parametros"];
 
 function iconeParaTipo(tipo: TipoBloco): LucideIcon {
   return BIBLIOTECA.find((item) => item.tipo === tipo)?.icone ?? Type;
@@ -118,6 +188,23 @@ function campoPadrao(campos: CampoRelatorioInfo[]): ExpressaoNo {
 function rotuloParaExpressao(expressao: ExpressaoNo, campos: CampoRelatorioInfo[]): string | null {
   if (expressao.tipo !== "campo") return null;
   return campos.find((c) => c.id === expressao.campo_id)?.rotulo ?? null;
+}
+
+/** true se algum filtro/coluna estiver marcado como "usar parâmetro" (o
+ * botão de EditorExpressao) sem que um parâmetro tenha de fato sido
+ * escolhido no seletor (`{tipo:"parametro", id:""}`) — salvar/gerar nesse
+ * estado geraria um relatório quebrado, do mesmo jeito que "tabela sem
+ * coluna" já era bloqueado. Varre a árvore de expressões inteira, não só
+ * o valor de filtro (também cobre coluna, campo de filtro composto etc.). */
+function temParametroSemEscolha(definicao: ReportDefinition): boolean {
+  function visitar(valor: unknown): boolean {
+    if (Array.isArray(valor)) return valor.some(visitar);
+    if (!valor || typeof valor !== "object") return false;
+    const objeto = valor as Record<string, unknown>;
+    if (objeto.tipo === "parametro" && objeto.id === "") return true;
+    return Object.values(objeto).some(visitar);
+  }
+  return visitar(definicao.secoes) || visitar(definicao.blocos);
 }
 
 /** Frase curta pra um filtro elegível a virar parâmetro (ex.: "Nota em
@@ -145,12 +232,21 @@ function slugificar(texto: string): string {
   );
 }
 
+/// Toda tabela nova já nasce com Nº de Chamada + Nome do Aluno — identifica
+/// o aluno de cara (algo que todo relatório deveria ter de qualquer jeito)
+/// e, principalmente, mostra por exemplo que dá pra adicionar/editar
+/// colunas ali, sem depender de o usuário descobrir isso sozinho. Muita
+/// gente que usa este programa não tem computador em casa — um bloco vazio
+/// convida menos à exploração do que um já preenchido para editar.
 function secaoTabelaVazia(): SecaoRelatorio {
   return {
     titulo: null,
     fonte_linhas: { tipo: "por_aluno" },
     filtros: { combinador: "e", condicoes: [] },
-    colunas: [],
+    colunas: [
+      { id: idLocal("coluna"), rotulo: "Nº de Chamada", expressao: { tipo: "campo", campo_id: "aluno_numero_chamada", parametro: null }, largura: null, alinhamento: "centro" },
+      { id: idLocal("coluna"), rotulo: "Nome do Aluno", expressao: { tipo: "campo", campo_id: "aluno_nome", parametro: null }, largura: null, alinhamento: "esquerda" },
+    ],
     ordenacao: [],
     agrupamento: {},
   };
@@ -158,6 +254,7 @@ function secaoTabelaVazia(): SecaoRelatorio {
 
 function definicaoVazia(): ReportDefinition {
   const idCabecalho = idLocal("blk");
+  const idTitulo = idLocal("blk");
   const idTabela = idLocal("blk");
   return {
     id: idLocal("relatorio"),
@@ -169,6 +266,7 @@ function definicaoVazia(): ReportDefinition {
     secoes: [secaoTabelaVazia()],
     blocos: [
       { id: idCabecalho, ativo: true, tipo: "cabecalho" },
+      { id: idTitulo, ativo: true, tipo: "titulo", tamanho: 14, cor: "#800080" },
       { id: idTabela, ativo: true, tipo: "tabela", secao_index: 0 },
     ],
     formato_saida: "docx",
@@ -190,6 +288,7 @@ function migrarParaBlocos(definicao: ReportDefinition): ReportDefinition {
     ...definicao,
     blocos: [
       { id: idLocal("blk"), ativo: true, tipo: "cabecalho" },
+      { id: idLocal("blk"), ativo: true, tipo: "titulo", tamanho: 14, cor: "#800080" },
       ...definicao.secoes.map((_, indice): BlocoRelatorio => ({ id: idLocal("blk"), ativo: true, tipo: "tabela", secao_index: indice })),
     ],
   };
@@ -198,7 +297,9 @@ function migrarParaBlocos(definicao: ReportDefinition): ReportDefinition {
 function resumoBloco(bloco: BlocoRelatorio, secoes: SecaoRelatorio[]): string {
   switch (bloco.tipo) {
     case "cabecalho":
-      return "Nome da escola e bimestre";
+      return "Imagem institucional e bimestre";
+    case "titulo":
+      return "Nome do relatório em destaque";
     case "texto":
       return bloco.corpo.trim() ? bloco.corpo.trim().slice(0, 70) : "Sem texto ainda";
     case "tabela": {
@@ -213,7 +314,7 @@ function resumoBloco(bloco: BlocoRelatorio, secoes: SecaoRelatorio[]): string {
     case "quebra_pagina":
       return "Início de uma nova página";
     case "espacador":
-      return "Duas linhas em branco";
+      return `${bloco.linhas} linha${bloco.linhas === 1 ? "" : "s"} em branco`;
     case "assinaturas":
       return bloco.nomes.length > 0 ? bloco.nomes.join(", ") : "Nenhum nome ainda";
     case "parametros":
@@ -248,6 +349,8 @@ export function ConstrutorRelatorio({
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const [rascunhoSalvoEm, setRascunhoSalvoEm] = useState<string | null>(null);
+  const [loginGithub, setLoginGithub] = useState<string | null>(null);
+  const [publicacao, setPublicacao] = useState<EstadoPublicacao>({ fase: "inativo" });
 
   useEffect(() => {
     invokeApp<CampoRelatorioInfo[]>("listar_campos_disponiveis")
@@ -255,6 +358,9 @@ export function ConstrutorRelatorio({
       .catch((e) => setErro(e instanceof Error ? e.message : String(e)));
     invokeApp<string[]>("listar_disciplinas_conhecidas")
       .then(setDisciplinas)
+      .catch(() => {});
+    invokeApp<string | null>("verificar_login_github")
+      .then(setLoginGithub)
       .catch(() => {});
   }, []);
 
@@ -342,7 +448,10 @@ export function ConstrutorRelatorio({
         };
       }
       if (tipo === "texto") {
-        return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "texto", titulo: "", corpo: "" }] };
+        return {
+          ...atual,
+          blocos: [...atual.blocos, { id, ativo: true, tipo: "texto", titulo: "", corpo: "", tamanho_titulo: 14, tamanho_corpo: 11 }],
+        };
       }
       if (tipo === "assinaturas") {
         return {
@@ -353,11 +462,14 @@ export function ConstrutorRelatorio({
       if (tipo === "cabecalho") {
         return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "cabecalho" }] };
       }
+      if (tipo === "titulo") {
+        return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "titulo", tamanho: 14, cor: "#800080" }] };
+      }
       if (tipo === "quebra_pagina") {
         return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "quebra_pagina" }] };
       }
       if (tipo === "espacador") {
-        return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "espacador" }] };
+        return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "espacador", linhas: 2 }] };
       }
       return { ...atual, blocos: [...atual.blocos, { id, ativo: true, tipo: "parametros" }] };
     });
@@ -591,6 +703,7 @@ export function ConstrutorRelatorio({
       (b) => b.ativo && b.tipo === "tabela" && (definicao.secoes[b.secao_index]?.colunas.length ?? 0) === 0
     );
     if (tabelaSemColuna) return "Toda tabela de alunos ligada precisa de pelo menos uma coluna.";
+    if (temParametroSemEscolha(definicao)) return "Um filtro ou coluna está marcado para 'usar parâmetro', mas nenhum parâmetro foi escolhido — selecione um ou volte a usar valor fixo.";
     return "";
   }
 
@@ -670,6 +783,62 @@ export function ConstrutorRelatorio({
     }
   }
 
+  /** Primeiro clique em "Publicar": se já tem sessão do GitHub válida, vai
+   * direto pra confirmação; senão, inicia o Device Flow (abre o navegador
+   * numa página já com o código preenchido) e aguarda a autorização antes
+   * de mostrar a confirmação. */
+  async function abrirPublicacao() {
+    const erroValidacao = validarAntesDeSalvar();
+    if (erroValidacao) {
+      setErro(erroValidacao);
+      return;
+    }
+    setErro("");
+    setMensagem("");
+
+    if (loginGithub) {
+      setPublicacao({ fase: "confirmando", login: loginGithub });
+      return;
+    }
+    try {
+      const dispositivo = await invokeApp<DispositivoLoginGithub>("iniciar_login_github");
+      setPublicacao({ fase: "autorizando", userCode: dispositivo.user_code, verificationUri: dispositivo.verification_uri });
+      const login = await invokeApp<string>("concluir_login_github", {
+        deviceCode: dispositivo.device_code,
+        interval: dispositivo.interval,
+        expiresIn: dispositivo.expires_in,
+      });
+      setLoginGithub(login);
+      setPublicacao({ fase: "confirmando", login });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setPublicacao({ fase: "inativo" });
+    }
+  }
+
+  async function confirmarPublicacao() {
+    if (publicacao.fase !== "confirmando") return;
+    const login = publicacao.login;
+    setPublicacao({ fase: "enviando", login });
+    try {
+      await invokeApp("salvar_definicao_relatorio", { definicao });
+      onSalvo();
+      const resultado = await invokeApp<{ url: string; categoria: "oficial" | "comunidade" }>("publicar_relatorio_repositorio", {
+        id: definicao.id,
+      });
+      setPublicacao({ fase: "concluido", url: resultado.url, categoria: resultado.categoria, login });
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+      setPublicacao({ fase: "inativo" });
+    }
+  }
+
+  function trocarContaGithub() {
+    void invokeApp("esquecer_login_github").catch(() => {});
+    setLoginGithub(null);
+    setPublicacao({ fase: "inativo" });
+  }
+
   if (!editavel) {
     return (
       <section className="cb-shell cb-shell-fallback">
@@ -731,6 +900,14 @@ export function ConstrutorRelatorio({
           <button className="cb-icone-acao" onClick={exportar} title="Exportar definição para um arquivo">
             <FileDown size={15} />
           </button>
+          <button
+            className="cb-icone-acao"
+            onClick={abrirPublicacao}
+            disabled={publicacao.fase !== "inativo"}
+            title="Publicar no repositório do GitHub — oficial se for você, Pull Request pra comunidade se for outra pessoa"
+          >
+            <Github size={15} />
+          </button>
           <button className="secondary-action" onClick={gerarAgora} disabled={processando}>Gerar agora</button>
           <button className="primary-action" onClick={salvar} disabled={processando}>Salvar</button>
         </div>
@@ -740,6 +917,72 @@ export function ConstrutorRelatorio({
         <div className="cb-avisos">
           {mensagem && <div className="notice success">{mensagem}</div>}
           {erro && <div className="notice error">{erro}</div>}
+        </div>
+      )}
+
+      {publicacao.fase === "autorizando" && (
+        <div className="cb-avisos">
+          <div className="notice cb-publicacao-aviso">
+            <p>Autorize o CoordenacaoOP no navegador que abriu — confirme que é a conta certa e clique em "Continuar".</p>
+            <p className="cb-ajuda">
+              Se o navegador não abriu sozinho, acesse{" "}
+              <button type="button" className="cb-link-inline" onClick={() => void invokeApp("abrir_url", { url: publicacao.verificationUri })}>
+                {publicacao.verificationUri}
+              </button>{" "}
+              e digite o código <strong>{publicacao.userCode}</strong>.
+            </p>
+            <p className="cb-ajuda">Aguardando autorização...</p>
+            <button type="button" className="secondary-action" onClick={() => setPublicacao({ fase: "inativo" })}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {publicacao.fase === "confirmando" && (
+        <div className="cb-avisos">
+          <div className="notice cb-publicacao-aviso">
+            {publicacao.login.toLowerCase() === "thenriques45-dot" ? (
+              <p>
+                Logado como <strong>@{publicacao.login}</strong> — publicar vai atualizar direto o arquivo deste relatório no repositório
+                oficial.
+              </p>
+            ) : (
+              <p>
+                Logado como <strong>@{publicacao.login}</strong> — publicar vai abrir um Pull Request propondo a entrada deste relatório
+                em "comunidade". Nada fica público até alguém revisar e aceitar o Pull Request.
+              </p>
+            )}
+            <div className="cb-publicacao-acoes">
+              <button type="button" className="primary-action" onClick={confirmarPublicacao}>Confirmar publicação</button>
+              <button type="button" className="secondary-action" onClick={() => setPublicacao({ fase: "inativo" })}>Cancelar</button>
+              <button type="button" className="cb-link-inline" onClick={trocarContaGithub}>Trocar de conta do GitHub</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {publicacao.fase === "enviando" && (
+        <div className="cb-avisos">
+          <div className="notice cb-publicacao-aviso">
+            <p>Publicando no GitHub...</p>
+          </div>
+        </div>
+      )}
+
+      {publicacao.fase === "concluido" && (
+        <div className="cb-avisos">
+          <div className="notice success cb-publicacao-aviso">
+            <p>
+              {publicacao.categoria === "oficial"
+                ? "Publicado no repositório oficial."
+                : `Pull Request aberto como @${publicacao.login} — aguardando revisão pra entrar em "comunidade".`}
+            </p>
+            <div className="cb-publicacao-acoes">
+              <button type="button" className="secondary-action" onClick={() => void invokeApp("abrir_url", { url: publicacao.url })}>
+                Ver no GitHub
+              </button>
+              <button type="button" className="cb-link-inline" onClick={() => setPublicacao({ fase: "inativo" })}>Fechar</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -891,18 +1134,24 @@ export function ConstrutorRelatorio({
                   return (
                     <div key={bloco.id} className="cb-preview-cabecalho">
                       <div className="cb-preview-logo" />
-                      <div>
-                        <strong>{definicao.nome || "Nome do relatório"}</strong>
-                        <div className="cb-preview-legenda">Coordenação Pedagógica · {bimestrePreview}º bimestre</div>
-                      </div>
+                      <div className="cb-preview-legenda">Coordenação Pedagógica · {bimestrePreview}º bimestre</div>
+                    </div>
+                  );
+                }
+                if (bloco.tipo === "titulo") {
+                  return (
+                    <div key={bloco.id} className="cb-preview-titulo">
+                      <strong style={{ fontSize: `${bloco.tamanho}pt`, color: bloco.cor }}>{definicao.nome || "Nome do relatório"}</strong>
                     </div>
                   );
                 }
                 if (bloco.tipo === "texto") {
                   return (
                     <div key={bloco.id} className="cb-preview-texto">
-                      {bloco.titulo && <h3>{bloco.titulo}</h3>}
-                      {bloco.corpo && <p>{substituirVariaveisPreview(bloco.corpo, bimestrePreview)}</p>}
+                      {bloco.titulo && <h3 style={{ fontSize: `${bloco.tamanho_titulo}pt` }}>{bloco.titulo}</h3>}
+                      {bloco.corpo && (
+                        <p style={{ fontSize: `${bloco.tamanho_corpo}pt` }}>{substituirVariaveisPreview(bloco.corpo, bimestrePreview)}</p>
+                      )}
                     </div>
                   );
                 }
@@ -944,7 +1193,11 @@ export function ConstrutorRelatorio({
                   return <div key={bloco.id} className="cb-preview-quebra">— nova página —</div>;
                 }
                 if (bloco.tipo === "espacador") {
-                  return <div key={bloco.id} className="cb-preview-espacador">espaço</div>;
+                  return (
+                    <div key={bloco.id} className="cb-preview-espacador">
+                      espaço · {bloco.linhas} linha{bloco.linhas === 1 ? "" : "s"}
+                    </div>
+                  );
                 }
                 if (bloco.tipo === "assinaturas") {
                   return (
@@ -1042,9 +1295,10 @@ function InspetorBloco({
         {bloco.tipo === "cabecalho" && (
           <>
             <p className="cb-ajuda">
-              O cabeçalho usa o nome do relatório (definido no topo da tela), o bimestre em que ele for gerado e a
-              imagem institucional configurada em Configurações › Instituição (Word, Excel e PDF — planilha .csv não
-              carrega imagem).
+              Mostra a imagem institucional configurada em Configurações › Instituição (Word, Excel e PDF — planilha
+              .csv não carrega imagem) e repete "Coordenação Pedagógica · Nº bimestre" em toda página. Pra mostrar o
+              nome do relatório em destaque, adicione também o bloco "Título do relatório" — são dois blocos
+              separados justamente pra dar espaço a um Espaçador entre a imagem e o título, se você quiser.
             </p>
             <label className="cb-campo">
               Autor (opcional)
@@ -1059,16 +1313,116 @@ function InspetorBloco({
           </>
         )}
 
+        {bloco.tipo === "titulo" && (
+          <>
+            <p className="cb-ajuda">
+              Mostra o nome deste relatório (definido no topo da tela) em destaque. Renomear o relatório atualiza
+              este bloco automaticamente, sem precisar editar nada aqui.
+            </p>
+            <div className="cb-tamanho-linha">
+              <Heading size={14} />
+              <span className="cb-tamanho-rotulo">Tamanho do título</span>
+              <div className="cb-pilulas">
+                {TAMANHOS_TITULO.map((opcao) => (
+                  <button
+                    key={opcao.valor}
+                    type="button"
+                    className={bloco.tamanho === opcao.valor ? "cb-pilula ativa" : "cb-pilula"}
+                    style={{ fontSize: Math.min(opcao.valor, 16) }}
+                    onClick={() => atualizarBloco(bloco.id, { tamanho: opcao.valor })}
+                  >
+                    {opcao.rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="cb-tamanho-linha">
+              <Palette size={14} />
+              <span className="cb-tamanho-rotulo">Cor do título</span>
+              <div className="cb-cores">
+                {CORES_TITULO.map((opcao) => (
+                  <button
+                    key={opcao.valor}
+                    type="button"
+                    title={opcao.rotulo}
+                    className={bloco.cor.toUpperCase() === opcao.valor ? "cb-swatch ativa" : "cb-swatch"}
+                    style={{ backgroundColor: opcao.valor }}
+                    onClick={() => atualizarBloco(bloco.id, { cor: opcao.valor })}
+                  />
+                ))}
+                <input
+                  type="color"
+                  className="cb-color-picker"
+                  title="Escolher outra cor"
+                  value={/^#[0-9a-fA-F]{6}$/.test(bloco.cor) ? bloco.cor : "#800080"}
+                  onChange={(e) => atualizarBloco(bloco.id, { cor: e.target.value.toUpperCase() })}
+                />
+              </div>
+            </div>
+            <label className="cb-campo">
+              Ou digite um código de cor (hex, nome CSS, rgb()...)
+              <input
+                key={bloco.cor}
+                type="text"
+                defaultValue={bloco.cor}
+                placeholder="ex.: #1D4ED8, rebeccapurple, rgb(30,64,175)"
+                onBlur={(e) => {
+                  const normalizado = normalizarCorCss(e.target.value);
+                  if (normalizado) {
+                    atualizarBloco(bloco.id, { cor: normalizado });
+                  } else {
+                    e.target.value = bloco.cor;
+                  }
+                }}
+              />
+            </label>
+          </>
+        )}
+
         {bloco.tipo === "texto" && (
           <>
             <label className="cb-campo">
               Título da seção
               <input type="text" value={bloco.titulo ?? ""} onChange={(e) => atualizarBloco(bloco.id, { titulo: e.target.value })} />
             </label>
+            <div className="cb-tamanho-linha">
+              <Heading size={14} />
+              <span className="cb-tamanho-rotulo">Tamanho do título</span>
+              <div className="cb-pilulas">
+                {TAMANHOS_TITULO.map((opcao) => (
+                  <button
+                    key={opcao.valor}
+                    type="button"
+                    className={bloco.tamanho_titulo === opcao.valor ? "cb-pilula ativa" : "cb-pilula"}
+                    style={{ fontSize: Math.min(opcao.valor, 16) }}
+                    onClick={() => atualizarBloco(bloco.id, { tamanho_titulo: opcao.valor })}
+                  >
+                    {opcao.rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="cb-campo">
               Texto
               <textarea rows={5} value={bloco.corpo} onChange={(e) => atualizarBloco(bloco.id, { corpo: e.target.value })} />
             </label>
+            <div className="cb-tamanho-linha">
+              <Type size={14} />
+              <span className="cb-tamanho-rotulo">Tamanho do texto</span>
+              <div className="cb-pilulas">
+                {TAMANHOS_CORPO.map((opcao) => (
+                  <button
+                    key={opcao.valor}
+                    type="button"
+                    className={bloco.tamanho_corpo === opcao.valor ? "cb-pilula ativa" : "cb-pilula"}
+                    style={{ fontSize: opcao.valor }}
+                    onClick={() => atualizarBloco(bloco.id, { tamanho_corpo: opcao.valor })}
+                  >
+                    {opcao.rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="cb-ajuda">Use {"{bimestre}"} para inserir o bimestre automaticamente.</p>
           </>
         )}
@@ -1078,7 +1432,19 @@ function InspetorBloco({
         )}
 
         {bloco.tipo === "espacador" && (
-          <p className="cb-ajuda">Este bloco não tem configuração — acrescenta duas linhas em branco entre os itens ao redor dele.</p>
+          <>
+            <label className="cb-campo">
+              Quantas linhas em branco
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={bloco.linhas}
+                onChange={(e) => atualizarBloco(bloco.id, { linhas: Math.max(1, Number(e.target.value) || 1) })}
+              />
+            </label>
+            <p className="cb-ajuda">Acrescenta essa quantidade de linhas em branco entre os itens ao redor dele.</p>
+          </>
         )}
 
         {bloco.tipo === "assinaturas" && (
