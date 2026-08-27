@@ -1,0 +1,194 @@
+{
+  "id": "relatorio_mtauudcq_4",
+  "nome": "Alunos com baixo engajamento de expansões",
+  "descricao": "",
+  "autor": "Thiago Henrique Santos",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [],
+    "ciclos": [],
+    "codigos": []
+  },
+  "parametros": [
+    {
+      "id": "parametro_mtav2l6r_14",
+      "rotulo": "Listar alunos com progressão inferior a:",
+      "tipo": "texto",
+      "valor_padrao": {
+        "tipo": "texto",
+        "valor": "60"
+      }
+    }
+  ],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": [
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "expansao_progresso_atual",
+              "parametro": null
+            },
+            "operador": "nao_vazio",
+            "valor": {
+              "tipo": "literal",
+              "valor": {
+                "tipo": "texto",
+                "valor": ""
+              }
+            }
+          },
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "expansao_progresso_atual",
+              "parametro": null
+            },
+            "operador": "menor",
+            "valor": {
+              "tipo": "parametro",
+              "id": "parametro_mtav2l6r_14"
+            }
+          }
+        ]
+      },
+      "colunas": [
+        {
+          "id": "coluna_mtauudcq_5",
+          "rotulo": "Nº",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mtauudcr_6",
+          "rotulo": "Nome do Aluno",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "coluna_mtaux6qd_10",
+          "rotulo": "Turma",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "turma_rotulo",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mtauxb8n_11",
+          "rotulo": "Progresso Atual (%)",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "expansao_progresso_atual",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mtauxkxk_12",
+          "rotulo": "Nota Média Atual (0–10)",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "expansao_nota_atual",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "coluna_mtaux6qd_10",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "coluna_mtauxb8n_11",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "coluna_mtauxkxk_12",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": null,
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [
+    {
+      "id": "blk_mtauudcq_1",
+      "ativo": true,
+      "tipo": "cabecalho"
+    },
+    {
+      "id": "blk_mtauuqbt_7",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 2
+    },
+    {
+      "id": "blk_mtauudcq_2",
+      "ativo": true,
+      "tipo": "titulo",
+      "tamanho": 14,
+      "cor": "#E8202A"
+    },
+    {
+      "id": "blk_mtauuzi0_9",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 1
+    },
+    {
+      "id": "blk_mtauuv2v_8",
+      "ativo": true,
+      "tipo": "texto",
+      "titulo": "",
+      "corpo": "Este relatório exibe alunos com menor engajamento de expansões noturno para que a coordenação possa criar planos de ação mais assertivos. O relatório usa alguns elementos editáveis, como uma marca de corte de engajamento escolhida no momento da geração do relatório.",
+      "tamanho_titulo": 14,
+      "tamanho_corpo": 13
+    },
+    {
+      "id": "blk_mtav73k7_15",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 1
+    },
+    {
+      "id": "blk_mtauudcq_3",
+      "ativo": true,
+      "tipo": "tabela",
+      "secao_index": 0
+    },
+    {
+      "id": "blk_mtav2hx3_13",
+      "ativo": true,
+      "tipo": "parametros"
+    }
+  ],
+  "formato_saida": "docx"
+}
