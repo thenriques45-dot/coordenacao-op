@@ -6,7 +6,7 @@
 // código — esta tela só lista e baixa o que já está lá.
 
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -75,12 +75,27 @@ pub(crate) fn cliente() -> Result<reqwest::blocking::Client, String> {
         .map_err(|err| format!("Erro ao preparar a conexão com o repositório: {err}"))
 }
 
+/// A API pública do GitHub e o `raw.githubusercontent.com` são servidos por
+/// uma CDN que guarda respostas anônimas por alguns minutos — um relatório
+/// recém-publicado ou recém-excluído pode continuar (ou não) aparecendo
+/// nesse intervalo. O cache é chaveado pela URL completa, então um parâmetro
+/// único por chamada força uma resposta fresca.
+fn com_cache_bust(url: &str) -> String {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let separador = if url.contains('?') { '&' } else { '?' };
+    format!("{url}{separador}_cb={nonce}")
+}
+
 fn listar_pasta(client: &reqwest::blocking::Client, pasta: &str) -> Result<Vec<EntradaConteudoGithub>, String> {
     let url = format!("https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/contents/{pasta}");
     let resposta = client
-        .get(&url)
+        .get(com_cache_bust(&url))
         .header("User-Agent", USER_AGENT)
         .header("Accept", "application/vnd.github+json")
+        .header("Cache-Control", "no-cache")
         .send()
         .map_err(|err| format!("Erro ao acessar o repositório de relatórios: {err}"))?;
 
@@ -100,8 +115,9 @@ fn listar_pasta(client: &reqwest::blocking::Client, pasta: &str) -> Result<Vec<E
 
 fn baixar_definicao(client: &reqwest::blocking::Client, download_url: &str) -> Result<ReportDefinition, String> {
     let resposta = client
-        .get(download_url)
+        .get(com_cache_bust(download_url))
         .header("User-Agent", USER_AGENT)
+        .header("Cache-Control", "no-cache")
         .send()
         .map_err(|err| format!("Erro ao baixar o relatório: {err}"))?;
     if !resposta.status().is_success() {

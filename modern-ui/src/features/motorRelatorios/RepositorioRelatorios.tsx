@@ -4,7 +4,7 @@
 // enviar um relatório novo pro repositório é feito fora do app (ver
 // relatorios_repositorio/README.md na raiz do projeto).
 
-import { Download, FolderGit2 } from "lucide-react";
+import { Download, FolderGit2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { invokeApp } from "../appBridge";
 import { FormatoSaida, ItemRepositorio } from "./tipos";
@@ -62,6 +62,9 @@ export function RepositorioRelatorios({ onVoltar }: { onVoltar: () => void }) {
           <h1>Repositório de relatórios</h1>
           <p>Relatórios prontos, publicados por você ou pela comunidade — baixe e use sem montar do zero.</p>
         </div>
+        <button type="button" onClick={carregar} disabled={carregando} title="Buscar a lista atual no GitHub">
+          <RefreshCw size={16} /> {carregando ? "Atualizando..." : "Atualizar"}
+        </button>
       </header>
 
       {erro && <div className="notice error">{erro}</div>}
