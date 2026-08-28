@@ -1254,8 +1254,9 @@ export function Configuracoes({
           <p>
             Encontra disciplinas gravadas com grafias diferentes (ex.: com e sem hífen) que
             deveriam ser a mesma matéria — resíduo de importações antigas, antes da normalização
-            atual existir. Revise a lista antes de corrigir: a correção funde as notas sob uma
-            única grafia, preferindo sempre o valor mais recente.
+            atual existir. Revise a lista antes de corrigir: a correção funde as notas, a
+            frequência e a carga horária sob uma única grafia, preferindo sempre o valor mais
+            recente.
           </p>
           <button
             type="button"
@@ -1312,7 +1313,7 @@ export function Configuracoes({
                   setMensagemDuplicatas("");
                   try {
                     const total = await invokeApp<number>("corrigir_disciplinas_duplicadas");
-                    setMensagemDuplicatas(`${total} duplicidade(s) corrigida(s).`);
+                    setMensagemDuplicatas(`${total} ocorrência(s) corrigida(s).`);
                     setDuplicatasDisciplinas(null);
                   } catch (e) {
                     setErro(e instanceof Error ? e.message : String(e));

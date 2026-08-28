@@ -1789,48 +1789,44 @@ pub(crate) fn extrair_disciplinas(
         .flatten()
     {
         for nome in mapa.keys() {
-            nomes.insert(nome.clone());
+            // Agrupa por grafia normalizada: grafias antigas (ex.: "Orientação
+            // de Estudo - Matemática" vs sem hífen), enquanto não passam pela
+            // "Manutenção de dados", não devem virar duas linhas na tela.
+            nomes.insert(normalizar_texto_basico(nome));
         }
     }
 
     let mut disciplinas = nomes
         .into_iter()
         .map(|nome| {
-            let entrada_media = medias.and_then(|mapa| mapa.get(&nome));
+            let entrada_media = valor_disciplina(medias, &nome);
             let media_original = entrada_media.and_then(valor_para_f64);
             let atribuicao_media = entrada_media.and_then(extrair_atribuicao);
-            let faltas = frequencia
-                .and_then(|mapa| mapa.get(&nome))
-                .and_then(valor_para_f64);
-            let media_conselho = ajustes
-                .and_then(|mapa| mapa.get(&nome))
+            let faltas = valor_disciplina(frequencia, &nome).and_then(valor_para_f64);
+            let media_conselho = valor_disciplina(ajustes, &nome)
                 .and_then(|ajuste| ajuste.get("media_ajustada"))
                 .and_then(valor_para_f64);
-            let observacao_conselho = ajustes
-                .and_then(|mapa| mapa.get(&nome))
+            let observacao_conselho = valor_disciplina(ajustes, &nome)
                 .and_then(|ajuste| ajuste.get("observacao"))
                 .and_then(Value::as_str)
                 .map(str::to_string);
-            let quinto_conceito = medias_5c
-                .and_then(|mapa| mapa.get(&nome))
-                .and_then(valor_para_f64);
-            let total_aulas = aulas
-                .and_then(|mapa| mapa.get(&nome))
-                .and_then(valor_para_f64);
+            let quinto_conceito =
+                valor_disciplina(medias_5c, &nome).and_then(valor_para_f64);
+            let total_aulas = valor_disciplina(aulas, &nome).and_then(valor_para_f64);
             let mut faltas_acumuladas = 0.0;
             let mut total_aulas_acumuladas = 0.0;
             for periodo in ["1", "2", "3", "4"] {
-                if let Some(valor) = objeto_bimestre(info, "frequencia", periodo)
-                    .and_then(|mapa| mapa.get(&nome))
-                    .and_then(valor_para_f64)
+                if let Some(valor) =
+                    valor_disciplina(objeto_bimestre(info, "frequencia", periodo), &nome)
+                        .and_then(valor_para_f64)
                 {
                     faltas_acumuladas += valor;
                 }
-                if let Some(valor) = carga_horaria
-                    .get(periodo)
-                    .and_then(Value::as_object)
-                    .and_then(|mapa| mapa.get(&nome))
-                    .and_then(valor_para_f64)
+                if let Some(valor) = valor_disciplina(
+                    carga_horaria.get(periodo).and_then(Value::as_object),
+                    &nome,
+                )
+                .and_then(valor_para_f64)
                 {
                     total_aulas_acumuladas += valor;
                 }
@@ -1839,15 +1835,16 @@ pub(crate) fn extrair_disciplinas(
             let historico_bimestres = ["1", "2", "3", "4"]
                 .into_iter()
                 .filter_map(|periodo| {
-                    let media_periodo = objeto_bimestre(info, "ajustes_medias_conselho", periodo)
-                        .and_then(|mapa| mapa.get(&nome))
-                        .and_then(|ajuste| ajuste.get("media_ajustada"))
-                        .and_then(valor_para_f64)
-                        .or_else(|| {
-                            objeto_bimestre(info, "medias", periodo)
-                                .and_then(|mapa| mapa.get(&nome))
-                                .and_then(valor_para_f64)
-                        })?;
+                    let media_periodo = valor_disciplina(
+                        objeto_bimestre(info, "ajustes_medias_conselho", periodo),
+                        &nome,
+                    )
+                    .and_then(|ajuste| ajuste.get("media_ajustada"))
+                    .and_then(valor_para_f64)
+                    .or_else(|| {
+                        valor_disciplina(objeto_bimestre(info, "medias", periodo), &nome)
+                            .and_then(valor_para_f64)
+                    })?;
                     Some(NotaBimestre {
                         bimestre: periodo.to_string(),
                         media: media_periodo,
@@ -1888,6 +1885,26 @@ pub(crate) fn extrair_disciplinas(
 
     disciplinas.sort_by(|a, b| a.nome.cmp(&b.nome));
     disciplinas
+}
+
+// Busca uma disciplina no mapa (medias/frequencia/carga_horaria de um
+// bimestre) primeiro pela grafia exata; se não achar, cai para comparação
+// normalizada (ignora acento, caixa, hífen e espaços repetidos). `nome` já
+// vem normalizado de extrair_disciplinas. Protege as telas de resíduos
+// pré-normalização que ainda não passaram pela "Manutenção de dados" — sem
+// isso, "Orientação de Estudo - Matemática" e "Orientação de Estudo
+// Matemática" apareciam como duas linhas.
+pub(crate) fn valor_disciplina<'a>(
+    mapa: Option<&'a serde_json::Map<String, Value>>,
+    nome: &str,
+) -> Option<&'a Value> {
+    let mapa = mapa?;
+    if let Some(valor) = mapa.get(nome) {
+        return Some(valor);
+    }
+    mapa.iter()
+        .find(|(chave, _)| normalizar_texto_basico(chave) == nome)
+        .map(|(_, valor)| valor)
 }
 
 pub(crate) fn objeto_bimestre<'a>(

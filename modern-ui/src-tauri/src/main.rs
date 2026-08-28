@@ -821,6 +821,44 @@ mod tests {
         assert_eq!(medias["1"]["MATEMATICA"]["v"], json!(8.0));
     }
 
+    // Caso real: a grafia com hífen também sobrou em `frequencia` (não só em
+    // `medias`). A "Manutenção de dados" antiga só olhava `medias`, então a
+    // linha fantasma continuava aparecendo com a frequência da grafia velha.
+    #[test]
+    fn agrupar_grafias_duplicadas_aluno_pega_frequencia() {
+        let aluno = json!({
+            "medias": { "1": { "ORIENTACAO DE ESTUDO MATEMATICA": {"v": 6.0} } },
+            "frequencia": {
+                "1": {
+                    "ORIENTACAO DE ESTUDO - MATEMATICA": 7,
+                    "ORIENTACAO DE ESTUDO MATEMATICA": 7.0
+                }
+            }
+        });
+        let grupos = agrupar_grafias_duplicadas_aluno(&aluno);
+        assert_eq!(grupos.len(), 1);
+        assert_eq!(grupos["ORIENTACAO DE ESTUDO MATEMATICA"].len(), 2);
+    }
+
+    // extrair_disciplinas não pode gerar duas linhas quando a grafia antiga
+    // sobreviveu em algum dos mapas (aqui: só em `frequencia`).
+    #[test]
+    fn extrair_disciplinas_funde_grafia_residual_em_frequencia() {
+        let info = json!({
+            "medias": { "1": { "ORIENTACAO DE ESTUDO MATEMATICA": 6.0 } },
+            "frequencia": { "1": { "ORIENTACAO DE ESTUDO - MATEMATICA": 3 } }
+        });
+        let carga = json!({ "1": { "ORIENTACAO DE ESTUDO MATEMATICA": 20 } })
+            .as_object()
+            .unwrap()
+            .clone();
+        let disciplinas = extrair_disciplinas(&info, "1", &carga);
+        assert_eq!(disciplinas.len(), 1, "grafia com/sem hífen é uma matéria só");
+        assert_eq!(disciplinas[0].nome, "ORIENTACAO DE ESTUDO MATEMATICA");
+        assert_eq!(disciplinas[0].media_original, Some(6.0));
+        assert_eq!(disciplinas[0].faltas, Some(3.0));
+    }
+
     // Só "Projeto de Vida" não tem professor de componente que escreva Plano
     // de Ensino nem PEI — confirmado pelo coordenador em 10/08/2026. Redação
     // e Leitura e Orientação de Estudo são disciplinas regulares normais,

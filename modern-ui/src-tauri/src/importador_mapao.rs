@@ -1257,32 +1257,70 @@ pub(crate) struct GrupoDisciplinaDuplicada {
     pub(crate) alunos_afetados: usize,
 }
 
+// Campos, dentro de um aluno, cujas chaves são nomes de disciplina e que
+// podem ter ficado com grafias duplicadas (resíduo de importações anteriores
+// à normalização atual). Todos são mapas bimestre → disciplina → valor.
+// `carga_horaria` também sofre do mesmo problema, mas é do nível da turma —
+// tratada à parte.
+pub(crate) const CAMPOS_DISCIPLINA_ALUNO: [&str; 3] =
+    ["medias", "frequencia", "ajustes_medias_conselho"];
+
+// Junta os grupos de grafias duplicadas de todos os campos de disciplina de
+// um aluno (a mesma matéria pode estar duplicada só em `frequencia`, por
+// exemplo). Só leitura.
+pub(crate) fn agrupar_grafias_duplicadas_aluno(aluno: &Value) -> BTreeMap<String, Vec<String>> {
+    let mut combinado: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for campo in CAMPOS_DISCIPLINA_ALUNO {
+        let Some(mapa) = aluno.get(campo).and_then(Value::as_object) else { continue };
+        for (canonica, variantes) in agrupar_grafias_duplicadas(mapa) {
+            combinado.entry(canonica).or_default().extend(variantes);
+        }
+    }
+    combinado
+        .into_iter()
+        .map(|(canonica, variantes)| (canonica, variantes.into_iter().collect()))
+        .collect()
+}
+
 #[tauri::command(async)]
 pub(crate) fn analisar_disciplinas_duplicadas() -> Result<Vec<GrupoDisciplinaDuplicada>, String> {
     let _dados = travar_dados();
     let turmas = carregar_turmas_com_caminho()?;
 
     let mut por_canonica: BTreeMap<String, GrupoDisciplinaDuplicada> = BTreeMap::new();
+    let mut acumular = |canonica: String,
+                        variantes: Vec<String>,
+                        codigo_turma: &str,
+                        alunos_delta: usize| {
+        let entrada = por_canonica
+            .entry(canonica.clone())
+            .or_insert_with(|| GrupoDisciplinaDuplicada {
+                forma_canonica: canonica,
+                grafias: Vec::new(),
+                turmas: Vec::new(),
+                alunos_afetados: 0,
+            });
+        for variante in variantes {
+            if !entrada.grafias.contains(&variante) {
+                entrada.grafias.push(variante);
+            }
+        }
+        if !entrada.turmas.contains(&codigo_turma.to_string()) {
+            entrada.turmas.push(codigo_turma.to_string());
+        }
+        entrada.alunos_afetados += alunos_delta;
+    };
+
     for (_, turma) in &turmas {
+        if let Some(carga) = turma.carga_horaria.as_ref() {
+            for (canonica, variantes) in agrupar_grafias_duplicadas(carga) {
+                acumular(canonica, variantes, &turma.codigo, 0);
+            }
+        }
         let Some(alunos) = &turma.alunos else { continue };
         for aluno in alunos.values() {
-            let Some(medias) = aluno.get("medias").and_then(Value::as_object) else { continue };
-            for (canonica, variantes) in agrupar_grafias_duplicadas(medias) {
-                let entrada = por_canonica.entry(canonica.clone()).or_insert_with(|| GrupoDisciplinaDuplicada {
-                    forma_canonica: canonica,
-                    grafias: Vec::new(),
-                    turmas: Vec::new(),
-                    alunos_afetados: 0,
-                });
-                for variante in variantes {
-                    if !entrada.grafias.contains(&variante) {
-                        entrada.grafias.push(variante);
-                    }
-                }
-                if !entrada.turmas.contains(&turma.codigo) {
-                    entrada.turmas.push(turma.codigo.clone());
-                }
-                entrada.alunos_afetados += 1;
+            for (canonica, variantes) in agrupar_grafias_duplicadas_aluno(aluno) {
+                acumular(canonica, variantes, &turma.codigo, 1);
             }
         }
     }
@@ -1301,14 +1339,27 @@ pub(crate) fn corrigir_disciplinas_duplicadas() -> Result<usize, String> {
         let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
         let mut mudou = false;
 
+        if let Some(carga) = dados.get_mut("carga_horaria").and_then(Value::as_object_mut) {
+            let fundidas = desduplicar_disciplinas_aluno(carga);
+            if !fundidas.is_empty() {
+                total += fundidas.len();
+                mudou = true;
+            }
+        }
+
         if let Some(alunos) = dados.get_mut("alunos").and_then(Value::as_object_mut) {
             for aluno in alunos.values_mut() {
-                if let Some(medias) = aluno.get_mut("medias").and_then(Value::as_object_mut) {
-                    let fundidas = desduplicar_disciplinas_aluno(medias);
-                    if !fundidas.is_empty() {
-                        total += fundidas.len();
-                        mudou = true;
+                let mut fundidas_aluno: BTreeSet<String> = BTreeSet::new();
+                for campo in CAMPOS_DISCIPLINA_ALUNO {
+                    if let Some(mapa) = aluno.get_mut(campo).and_then(Value::as_object_mut) {
+                        for (canonica, _) in desduplicar_disciplinas_aluno(mapa) {
+                            fundidas_aluno.insert(canonica);
+                        }
                     }
+                }
+                if !fundidas_aluno.is_empty() {
+                    total += fundidas_aluno.len();
+                    mudou = true;
                 }
             }
         }
