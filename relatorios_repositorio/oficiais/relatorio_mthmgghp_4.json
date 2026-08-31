@@ -1,0 +1,167 @@
+{
+  "id": "relatorio_mthmgghp_4",
+  "nome": "Baixo engajamento de tarefas",
+  "descricao": "",
+  "autor": "Thiago Henrique Santos",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [
+      "NOITE"
+    ],
+    "ciclos": [],
+    "codigos": []
+  },
+  "parametros": [],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": [
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "tarefas_feitas",
+              "parametro": null
+            },
+            "operador": "menor",
+            "valor": {
+              "tipo": "campo",
+              "campo_id": "tarefas_total",
+              "parametro": null
+            }
+          }
+        ]
+      },
+      "colunas": [
+        {
+          "id": "coluna_mthmgghp_5",
+          "rotulo": "Nº",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mthmgghp_6",
+          "rotulo": "Nome",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda"
+        },
+        {
+          "id": "coluna_mthmgjnu_7",
+          "rotulo": "Turma",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "turma_rotulo",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mthmhtuq_8",
+          "rotulo": "Total de Tarefas",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "tarefas_total",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        },
+        {
+          "id": "coluna_mthmig5g_9",
+          "rotulo": "Tarefas Feitas",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "tarefas_feitas",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro"
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "coluna_mthmgjnu_7",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "coluna_mthmig5g_9",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": {
+          "tipo": "campo",
+          "campo_id": "turma_rotulo",
+          "parametro": null
+        },
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [
+    {
+      "id": "blk_mthmgghp_1",
+      "ativo": true,
+      "tipo": "cabecalho"
+    },
+    {
+      "id": "blk_mthmjidq_10",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 1
+    },
+    {
+      "id": "blk_mthmgghp_2",
+      "ativo": true,
+      "tipo": "titulo",
+      "tamanho": 14,
+      "cor": "#E8202A"
+    },
+    {
+      "id": "blk_mthmjioj_11",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 1
+    },
+    {
+      "id": "blk_mthmkmus_13",
+      "ativo": true,
+      "tipo": "texto",
+      "titulo": "",
+      "corpo": "Relatório que relaciona os alunos com menor engajamento nas tarefas no período noturno. O relatório lista apenas os alunos com total de tarefas feitas menor que o total de tarefas enviadas. ",
+      "tamanho_titulo": 14,
+      "tamanho_corpo": 13
+    },
+    {
+      "id": "blk_mthmjixx_12",
+      "ativo": true,
+      "tipo": "espacador",
+      "linhas": 1
+    },
+    {
+      "id": "blk_mthmgghp_3",
+      "ativo": true,
+      "tipo": "tabela",
+      "secao_index": 0
+    }
+  ],
+  "formato_saida": "docx"
+}
