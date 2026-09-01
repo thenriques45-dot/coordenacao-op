@@ -13,6 +13,17 @@ export type AiAssistantSettings = {
   lastTestedAt?: string;
 };
 
+type DiagnosticoComponenteAssistente = {
+  aprendizagem_equivalente: string | null;
+  status: string | null;
+  nivel_avd1?: string | null;
+  equivalente_avd1?: string | null;
+  nivel_avd2?: string | null;
+  equivalente_avd2?: string | null;
+  evolucao?: string | null;
+  mensurado?: boolean;
+};
+
 export type AiStudentReportInput = {
   aluno: {
     nome: string;
@@ -25,8 +36,10 @@ export type AiStudentReportInput = {
     encaminhamentos?: number[];
     diagnosticoAprendizagem?: {
       turma_origem: string | null;
-      portugues: { aprendizagem_equivalente: string | null; status: string | null };
-      matematica: { aprendizagem_equivalente: string | null; status: string | null };
+      cd_escola?: string | null;
+      cd_diretoria?: string | null;
+      portugues: DiagnosticoComponenteAssistente;
+      matematica: DiagnosticoComponenteAssistente;
       atualizado_em: string | null;
     } | null;
     disciplinas: Array<{

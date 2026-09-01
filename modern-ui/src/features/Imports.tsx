@@ -153,7 +153,7 @@ export function ImportarDados({
           <BarChart3 size={24} />
           <div>
             <strong>Importar Diagnóstico SARESP</strong>
-            <span>Leia a planilha de Português e Matemática com aprendizagem equivalente e status.</span>
+            <span>Leia o relatório "Aprendizagem Equivalente" (AvD1 e AvD2) de Português e Matemática.</span>
           </div>
         </button>
         <button type="button" className="import-menu-card" onClick={onImportarFotos}>
@@ -1002,7 +1002,7 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
         <div>
           <span className="eyebrow">Diagnóstico SARESP</span>
           <h1>Importar Diagnóstico SARESP</h1>
-          <p>Atualize Português e Matemática por aluno a partir da planilha de aprendizagem equivalente.</p>
+          <p>Atualize Português e Matemática por aluno a partir do relatório "Aprendizagem Equivalente" das Devolutivas Pedagógicas (AvD1 e AvD2). Os alunos são casados por RA (e por nome, quando o RA não bate).</p>
         </div>
       </header>
 

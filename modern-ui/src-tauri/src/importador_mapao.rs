@@ -226,27 +226,34 @@ pub(crate) fn aplicar_diagnostico_aprendizagem(
     let mut turmas_alteradas = BTreeSet::new();
 
     for arquivo in &input.arquivos {
-        let Ok(registros) = ler_diagnostico_bytes(&arquivo.bytes) else {
+        let Ok((registros, cabecalho)) = ler_diagnostico_bytes(&arquivo.bytes) else {
             continue;
         };
-        for registro in registros {
-            let alvos = alvos_para_diagnostico(&registro.turma, &turmas);
-            let destinos = destinos_nome_arquivo(
-                &normalizar_nome_busca(&registro.estudante),
-                &indice_alunos_por_nome(&turmas),
-                &alvos,
-            );
-            if destinos.len() != 1 {
-                continue;
-            }
-            let (turma_idx, matricula) = &destinos[0];
-            let Some((caminho, turma)) = turmas.get_mut(*turma_idx) else {
+        // Índices recalculados por arquivo: `turmas` muda entre um arquivo e
+        // outro. Colhe (turma, matrícula) com empréstimo imutável dentro do
+        // bloco e só depois grava, para não conflitar com o `get_mut` abaixo.
+        let aplicacoes: Vec<(usize, String, usize)> = {
+            let indice_ra = indice_alunos_por_ra(&turmas);
+            let indice_nome = indice_alunos_por_nome(&turmas);
+            registros
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, registro)| {
+                    let destinos = destinos_diagnostico(registro, &indice_ra, &indice_nome);
+                    (destinos.len() == 1).then(|| (destinos[0].0, destinos[0].1.clone(), idx))
+                })
+                .collect()
+        };
+
+        for (turma_idx, matricula, registro_idx) in aplicacoes {
+            let registro = &registros[registro_idx];
+            let Some((caminho, turma)) = turmas.get_mut(turma_idx) else {
                 continue;
             };
             let Some(info) = turma
                 .alunos
                 .as_mut()
-                .and_then(|alunos| alunos.get_mut(matricula))
+                .and_then(|alunos| alunos.get_mut(&matricula))
                 .and_then(Value::as_object_mut)
             else {
                 continue;
@@ -254,18 +261,7 @@ pub(crate) fn aplicar_diagnostico_aprendizagem(
 
             info.insert(
                 "diagnostico_aprendizagem".to_string(),
-                serde_json::json!({
-                    "turma_origem": registro.turma,
-                    "portugues": {
-                        "aprendizagem_equivalente": registro.portugues_ano,
-                        "status": registro.portugues_status,
-                    },
-                    "matematica": {
-                        "aprendizagem_equivalente": registro.matematica_ano,
-                        "status": registro.matematica_status,
-                    },
-                    "atualizado_em": Local::now().to_rfc3339(),
-                }),
+                montar_diagnostico_json(registro, &cabecalho),
             );
             alunos_atualizados.insert((caminho.to_string_lossy().to_string(), matricula.clone()));
             turmas_alteradas.insert(caminho.to_string_lossy().to_string());
@@ -768,7 +764,14 @@ pub(crate) fn mapao_eh_expansao(linhas: &[Vec<Data>], linha_inicio: usize) -> bo
     false
 }
 
-pub(crate) fn ler_diagnostico_bytes(bytes: &[u8]) -> Result<Vec<RegistroDiagnostico>, String> {
+/// Lê o relatório "Aprendizagem Equivalente" das Devolutivas Pedagógicas
+/// (Prova Paulista / AvD). Layout fixo: colunas A=TURMA (genérica),
+/// B=RA, C=ESTUDANTE, F–H=Português (AvD1, AvD2, Evolução), I–K=Matemática.
+/// A turma real, a escola e a diretoria só aparecem no rodapé "Filtros
+/// aplicados:".
+pub(crate) fn ler_diagnostico_bytes(
+    bytes: &[u8],
+) -> Result<(Vec<RegistroDiagnostico>, CabecalhoDiagnostico), String> {
     let cursor = Cursor::new(bytes.to_vec());
     let mut workbook: Xlsx<_> =
         open_workbook_from_rs(cursor).map_err(|err: XlsxError| err.to_string())?;
@@ -784,30 +787,46 @@ pub(crate) fn ler_diagnostico_bytes(bytes: &[u8]) -> Result<Vec<RegistroDiagnost
     let linha_inicio = linhas
         .iter()
         .position(|linha| linha_parece_cabecalho_diagnostico(linha))
-        .ok_or_else(|| "Cabeçalho do diagnóstico não encontrado.".to_string())?;
+        .ok_or_else(|| {
+            "Cabeçalho do diagnóstico não encontrado. Use o relatório \"Aprendizagem Equivalente\" das Devolutivas Pedagógicas."
+                .to_string()
+        })?;
+
     let mut registros = Vec::new();
+    let mut cabecalho = CabecalhoDiagnostico::default();
     for linha in linhas.iter().skip(linha_inicio + 1) {
-        let turma = texto_celula(linha.first()).trim().to_string();
+        let col_a = texto_celula(linha.first()).trim().to_string();
         let estudante = texto_celula(linha.get(2)).trim().to_string();
-        if turma.is_empty() && estudante.is_empty() {
+
+        // Rodapé: uma célula só na coluna A, com quebras de linha
+        // ("Filtros aplicados:\nTurma é ...\nCD_DIRETORIA é ...").
+        if normalizar_texto_basico(&col_a).starts_with("FILTROS APLICADOS") {
+            cabecalho = extrair_cabecalho_diagnostico(&col_a);
             continue;
         }
         if estudante.is_empty() {
             continue;
         }
         registros.push(RegistroDiagnostico {
-            turma,
+            ra: texto_celula(linha.get(1))
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string(),
+            turma: col_a,
             estudante,
-            portugues_ano: texto_celula(linha.get(4)).trim().to_string(),
-            portugues_status: texto_celula(linha.get(5)).trim().to_string(),
-            matematica_ano: texto_celula(linha.get(6)).trim().to_string(),
-            matematica_status: texto_celula(linha.get(7)).trim().to_string(),
+            portugues_avd1: texto_celula(linha.get(5)).trim().to_string(),
+            portugues_avd2: texto_celula(linha.get(6)).trim().to_string(),
+            portugues_evolucao: texto_celula(linha.get(7)).trim().to_string(),
+            matematica_avd1: texto_celula(linha.get(8)).trim().to_string(),
+            matematica_avd2: texto_celula(linha.get(9)).trim().to_string(),
+            matematica_evolucao: texto_celula(linha.get(10)).trim().to_string(),
         });
     }
     if registros.is_empty() {
         return Err("Não encontrei estudantes válidos na planilha de diagnóstico.".to_string());
     }
-    Ok(registros)
+    Ok((registros, cabecalho))
 }
 
 pub(crate) fn linha_parece_cabecalho_diagnostico(linha: &[Data]) -> bool {
@@ -815,15 +834,132 @@ pub(crate) fn linha_parece_cabecalho_diagnostico(linha: &[Data]) -> bool {
     rotulos.first().map(String::as_str) == Some("TURMA")
         && rotulos.get(2).map(String::as_str) == Some("ESTUDANTE")
         && rotulos.iter().filter(|rotulo| rotulo.contains("APRENDIZAGEM")).count() >= 2
-        && rotulos.iter().filter(|rotulo| rotulo == &"STATUS").count() >= 2
+        && rotulos.iter().any(|rotulo| rotulo.contains("EVOLUCAO"))
+}
+
+/// Extrai turma real / escola / diretoria do rodapé "Filtros aplicados:"
+/// — uma única célula com linhas do tipo "Rótulo é valor" (o acento do "é"
+/// pode ou não vir, dependendo da origem do export).
+pub(crate) fn extrair_cabecalho_diagnostico(texto: &str) -> CabecalhoDiagnostico {
+    fn valor_apos_e(linha: &str) -> Option<String> {
+        [" é ", " e ", " = "].iter().find_map(|marcador| {
+            linha
+                .find(*marcador)
+                .map(|pos| linha[pos + marcador.len()..].trim().to_string())
+        })
+    }
+    let mut cabecalho = CabecalhoDiagnostico::default();
+    for linha in texto.lines() {
+        let linha = linha.trim();
+        let norm = normalizar_texto_basico(linha);
+        if norm.starts_with("TURMA E ") {
+            cabecalho.turma = valor_apos_e(linha).filter(|v| !v.is_empty());
+        } else if norm.starts_with("CD DIRETORIA E ") {
+            cabecalho.cd_diretoria = valor_apos_e(linha).filter(|v| !v.is_empty());
+        } else if norm.starts_with("CD ESCOLA E ") {
+            cabecalho.cd_escola = valor_apos_e(linha).filter(|v| !v.is_empty());
+        }
+    }
+    cabecalho
+}
+
+/// "Básico (7º ano)" -> ("Básico", Some("7º ano")). "Sem AvD1"/"Sem AvD2"/
+/// vazio/"-" -> None (o aluno não fez aquela aplicação).
+pub(crate) fn parsear_nivel_equivalente(bruto: &str) -> Option<(String, Option<String>)> {
+    let bruto = bruto.trim();
+    if bruto.is_empty() || bruto == "-" {
+        return None;
+    }
+    let norm = normalizar_texto_basico(bruto);
+    if norm.starts_with("SEM AVD") || norm.starts_with("SEM AVALIACAO") {
+        return None;
+    }
+    if let Some((nivel, resto)) = bruto.split_once('(') {
+        let equivalente = resto.trim().trim_end_matches(')').trim();
+        return Some((
+            nivel.trim().to_string(),
+            (!equivalente.is_empty()).then(|| equivalente.to_string()),
+        ));
+    }
+    Some((bruto.to_string(), None))
+}
+
+/// "Avançou" / "Manteve" / "Regrediu" -> Some(...). "-"/vazio -> None
+/// (falta uma das duas ondas para comparar).
+pub(crate) fn parsear_evolucao(bruto: &str) -> Option<String> {
+    let bruto = bruto.trim();
+    (!bruto.is_empty() && bruto != "-").then(|| bruto.to_string())
+}
+
+fn componente_diagnostico_json(avd1: &str, avd2: &str, evolucao: &str) -> Value {
+    let onda = |bruto: &str| match parsear_nivel_equivalente(bruto) {
+        Some((nivel, equivalente)) => serde_json::json!({
+            "nivel": nivel,
+            "aprendizagem_equivalente": equivalente,
+        }),
+        None => Value::Null,
+    };
+    serde_json::json!({
+        "avd1": onda(avd1),
+        "avd2": onda(avd2),
+        "evolucao": parsear_evolucao(evolucao),
+    })
+}
+
+pub(crate) fn montar_diagnostico_json(
+    registro: &RegistroDiagnostico,
+    cabecalho: &CabecalhoDiagnostico,
+) -> Value {
+    serde_json::json!({
+        "turma_origem": cabecalho.turma.clone().unwrap_or_else(|| registro.turma.clone()),
+        "cd_escola": cabecalho.cd_escola.clone(),
+        "cd_diretoria": cabecalho.cd_diretoria.clone(),
+        "portugues": componente_diagnostico_json(
+            &registro.portugues_avd1,
+            &registro.portugues_avd2,
+            &registro.portugues_evolucao,
+        ),
+        "matematica": componente_diagnostico_json(
+            &registro.matematica_avd1,
+            &registro.matematica_avd2,
+            &registro.matematica_evolucao,
+        ),
+        "atualizado_em": Local::now().to_rfc3339(),
+    })
+}
+
+/// Correspondência de uma linha do diagnóstico: RA primeiro, nome como
+/// fallback (só quando o RA não encontra ninguém — mesma política do
+/// importador de expansões).
+pub(crate) fn destinos_diagnostico(
+    registro: &RegistroDiagnostico,
+    indice_ra: &BTreeMap<String, Vec<(usize, String)>>,
+    indice_nome: &BTreeMap<String, Vec<(usize, String)>>,
+) -> Vec<(usize, String)> {
+    let mut vistos = BTreeSet::new();
+    let mut por_ra = Vec::new();
+    for variante in variantes_matricula(&registro.ra) {
+        for candidato in indice_ra.get(&variante).into_iter().flatten() {
+            if vistos.insert(candidato.clone()) {
+                por_ra.push(candidato.clone());
+            }
+        }
+    }
+    if !por_ra.is_empty() {
+        return por_ra;
+    }
+    indice_nome
+        .get(&normalizar_nome_busca(&registro.estudante))
+        .cloned()
+        .unwrap_or_default()
 }
 
 pub(crate) fn analisar_diagnostico_arquivo(
     arquivo: &ArquivoMapaoInput,
     turmas: &[(PathBuf, TurmaArquivo)],
 ) -> PreviaArquivoDiagnostico {
-    let registros = match ler_diagnostico_bytes(&arquivo.bytes) {
-        Ok(registros) => registros,
+    let (registros, cabecalho) = match ler_diagnostico_bytes(&arquivo.bytes) {
+        Ok(dados) => dados,
         Err(err) => {
             return PreviaArquivoDiagnostico {
                 nome: arquivo.nome.clone(),
@@ -838,25 +974,18 @@ pub(crate) fn analisar_diagnostico_arquivo(
             };
         }
     };
-    let indice = indice_alunos_por_nome(turmas);
+    let indice_ra = indice_alunos_por_ra(turmas);
+    let indice_nome = indice_alunos_por_nome(turmas);
     let mut correspondencias = 0;
     let mut nao_encontrados = Vec::new();
     let mut duplicados = Vec::new();
-    let mut turmas_identificadas = BTreeSet::new();
 
     for registro in &registros {
-        if !registro.turma.is_empty() {
-            turmas_identificadas.insert(registro.turma.clone());
-        }
-        let alvos = alvos_para_diagnostico(&registro.turma, turmas);
-        let destinos =
-            destinos_nome_arquivo(&normalizar_nome_busca(&registro.estudante), &indice, &alvos);
-        if destinos.len() == 1 {
-            correspondencias += 1;
-        } else if destinos.is_empty() {
-            nao_encontrados.push(format!("{} ({})", registro.estudante, registro.turma));
-        } else {
-            duplicados.push(format!("{} ({})", registro.estudante, registro.turma));
+        let destinos = destinos_diagnostico(registro, &indice_ra, &indice_nome);
+        match destinos.len() {
+            1 => correspondencias += 1,
+            0 => nao_encontrados.push(registro.estudante.clone()),
+            _ => duplicados.push(registro.estudante.clone()),
         }
     }
 
@@ -868,7 +997,7 @@ pub(crate) fn analisar_diagnostico_arquivo(
         nomes_nao_encontrados: nao_encontrados,
         duplicados: duplicados.len(),
         nomes_duplicados: duplicados,
-        turmas_identificadas: turmas_identificadas.into_iter().collect(),
+        turmas_identificadas: cabecalho.turma.into_iter().collect(),
         erro: None,
     }
 }
@@ -891,33 +1020,6 @@ pub(crate) fn analisar_diagnostico_input(
         total_duplicados: arquivos.iter().map(|arquivo| arquivo.duplicados).sum(),
         arquivos,
     })
-}
-
-pub(crate) fn alvos_para_diagnostico(
-    turma_planilha: &str,
-    turmas: &[(PathBuf, TurmaArquivo)],
-) -> BTreeSet<usize> {
-    let texto = normalizar_texto_basico(turma_planilha);
-    if texto.is_empty() {
-        return BTreeSet::new();
-    }
-    let tokens_planilha = texto.split_whitespace().collect::<BTreeSet<_>>();
-    let mut alvos = BTreeSet::new();
-    for (idx, (_, turma)) in turmas.iter().enumerate() {
-        let identificadores = [
-            normalizar_texto_basico(&turma.codigo),
-            turma.serie.as_deref().map(normalizar_texto_basico).unwrap_or_default(),
-        ];
-        if identificadores.iter().any(|id| !id.is_empty() && texto.contains(id)) {
-            alvos.insert(idx);
-            continue;
-        }
-        let codigo_tokens = identificadores[0].split_whitespace().collect::<BTreeSet<_>>();
-        if !codigo_tokens.is_empty() && codigo_tokens.is_subset(&tokens_planilha) {
-            alvos.insert(idx);
-        }
-    }
-    alvos
 }
 
 pub(crate) fn localizar_colunas_bloco(
@@ -1408,4 +1510,113 @@ pub(crate) fn normalizar_texto_basico(valor: &str) -> String {
         texto.push(convertido);
     }
     texto.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+#[cfg(test)]
+mod testes_diagnostico {
+    use super::*;
+
+    fn celulas(valores: &[&str]) -> Vec<Data> {
+        valores.iter().map(|v| Data::String(v.to_string())).collect()
+    }
+
+    #[test]
+    fn cabecalho_novo_reconhecido_sem_coluna_status_literal() {
+        let linha = celulas(&[
+            "TURMA",
+            "RA",
+            "ESTUDANTE",
+            "(%) PARTICIPAÇÃO",
+            "Variação (p.p.)",
+            "Av 1 Status (Aprendizagem Equivalente)",
+            "Av 2 Status (Aprendizagem Equivalente)",
+            "Evolução",
+            "Av 1 Status (Aprendizagem Equivalente) ",
+            "Av 2 Status (Aprendizagem Equivalente) ",
+            "Evolução ",
+        ]);
+        assert!(linha_parece_cabecalho_diagnostico(&linha));
+    }
+
+    #[test]
+    fn nivel_equivalente_quebra_nivel_e_ano() {
+        assert_eq!(
+            parsear_nivel_equivalente("Abaixo do Básico (6º ano)"),
+            Some(("Abaixo do Básico".to_string(), Some("6º ano".to_string())))
+        );
+        assert_eq!(
+            parsear_nivel_equivalente("Proficiente (1ª série)"),
+            Some(("Proficiente".to_string(), Some("1ª série".to_string())))
+        );
+    }
+
+    #[test]
+    fn sem_avd_vira_nao_mensurado() {
+        assert_eq!(parsear_nivel_equivalente("Sem AvD1"), None);
+        assert_eq!(parsear_nivel_equivalente("Sem AvD2"), None);
+        assert_eq!(parsear_nivel_equivalente(""), None);
+        assert_eq!(parsear_nivel_equivalente("-"), None);
+    }
+
+    #[test]
+    fn evolucao_traco_e_vazio_viram_none() {
+        assert_eq!(parsear_evolucao("Avançou"), Some("Avançou".to_string()));
+        assert_eq!(parsear_evolucao("-"), None);
+        assert_eq!(parsear_evolucao(""), None);
+    }
+
+    #[test]
+    fn rodape_extrai_turma_escola_diretoria() {
+        let texto = "Filtros aplicados:\nTurma não está em branco\nRecorte nominal válido é 1\nTurma é 1ª SERIE A NOITE ANUAL - 41001683\nCD_DIRETORIA é 10602\nCD_ESCOLA é 7833";
+        let cab = extrair_cabecalho_diagnostico(texto);
+        assert_eq!(cab.turma.as_deref(), Some("1ª SERIE A NOITE ANUAL - 41001683"));
+        assert_eq!(cab.cd_diretoria.as_deref(), Some("10602"));
+        assert_eq!(cab.cd_escola.as_deref(), Some("7833"));
+    }
+
+    #[test]
+    fn json_do_componente_marca_avd2_ausente_como_null() {
+        let json = componente_diagnostico_json("Básico (7º ano)", "Sem AvD2", "-");
+        assert_eq!(json["avd1"]["nivel"], "Básico");
+        assert_eq!(json["avd1"]["aprendizagem_equivalente"], "7º ano");
+        assert!(json["avd2"].is_null());
+        assert!(json["evolucao"].is_null());
+    }
+
+    #[test]
+    fn destinos_preferem_ra_e_caem_para_nome() {
+        let mut indice_ra: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+        indice_ra.insert("1142981058".to_string(), vec![(0, "0001142981058".to_string())]);
+        let mut indice_nome: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
+        indice_nome.insert(normalizar_nome_busca("Maria Souza"), vec![(3, "999".to_string())]);
+
+        let por_ra = RegistroDiagnostico {
+            ra: "0001142981058 SP".to_string(),
+            turma: "1ª série".to_string(),
+            estudante: "Fulano".to_string(),
+            portugues_avd1: String::new(),
+            portugues_avd2: String::new(),
+            portugues_evolucao: String::new(),
+            matematica_avd1: String::new(),
+            matematica_avd2: String::new(),
+            matematica_evolucao: String::new(),
+        };
+        // RA vem sem o " SP"? aqui simulo já limpo (ler_diagnostico_bytes limpa).
+        let mut so_numero = por_ra.clone();
+        so_numero.ra = "0001142981058".to_string();
+        assert_eq!(
+            destinos_diagnostico(&so_numero, &indice_ra, &indice_nome),
+            vec![(0, "0001142981058".to_string())]
+        );
+
+        let sem_ra = RegistroDiagnostico {
+            ra: "0009999999999".to_string(),
+            estudante: "Maria Souza".to_string(),
+            ..por_ra
+        };
+        assert_eq!(
+            destinos_diagnostico(&sem_ra, &indice_ra, &indice_nome),
+            vec![(3, "999".to_string())]
+        );
+    }
 }

@@ -2557,6 +2557,38 @@ h3 {
   color: #52616a;
 }
 
+.diagnostic-evolution-tag.up {
+  background: var(--tag-good-bg);
+  color: var(--tag-good-text);
+}
+
+.diagnostic-evolution-tag.down {
+  background: var(--tag-bad-bg);
+  color: var(--tag-bad-text);
+}
+
+.diagnostic-evolution-tag.flat {
+  background: #edf1f4;
+  color: #52616a;
+}
+
+.diagnostic-evolution {
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.diagnostic-evolution.up {
+  color: #1a7a44;
+}
+
+.diagnostic-evolution.down {
+  color: #b42318;
+}
+
+.diagnostic-evolution.flat {
+  color: #52616a;
+}
+
 .special-add-row {
   display: grid;
   gap: 10px;
@@ -7107,6 +7139,33 @@ th:nth-child(3) {
 .theme-dark .diagnostic-level-tag.unknown,
 .theme-dark .diagnostic-year-tag {
   background: #26232f;
+  color: #c8c4d4;
+}
+
+.theme-dark .diagnostic-evolution-tag.up {
+  background: #1f3a2b;
+  color: #bbf7d0;
+}
+
+.theme-dark .diagnostic-evolution-tag.down {
+  background: #4a2228;
+  color: #fecdd3;
+}
+
+.theme-dark .diagnostic-evolution-tag.flat {
+  background: #26232f;
+  color: #c8c4d4;
+}
+
+.theme-dark .diagnostic-evolution.up {
+  color: #6ee7a8;
+}
+
+.theme-dark .diagnostic-evolution.down {
+  color: #fda4a4;
+}
+
+.theme-dark .diagnostic-evolution.flat {
   color: #c8c4d4;
 }
 

@@ -364,15 +364,28 @@ pub(crate) struct EncaminhamentosBimestre {
 #[derive(Serialize)]
 pub(crate) struct DiagnosticoAprendizagem {
     pub(crate) turma_origem: Option<String>,
+    pub(crate) cd_escola: Option<String>,
+    pub(crate) cd_diretoria: Option<String>,
     pub(crate) portugues: DiagnosticoComponente,
     pub(crate) matematica: DiagnosticoComponente,
     pub(crate) atualizado_em: Option<String>,
 }
 
+/// Diagnóstico de um componente (Português ou Matemática). A prova acontece
+/// duas vezes no ano (AvD1 e AvD2); guardamos as duas ondas + a evolução
+/// que a própria planilha traz. `status`/`aprendizagem_equivalente` são o
+/// valor "corrente" para as telas — AvD2 quando existe, senão AvD1, ou
+/// "Não mensurado" quando o aluno não fez nenhuma das duas.
 #[derive(Serialize)]
 pub(crate) struct DiagnosticoComponente {
     pub(crate) aprendizagem_equivalente: Option<String>,
     pub(crate) status: Option<String>,
+    pub(crate) nivel_avd1: Option<String>,
+    pub(crate) equivalente_avd1: Option<String>,
+    pub(crate) nivel_avd2: Option<String>,
+    pub(crate) equivalente_avd2: Option<String>,
+    pub(crate) evolucao: Option<String>,
+    pub(crate) mensurado: bool,
 }
 
 #[derive(Serialize)]
@@ -585,14 +598,32 @@ pub(crate) struct ImportacaoDiagnosticoInput {
     pub(crate) arquivos: Vec<ArquivoMapaoInput>,
 }
 
+/// Uma linha da planilha "Aprendizagem Equivalente" das Devolutivas
+/// Pedagógicas (Prova Paulista / AvD). Colunas F–H = Português (AvD1, AvD2,
+/// Evolução); colunas I–K = Matemática. Os campos guardam o texto cru da
+/// célula (ex.: "Básico (7º ano)", "Sem AvD2", "Avançou", "-") — a quebra
+/// em nível/ano equivalente acontece na aplicação.
 #[derive(Clone)]
 pub(crate) struct RegistroDiagnostico {
+    pub(crate) ra: String,
     pub(crate) turma: String,
     pub(crate) estudante: String,
-    pub(crate) portugues_ano: String,
-    pub(crate) portugues_status: String,
-    pub(crate) matematica_ano: String,
-    pub(crate) matematica_status: String,
+    pub(crate) portugues_avd1: String,
+    pub(crate) portugues_avd2: String,
+    pub(crate) portugues_evolucao: String,
+    pub(crate) matematica_avd1: String,
+    pub(crate) matematica_avd2: String,
+    pub(crate) matematica_evolucao: String,
+}
+
+/// Cabeçalho do arquivo de diagnóstico: a coluna TURMA vem genérica
+/// ("1ª série"); a turma real, a escola e a diretoria só aparecem no rodapé
+/// "Filtros aplicados:" (uma única célula com quebras de linha).
+#[derive(Clone, Default)]
+pub(crate) struct CabecalhoDiagnostico {
+    pub(crate) turma: Option<String>,
+    pub(crate) cd_escola: Option<String>,
+    pub(crate) cd_diretoria: Option<String>,
 }
 
 #[derive(Serialize)]

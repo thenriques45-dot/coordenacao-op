@@ -1750,25 +1750,74 @@ pub(crate) fn extrair_aluno_deliberado(info: &Value, bimestre: &str) -> bool {
 
 pub(crate) fn extrair_diagnostico_aprendizagem(info: &Value) -> Option<DiagnosticoAprendizagem> {
     let dados = info.get("diagnostico_aprendizagem")?.as_object()?;
+    let texto = |chave: &str| dados.get(chave).and_then(Value::as_str).map(str::to_string);
     Some(DiagnosticoAprendizagem {
-        turma_origem: dados.get("turma_origem").and_then(Value::as_str).map(str::to_string),
+        turma_origem: texto("turma_origem"),
+        cd_escola: texto("cd_escola"),
+        cd_diretoria: texto("cd_diretoria"),
         portugues: extrair_diagnostico_componente(dados.get("portugues")),
         matematica: extrair_diagnostico_componente(dados.get("matematica")),
-        atualizado_em: dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string),
+        atualizado_em: texto("atualizado_em"),
     })
 }
 
+/// Lê um componente do diagnóstico. Formato novo: sub-objetos `avd1`/`avd2`
+/// (`{nivel, aprendizagem_equivalente}` ou `null`) + `evolucao`. Formato
+/// legado: `status`/`aprendizagem_equivalente` planos direto no componente.
+/// O valor "corrente" (status/aprendizagem_equivalente) que as telas usam é
+/// a AvD2 quando existe, senão a AvD1; "Não mensurado" quando o aluno não
+/// fez nenhuma das duas.
 pub(crate) fn extrair_diagnostico_componente(valor: Option<&Value>) -> DiagnosticoComponente {
     let objeto = valor.and_then(Value::as_object);
+    let texto = |chave: &str| {
+        objeto
+            .and_then(|dados| dados.get(chave))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    };
+    let onda = |chave: &str| -> (Option<String>, Option<String>) {
+        let obj = objeto.and_then(|dados| dados.get(chave)).and_then(Value::as_object);
+        (
+            obj.and_then(|o| o.get("nivel")).and_then(Value::as_str).map(str::to_string),
+            obj.and_then(|o| o.get("aprendizagem_equivalente"))
+                .and_then(Value::as_str)
+                .map(str::to_string),
+        )
+    };
+
+    let tem_ondas = objeto
+        .map(|o| o.contains_key("avd1") || o.contains_key("avd2"))
+        .unwrap_or(false);
+    if !tem_ondas {
+        let status = texto("status");
+        return DiagnosticoComponente {
+            aprendizagem_equivalente: texto("aprendizagem_equivalente"),
+            mensurado: status.is_some(),
+            status,
+            nivel_avd1: None,
+            equivalente_avd1: None,
+            nivel_avd2: None,
+            equivalente_avd2: None,
+            evolucao: None,
+        };
+    }
+
+    let (nivel_avd1, equivalente_avd1) = onda("avd1");
+    let (nivel_avd2, equivalente_avd2) = onda("avd2");
+    let mensurado = nivel_avd1.is_some() || nivel_avd2.is_some();
+    let status = nivel_avd2
+        .clone()
+        .or_else(|| nivel_avd1.clone())
+        .or_else(|| (!mensurado).then(|| "Não mensurado".to_string()));
     DiagnosticoComponente {
-        aprendizagem_equivalente: objeto
-            .and_then(|dados| dados.get("aprendizagem_equivalente"))
-            .and_then(Value::as_str)
-            .map(str::to_string),
-        status: objeto
-            .and_then(|dados| dados.get("status"))
-            .and_then(Value::as_str)
-            .map(str::to_string),
+        aprendizagem_equivalente: equivalente_avd2.clone().or_else(|| equivalente_avd1.clone()),
+        status,
+        nivel_avd1,
+        equivalente_avd1,
+        nivel_avd2,
+        equivalente_avd2,
+        evolucao: texto("evolucao"),
+        mensurado,
     }
 }
 

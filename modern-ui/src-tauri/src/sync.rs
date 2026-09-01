@@ -500,6 +500,22 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
         }
     }
 
+    // diagnostico_aprendizagem: bloco único por aluno (SARESP/AvD), gravado
+    // inteiro a cada importação. Vence o mais recente por `atualizado_em`, ou
+    // o incoming quando o local ainda não tem nenhum — senão o diagnóstico
+    // importado num dispositivo nunca chegava aos outros pelo sync.
+    if let Some(diag_inc) = inc_obj.get("diagnostico_aprendizagem") {
+        let em_local = local_obj
+            .get("diagnostico_aprendizagem")
+            .and_then(|d| d.get("atualizado_em"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let em_inc = diag_inc.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+        if em_inc >= em_local {
+            local_obj.insert("diagnostico_aprendizagem".to_string(), diag_inc.clone());
+        }
+    }
+
     // elegivel_manual: vence o mais recente (por elegivel_manual_em)
     let em_local = local_obj.get("elegivel_manual_em").and_then(Value::as_str).unwrap_or("");
     let em_inc = inc_obj.get("elegivel_manual_em").and_then(Value::as_str).unwrap_or("");
@@ -529,8 +545,8 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
     // pendrive (conselho_pendrive.rs) chama esta mesma mesclar_aluno com
     // local/incoming invertidos. Sem esta função, o campo inteiro do
     // incoming era descartado sempre que o aluno já existisse localmente —
-    // o mesmo problema, ainda não corrigido, que afeta hoje tarefas/
-    // prova_paulista/diagnostico_aprendizagem.
+    // o mesmo problema que ainda afeta `tarefas` e `prova_paulista`
+    // (`diagnostico_aprendizagem` já tem regra própria acima).
     mesclar_expansao_online(local_obj, inc_obj);
 
     // atendimentos: lista de registros com id próprio (cada atendimento feito
@@ -1082,6 +1098,42 @@ mod testes {
         let lista = local["atendimentos"].as_array().unwrap();
         assert_eq!(lista.len(), 1);
         assert_eq!(lista[0]["id"], "atendimento-1");
+    }
+
+    /// Diagnóstico SARESP importado só na máquina A tem que chegar na B pelo
+    /// sync — antes `mesclar_aluno` não tocava no campo e o dado nunca saía
+    /// do dispositivo onde foi importado.
+    #[test]
+    fn diagnostico_so_no_incoming_e_incorporado_ao_local() {
+        let mut local = json!({ "nome": "FULANO" });
+        let incoming = json!({
+            "diagnostico_aprendizagem": {
+                "portugues": { "avd2": { "nivel": "Básico", "aprendizagem_equivalente": "7º ano" } },
+                "atualizado_em": "2026-09-01T10:00:00-03:00"
+            }
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert_eq!(local["diagnostico_aprendizagem"]["portugues"]["avd2"]["nivel"], "Básico");
+    }
+
+    /// Diagnóstico local mais recente não é sobrescrito por um incoming antigo
+    /// (ex.: outro dispositivo ainda com a importação anterior).
+    #[test]
+    fn diagnostico_local_mais_novo_vence_incoming_antigo() {
+        let mut local = json!({
+            "diagnostico_aprendizagem": {
+                "portugues": { "avd2": { "nivel": "Proficiente" } },
+                "atualizado_em": "2026-09-10T10:00:00-03:00"
+            }
+        });
+        let incoming = json!({
+            "diagnostico_aprendizagem": {
+                "portugues": { "avd2": { "nivel": "Básico" } },
+                "atualizado_em": "2026-09-01T10:00:00-03:00"
+            }
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert_eq!(local["diagnostico_aprendizagem"]["portugues"]["avd2"]["nivel"], "Proficiente");
     }
 
     /// Dois dispositivos criaram atendimentos diferentes pro mesmo aluno

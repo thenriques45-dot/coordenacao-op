@@ -263,6 +263,8 @@ type EncaminhamentosBimestreApi = {
 
 type DiagnosticoAprendizagemApi = {
   turma_origem: string | null;
+  cd_escola: string | null;
+  cd_diretoria: string | null;
   portugues: DiagnosticoComponenteApi;
   matematica: DiagnosticoComponenteApi;
   atualizado_em: string | null;
@@ -271,6 +273,12 @@ type DiagnosticoAprendizagemApi = {
 type DiagnosticoComponenteApi = {
   aprendizagem_equivalente: string | null;
   status: string | null;
+  nivel_avd1: string | null;
+  equivalente_avd1: string | null;
+  nivel_avd2: string | null;
+  equivalente_avd2: string | null;
+  evolucao: string | null;
+  mensurado: boolean;
 };
 
 type DisciplinaApi = {

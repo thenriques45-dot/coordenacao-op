@@ -118,6 +118,8 @@ type AtendimentoModalState =
 
 type DiagnosticoAprendizagem = {
   turma_origem: string | null;
+  cd_escola: string | null;
+  cd_diretoria: string | null;
   portugues: DiagnosticoComponente;
   matematica: DiagnosticoComponente;
   atualizado_em: string | null;
@@ -126,6 +128,12 @@ type DiagnosticoAprendizagem = {
 type DiagnosticoComponente = {
   aprendizagem_equivalente: string | null;
   status: string | null;
+  nivel_avd1: string | null;
+  equivalente_avd1: string | null;
+  nivel_avd2: string | null;
+  equivalente_avd2: string | null;
+  evolucao: string | null;
+  mensurado: boolean;
 };
 
 type TurmaResumo = {
@@ -309,7 +317,14 @@ function DiagnosticSubjectCard({
     <article className={`diagnostic-subject-card ${classeStatusDiagnostico(status)}`}>
       <span>{titulo}</span>
       <strong>{status}</strong>
-      <small>Aprendizagem equivalente: {diagnostico.aprendizagem_equivalente ?? "-"}</small>
+      {diagnostico.mensurado && diagnostico.aprendizagem_equivalente && (
+        <small>Aprendizagem equivalente: {diagnostico.aprendizagem_equivalente}</small>
+      )}
+      {diagnostico.evolucao && (
+        <small className={`diagnostic-evolution ${classeEvolucao(diagnostico.evolucao)}`}>
+          {setaEvolucao(diagnostico.evolucao)} {diagnostico.evolucao} da AvD1 para a AvD2
+        </small>
+      )}
     </article>
   );
 }
@@ -320,6 +335,18 @@ function classeStatusDiagnostico(status: string) {
   if (texto.includes("profic")) return "proficient";
   if (texto.includes("bas")) return "basic";
   return "unknown";
+}
+
+function classeEvolucao(evolucao: string) {
+  const texto = evolucao.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (texto.includes("avanc")) return "up";
+  if (texto.includes("regred")) return "down";
+  return "flat";
+}
+
+function setaEvolucao(evolucao: string) {
+  const classe = classeEvolucao(evolucao);
+  return classe === "up" ? "▲" : classe === "down" ? "▼" : "=";
 }
 
 function diagnosticoSarespPorDisciplina(diagnostico: DiagnosticoAprendizagem | null | undefined, disciplina: string) {
@@ -1334,7 +1361,14 @@ function AlunoDetalheGestao({
                       {diagnosticoDisciplina && (
                         <span className="subject-diagnostic-tags">
                           <i className={`diagnostic-level-tag ${classeStatusDiagnostico(diagnosticoDisciplina.status ?? "")}`}>{diagnosticoDisciplina.status ?? "-"}</i>
-                          <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente ?? "-"}</i>
+                          {diagnosticoDisciplina.mensurado && diagnosticoDisciplina.aprendizagem_equivalente && (
+                            <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente}</i>
+                          )}
+                          {diagnosticoDisciplina.evolucao && (
+                            <i className={`diagnostic-evolution-tag ${classeEvolucao(diagnosticoDisciplina.evolucao)}`} title={`AvD1 → AvD2: ${diagnosticoDisciplina.evolucao}`}>
+                              {setaEvolucao(diagnosticoDisciplina.evolucao)} {diagnosticoDisciplina.evolucao}
+                            </i>
+                          )}
                         </span>
                       )}
                     </td>
