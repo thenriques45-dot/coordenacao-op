@@ -1918,14 +1918,30 @@ pub(crate) fn extrair_disciplinas(
     let aulas = carga_horaria.get(bimestre).and_then(Value::as_object);
     let mut nomes = BTreeSet::new();
 
-    for mapa in [medias, frequencia, ajustes, aulas, medias_5c]
-        .into_iter()
-        .flatten()
-    {
+    // O rol de disciplinas é um fato do ano letivo, não do bimestre: reúne os
+    // nomes de todos os bimestres (médias, frequência, ajustes e carga horária)
+    // para que o boletim do aluno mostre sempre as notas já lançadas — 1º/2º —
+    // mesmo com um bimestre mais recente selecionado e ainda sem lançamento.
+    // Os valores de cada coluna continuam presos ao `bimestre` recebido.
+    // Agrupa por grafia normalizada: grafias antigas (ex.: "Orientação de
+    // Estudo - Matemática" vs sem hífen), enquanto não passam pela "Manutenção
+    // de dados", não devem virar duas linhas na tela.
+    for periodo in ["1", "2", "3", "4"] {
+        for campo in ["medias", "frequencia", "ajustes_medias_conselho"] {
+            if let Some(mapa) = objeto_bimestre(info, campo, periodo) {
+                for nome in mapa.keys() {
+                    nomes.insert(normalizar_texto_basico(nome));
+                }
+            }
+        }
+        if let Some(mapa) = carga_horaria.get(periodo).and_then(Value::as_object) {
+            for nome in mapa.keys() {
+                nomes.insert(normalizar_texto_basico(nome));
+            }
+        }
+    }
+    if let Some(mapa) = medias_5c {
         for nome in mapa.keys() {
-            // Agrupa por grafia normalizada: grafias antigas (ex.: "Orientação
-            // de Estudo - Matemática" vs sem hífen), enquanto não passam pela
-            // "Manutenção de dados", não devem virar duas linhas na tela.
             nomes.insert(normalizar_texto_basico(nome));
         }
     }

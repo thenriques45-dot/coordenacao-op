@@ -343,6 +343,14 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.5.1": [
+    "Corrigido: o boletim da ficha do aluno (aba Desempenho) voltava a não mostrar nenhuma nota nem frequência quando o bimestre selecionado ainda não tinha lançamento — por exemplo, ao entrar no 3º bimestre antes de importar o mapão. Agora o boletim sempre lista as disciplinas do ano e as notas já lançadas (1º, 2º…), preservando a comparação da progressão ao longo do ano. A tabela de disciplinas do Conselho e as métricas da turma passam a seguir a mesma regra: mostram o rol de disciplinas do ano mesmo antes de o bimestre atual ter notas.",
+  ],
+  "3.5.0": [
+    "Bimestre atual global: um seletor único no cabeçalho (Turmas, ficha do aluno, Conselho, Relatórios) define o bimestre de todas as telas, e a escolha fica salva. O app resolve sozinho (datas de início na configuração institucional → maior bimestre já importado → 1º) até você fixar um manualmente.",
+    "Compositor \"Mensagem ao responsável\": o texto e a prévia viraram um campo só, com as variáveis aparecendo como etiquetas coloridas (azul = com dado, amarelo = sem dado do aluno). As etiquetas embaixo inserem a variável na posição do cursor; apagar é como apagar um caractere.",
+    "Importar Tarefas: a chave de bimestre é normalizada (\"1\"…\"4\"), alinhando o dado com a leitura da mensagem à família e do motor de relatórios.",
+  ],
   "3.4.0": [
     "Novo: contato com a família por WhatsApp, na aba Atendimentos do perfil do aluno. Cadastre o responsável (nome, parentesco — mãe, pai ou outro — e celular; dá pra ter um segundo responsável), escolha um modelo de mensagem e o app abre o WhatsApp com o texto pronto, já preenchido com os dados do aluno (frequência, tarefas pendentes, progresso na plataforma de expansão, etc.). Cada mensagem enviada fica registrada como um atendimento do aluno, com as tags do modelo.",
     "Novo: modelos de mensagem à família, editáveis em Configurações › Institucional › 'Mensagens à família'. Crie um modelo por situação (excesso de faltas, tarefas em atraso, convocação…) usando variáveis entre chaves — {aluno}, {frequencia}, {tarefas_pendentes}, {expansao_dias_sem_acesso}… — que são trocadas pelos dados reais do estudante na hora de enviar. Já vem com exemplos prontos.",

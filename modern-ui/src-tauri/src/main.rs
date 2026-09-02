@@ -867,6 +867,53 @@ mod tests {
         assert_eq!(disciplinas[0].faltas, Some(3.0));
     }
 
+    // Regressão: com um bimestre mais recente selecionado e ainda sem
+    // lançamento, o boletim do aluno deve continuar listando as disciplinas
+    // com notas dos bimestres anteriores (o rol de disciplinas é do ano, não
+    // do bimestre). Antes, extrair_disciplinas só olhava o bimestre pedido e
+    // devolvia lista vazia.
+    #[test]
+    fn extrair_disciplinas_mantem_disciplinas_de_bimestres_anteriores() {
+        let info = json!({
+            "medias": {
+                "1": { "MATEMATICA": 6.0, "HISTORIA": 7.5 },
+                "2": { "MATEMATICA": 5.5, "HISTORIA": 8.0 }
+            },
+            "frequencia": {
+                "1": { "MATEMATICA": 2, "HISTORIA": 0 },
+                "2": { "MATEMATICA": 1, "HISTORIA": 3 }
+            }
+        });
+        let carga = json!({
+            "1": { "MATEMATICA": 40, "HISTORIA": 20 },
+            "2": { "MATEMATICA": 40, "HISTORIA": 20 }
+        })
+        .as_object()
+        .unwrap()
+        .clone();
+
+        // 3º bimestre selecionado, nada lançado nele.
+        let disciplinas = extrair_disciplinas(&info, "3", &carga);
+        assert_eq!(disciplinas.len(), 2, "as duas disciplinas do ano continuam na lista");
+
+        let matematica = disciplinas
+            .iter()
+            .find(|d| d.nome == "MATEMATICA")
+            .expect("MATEMATICA presente");
+        // Sem nota no 3º bimestre, mas o histórico traz 1º e 2º.
+        assert_eq!(matematica.media_original, None);
+        assert_eq!(matematica.situacao, "sem-nota");
+        let bimestres: Vec<&str> = matematica
+            .historico_bimestres
+            .iter()
+            .map(|h| h.bimestre.as_str())
+            .collect();
+        assert_eq!(bimestres, vec!["1", "2"]);
+        // Frequência acumulada considera o ano todo.
+        assert_eq!(matematica.faltas_acumuladas, Some(3.0));
+        assert_eq!(matematica.total_aulas_acumuladas, Some(80.0));
+    }
+
     // Só "Projeto de Vida" não tem professor de componente que escreva Plano
     // de Ensino nem PEI — confirmado pelo coordenador em 10/08/2026. Redação
     // e Leitura e Orientação de Estudo são disciplinas regulares normais,
