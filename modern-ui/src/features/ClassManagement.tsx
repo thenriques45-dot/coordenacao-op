@@ -20,9 +20,16 @@ import {
   type CalendarEvent,
   type KanbanTarefa,
 } from "./management";
-import { ENCAMINHAMENTOS_PADRAO, type OpcaoEncaminhamento } from "./SettingsPage";
+import {
+  ENCAMINHAMENTOS_PADRAO,
+  MENSAGEM_TEMPLATES_PADRAO,
+  VARIAVEIS_MENSAGEM,
+  type MensagemTemplate,
+  type OpcaoEncaminhamento,
+} from "./SettingsPage";
 
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
+const TIPO_ATENDIMENTO_CONTATO_FAMILIA = "Contato com a família";
 
 function normalizarTiposAtendimento(tipos: string[]) {
   const normalizados = tipos.map((tipo) => tipo.trim()).filter(Boolean);
@@ -72,8 +79,23 @@ type Aluno = {
   encaminhamentos: number[];
   encaminhamentosBimestres?: EncaminhamentoBimestre[];
   atendimentos?: AtendimentoAluno[];
+  responsaveis?: ResponsavelAluno[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
+};
+
+type ResponsavelAluno = {
+  nome: string;
+  parentesco: string;
+  parentesco_desc?: string | null;
+  telefone: string;
+};
+
+type VariavelMensagem = {
+  chave: string;
+  rotulo: string;
+  valor: string;
+  disponivel: boolean;
 };
 
 type AtendimentoAnexo = {
@@ -440,12 +462,13 @@ export function GestaoTurma({
   onSalvarLideranca,
   onSalvarEducacaoEspecial,
   onSalvarAtendimento,
+  onSalvarResponsaveis,
   onOpenKanban,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[]; encaminhamento_opcoes?: OpcaoEncaminhamento[] };
+  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[]; encaminhamento_opcoes?: OpcaoEncaminhamento[]; mensagem_familia_templates?: MensagemTemplate[] };
   nomeAlunoInicial?: string | null;
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
@@ -453,6 +476,7 @@ export function GestaoTurma({
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
   onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   onOpenKanban: () => void;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
@@ -629,13 +653,16 @@ export function GestaoTurma({
         <AlunoDetalheGestao
           aluno={alunoAbertoAtual}
           bimestre={turmaDetalhe?.bimestre ?? "1"}
+          caminhoTurma={turma?.caminho}
           turmaLabel={turma ? rotuloTurma(turma) : undefined}
           onVoltar={() => setAlunoAberto(null)}
           catalogoDeficiencias={catalogoDeficiencias}
           tiposAtendimento={turmaConfig.atendimento_tipos ?? []}
           encaminhamentoOpcoes={turmaConfig.encaminhamento_opcoes?.length ? turmaConfig.encaminhamento_opcoes : ENCAMINHAMENTOS_PADRAO}
+          mensagemTemplates={turmaConfig.mensagem_familia_templates?.length ? turmaConfig.mensagem_familia_templates : MENSAGEM_TEMPLATES_PADRAO}
           onSalvarEducacaoEspecial={onSalvarEducacaoEspecial}
           onSalvarAtendimento={onSalvarAtendimento}
+          onSalvarResponsaveis={onSalvarResponsaveis}
           tarefas={tarefasKanban}
           eventos={eventosCalendario}
           onOpenKanban={onOpenKanban}
@@ -841,29 +868,654 @@ export function GestaoTurma({
   );
 }
 
+function apenasDigitos(valor: string) {
+  return valor.replace(/\D/g, "");
+}
+
+// Campo de tags: cada texto vira um "chip" ao digitar vírgula / Enter / sair
+// do campo. Guarda e devolve o valor como string separada por vírgula (para
+// encaixar sem mudança nos formulários que já usavam um <input> de texto).
+function TagsInput({
+  value,
+  onChange,
+  sugestoes,
+  placeholder,
+}: {
+  value: string;
+  onChange: (valor: string) => void;
+  sugestoes: string[];
+  placeholder?: string;
+}) {
+  const [rascunho, setRascunho] = useState("");
+  const [aberto, setAberto] = useState(false);
+  const norm = (s: string) => s.trim().toLocaleLowerCase("pt-BR");
+  const tags = value.split(",").map((t) => t.trim()).filter(Boolean);
+
+  function commitVarios(brutos: string[]) {
+    const atuais = [...tags];
+    for (const bruto of brutos) {
+      const limpo = bruto.trim();
+      if (limpo && !atuais.some((x) => norm(x) === norm(limpo))) atuais.push(limpo);
+    }
+    if (atuais.length !== tags.length) onChange(atuais.join(", "));
+    setRascunho("");
+  }
+
+  function removerTag(tag: string) {
+    onChange(tags.filter((x) => norm(x) !== norm(tag)).join(", "));
+  }
+
+  function aoDigitar(bruto: string) {
+    if (!bruto.includes(",")) {
+      setRascunho(bruto);
+      return;
+    }
+    const partes = bruto.split(",");
+    const ultimo = partes.pop() ?? "";
+    commitVarios(partes);
+    setRascunho(ultimo);
+  }
+
+  const sugestoesFiltradas = sugestoes
+    .filter((s) => !tags.some((t) => norm(t) === norm(s)))
+    .filter((s) => !rascunho.trim() || norm(s).includes(norm(rascunho)))
+    .slice(0, 8);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.35rem",
+          alignItems: "center",
+          border: "1px solid var(--border, #e6e3dd)",
+          borderRadius: "8px",
+          padding: "0.4rem 0.5rem",
+          background: "#fff",
+        }}
+      >
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", background: "#eef2f6", borderRadius: "999px", padding: "0.1rem 0.55rem", fontSize: "0.82rem" }}
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removerTag(tag)}
+              aria-label={`Remover ${tag}`}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, minHeight: 0, lineHeight: 1, color: "#667085" }}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          value={rascunho}
+          onChange={(e) => aoDigitar(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "," || e.key === "Enter") {
+              e.preventDefault();
+              commitVarios([rascunho]);
+            } else if (e.key === "Backspace" && !rascunho && tags.length) {
+              removerTag(tags[tags.length - 1]);
+            }
+          }}
+          onFocus={() => setAberto(true)}
+          onBlur={() => {
+            commitVarios([rascunho]);
+            setTimeout(() => setAberto(false), 150);
+          }}
+          placeholder={tags.length ? "" : placeholder}
+          style={{ flex: 1, minWidth: "8rem", border: "none", outline: "none", padding: "0.15rem", fontSize: "0.9rem", background: "transparent", marginTop: 0 }}
+        />
+      </div>
+      {aberto && sugestoesFiltradas.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 5,
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: "1px solid var(--border, #e6e3dd)",
+            borderRadius: "8px",
+            marginTop: "0.2rem",
+            boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+            maxHeight: "12rem",
+            overflowY: "auto",
+          }}
+        >
+          {sugestoesFiltradas.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); commitVarios([s]); }}
+              style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: "0.4rem 0.6rem", cursor: "pointer", fontSize: "0.85rem", minHeight: 0 }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatarTelefoneBR(valor: string) {
+  const d = apenasDigitos(valor).replace(/^55/, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return valor;
+}
+
+function telefoneParaWhatsapp(valor: string) {
+  const d = apenasDigitos(valor);
+  if (!d) return "";
+  return d.startsWith("55") ? d : `55${d}`;
+}
+
+function rotuloParentesco(r: ResponsavelAluno) {
+  if (r.parentesco === "mae") return "mãe";
+  if (r.parentesco === "pai") return "pai";
+  return (r.parentesco_desc || "").trim() || "responsável";
+}
+
+function rotuloVariavel(chave: string) {
+  return VARIAVEIS_MENSAGEM.find((v) => v.chave === chave)?.rotulo ?? chave;
+}
+
+type SegmentoMensagem =
+  | { tipo: "texto"; texto: string; chave?: undefined }
+  | { tipo: "var"; chave: string; rotulo: string; valor?: string; resolvido: boolean; texto?: undefined };
+
+// Quebra o texto da mensagem em trechos literais + ocorrências de {variavel},
+// já resolvendo cada variável pelo valor real (ou marcando como pendente). A
+// prévia renderiza isso com destaque visual; `textoParaEnviar` reconstrói a
+// string final a partir dos mesmos segmentos.
+function montarSegmentosMensagem(
+  corpo: string,
+  variaveis: VariavelMensagem[],
+  extras: Record<string, string>,
+): SegmentoMensagem[] {
+  const mapa = new Map(variaveis.map((v) => [v.chave, v]));
+  const segmentos: SegmentoMensagem[] = [];
+  const regex = /\{([a-z_]+)\}/g;
+  let ultimo = 0;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(corpo)) !== null) {
+    if (m.index > ultimo) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo, m.index) });
+    const chave = m[1];
+    const extra = extras[chave];
+    const variavel = mapa.get(chave);
+    if (extra != null && extra !== "") {
+      segmentos.push({ tipo: "var", chave, rotulo: rotuloVariavel(chave), valor: extra, resolvido: true });
+    } else if (variavel && variavel.disponivel) {
+      segmentos.push({ tipo: "var", chave, rotulo: variavel.rotulo, valor: variavel.valor, resolvido: true });
+    } else {
+      segmentos.push({ tipo: "var", chave, rotulo: variavel?.rotulo ?? rotuloVariavel(chave), resolvido: false });
+    }
+    ultimo = regex.lastIndex;
+  }
+  if (ultimo < corpo.length) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo) });
+  return segmentos;
+}
+
+const PARENTESCO_OPCOES: { valor: string; rotulo: string }[] = [
+  { valor: "mae", rotulo: "Mãe" },
+  { valor: "pai", rotulo: "Pai" },
+  { valor: "outro", rotulo: "Outro" },
+];
+
+function PainelResponsaveisEMensagem({
+  aluno,
+  bimestre,
+  caminhoTurma,
+  mensagemTemplates,
+  onSalvarResponsaveis,
+  onSalvarAtendimento,
+}: {
+  aluno: Aluno;
+  bimestre: string;
+  caminhoTurma?: string;
+  mensagemTemplates: MensagemTemplate[];
+  onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+}) {
+  const matricula = aluno.matricula ?? "";
+  const [responsaveis, setResponsaveis] = useState<ResponsavelAluno[]>(aluno.responsaveis ?? []);
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  const [composerAberto, setComposerAberto] = useState(false);
+  const [destinatarioIndice, setDestinatarioIndice] = useState(0);
+  const [templateId, setTemplateId] = useState(mensagemTemplates[0]?.id ?? "");
+  const [corpo, setCorpo] = useState("");
+  const [variaveis, setVariaveis] = useState<VariavelMensagem[]>([]);
+  const [carregandoVariaveis, setCarregandoVariaveis] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erroComposer, setErroComposer] = useState("");
+  const corpoRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setResponsaveis(aluno.responsaveis ?? []);
+    setEditando(false);
+  }, [aluno.matricula, aluno.responsaveis]);
+
+  const templateAtual = mensagemTemplates.find((t) => t.id === templateId) ?? mensagemTemplates[0];
+  const destinatario = responsaveis[destinatarioIndice] ?? responsaveis[0];
+
+  const extras: Record<string, string> = {
+    responsavel: (destinatario?.nome ?? "").trim() || "responsável",
+  };
+  const segmentos = useMemo(
+    () => montarSegmentosMensagem(corpo, variaveis, extras),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [corpo, variaveis, destinatarioIndice, responsaveis],
+  );
+  const textoParaEnviar = segmentos
+    .map((s) => (s.tipo === "texto" ? s.texto ?? "" : s.resolvido ? s.valor ?? "" : `{${s.chave}}`))
+    .join("");
+  const variaveisNaoResolvidas = Array.from(
+    new Map(
+      segmentos.flatMap((s) => (s.tipo === "var" && !s.resolvido ? [[s.chave, s.rotulo] as const] : [])),
+    ).values(),
+  );
+
+  function atualizarResponsavel(indice: number, campos: Partial<ResponsavelAluno>) {
+    setResponsaveis((atual) => atual.map((item, i) => (i === indice ? { ...item, ...campos } : item)));
+  }
+
+  function adicionarResponsavel() {
+    setResponsaveis((atual) => [...atual, { nome: "", parentesco: "mae", parentesco_desc: "", telefone: "" }].slice(0, 2));
+  }
+
+  function removerResponsavel(indice: number) {
+    setResponsaveis((atual) => atual.filter((_, i) => i !== indice));
+  }
+
+  function salvarResponsaveis() {
+    if (!matricula) {
+      setErro("Aluno sem RA cadastrado — não é possível salvar responsáveis.");
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    setAviso("");
+    const limpos = responsaveis
+      .map((r) => ({ ...r, nome: r.nome.trim(), telefone: apenasDigitos(r.telefone) }))
+      .filter((r) => r.nome || r.telefone);
+    onSalvarResponsaveis(matricula, limpos)
+      .then(() => {
+        setAviso("Responsáveis salvos.");
+        setEditando(false);
+      })
+      .catch((err) => setErro(err instanceof Error ? err.message : String(err)))
+      .finally(() => setSalvando(false));
+  }
+
+  function abrirComposer() {
+    setComposerAberto(true);
+    setErroComposer("");
+    setDestinatarioIndice(0);
+    const primeiro = mensagemTemplates[0];
+    setTemplateId(primeiro?.id ?? "");
+    setCorpo(primeiro?.corpo ?? "");
+    if (!caminhoTurma || !matricula) {
+      setVariaveis([]);
+      return;
+    }
+    setCarregandoVariaveis(true);
+    invokeApp<VariavelMensagem[]>("resolver_variaveis_mensagem", { caminho: caminhoTurma, matricula, bimestre })
+      .then(setVariaveis)
+      .catch(() => setVariaveis([]))
+      .finally(() => setCarregandoVariaveis(false));
+  }
+
+  function trocarTemplate(id: string) {
+    setTemplateId(id);
+    setCorpo(mensagemTemplates.find((t) => t.id === id)?.corpo ?? "");
+  }
+
+  function restaurarModelo() {
+    setCorpo(templateAtual?.corpo ?? "");
+  }
+
+  function inserirVariavel(chave: string) {
+    const token = `{${chave}}`;
+    const campo = corpoRef.current;
+    if (!campo) {
+      setCorpo((atual) => `${atual}${token}`);
+      return;
+    }
+    const inicio = campo.selectionStart ?? corpo.length;
+    const fim = campo.selectionEnd ?? corpo.length;
+    const novo = corpo.slice(0, inicio) + token + corpo.slice(fim);
+    setCorpo(novo);
+    // Reposiciona o cursor logo após o token inserido.
+    requestAnimationFrame(() => {
+      campo.focus();
+      const pos = inicio + token.length;
+      campo.setSelectionRange(pos, pos);
+    });
+  }
+
+  async function enviarPeloWhatsapp() {
+    if (!destinatario || !apenasDigitos(destinatario.telefone)) {
+      setErroComposer("O responsável selecionado não tem telefone cadastrado.");
+      return;
+    }
+    if (!textoParaEnviar.trim()) {
+      setErroComposer("Escreva a mensagem antes de enviar.");
+      return;
+    }
+    const aindaComVariaveis = /\{[a-z_]+\}/.test(textoParaEnviar);
+    if (aindaComVariaveis && !window.confirm(
+      "A mensagem ainda tem variáveis sem preenchimento (aparecem entre chaves). Enviar mesmo assim?",
+    )) {
+      return;
+    }
+    setEnviando(true);
+    setErroComposer("");
+    const numero = telefoneParaWhatsapp(destinatario.telefone);
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(textoParaEnviar)}`;
+    try {
+      await invokeApp("abrir_url", { url });
+    } catch (err) {
+      setErroComposer(`Não foi possível abrir o WhatsApp: ${err instanceof Error ? err.message : String(err)}`);
+      setEnviando(false);
+      return;
+    }
+    const confirmou = window.confirm(
+      "A mensagem foi enviada pelo WhatsApp?\n\nClique OK para registrar este contato como atendimento do aluno.",
+    );
+    if (!confirmou) {
+      setEnviando(false);
+      return;
+    }
+    const assinatura = `\n\n— Enviado via WhatsApp para ${destinatario.nome || "responsável"} (${rotuloParentesco(destinatario)}) — ${formatarTelefoneBR(destinatario.telefone)}`;
+    try {
+      await onSalvarAtendimento(matricula, {
+        data: new Date().toISOString().slice(0, 10),
+        tipos: [TIPO_ATENDIMENTO_CONTATO_FAMILIA],
+        atendido: "responsavel",
+        tags: templateAtual?.tags ?? [],
+        descricao: `${textoParaEnviar}${assinatura}`,
+        anexos: [],
+      });
+      setComposerAberto(false);
+    } catch (err) {
+      setErroComposer(`Mensagem aberta, mas o registro falhou: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <section className="student-guardian-section" style={{ marginBottom: "1rem", border: "1px solid #e4e7ec", borderRadius: "0.6rem", padding: "0.9rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "0.75rem" }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Responsável</h3>
+          <p style={{ margin: "0.15rem 0 0", color: "#667085", fontSize: "0.85rem" }}>
+            Contato da família para envio de mensagens pelo WhatsApp.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {!editando && (
+            <button type="button" className="secondary-action" onClick={() => setEditando(true)}>
+              <Pencil size={15} /> Editar
+            </button>
+          )}
+          <button
+            type="button"
+            className="primary-action"
+            onClick={abrirComposer}
+            disabled={!responsaveis.some((r) => apenasDigitos(r.telefone))}
+            title={responsaveis.some((r) => apenasDigitos(r.telefone)) ? undefined : "Cadastre um telefone primeiro"}
+          >
+            Mensagem ao responsável
+          </button>
+        </div>
+      </div>
+
+      {erro && <div className="notice error kanban-notice">{erro}</div>}
+      {aviso && <div className="notice success kanban-notice">{aviso}</div>}
+
+      {!editando ? (
+        responsaveis.length ? (
+          <ul style={{ listStyle: "none", padding: 0, margin: "0.5rem 0 0", display: "grid", gap: "0.35rem" }}>
+            {responsaveis.map((r, i) => (
+              <li key={i} style={{ fontSize: "0.9rem" }}>
+                <strong>{r.nome || "(sem nome)"}</strong>
+                <span style={{ color: "#667085" }}> — {rotuloParentesco(r)}</span>
+                {apenasDigitos(r.telefone) ? <span> · {formatarTelefoneBR(r.telefone)}</span> : <span style={{ color: "#b42318" }}> · sem telefone</span>}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p style={{ margin: "0.5rem 0 0", color: "#667085", fontSize: "0.85rem" }}>Nenhum responsável cadastrado.</p>
+        )
+      ) : (
+        <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.5rem" }}>
+          {responsaveis.map((r, i) => (
+            <div key={i} style={{ display: "grid", gap: "0.4rem", border: "1px solid #eef0f3", borderRadius: "0.5rem", padding: "0.6rem" }}>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <input
+                  value={r.nome}
+                  onChange={(e) => atualizarResponsavel(i, { nome: e.target.value })}
+                  placeholder="Nome do responsável"
+                  style={{ flex: 1 }}
+                />
+                <button type="button" className="danger-action" onClick={() => removerResponsavel(i)}>Remover</button>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <select
+                  value={r.parentesco}
+                  onChange={(e) => atualizarResponsavel(i, { parentesco: e.target.value })}
+                >
+                  {PARENTESCO_OPCOES.map((op) => (
+                    <option key={op.valor} value={op.valor}>{op.rotulo}</option>
+                  ))}
+                </select>
+                {r.parentesco === "outro" && (
+                  <input
+                    value={r.parentesco_desc ?? ""}
+                    onChange={(e) => atualizarResponsavel(i, { parentesco_desc: e.target.value })}
+                    placeholder="Qual? (ex.: avó, tio)"
+                  />
+                )}
+                <input
+                  value={r.telefone}
+                  onChange={(e) => atualizarResponsavel(i, { telefone: e.target.value })}
+                  onBlur={(e) => atualizarResponsavel(i, { telefone: apenasDigitos(e.target.value) })}
+                  placeholder="Celular com DDD"
+                  inputMode="numeric"
+                  style={{ flex: 1, minWidth: "9rem" }}
+                />
+              </div>
+            </div>
+          ))}
+          {responsaveis.length < 2 && (
+            <button type="button" className="secondary-action" onClick={adicionarResponsavel}>
+              <Plus size={15} /> Adicionar {responsaveis.length === 0 ? "responsável" : "2º responsável"}
+            </button>
+          )}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button type="button" className="primary-action" onClick={salvarResponsaveis} disabled={salvando}>
+              {salvando ? "Salvando..." : "Salvar responsáveis"}
+            </button>
+            <button type="button" className="secondary-action" onClick={() => { setResponsaveis(aluno.responsaveis ?? []); setEditando(false); setErro(""); }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {composerAberto && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="kanban-task-modal attendance-modal" style={{ maxWidth: "640px", width: "100%" }}>
+            <div className="modal-title-row">
+              <div>
+                <h2>Mensagem ao responsável</h2>
+                <p>O WhatsApp abre com o texto pronto; após enviar, o contato é registrado como atendimento.</p>
+              </div>
+              <button type="button" onClick={() => setComposerAberto(false)} aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <div className="kanban-task-modal-body" style={{ display: "grid", gap: "0.75rem" }}>
+              {erroComposer && <div className="notice error">{erroComposer}</div>}
+
+              <label style={{ display: "grid", gap: "0.25rem" }}>
+                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Destinatário</span>
+                {responsaveis.length > 1 ? (
+                  <select value={destinatarioIndice} onChange={(e) => setDestinatarioIndice(Number(e.target.value))}>
+                    {responsaveis.map((r, i) => (
+                      <option key={i} value={i} disabled={!apenasDigitos(r.telefone)}>
+                        {r.nome || "(sem nome)"} — {rotuloParentesco(r)} {apenasDigitos(r.telefone) ? `· ${formatarTelefoneBR(r.telefone)}` : "· sem telefone"}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span style={{ fontSize: "0.9rem" }}>
+                    {destinatario ? `${destinatario.nome || "(sem nome)"} — ${rotuloParentesco(destinatario)} · ${formatarTelefoneBR(destinatario.telefone)}` : "Nenhum responsável"}
+                  </span>
+                )}
+              </label>
+
+              <label style={{ display: "grid", gap: "0.25rem" }}>
+                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Modelo</span>
+                <select value={templateId} onChange={(e) => trocarTemplate(e.target.value)}>
+                  {mensagemTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.titulo || "(sem título)"}</option>
+                  ))}
+                </select>
+              </label>
+
+              {carregandoVariaveis && <span style={{ fontSize: "0.8rem", color: "#667085" }}>Carregando dados do aluno...</span>}
+
+              <div style={{ display: "grid", gap: "0.35rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Texto da mensagem</span>
+                  {corpo !== (templateAtual?.corpo ?? "") && (
+                    <button
+                      type="button"
+                      onClick={restaurarModelo}
+                      style={{ background: "none", border: "none", padding: 0, minHeight: 0, color: "#175cd3", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      ↺ Restaurar modelo
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  ref={corpoRef}
+                  value={corpo}
+                  onChange={(e) => setCorpo(e.target.value)}
+                  rows={9}
+                  placeholder="Escreva a mensagem. Use {variavel} para inserir dados do aluno."
+                />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                  {(variaveis.length ? variaveis : VARIAVEIS_MENSAGEM.map((v) => ({ ...v, valor: "", disponivel: false }))).map((v) => (
+                    <button
+                      key={v.chave}
+                      type="button"
+                      onClick={() => inserirVariavel(v.chave)}
+                      title={`${v.rotulo}${v.disponivel ? ` — ${v.valor}` : " — sem dado para este aluno"}`}
+                      style={{ fontSize: "0.78rem", padding: "0.15rem 0.5rem", borderRadius: "999px", border: "1px solid #e4e7ec", background: v.disponivel ? "#eef6ff" : "#f2f4f7", color: v.disponivel ? "#175cd3" : "#98a2b3", cursor: "pointer" }}
+                    >
+                      {`{${v.chave}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: "0.25rem" }}>
+                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Prévia — assim será enviada</span>
+                <div
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    background: "#f9fafb",
+                    border: "1px solid #e4e7ec",
+                    borderRadius: "0.5rem",
+                    padding: "0.7rem 0.8rem",
+                    fontSize: "0.9rem",
+                    lineHeight: 1.5,
+                    minHeight: "6rem",
+                  }}
+                >
+                  {segmentos.map((seg, i) =>
+                    seg.tipo === "texto" ? (
+                      <span key={i}>{seg.texto}</span>
+                    ) : seg.resolvido ? (
+                      <span
+                        key={i}
+                        title={`Preenchido pela variável: ${seg.rotulo}`}
+                        style={{ background: "#e6f0ff", color: "#175cd3", borderRadius: "3px", padding: "0 3px", fontWeight: 600 }}
+                      >
+                        {seg.valor}
+                      </span>
+                    ) : (
+                      <span
+                        key={i}
+                        title={`Sem dado para: ${seg.rotulo}`}
+                        style={{ background: "#fef0c7", color: "#7a5b12", borderRadius: "3px", padding: "0 3px", fontWeight: 600 }}
+                      >
+                        ‹{seg.rotulo}›
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              {variaveisNaoResolvidas.length > 0 && (
+                <div className="notice" style={{ background: "#fffaeb", border: "1px solid #f0c36d", color: "#7a5b12", fontSize: "0.82rem" }}>
+                  Sem dado para este aluno: {variaveisNaoResolvidas.join(", ")}. Ajuste o texto ou apague a frase antes de enviar.
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setComposerAberto(false)}>Cancelar</button>
+              <button type="button" className="primary-action" onClick={enviarPeloWhatsapp} disabled={enviando}>
+                {enviando ? "Abrindo..." : "Abrir no WhatsApp e registrar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AlunoDetalheGestao({
   aluno,
   bimestre,
+  caminhoTurma,
   turmaLabel,
   onVoltar,
   catalogoDeficiencias,
   tiposAtendimento,
   encaminhamentoOpcoes,
+  mensagemTemplates,
   onSalvarEducacaoEspecial,
   onSalvarAtendimento,
+  onSalvarResponsaveis,
   tarefas,
   eventos,
   onOpenKanban,
 }: {
   aluno: Aluno;
   bimestre: string;
+  caminhoTurma?: string;
   turmaLabel?: string;
   onVoltar: () => void;
   catalogoDeficiencias: string[];
   tiposAtendimento: string[];
   encaminhamentoOpcoes: OpcaoEncaminhamento[];
+  mensagemTemplates: MensagemTemplate[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
   onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   tarefas: KanbanTarefa[];
   eventos: CalendarEvent[];
   onOpenKanban: () => void;
@@ -1210,6 +1862,15 @@ function AlunoDetalheGestao({
     ...normalizarTiposAtendimento(tiposAtendimento),
     ...tiposAtendimentoSelecionados,
   ])).filter(Boolean);
+  const sugestoesTagsAtendimento = useMemo(() => {
+    const todas = new Set<string>();
+    for (const template of mensagemTemplates) template.tags.forEach((t) => t.trim() && todas.add(t.trim()));
+    for (const atendimento of atendimentosAluno) {
+      atendimento.tags.forEach((t) => t.trim() && todas.add(t.trim()));
+      (atendimento.followups ?? []).forEach((f) => f.tags.forEach((t) => t.trim() && todas.add(t.trim())));
+    }
+    return Array.from(todas).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [mensagemTemplates, atendimentosAluno]);
   const tituloModalAtendimento = modalAtendimento?.modo === "editar"
     ? "Editar atendimento"
     : modalAtendimento?.modo === "followup"
@@ -1430,6 +2091,14 @@ function AlunoDetalheGestao({
 
       {aba === "atendimentos" && (
         <section className="student-attendance-section">
+          <PainelResponsaveisEMensagem
+            aluno={aluno}
+            bimestre={bimestre}
+            caminhoTurma={caminhoTurma}
+            mensagemTemplates={mensagemTemplates}
+            onSalvarResponsaveis={onSalvarResponsaveis}
+            onSalvarAtendimento={onSalvarAtendimento}
+          />
           <div className="panel-heading attendance-heading">
             <div>
               <h3>Atendimentos</h3>
@@ -1670,12 +2339,13 @@ function AlunoDetalheGestao({
                   </div>
                   <label>
                     Tags
-                    <input
+                    <TagsInput
                       value={tagsAtendimento}
-                      onChange={(event) => setTagsAtendimento(event.target.value)}
+                      onChange={setTagsAtendimento}
+                      sugestoes={sugestoesTagsAtendimento}
                       placeholder="Ex.: agressão, desrespeito, orientação familiar"
                     />
-                    <span className="kanban-form-hint">Separe as tags por vírgula.</span>
+                    <span className="kanban-form-hint">Digite e tecle vírgula ou Enter para criar a tag.</span>
                   </label>
                   <label>
                     Descrição do ocorrido

@@ -43,7 +43,7 @@ import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRel
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
-import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento } from "./features/SettingsPage";
+import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -130,10 +130,18 @@ type TurmaConfig = {
   elegivel_rotulo: string;
   atendimento_tipos?: string[];
   encaminhamento_opcoes?: OpcaoEncaminhamento[];
+  mensagem_familia_templates?: MensagemTemplate[];
   perfil_turma_ativo?: boolean;
   perfil_turma_criterios?: CriterioPerfil[];
   aluno_destaque_ativo?: boolean;
   aluno_destaque_criterios?: CriterioDestaque[];
+};
+
+type ResponsavelAluno = {
+  nome: string;
+  parentesco: string;
+  parentesco_desc?: string | null;
+  telefone: string;
 };
 
 type AtendimentoAnexoApi = {
@@ -184,6 +192,7 @@ type Aluno = {
   encaminhamentosBimestres?: EncaminhamentosBimestreApi[];
   deliberado: boolean;
   atendimentos?: AtendimentoAlunoApi[];
+  responsaveis?: ResponsavelAluno[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagemApi | null;
   disciplinas: Disciplina[];
 };
@@ -252,6 +261,7 @@ type AlunoApi = {
   encaminhamentos_bimestres: EncaminhamentosBimestreApi[];
   deliberado: boolean;
   atendimentos: AtendimentoAlunoApi[];
+  responsaveis: ResponsavelAluno[];
   diagnostico_aprendizagem: DiagnosticoAprendizagemApi | null;
   disciplinas: DisciplinaApi[];
 };
@@ -333,6 +343,16 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "3.4.0": [
+    "Novo: contato com a família por WhatsApp, na aba Atendimentos do perfil do aluno. Cadastre o responsável (nome, parentesco — mãe, pai ou outro — e celular; dá pra ter um segundo responsável), escolha um modelo de mensagem e o app abre o WhatsApp com o texto pronto, já preenchido com os dados do aluno (frequência, tarefas pendentes, progresso na plataforma de expansão, etc.). Cada mensagem enviada fica registrada como um atendimento do aluno, com as tags do modelo.",
+    "Novo: modelos de mensagem à família, editáveis em Configurações › Institucional › 'Mensagens à família'. Crie um modelo por situação (excesso de faltas, tarefas em atraso, convocação…) usando variáveis entre chaves — {aluno}, {frequencia}, {tarefas_pendentes}, {expansao_dias_sem_acesso}… — que são trocadas pelos dados reais do estudante na hora de enviar. Já vem com exemplos prontos.",
+    "Importar Tarefas: agora aceita várias planilhas de uma vez (ou ir adicionando uma a uma, com a lista à vista). O app junta todas antes de cruzar os alunos pelo nome, então dá pra importar todas as turmas num passo só.",
+    "As tags do formulário de atendimento viraram um campo de 'chips': digite e tecle vírgula ou Enter para criar a tag, e o campo sugere as tags já usadas neste aluno e as definidas nos modelos de mensagem.",
+    "Quadro Kanban: no campo 'Responsável' de uma tarefa, digite '@' para escolher um coordenador do grupo de trabalho; também dá pra adicionar um nome que não esteja no grupo.",
+    "O importador do Diagnóstico SARESP lê o novo relatório 'Aprendizagem Equivalente' das Devolutivas Pedagógicas, com as duas aplicações do ano (AvD1 e AvD2) e a evolução por componente. As telas de conselho passam a mostrar o resultado mais recente e um selo de evolução (Avançou / Manteve / Regrediu).",
+    "Disciplinas lançadas com grafias diferentes que são a mesma matéria (ex.: 'Língua Inglesa' e 'LINGUA INGLESA', vindas de mapões diferentes) passam a ser tratadas como uma só na tela do conselho — antes a versão de expansão aparecia como disciplina separada, sem plano nem PEI. Também há uma correção para isso em Configurações › Manutenção de dados.",
+    "Repositório de relatórios ganhou botão 'Atualizar' e passa a buscar sempre a versão mais recente da lista publicada no GitHub, sem cache preso.",
+  ],
   "3.3.0": [
     "Novo: 'Assinaturas', na tela de PEI — define por turma quem assina cada PEI (coordenador de gestão pedagógica, professor especializado, direção), e o nome já sai impresso acima da linha de assinatura no documento. O professor regente vem automático de quem respondeu o PEI; o responsável pelo estudante é preenchido na ficha do aluno e fica em branco se não cadastrado. Digite '@nome' num campo para puxar alguém do grupo de trabalho.",
     "Novo: ao exportar o PEI de um aluno em PDF, as assinaturas de todos os componentes passam para uma folha única no final — uma folha por aluno para assinar e digitalizar, em vez de um bloco repetido a cada disciplina.",
@@ -750,6 +770,7 @@ export function App() {
     elegivel_rotulo: "Elegível",
     atendimento_tipos: TIPOS_ATENDIMENTO_PADRAO,
     encaminhamento_opcoes: ENCAMINHAMENTOS_PADRAO,
+    mensagem_familia_templates: [],
     perfil_turma_ativo: false,
     perfil_turma_criterios: [],
     aluno_destaque_ativo: false,
@@ -793,6 +814,7 @@ export function App() {
       encaminhamentosBimestres: aluno.encaminhamentos_bimestres ?? [],
       deliberado: aluno.deliberado,
       atendimentos: aluno.atendimentos ?? [],
+      responsaveis: aluno.responsaveis ?? [],
       diagnosticoAprendizagem: aluno.diagnostico_aprendizagem,
       disciplinas: aluno.disciplinas.map((disciplina) => ({
         nome: disciplina.nome,
@@ -838,6 +860,7 @@ export function App() {
       elegivel_rotulo: c.elegivel_rotulo,
       atendimento_tipos: normalizarTiposAtendimento(c.atendimento_tipos),
       encaminhamento_opcoes: normalizarEncaminhamentos(c.encaminhamento_opcoes),
+      mensagem_familia_templates: c.mensagem_familia_templates ?? [],
       perfil_turma_ativo: c.perfil_turma_ativo ?? false,
       perfil_turma_criterios: c.perfil_turma_criterios ?? [],
       aluno_destaque_ativo: c.aluno_destaque_ativo ?? false,
@@ -1233,6 +1256,20 @@ export function App() {
     });
   }
 
+  function salvarResponsaveisAluno(matricula: string, responsaveis: ResponsavelAluno[]) {
+    if (!turmaSelecionada || !turmaDetalhe) {
+      return Promise.reject(new Error("Selecione uma turma antes de salvar responsáveis."));
+    }
+    return invokeApp<TurmaDetalhe>("salvar_responsaveis_aluno", {
+      caminho: turmaSelecionada.caminho,
+      matricula,
+      input: { responsaveis },
+      bimestre: turmaDetalhe.bimestre,
+    }).then((detalheAtualizado) => {
+      setTurmaDetalhe(detalheAtualizado);
+    });
+  }
+
   function criarTurma(payload: NovaTurmaPayload) {
     return invokeApp<TurmaResumo>("criar_turma", { input: payload }).then((novaTurma) => {
       setTurmas((atuais) => [...atuais, novaTurma].sort((a, b) => (a.ano - b.ano) || a.codigo.localeCompare(b.codigo, "pt-BR")));
@@ -1490,6 +1527,7 @@ export function App() {
             onSalvarLideranca={salvarLiderancaAluno}
             onSalvarEducacaoEspecial={salvarEducacaoEspecialAluno}
             onSalvarAtendimento={salvarAtendimentoAluno}
+            onSalvarResponsaveis={salvarResponsaveisAluno}
             onOpenKanban={() => navegarPara("kanban")}
           />
         )}

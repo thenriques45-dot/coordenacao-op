@@ -69,6 +69,14 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         encaminhamento_opcoes
     };
 
+    let mensagem_familia_templates =
+        normalizar_mensagem_templates(&input.mensagem_familia_templates);
+    let mensagem_familia_templates = if mensagem_familia_templates.is_empty() {
+        mensagem_familia_templates_padrao()
+    } else {
+        mensagem_familia_templates
+    };
+
     let config = ConfiguracoesApp {
         direcao_nome: input.direcao_nome.trim().to_uppercase(),
         direcao_pronome: pronome,
@@ -81,6 +89,7 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         elegivel_rotulo,
         atendimento_tipos,
         encaminhamento_opcoes,
+        mensagem_familia_templates,
         perfil_turma_ativo: input.perfil_turma_ativo,
         perfil_turma_criterios: if input.perfil_turma_criterios.is_empty() {
             criterios_perfil_padrao()
@@ -225,6 +234,16 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
     } else {
         encaminhamento_opcoes
     };
+    let mensagem_familia_templates = dados
+        .get("mensagem_familia_templates")
+        .and_then(|v| serde_json::from_value::<Vec<MensagemTemplate>>(v.clone()).ok())
+        .map(|lista| normalizar_mensagem_templates(&lista))
+        .unwrap_or_default();
+    let mensagem_familia_templates = if mensagem_familia_templates.is_empty() {
+        mensagem_familia_templates_padrao()
+    } else {
+        mensagem_familia_templates
+    };
 
     let mut prazo_1_semestre = dados
         .get("prazo_1_semestre")
@@ -300,6 +319,7 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .to_string(),
         atendimento_tipos,
         encaminhamento_opcoes,
+        mensagem_familia_templates,
         perfil_turma_ativo: dados.get("perfil_turma_ativo").and_then(Value::as_bool).unwrap_or(false),
         perfil_turma_criterios: dados
             .get("perfil_turma_criterios")
@@ -328,7 +348,75 @@ pub(crate) fn atendimento_tipos_padrao() -> Vec<String> {
         "Pedagógico".to_string(),
         "Financeiro".to_string(),
         "Educação especial".to_string(),
+        TIPO_ATENDIMENTO_CONTATO_FAMILIA.to_string(),
     ]
+}
+
+/// Tipo de atendimento aplicado automaticamente ao registrar uma mensagem
+/// enviada ao responsável. A tela do aluno usa esta constante direta, sem
+/// depender de a lista configurada conter o item (usuários que já salvaram
+/// Configurações antes desta versão não recebem o padrão novo).
+pub(crate) const TIPO_ATENDIMENTO_CONTATO_FAMILIA: &str = "Contato com a família";
+
+pub(crate) fn mensagem_familia_templates_padrao() -> Vec<MensagemTemplate> {
+    [
+        (
+            "Cobrança de tarefas",
+            "Prezado(a) responsável por {aluno},\n\nVerificamos que o(a) estudante está com {tarefas_pendentes} tarefa(s) pendente(s) no {bimestre} ({tarefas_feitas} de {tarefas_total} concluídas).\n\nPedimos que acompanhe a realização das atividades. Permanecemos à disposição.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+            vec!["Tarefas"],
+        ),
+        (
+            "Excesso de faltas",
+            "Prezado(a) responsável por {aluno},\n\nO(A) estudante {aluno_completo} está com frequência de {frequencia} no {bimestre}. O acompanhamento da frequência é essencial para o bom desempenho escolar.\n\nSolicitamos contato com a escola para conversarmos sobre a situação.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+            vec!["Faltas"],
+        ),
+        (
+            "Tarefas + Expansão",
+            "Prezado(a) responsável por {aluno},\n\nRegistramos dois pontos de atenção no {bimestre}:\n- Tarefas: {tarefas_pendentes} pendente(s) ({tarefas_feitas} de {tarefas_total}).\n- Expansão: {expansao_dias_sem_acesso} dia(s) sem acesso à plataforma (último acesso em {expansao_ultimo_acesso}).\n\nContamos com o apoio da família no acompanhamento das atividades.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+            vec!["Tarefas", "Expansão"],
+        ),
+        (
+            "Convocação de responsável",
+            "Prezado(a) responsável por {aluno},\n\nSolicitamos seu comparecimento à escola para tratarmos da vida escolar do(a) estudante {aluno_completo}, da turma {turma}.\n\nPor favor, entre em contato para agendarmos o melhor horário.\n\nAtenciosamente,\nCoordenação Pedagógica",
+            vec!["Convocação"],
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(indice, (titulo, corpo, tags))| MensagemTemplate {
+        id: format!("padrao-{}", indice + 1),
+        titulo: titulo.to_string(),
+        corpo: corpo.to_string(),
+        tags: tags.into_iter().map(str::to_string).collect(),
+    })
+    .collect()
+}
+
+// Preserva o `id` de cada template (para a UI casar edições) e descarta
+// entradas totalmente vazias; gera um id estável quando vier em branco ou
+// repetido.
+pub(crate) fn normalizar_mensagem_templates(lista: &[MensagemTemplate]) -> Vec<MensagemTemplate> {
+    let mut vistos = BTreeSet::new();
+    let mut saida = Vec::new();
+    for (indice, template) in lista.iter().enumerate() {
+        let titulo = template.titulo.trim();
+        let corpo = template.corpo.trim();
+        if titulo.is_empty() && corpo.is_empty() {
+            continue;
+        }
+        let mut id = template.id.trim().to_string();
+        if id.is_empty() || !vistos.insert(id.clone()) {
+            id = format!("tpl-{}", indice + 1);
+            vistos.insert(id.clone());
+        }
+        saida.push(MensagemTemplate {
+            id,
+            titulo: titulo.to_string(),
+            corpo: corpo.to_string(),
+            tags: normalizar_lista_texto(&template.tags),
+        });
+    }
+    saida
 }
 
 pub(crate) fn encaminhamento_opcoes_padrao() -> Vec<OpcaoEncaminhamento> {
@@ -415,6 +503,7 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "elegivel_rotulo": config.elegivel_rotulo,
         "atendimento_tipos": config.atendimento_tipos,
         "encaminhamento_opcoes": config.encaminhamento_opcoes,
+        "mensagem_familia_templates": serde_json::to_value(&config.mensagem_familia_templates).unwrap_or_default(),
         "perfil_turma_ativo": config.perfil_turma_ativo,
         "perfil_turma_criterios": serde_json::to_value(&config.perfil_turma_criterios).unwrap_or_default(),
         "aluno_destaque_ativo": config.aluno_destaque_ativo,

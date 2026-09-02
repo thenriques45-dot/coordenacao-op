@@ -561,6 +561,41 @@ pub(crate) fn salvar_educacao_especial_aluno(
 }
 
 #[tauri::command]
+pub(crate) fn salvar_responsaveis_aluno(
+    caminho: String,
+    matricula: String,
+    input: ResponsaveisAlunoInput,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+
+    let responsaveis = normalizar_responsaveis(&input.responsaveis);
+    if responsaveis.is_empty() {
+        aluno.remove("responsaveis");
+    } else {
+        aluno.insert(
+            "responsaveis".to_string(),
+            serde_json::to_value(&responsaveis).map_err(|err| err.to_string())?,
+        );
+    }
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+#[tauri::command]
 pub(crate) fn salvar_atendimento_aluno(
     caminho: String,
     matricula: String,
@@ -1642,6 +1677,7 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
             encaminhamentos_bimestres: extrair_encaminhamentos_bimestres(&info),
             deliberado: extrair_aluno_deliberado(&info, &bimestre),
             atendimentos: extrair_atendimentos_aluno(&info),
+            responsaveis: extrair_responsaveis_aluno(&info),
             diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
         });
@@ -1714,6 +1750,55 @@ pub(crate) fn extrair_atendimentos_aluno(info: &Value) -> Vec<AtendimentoAluno> 
             ))
     });
     atendimentos
+}
+
+pub(crate) fn extrair_responsaveis_aluno(info: &Value) -> Vec<Responsavel> {
+    info.get("responsaveis")
+        .and_then(Value::as_array)
+        .map(|lista| {
+            lista
+                .iter()
+                .filter_map(|item| serde_json::from_value::<Responsavel>(item.clone()).ok())
+                .collect::<Vec<_>>()
+        })
+        .map(|lista| normalizar_responsaveis(&lista))
+        .unwrap_or_default()
+}
+
+/// Limpa a lista vinda da UI: apara os campos, guarda o telefone só com
+/// dígitos, força `parentesco` para um dos três valores conhecidos, descarta
+/// entradas totalmente vazias e mantém no máximo dois responsáveis.
+pub(crate) fn normalizar_responsaveis(lista: &[Responsavel]) -> Vec<Responsavel> {
+    lista
+        .iter()
+        .map(|responsavel| {
+            let parentesco = match responsavel.parentesco.trim().to_lowercase().as_str() {
+                "mae" | "mãe" => "mae",
+                "pai" => "pai",
+                _ => "outro",
+            }
+            .to_string();
+            let telefone: String = responsavel
+                .telefone
+                .chars()
+                .filter(char::is_ascii_digit)
+                .collect();
+            let parentesco_desc = responsavel
+                .parentesco_desc
+                .as_deref()
+                .map(str::trim)
+                .filter(|texto| !texto.is_empty() && parentesco == "outro")
+                .map(str::to_string);
+            Responsavel {
+                nome: responsavel.nome.trim().to_string(),
+                parentesco,
+                parentesco_desc,
+                telefone,
+            }
+        })
+        .filter(|responsavel| !responsavel.nome.is_empty() || !responsavel.telefone.is_empty())
+        .take(2)
+        .collect()
 }
 
 pub(crate) fn extrair_encaminhamentos(info: &Value, bimestre: &str) -> Vec<i64> {

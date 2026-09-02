@@ -43,6 +43,19 @@ pub(crate) struct OpcaoEncaminhamento {
     pub(crate) texto: String,
 }
 
+/// Modelo de mensagem para o responsável (contato com a família via WhatsApp).
+/// `corpo` pode conter variáveis entre chaves (ex.: `{aluno}`,
+/// `{tarefas_pendentes}`) que a tela do aluno substitui pelos valores reais.
+/// `tags` são aplicadas ao atendimento registrado quando a mensagem é enviada.
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct MensagemTemplate {
+    pub(crate) id: String,
+    pub(crate) titulo: String,
+    pub(crate) corpo: String,
+    #[serde(default)]
+    pub(crate) tags: Vec<String>,
+}
+
 #[derive(Serialize)]
 pub(crate) struct ConfiguracoesApp {
     pub(crate) direcao_nome: String,
@@ -57,6 +70,7 @@ pub(crate) struct ConfiguracoesApp {
     pub(crate) elegivel_rotulo: String,
     pub(crate) atendimento_tipos: Vec<String>,
     pub(crate) encaminhamento_opcoes: Vec<OpcaoEncaminhamento>,
+    pub(crate) mensagem_familia_templates: Vec<MensagemTemplate>,
     pub(crate) perfil_turma_ativo: bool,
     pub(crate) perfil_turma_criterios: Vec<CriterioPerfil>,
     pub(crate) aluno_destaque_ativo: bool,
@@ -84,6 +98,8 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) atendimento_tipos: Vec<String>,
     #[serde(default)]
     pub(crate) encaminhamento_opcoes: Vec<OpcaoEncaminhamento>,
+    #[serde(default)]
+    pub(crate) mensagem_familia_templates: Vec<MensagemTemplate>,
     #[serde(default)]
     pub(crate) perfil_turma_ativo: bool,
     #[serde(default)]
@@ -351,8 +367,27 @@ pub(crate) struct AlunoDetalhe {
     pub(crate) encaminhamentos_bimestres: Vec<EncaminhamentosBimestre>,
     pub(crate) deliberado: bool,
     pub(crate) atendimentos: Vec<AtendimentoAluno>,
+    pub(crate) responsaveis: Vec<Responsavel>,
     pub(crate) diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     pub(crate) disciplinas: Vec<DisciplinaDetalhe>,
+}
+
+/// Responsável pelo estudante — usado para o contato com a família (mensagem
+/// via WhatsApp) e registrado junto ao aluno no JSON da turma. `parentesco`
+/// é sempre "mae" | "pai" | "outro"; `parentesco_desc` só é preenchido quando
+/// "outro" (ex.: "avó", "tia"). `telefone` é guardado só com dígitos.
+#[derive(Serialize, Deserialize, Clone)]
+pub(crate) struct Responsavel {
+    pub(crate) nome: String,
+    pub(crate) parentesco: String,
+    #[serde(default)]
+    pub(crate) parentesco_desc: Option<String>,
+    pub(crate) telefone: String,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct ResponsaveisAlunoInput {
+    pub(crate) responsaveis: Vec<Responsavel>,
 }
 
 #[derive(Serialize)]

@@ -16,6 +16,7 @@ mod importador_alunos;
 mod importador_expansoes;
 mod importador_mapao;
 mod infra;
+mod mensagem_familia;
 mod motor_relatorios;
 mod pei;
 mod pendencias;
@@ -34,7 +35,7 @@ mod turmas;
 pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
-    importador_expansoes::*, importador_mapao::*, infra::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
 };
 
@@ -165,6 +166,7 @@ fn main() {
             turmas::salvar_elegibilidade_aluno,
             turmas::salvar_lideranca_aluno,
             turmas::salvar_educacao_especial_aluno,
+            turmas::salvar_responsaveis_aluno,
             shell::definir_fullscreen,
             docx::abrir_ata,
             docx::abrir_relatorio_professores,
@@ -172,6 +174,7 @@ fn main() {
             docx::abrir_documento_conselho,
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,
+            mensagem_familia::resolver_variaveis_mensagem,
             turmas::salvar_finalizacao_conselho,
             conselho_pendrive::preparar_pendrive_conselho,
             conselho_pendrive::reintegrar_pendrive_conselho,
@@ -646,6 +649,7 @@ mod tests {
             elegivel_rotulo: "Elegível".to_string(),
             atendimento_tipos: vec![],
             encaminhamento_opcoes: encaminhamento_opcoes_padrao(),
+            mensagem_familia_templates: vec![],
             perfil_turma_ativo: false,
             perfil_turma_criterios: vec![],
             aluno_destaque_ativo: false,

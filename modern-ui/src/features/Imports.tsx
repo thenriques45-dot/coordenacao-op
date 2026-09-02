@@ -1,5 +1,5 @@
 import { BarChart3, Check, ImagePlus, Upload, Users } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
 import { dividirLinhaCsv, normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
@@ -1099,32 +1099,59 @@ const opcoesBimestreTarefas = [
   { valor: "4", rotulo: "4º bimestre/conselho final" },
 ];
 
+type ArquivoTarefas = { nome: string; alunos: AlunoTarefasPayload[] };
+
 export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
   const [bimestre, setBimestre] = useState("1");
-  const [alunos, setAlunos] = useState<AlunoTarefasPayload[]>([]);
-  const [nomeArquivo, setNomeArquivo] = useState("");
+  const [arquivos, setArquivos] = useState<ArquivoTarefas[]>([]);
   const [previa, setPrevia] = useState<PreviaTarefas | null>(null);
   const [resultado, setResultado] = useState<ResultadoTarefas | null>(null);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState("");
 
-  async function selecionarArquivo(lista: FileList | null) {
-    const arquivo = lista?.[0];
-    if (!arquivo) return;
+  // Junta os alunos de todas as planilhas; se o mesmo nome aparece em mais de
+  // uma, mantém a última leitura (evita contar o aluno duas vezes na prévia).
+  const alunos = useMemo(() => {
+    const porNome = new Map<string, AlunoTarefasPayload>();
+    for (const arquivo of arquivos) {
+      for (const aluno of arquivo.alunos) {
+        porNome.set(aluno.nome.trim().toLocaleLowerCase("pt-BR"), aluno);
+      }
+    }
+    return Array.from(porNome.values());
+  }, [arquivos]);
+
+  async function selecionarArquivos(lista: FileList | null) {
+    if (!lista || lista.length === 0) return;
     setErro("");
     setPrevia(null);
     setResultado(null);
-    try {
-      const texto = await arquivo.text();
-      const parsed = parseCsvTarefas(texto);
-      if (!parsed.length) throw new Error("Nenhum aluno encontrado. Verifique se o arquivo é a planilha de tarefas correta.");
-      setAlunos(parsed);
-      setNomeArquivo(arquivo.name);
-    } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e));
-      setAlunos([]);
-      setNomeArquivo("");
+    const novos: ArquivoTarefas[] = [];
+    const falhas: string[] = [];
+    for (const arquivo of Array.from(lista)) {
+      try {
+        const parsed = parseCsvTarefas(await arquivo.text());
+        if (!parsed.length) throw new Error("nenhum aluno");
+        novos.push({ nome: arquivo.name, alunos: parsed });
+      } catch {
+        falhas.push(arquivo.name);
+      }
     }
+    if (novos.length) {
+      setArquivos((atuais) => {
+        const nomes = new Set(atuais.map((a) => a.nome));
+        return [...atuais, ...novos.filter((a) => !nomes.has(a.nome))];
+      });
+    }
+    if (falhas.length) {
+      setErro(`Não foi possível ler: ${falhas.join(", ")}. Verifique se são planilhas de tarefas (CSV).`);
+    }
+  }
+
+  function removerArquivo(nome: string) {
+    setArquivos((atuais) => atuais.filter((a) => a.nome !== nome));
+    setPrevia(null);
+    setResultado(null);
   }
 
   async function analisar() {
@@ -1150,8 +1177,7 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
       const res = await invokeApp<ResultadoTarefas>("aplicar_tarefas", { bimestre, alunos });
       setResultado(res);
       setPrevia(null);
-      setAlunos([]);
-      setNomeArquivo("");
+      setArquivos([]);
       onAplicado();
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
@@ -1167,7 +1193,8 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
           <span className="eyebrow">Importações</span>
           <h1>Importar Tarefas Realizadas</h1>
           <p>
-            Carregue a planilha de tarefas exportada pelo sistema. O app localiza cada aluno pelo
+            Carregue uma ou mais planilhas de tarefas exportadas pelo sistema (pode selecionar
+            várias de uma vez, ou ir adicionando). O app junta todas, localiza cada aluno pelo
             nome e registra a quantidade de tarefas concluídas por bimestre. Uma nova importação
             substitui os dados anteriores do mesmo bimestre.
           </p>
@@ -1186,13 +1213,14 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
           </label>
           <label className="file-picker-button" style={{ cursor: "pointer" }}>
             <Upload size={18} />
-            <span>{nomeArquivo || "Selecionar planilha CSV"}</span>
+            <span>{arquivos.length ? "Adicionar mais planilhas" : "Selecionar planilhas CSV"}</span>
             <input
               type="file"
               accept=".csv"
+              multiple
               style={{ display: "none" }}
               disabled={processando}
-              onChange={(e) => { void selecionarArquivo(e.target.files); e.target.value = ""; }}
+              onChange={(e) => { void selecionarArquivos(e.target.files); e.target.value = ""; }}
             />
           </label>
           {alunos.length > 0 && !previa && (
@@ -1201,6 +1229,28 @@ export function ImportarTarefas({ onAplicado }: { onAplicado: () => void }) {
             </button>
           )}
         </div>
+
+        {arquivos.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+            {arquivos.map((a) => (
+              <div key={a.nome} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem" }}>
+                <Check size={15} />
+                <span style={{ flex: 1 }}>{a.nome} — {a.alunos.length} aluno(s)</span>
+                <button
+                  type="button"
+                  onClick={() => removerArquivo(a.nome)}
+                  disabled={processando}
+                  style={{ background: "none", border: "none", color: "var(--danger, #d92d20)", cursor: "pointer", padding: 0 }}
+                >
+                  remover
+                </button>
+              </div>
+            ))}
+            <span style={{ fontSize: "0.8rem", color: "var(--muted, #667085)" }}>
+              {arquivos.length} planilha(s) · {alunos.length} aluno(s) no total
+            </span>
+          </div>
+        )}
 
         {erro && <div className="notice error">{erro}</div>}
 

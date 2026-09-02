@@ -167,12 +167,20 @@ export function VinculosPicker({
   const [filtro, setFiltro] = useState("");
   const [aberto, setAberto] = useState(false);
   const selecionados = separarVinculos(valor);
+  // "@" só dispara a busca no grupo de trabalho — descartamos o prefixo antes
+  // de comparar. "@" sozinho lista todo mundo.
+  const termoBusca = filtro.startsWith("@") ? filtro.slice(1).trim() : filtro.trim();
   const opcoesFiltradas = sugestoes
     .filter((s) => !selecionados.some((sel) => normalizarTextoGestao(sel) === normalizarTextoGestao(s)))
-    .filter((s) => !filtro || normalizarTextoGestao(s).includes(normalizarTextoGestao(filtro)));
+    .filter((s) => !termoBusca || normalizarTextoGestao(s).includes(normalizarTextoGestao(termoBusca)));
 
   function adicionar(item: string) {
-    onChange([...selecionados, item].join(", "));
+    const limpo = item.trim().replace(/^@/, "").trim();
+    if (!limpo || selecionados.some((sel) => normalizarTextoGestao(sel) === normalizarTextoGestao(limpo))) {
+      setFiltro("");
+      return;
+    }
+    onChange([...selecionados, limpo].join(", "));
     setFiltro("");
   }
 
@@ -187,17 +195,28 @@ export function VinculosPicker({
         type="text"
         value={filtro}
         onChange={(e) => { setFiltro(e.target.value); setAberto(true); }}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === ",") && termoBusca) {
+            e.preventDefault();
+            adicionar(opcoesFiltradas[0] ?? termoBusca);
+          }
+        }}
         onFocus={() => setAberto(true)}
         onBlur={() => setTimeout(() => setAberto(false), 150)}
         placeholder={placeholder}
       />
-      {aberto && opcoesFiltradas.length > 0 && (
+      {aberto && (opcoesFiltradas.length > 0 || filtro.startsWith("@")) && (
         <div className="vinculos-picker-dropdown">
           {opcoesFiltradas.map((item) => (
             <button type="button" key={item} onMouseDown={(e) => { e.preventDefault(); adicionar(item); }}>
               {item}
             </button>
           ))}
+          {termoBusca && !opcoesFiltradas.some((o) => normalizarTextoGestao(o) === normalizarTextoGestao(termoBusca)) && (
+            <button type="button" onMouseDown={(e) => { e.preventDefault(); adicionar(termoBusca); }}>
+              + adicionar "{termoBusca}"
+            </button>
+          )}
         </div>
       )}
       {selecionados.length > 0 && (
@@ -896,7 +915,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                       valor={novaTarefa.responsavel}
                       sugestoes={sugestoesResponsavel}
                       onChange={(v) => setNovaTarefa((atual) => ({ ...atual, responsavel: v }))}
-                      placeholder="Selecionar coordenador(es)"
+                      placeholder="Nome ou @ para o grupo de trabalho"
                     />
                   </label>
                   <div className="kanban-form-grid">

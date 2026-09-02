@@ -53,6 +53,68 @@ export type OpcaoEncaminhamento = {
   texto: string;
 };
 
+export type MensagemTemplate = {
+  id: string;
+  titulo: string;
+  corpo: string;
+  tags: string[];
+};
+
+// Variáveis interpoláveis nos templates de mensagem à família. `chave` é o
+// que aparece entre chaves no corpo ({aluno}); a tela do aluno substitui
+// pelos valores reais resolvidos pelo comando `resolver_variaveis_mensagem`.
+export const VARIAVEIS_MENSAGEM: { chave: string; rotulo: string }[] = [
+  { chave: "aluno", rotulo: "Primeiro nome do estudante" },
+  { chave: "aluno_completo", rotulo: "Nome completo do estudante" },
+  { chave: "turma", rotulo: "Turma" },
+  { chave: "serie", rotulo: "Série" },
+  { chave: "bimestre", rotulo: "Bimestre" },
+  { chave: "responsavel", rotulo: "Nome do responsável (destinatário)" },
+  { chave: "tarefas_pendentes", rotulo: "Tarefas pendentes no bimestre" },
+  { chave: "tarefas_feitas", rotulo: "Tarefas concluídas no bimestre" },
+  { chave: "tarefas_total", rotulo: "Total de tarefas no bimestre" },
+  { chave: "frequencia", rotulo: "Frequência anual (%)" },
+  { chave: "faltas", rotulo: "Faltas no bimestre" },
+  { chave: "media_global", rotulo: "Média global do bimestre" },
+  { chave: "disciplinas_abaixo", rotulo: "Disciplinas abaixo da média" },
+  { chave: "expansao_progresso", rotulo: "Expansão — progresso atual (%)" },
+  { chave: "expansao_dias_sem_acesso", rotulo: "Expansão — dias sem acessar" },
+  { chave: "expansao_ultimo_acesso", rotulo: "Expansão — data do último acesso" },
+  { chave: "direcao", rotulo: "Nome da direção" },
+  { chave: "data_extenso", rotulo: "Data de hoje por extenso" },
+];
+
+export const MENSAGEM_TEMPLATES_PADRAO: MensagemTemplate[] = [
+  {
+    id: "padrao-1",
+    titulo: "Cobrança de tarefas",
+    corpo:
+      "Prezado(a) responsável por {aluno},\n\nVerificamos que o(a) estudante está com {tarefas_pendentes} tarefa(s) pendente(s) no {bimestre} ({tarefas_feitas} de {tarefas_total} concluídas).\n\nPedimos que acompanhe a realização das atividades. Permanecemos à disposição.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+    tags: ["Tarefas"],
+  },
+  {
+    id: "padrao-2",
+    titulo: "Excesso de faltas",
+    corpo:
+      "Prezado(a) responsável por {aluno},\n\nO(A) estudante {aluno_completo} está com frequência de {frequencia} no {bimestre}. O acompanhamento da frequência é essencial para o bom desempenho escolar.\n\nSolicitamos contato com a escola para conversarmos sobre a situação.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+    tags: ["Faltas"],
+  },
+  {
+    id: "padrao-3",
+    titulo: "Tarefas + Expansão",
+    corpo:
+      "Prezado(a) responsável por {aluno},\n\nRegistramos dois pontos de atenção no {bimestre}:\n- Tarefas: {tarefas_pendentes} pendente(s) ({tarefas_feitas} de {tarefas_total}).\n- Expansão: {expansao_dias_sem_acesso} dia(s) sem acesso à plataforma (último acesso em {expansao_ultimo_acesso}).\n\nContamos com o apoio da família no acompanhamento das atividades.\n\nAtenciosamente,\nCoordenação Pedagógica — {turma}",
+    tags: ["Tarefas", "Expansão"],
+  },
+  {
+    id: "padrao-4",
+    titulo: "Convocação de responsável",
+    corpo:
+      "Prezado(a) responsável por {aluno},\n\nSolicitamos seu comparecimento à escola para tratarmos da vida escolar do(a) estudante {aluno_completo}, da turma {turma}.\n\nPor favor, entre em contato para agendarmos o melhor horário.\n\nAtenciosamente,\nCoordenação Pedagógica",
+    tags: ["Convocação"],
+  },
+];
+
 export type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
@@ -64,6 +126,7 @@ export type ConfiguracoesApp = {
   elegivel_rotulo: string;
   atendimento_tipos: string[];
   encaminhamento_opcoes: OpcaoEncaminhamento[];
+  mensagem_familia_templates: MensagemTemplate[];
   perfil_turma_ativo: boolean;
   perfil_turma_criterios: CriterioPerfil[];
   aluno_destaque_ativo: boolean;
@@ -136,6 +199,7 @@ type SettingsSection =
   | "conselho-destaque"
   | "conselho-encaminhamentos"
   | "conselho-notas"
+  | "mensagens-familia"
   | "perfil-dispositivo"
   | "sync-grupo"
   | "sync-institucional"
@@ -184,6 +248,7 @@ export function Configuracoes({
     elegivel_rotulo: "Elegível",
     atendimento_tipos: ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"],
     encaminhamento_opcoes: ENCAMINHAMENTOS_PADRAO,
+    mensagem_familia_templates: MENSAGEM_TEMPLATES_PADRAO,
     perfil_turma_ativo: false,
     perfil_turma_criterios: [],
     aluno_destaque_ativo: false,
@@ -284,6 +349,42 @@ export function Configuracoes({
       ...atual,
       encaminhamento_opcoes: atual.encaminhamento_opcoes.filter((_, i) => i !== indice),
     }));
+  }
+
+  function adicionarTemplateMensagem() {
+    setConfig((atual) => ({
+      ...atual,
+      mensagem_familia_templates: [
+        ...atual.mensagem_familia_templates,
+        { id: `tpl-${Date.now()}`, titulo: "", corpo: "", tags: [] },
+      ],
+    }));
+  }
+
+  function atualizarTemplateMensagem(indice: number, campos: Partial<MensagemTemplate>) {
+    setConfig((atual) => ({
+      ...atual,
+      mensagem_familia_templates: atual.mensagem_familia_templates.map((item, i) =>
+        i === indice ? { ...item, ...campos } : item,
+      ),
+    }));
+  }
+
+  function removerTemplateMensagem(indice: number) {
+    setConfig((atual) => ({
+      ...atual,
+      mensagem_familia_templates: atual.mensagem_familia_templates.filter((_, i) => i !== indice),
+    }));
+  }
+
+  function moverTemplateMensagem(indice: number, direcao: -1 | 1) {
+    setConfig((atual) => {
+      const alvo = indice + direcao;
+      if (alvo < 0 || alvo >= atual.mensagem_familia_templates.length) return atual;
+      const lista = [...atual.mensagem_familia_templates];
+      [lista[indice], lista[alvo]] = [lista[alvo], lista[indice]];
+      return { ...atual, mensagem_familia_templates: lista };
+    });
   }
 
   function adicionarCriterioPerfil() {
@@ -771,6 +872,11 @@ export function Configuracoes({
           label: "Turmas",
           resumo: pluralizar(config.atendimento_tipos.length, "tipo de atendimento", "tipos de atendimento"),
         },
+        {
+          id: "mensagens-familia",
+          label: "Mensagens à família",
+          resumo: pluralizar(config.mensagem_familia_templates.length, "modelo", "modelos"),
+        },
       ],
     },
     {
@@ -1100,6 +1206,86 @@ export function Configuracoes({
             )}
           </div>
           <button type="button" className="secondary-action" onClick={adicionarEncaminhamento}>Adicionar encaminhamento</button>
+          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
+            Salvar configurações
+          </button>
+        </article>
+        )}
+
+        {secaoConfig === "mensagens-familia" && (
+        <article className="settings-card">
+          <h2>Mensagens à família</h2>
+          <p>
+            Modelos de mensagem enviados ao responsável pela tela do aluno (via WhatsApp). Crie
+            um modelo por situação — faltas, tarefas em atraso, convocação. Cada envio fica
+            registrado como atendimento do aluno, com as <strong>tags</strong> definidas aqui.
+          </p>
+          <p style={{ color: "#667085", fontSize: "0.85rem" }}>
+            Use variáveis entre chaves no texto — elas são trocadas pelos dados reais do estudante
+            ao compor a mensagem. Clique para inserir:
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
+            {VARIAVEIS_MENSAGEM.map((variavel) => (
+              <span
+                key={variavel.chave}
+                title={variavel.rotulo}
+                style={{
+                  background: "#f2f4f7",
+                  border: "1px solid #e4e7ec",
+                  borderRadius: "999px",
+                  padding: "0.15rem 0.6rem",
+                  fontSize: "0.8rem",
+                  color: "#475467",
+                }}
+              >
+                {`{${variavel.chave}}`}
+              </span>
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {config.mensagem_familia_templates.map((template, indice) => (
+              <div
+                key={template.id}
+                style={{ border: "1px solid #e4e7ec", borderRadius: "0.6rem", padding: "0.85rem", display: "grid", gap: "0.5rem" }}
+              >
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    value={template.titulo}
+                    onChange={(event) => atualizarTemplateMensagem(indice, { titulo: event.target.value })}
+                    placeholder="Título do modelo (ex.: Excesso de faltas)"
+                    style={{ flex: 1, fontWeight: 600 }}
+                  />
+                  <button type="button" onClick={() => moverTemplateMensagem(indice, -1)} disabled={indice === 0} aria-label="Mover para cima">↑</button>
+                  <button type="button" onClick={() => moverTemplateMensagem(indice, 1)} disabled={indice === config.mensagem_familia_templates.length - 1} aria-label="Mover para baixo">↓</button>
+                  <button type="button" className="danger-action" onClick={() => removerTemplateMensagem(indice)}>Remover</button>
+                </div>
+                <textarea
+                  value={template.corpo}
+                  onChange={(event) => atualizarTemplateMensagem(indice, { corpo: event.target.value })}
+                  placeholder="Corpo da mensagem. Ex.: Prezado(a) responsável por {aluno}, ..."
+                  rows={6}
+                />
+                <input
+                  value={template.tags.join(", ")}
+                  onChange={(event) =>
+                    atualizarTemplateMensagem(indice, {
+                      tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean),
+                    })
+                  }
+                  placeholder="Tags do atendimento (separadas por vírgula) — ex.: Faltas"
+                />
+              </div>
+            ))}
+            {!config.mensagem_familia_templates.length && (
+              <span style={{ color: "#667085", fontSize: "0.85rem" }}>
+                Nenhum modelo. Sem modelos, o app usa os exemplos padrão ao salvar.
+              </span>
+            )}
+          </div>
+          <button type="button" className="secondary-action" onClick={adicionarTemplateMensagem} style={{ marginTop: "0.5rem" }}>
+            Adicionar modelo
+          </button>
           <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
             Salvar configurações
           </button>
