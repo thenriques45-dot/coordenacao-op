@@ -914,6 +914,36 @@ mod tests {
         assert_eq!(matematica.total_aulas_acumuladas, Some(80.0));
     }
 
+    // O resumo da turma conta os atendimentos e quantos têm follow-up
+    // combinado em aberto — alimenta o subtítulo e a pílula da sidebar.
+    #[test]
+    fn resumir_turma_conta_atendimentos_e_followups_pendentes() {
+        let turma: TurmaArquivo = serde_json::from_value(json!({
+            "codigo": "2ª Série A",
+            "ano": 2026,
+            "serie": "2ª Série",
+            "sala": "01",
+            "periodo": "Manhã",
+            "ciclo": "EM",
+            "carga_horaria": {},
+            "conselhos": {},
+            "alunos": {
+                "1": { "nome": "ALUNO UM", "ativo": true, "atendimentos": [
+                    { "id": "a1", "followup_previsto": { "data": "2026-09-30", "descricao": "x" } },
+                    { "id": "a2" }
+                ]},
+                "2": { "nome": "ALUNO DOIS", "ativo": true, "atendimentos": [
+                    { "id": "a3", "followup_previsto": {} }
+                ]},
+                "3": { "nome": "ALUNO TRES", "ativo": true }
+            }
+        }))
+        .unwrap();
+        let resumo = resumir_turma(turma, std::path::PathBuf::from("turma_2a.json"));
+        assert_eq!(resumo.total_atendimentos, 3);
+        assert_eq!(resumo.followups_pendentes, 1, "objeto vazio não conta como pendência");
+    }
+
     // followup_previsto no input tem 3 estados (Option<Option<_>>): ausente
     // não mexe no combinado, `null` limpa (registrar desfecho), objeto define.
     // Data vazia também limpa.

@@ -1581,11 +1581,26 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
     let mut alunos_ativos = 0;
     let mut alunos_elegiveis = 0;
     let mut conselhos_com_ajustes = 0;
+    let mut total_atendimentos = 0;
+    let mut followups_pendentes = 0;
     let mut lider_sala = None;
     let mut vice_lider_sala = None;
     let mut nomes_alunos = Vec::new();
 
     for info in alunos.values() {
+        if let Some(atendimentos) = info.get("atendimentos").and_then(Value::as_array) {
+            for atendimento in atendimentos {
+                total_atendimentos += 1;
+                if atendimento
+                    .get("followup_previsto")
+                    .and_then(Value::as_object)
+                    .is_some_and(|previsto| !previsto.is_empty())
+                {
+                    followups_pendentes += 1;
+                }
+            }
+        }
+
         let ativo = info.get("ativo").and_then(Value::as_bool).unwrap_or(true);
         if ativo {
             alunos_ativos += 1;
@@ -1656,6 +1671,8 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         nomes_alunos,
         conselhos_com_ajustes,
         conselho_finalizado,
+        total_atendimentos,
+        followups_pendentes,
         conselhos_finalizados,
         // Preenchido em listar_turmas, que cruza com o registro de check-outs.
         em_conselho_externo: Vec::new(),

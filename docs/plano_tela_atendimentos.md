@@ -20,6 +20,11 @@ Escopo aprovado: **todas as 13 telas** (1a–1f, 2a–2e, 3a). Várias sessões 
 
 ---
 
+## Andamento
+- **F0a** ✅ campos novos do registro (`canal`, `lote_id`, `modelo_id`, `atendido_nome`, `followup_previsto`), `atendido="outro"`, merge no sync + testes. Módulo `features/atendimentos/tipos.ts`.
+- **F1** 🚧 item de menu + tela de lista (1a) + modal criar (1c) + estado vazio.
+- Fase 0 restante (Disparo em lote, Filtro salvo, `whatsapp_api.rs`, comandos de apoio) fica **just-in-time** nas fases que consomem (6–8) — a forma exata depende da UI.
+
 ## Fase 0 — Modelo de dados + fundação backend
 Bloqueia todas as demais. Sem UI nova (ou mínima).
 

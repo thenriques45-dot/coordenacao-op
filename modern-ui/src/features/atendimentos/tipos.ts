@@ -5,6 +5,51 @@
 
 export type CanalAtendimento = "manual" | "wa_me" | "api";
 
+// Subconjunto de TurmaResumo (App.tsx / tipos.rs::TurmaResumo) que a Tela de
+// Atendimentos usa — seletor de turma, subtítulo e pílula da sidebar.
+export type TurmaResumoAtendimentos = {
+  codigo: string;
+  serie: string | null;
+  sala: string | null;
+  periodo: string | null;
+  caminho: string;
+  alunos_ativos: number;
+  total_atendimentos?: number;
+  followups_pendentes?: number;
+};
+
+// Subconjunto de AlunoDetalhe (tipos.rs::AlunoDetalhe) devolvido por
+// `carregar_turma` que a lista de atendimentos precisa.
+export type AlunoAtendimentos = {
+  matricula: string;
+  nome: string;
+  ativo: boolean;
+  numero_chamada: number | null;
+  frequencia_percentual: number | null;
+  atendimentos: AtendimentoAluno[];
+  responsaveis: { nome: string; parentesco: string; parentesco_desc?: string | null; telefone: string }[];
+};
+
+export type TurmaDetalheAtendimentos = {
+  codigo: string;
+  bimestre: string;
+  alunos: AlunoAtendimentos[];
+};
+
+// Uma linha da tabela densa (artboard 1a): um atendimento principal + o aluno
+// a que pertence + campos derivados para selos e filtros.
+export type LinhaAtendimento = {
+  atendimento: AtendimentoAluno;
+  matricula: string;
+  alunoNome: string;
+  numeroChamada: number | null;
+  turmaCodigo: string;
+  totalFollowups: number;
+  followupPendente: boolean;
+  semRetorno: boolean;
+  atendidoLabel: string;
+};
+
 // O "follow-up combinado" — compromisso datado que substitui o campo de status.
 // Mora no atendimento principal; some quando o desfecho é registrado.
 export type FollowupPrevisto = {

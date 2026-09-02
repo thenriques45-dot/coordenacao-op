@@ -303,6 +303,11 @@ pub(crate) struct TurmaResumo {
     pub(crate) nomes_alunos: Vec<String>,
     pub(crate) conselhos_com_ajustes: usize,
     pub(crate) conselho_finalizado: bool,
+    // Atendimentos registrados na turma (registros principais, sem contar
+    // follow-ups aninhados) e quantos deles têm follow-up combinado em aberto.
+    // Alimentam o subtítulo e a pílula da sidebar na Tela de Atendimentos.
+    pub(crate) total_atendimentos: usize,
+    pub(crate) followups_pendentes: usize,
     // Bimestre -> data da finalização (RFC3339; vazio em registros antigos).
     pub(crate) conselhos_finalizados: BTreeMap<String, String>,
     // Bimestres com conselho preparado em pendrive e ainda não reintegrado.

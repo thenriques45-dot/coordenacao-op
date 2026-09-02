@@ -10,6 +10,7 @@ import {
   Filter,
   Home,
   Menu,
+  MessageCircle,
   Moon,
   NotebookPen,
   Pencil,
@@ -34,6 +35,7 @@ import { BuscaGlobal } from "./features/GlobalSearch";
 import { CalendarioGestao } from "./features/CalendarManagement";
 import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
+import { TelaAtendimentos } from "./features/Atendimentos";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
@@ -58,7 +60,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -225,6 +227,11 @@ type TurmaResumo = {
   nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
+  // Sempre presentes vindos de `listar_turmas`; opcionais no tipo porque
+  // componentes-filhos (ClassList, Council, BuscaGlobal) devolvem o objeto por
+  // callback declarando só um subconjunto dos campos.
+  total_atendimentos?: number;
+  followups_pendentes?: number;
   conselhos_finalizados: Record<string, string>;
   em_conselho_externo: string[];
   caminho: string;
@@ -1429,6 +1436,13 @@ export function App() {
         <nav className="nav-list">
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
+          <NavButton
+            icon={<MessageCircle size={18} />}
+            label="Atendimentos"
+            active={tela === "atendimentos"}
+            onClick={() => navegarPara("atendimentos")}
+            badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
+          />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
@@ -1480,7 +1494,7 @@ export function App() {
       </aside>
 
       <section className="workspace">
-        {["dashboard", "turmas", "gestao-turma", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
+        {["dashboard", "turmas", "gestao-turma", "atendimentos", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
           <div className="bimestre-switcher">
             <span>Bimestre atual</span>
             <select
@@ -1601,6 +1615,20 @@ export function App() {
             onSalvarAtendimento={salvarAtendimentoAluno}
             onSalvarResponsaveis={salvarResponsaveisAluno}
             onOpenKanban={() => navegarPara("kanban")}
+          />
+        )}
+        {tela === "atendimentos" && (
+          <TelaAtendimentos
+            turmas={turmas}
+            bimestre={bimestreSelecionado}
+            tiposAtendimento={turmaConfig.atendimento_tipos}
+            onAbrirFichaAluno={(turmaCodigo, alunoNome) => {
+              const alvo = turmas.find((t) => t.codigo === turmaCodigo);
+              if (!alvo) return;
+              setNomeAlunoParaAbrir(alunoNome);
+              setTurmaSelecionada(alvo);
+              navegarPara("gestao-turma");
+            }}
           />
         )}
         {tela === "importar-dados" && (
@@ -1842,16 +1870,19 @@ function NavButton({
   label,
   active,
   onClick,
+  badge,
 }: {
   icon: ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
+  badge?: number;
 }) {
   return (
     <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
       {icon}
       {label}
+      {badge != null && badge > 0 && <span className="nav-item-badge">{badge}</span>}
     </button>
   );
 }
