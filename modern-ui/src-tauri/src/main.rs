@@ -176,6 +176,7 @@ fn main() {
             docx::abrir_documento_conselho,
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,
+            turmas::definir_followup_previsto,
             mensagem_familia::resolver_variaveis_mensagem,
             turmas::salvar_finalizacao_conselho,
             conselho_pendrive::preparar_pendrive_conselho,

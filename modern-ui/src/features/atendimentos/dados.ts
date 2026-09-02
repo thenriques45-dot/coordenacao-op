@@ -12,6 +12,18 @@ import type {
 // como "sem retorno" — sinaliza que a família não respondeu.
 export const SEM_RETORNO_DIAS = 7;
 
+// O compositor grava a assinatura de rastreio no fim da descrição, separada por
+// uma linha em branco: "…texto…\n\n— Enviado via WhatsApp para Nome (mãe) — (11) …".
+// A thread mostra essa parte à parte, em cinza, sob uma linha tracejada.
+export function separarAssinaturaRastreio(descricao: string): { corpo: string; assinatura: string | null } {
+  const marca = descricao.indexOf("\n\n— Enviado via WhatsApp");
+  if (marca === -1) return { corpo: descricao, assinatura: null };
+  return {
+    corpo: descricao.slice(0, marca).trimEnd(),
+    assinatura: descricao.slice(marca + 2).trim(),
+  };
+}
+
 export function diasDesde(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const t = Date.parse(iso);

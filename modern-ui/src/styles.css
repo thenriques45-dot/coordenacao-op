@@ -10399,10 +10399,682 @@ th:nth-child(3) {
   box-shadow: inset 0 0 0 1px var(--atd-sucesso-borda);
 }
 
+.atd-ponto-pendente {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.atd-modal-abas {
+  display: flex;
+  gap: 22px;
+  padding: 12px 22px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.atd-modal-abas button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 2px 10px;
+  margin-bottom: -1px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.atd-modal-abas button.ativo {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 700;
+}
+
+.atd-modal-abas button span {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.atd-anexar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-anexar:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.atd-anexos-lista {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atd-anexos-lista li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.atd-anexos-lista button {
+  display: flex;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* ── Densidade + pílulas de contagem (modo cartões) ── */
+.atd-densidade {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.atd-densidade button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.atd-densidade button.ativo {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.atd-pilulas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.atd-pilula {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-pilula span {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.atd-pilula.ativa {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--surface);
+}
+
+.atd-pilula.ativa span {
+  color: var(--surface);
+  opacity: 0.7;
+}
+
+.atd-densidade + .atd-pilula,
+.atd-pilulas .atd-densidade {
+  margin-left: auto;
+}
+
+/* ── Master-detail (cartões, artboard 1b) ── */
+.atd-master-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.atd-master-detail.com-painel {
+  grid-template-columns: minmax(0, 1fr) 470px;
+}
+
+.atd-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.atd-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.atd-card:hover {
+  border-color: var(--text-tertiary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.atd-card.sel {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(232, 32, 42, 0.1);
+}
+
+.atd-card-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.atd-card-corpo {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atd-card-linha1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atd-card-linha1 strong {
+  font-size: 14.5px;
+}
+
+.atd-card-data {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.atd-card-desc {
+  font-size: 13px;
+  color: var(--text-nav);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.atd-card-linha3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.atd-card-thread {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.atd-card-thread.pendente {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+/* ── Painel / drawer da thread (artboard 1b detalhe) ── */
+.atd-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.42);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 60;
+}
+
+.atd-drawer {
+  width: min(480px, 100%);
+  height: 100%;
+  background: var(--surface);
+  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+}
+
+.atd-thread {
+  display: flex;
+  flex-direction: column;
+}
+
+.atd-thread.painel {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  align-self: start;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.atd-thread-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.atd-thread-aluno strong {
+  font-size: 16px;
+}
+
+.atd-thread-aluno span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.atd-thread-fechar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-inner);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.atd-thread-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.atd-thread-acoes > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-thread-acoes > button:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--text-tertiary);
+}
+
+.atd-thread-acoes > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.atd-thread-menu {
+  position: relative;
+  margin-left: auto;
+}
+
+.atd-thread-menu > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-thread-menu-lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 2;
+}
+
+.atd-thread-menu-lista button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-nav);
+  cursor: pointer;
+  text-align: left;
+}
+
+.atd-thread-menu-lista button:hover {
+  background: var(--surface-subtle);
+}
+
+.atd-thread-timeline {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.atd-tl-item {
+  display: flex;
+  gap: 12px;
+}
+
+.atd-tl-trilho {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.atd-tl-marcador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--text-secondary);
+}
+
+.atd-tl-item.inicial .atd-tl-marcador {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.atd-tl-item.combinado .atd-tl-marcador {
+  background: var(--surface);
+  border: 1.5px dashed var(--accent);
+  color: var(--accent);
+}
+
+/* trilho vertical entre marcadores, menos no último item */
+.atd-tl-item:not(:last-child) .atd-tl-trilho::after {
+  content: "";
+  flex: 1;
+  width: 2px;
+  margin-top: 4px;
+  background: var(--border);
+}
+
+.atd-tl-conteudo {
+  min-width: 0;
+  flex: 1;
+  padding-bottom: 16px;
+}
+
+.atd-tl-cabecalho {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.atd-tl-cabecalho strong {
+  font-size: 13.5px;
+}
+
+.atd-tl-cabecalho.acento strong {
+  color: var(--accent-dark);
+}
+
+.atd-tl-cabecalho span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-thread-caixa {
+  margin-top: 6px;
+  padding: 11px 12px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-inner);
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--text-nav);
+  line-height: 1.5;
+}
+
+.atd-thread-caixa p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.atd-thread-assinatura {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-tertiary);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.atd-thread-anexos {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.atd-thread-anexos button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-thread-selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.atd-thread-combinado-desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.atd-thread-combinado-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.atd-btn-desfecho {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--atd-accent-borda);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  cursor: pointer;
+}
+
+.atd-thread-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-dark);
+  cursor: pointer;
+}
+
+.atd-combinar {
+  margin: 0 18px 18px;
+  padding: 14px;
+  border: 1px solid var(--atd-accent-borda);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.atd-combinar > strong {
+  font-size: 13.5px;
+}
+
+.atd-combinar > p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.atd-combinar label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-nav);
+}
+
+.atd-combinar input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-body);
+  font-weight: 400;
+}
+
+.atd-combinar-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atd-combinar-acoes > button[type="button"]:not(.atd-thread-link) {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-combinar-acoes .atd-btn-primario {
+  height: 34px;
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.atd-combinar-acoes .atd-thread-link {
+  margin-right: auto;
+}
+
 @media (max-width: 1280px) {
   .atd-tabela-cabecalho,
   .atd-linha {
     grid-template-columns: 60px minmax(0, 1.3fr) minmax(0, 1.1fr) 128px 100px 64px 84px 30px;
     gap: 10px;
+  }
+  .atd-master-detail.com-painel {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

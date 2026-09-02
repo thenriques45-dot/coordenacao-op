@@ -36,6 +36,24 @@ export function tempoRelativo(iso: string | null | undefined): string {
   return `há ${Math.round(dias / 30)} meses`;
 }
 
+import { useEffect, useState } from "react";
+
+// Acompanha uma media query (usada para decidir painel lateral vs. drawer).
+export function useMediaQuery(query: string): boolean {
+  const [combina, setCombina] = useState(() =>
+    typeof window !== "undefined" && "matchMedia" in window ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !("matchMedia" in window)) return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setCombina(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return combina;
+}
+
 export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return "?";

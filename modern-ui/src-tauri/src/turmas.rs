@@ -815,6 +815,62 @@ pub(crate) fn salvar_atendimento_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
+// Define ou limpa o follow-up combinado ("previsto") de um atendimento sem
+// reescrever os demais campos — usado por "Combinar retorno" e por
+// "Registrar desfecho" na thread. `previsto = None` limpa.
+#[tauri::command]
+pub(crate) fn definir_followup_previsto(
+    caminho: String,
+    matricula: String,
+    atendimento_id: String,
+    previsto: Option<FollowupPrevisto>,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let _dados = travar_dados();
+    let agora = Local::now().to_rfc3339();
+    let valor = match &previsto {
+        Some(fp) if !fp.data.trim().is_empty() => Some(serde_json::json!({
+            "data": fp.data.trim(),
+            "descricao": fp.descricao.trim(),
+        })),
+        _ => None,
+    };
+
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let atendimento = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .and_then(|aluno| aluno.get_mut("atendimentos"))
+        .and_then(Value::as_array_mut)
+        .and_then(|lista| {
+            lista
+                .iter_mut()
+                .find(|item| item.get("id").and_then(Value::as_str) == Some(atendimento_id.trim()))
+        })
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Atendimento nao encontrado.".to_string())?;
+
+    match valor {
+        Some(v) => {
+            atendimento.insert("followup_previsto".to_string(), v);
+        }
+        None => {
+            atendimento.remove("followup_previsto");
+        }
+    }
+    atendimento.insert("atualizado_em".to_string(), Value::String(agora));
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
 #[tauri::command(async)]
 pub(crate) fn carregar_relatorio_atendimentos() -> Result<RelatorioAtendimentosResultado, String> {
     let _dados = travar_dados();
