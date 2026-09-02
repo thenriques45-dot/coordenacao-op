@@ -101,9 +101,34 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
         modo_notas_ata: input.modo_notas_ata,
         prazo_1_semestre: input.prazo_1_semestre.trim().to_string(),
         prazo_2_semestre: input.prazo_2_semestre.trim().to_string(),
+        bimestre_datas_inicio: normalizar_bimestre_datas(&input.bimestre_datas_inicio),
+        bimestre_pin: normalizar_bimestre_pin(&input.bimestre_pin),
     };
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)
+}
+
+/// Sempre devolve 4 posições; cada uma é "" ou uma data ISO "AAAA-MM-DD".
+/// Entrada inválida vira "".
+pub(crate) fn normalizar_bimestre_datas(datas: &[String]) -> Vec<String> {
+    (0..4)
+        .map(|i| {
+            datas
+                .get(i)
+                .map(|s| s.trim())
+                .filter(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok())
+                .unwrap_or("")
+                .to_string()
+        })
+        .collect()
+}
+
+/// "" (automático) ou "1".."4".
+pub(crate) fn normalizar_bimestre_pin(valor: &str) -> String {
+    match valor.trim() {
+        "1" | "2" | "3" | "4" => valor.trim().to_string(),
+        _ => String::new(),
+    }
 }
 
 #[tauri::command]
@@ -338,6 +363,21 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
             .unwrap_or_else(modo_notas_ata_padrao),
         prazo_1_semestre,
         prazo_2_semestre,
+        bimestre_datas_inicio: normalizar_bimestre_datas(
+            &dados
+                .get("bimestre_datas_inicio")
+                .and_then(Value::as_array)
+                .map(|lista| {
+                    lista
+                        .iter()
+                        .map(|v| v.as_str().unwrap_or("").to_string())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+        ),
+        bimestre_pin: normalizar_bimestre_pin(
+            dados.get("bimestre_pin").and_then(Value::as_str).unwrap_or(""),
+        ),
     }
 }
 
@@ -511,7 +551,95 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "modo_notas_ata": config.modo_notas_ata,
         "prazo_1_semestre": config.prazo_1_semestre,
         "prazo_2_semestre": config.prazo_2_semestre,
+        "bimestre_datas_inicio": config.bimestre_datas_inicio,
+        "bimestre_pin": config.bimestre_pin,
     });
     let texto = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())
+}
+
+// ── Bimestre atual ────────────────────────────────────────────────────────
+//
+// O app não tinha uma noção global de "em que bimestre estamos" — cada tela
+// herdava um valor que, na prática, ficava preso no 1º. Aqui centralizamos a
+// decisão, em ordem de prioridade:
+//   1. pin manual (Configurações ou seletor do cabeçalho);
+//   2. calendário: última data de início de bimestre já passada;
+//   3. dados: maior bimestre que já tem mapão/tarefas/notas importados;
+//   4. padrão: 1º.
+
+#[tauri::command]
+pub(crate) fn resolver_bimestre_atual() -> BimestreAtualResposta {
+    let config = ler_configuracoes();
+
+    let pin = normalizar_bimestre_pin(&config.bimestre_pin);
+    if !pin.is_empty() {
+        return BimestreAtualResposta { valor: pin, origem: "manual".into() };
+    }
+
+    if let Some(b) = bimestre_por_datas(&config.bimestre_datas_inicio) {
+        return BimestreAtualResposta { valor: b, origem: "datas".into() };
+    }
+
+    if let Some(b) = bimestre_por_dados_importados() {
+        return BimestreAtualResposta { valor: b, origem: "dados".into() };
+    }
+
+    BimestreAtualResposta { valor: "1".into(), origem: "padrao".into() }
+}
+
+/// Grava só o pin do bimestre em `configuracoes.json`, preservando o resto.
+/// "" (ou valor inválido) volta para o modo automático.
+#[tauri::command]
+pub(crate) fn fixar_bimestre_pin(valor: String) -> Result<BimestreAtualResposta, String> {
+    let _dados = travar_dados();
+    let mut config = ler_configuracoes();
+    config.bimestre_pin = normalizar_bimestre_pin(&valor);
+    salvar_configuracoes_arquivo(&config)?;
+    drop(_dados);
+    Ok(resolver_bimestre_atual())
+}
+
+fn bimestre_por_datas(datas: &[String]) -> Option<String> {
+    let hoje = chrono::Local::now().date_naive();
+    let mut atual: Option<u8> = None;
+    for (i, data) in datas.iter().enumerate().take(4) {
+        if let Ok(d) = chrono::NaiveDate::parse_from_str(data.trim(), "%Y-%m-%d") {
+            if d <= hoje {
+                atual = Some((i as u8) + 1);
+            }
+        }
+    }
+    // Se nenhuma data foi preenchida, não é sinal nenhum → deixa o fallback agir.
+    if datas.iter().all(|d| d.trim().is_empty()) {
+        return None;
+    }
+    Some(atual.unwrap_or(1).to_string())
+}
+
+fn bimestre_por_dados_importados() -> Option<String> {
+    let turmas = carregar_turmas_com_caminho().ok()?;
+    let mut maior: u8 = 0;
+    for (_, turma) in &turmas {
+        let Some(alunos) = &turma.alunos else { continue };
+        for info in alunos.values() {
+            if let Some(b) = info
+                .get("frequencia_percentual_bimestre")
+                .and_then(Value::as_str)
+                .and_then(|s| s.trim().parse::<u8>().ok())
+            {
+                maior = maior.max(b);
+            }
+            for campo in ["medias", "frequencia", "tarefas"] {
+                if let Some(obj) = info.get(campo).and_then(Value::as_object) {
+                    for chave in obj.keys() {
+                        if let Ok(b) = chave.trim().parse::<u8>() {
+                            maior = maior.max(b);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    (1..=4).contains(&maior).then(|| maior.to_string())
 }

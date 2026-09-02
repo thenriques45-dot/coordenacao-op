@@ -9504,3 +9504,117 @@ th:nth-child(3) {
   border-bottom: 1px solid var(--text-body);
   height: 1px;
 }
+
+/* ── Seletor global de bimestre (cabeçalho da área de trabalho) ─────────── */
+.bimestre-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-size: 13px;
+}
+.bimestre-switcher > span {
+  font-weight: 600;
+  color: #475467;
+}
+.bimestre-switcher select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+}
+.bimestre-switcher small {
+  color: #667085;
+}
+.theme-dark .bimestre-switcher {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.theme-dark .bimestre-switcher > span {
+  color: var(--text-body);
+}
+.theme-dark .bimestre-switcher select {
+  background: #1f2733;
+  color: var(--text-body);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ── Compositor de mensagem à família: campo único com chips ────────────── */
+.msg-editor {
+  min-height: 8rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 0.5rem;
+  background: #fff;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg-editor:focus {
+  outline: 2px solid #175cd3;
+  outline-offset: -1px;
+}
+.msg-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #98a2b3;
+}
+.msg-chip {
+  display: inline;
+  border-radius: 3px;
+  padding: 0 3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.msg-chip--ok {
+  background: #e6f0ff;
+  color: #175cd3;
+}
+.msg-chip--pend {
+  background: #fef0c7;
+  color: #7a5b12;
+}
+.msg-tag {
+  font-size: 0.78rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #e4e7ec;
+  background: #f2f4f7;
+  color: #667085;
+  cursor: pointer;
+}
+.msg-tag--ok {
+  background: #eef6ff;
+  color: #175cd3;
+  border-color: #cfe0ff;
+}
+.theme-dark .msg-editor {
+  background: #1f2733;
+  color: var(--text-body);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.theme-dark .msg-chip--ok {
+  background: rgba(23, 92, 211, 0.28);
+  color: #cfe0ff;
+}
+.theme-dark .msg-chip--pend {
+  background: rgba(240, 195, 109, 0.24);
+  color: #f5d78a;
+}
+.theme-dark .msg-tag {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-nav);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.theme-dark .msg-tag--ok {
+  background: rgba(23, 92, 211, 0.28);
+  color: #cfe0ff;
+  border-color: transparent;
+}

@@ -318,6 +318,10 @@ pub(crate) fn analisar_tarefas(
     bimestre: String,
     alunos: Vec<AlunoTarefasInput>,
 ) -> Result<PreviaTarefas, String> {
+    // Normaliza para "1".."4" — mesma chave que a leitura (mensagem à família,
+    // motor de relatórios) espera. Sem isso, um valor fora do padrão gravaria
+    // numa chave que ninguém procura.
+    let bimestre = normalizar_bimestre(&bimestre);
     let _dados = travar_dados();
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
@@ -438,6 +442,7 @@ pub(crate) fn aplicar_tarefas(
     bimestre: String,
     alunos: Vec<AlunoTarefasInput>,
 ) -> Result<ResultadoTarefas, String> {
+    let bimestre = normalizar_bimestre(&bimestre);
     let _dados = travar_dados();
     let turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);

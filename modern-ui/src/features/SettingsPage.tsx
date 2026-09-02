@@ -134,6 +134,10 @@ export type ConfiguracoesApp = {
   modo_notas_ata: ModoNotasAta;
   prazo_1_semestre: string;
   prazo_2_semestre: string;
+  /** Datas de início de cada bimestre (ISO "AAAA-MM-DD" ou ""); sempre 4 posições. */
+  bimestre_datas_inicio: string[];
+  /** "" = bimestre atual automático; "1".."4" = fixo. */
+  bimestre_pin: string;
 };
 
 export type ModoNotasAta = "x_vermelhas" | "todas" | "somente_vermelhas";
@@ -256,6 +260,8 @@ export function Configuracoes({
     modo_notas_ata: "x_vermelhas",
     prazo_1_semestre: "",
     prazo_2_semestre: "",
+    bimestre_datas_inicio: ["", "", "", ""],
+    bimestre_pin: "",
   });
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mensagem, setMensagem] = useState("");
@@ -990,6 +996,47 @@ export function Configuracoes({
             Prazo do 2º semestre (bimestres 3º e 4º)
             <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
           </label>
+
+          <fieldset style={{ border: "1px solid #e4e7ec", borderRadius: "0.5rem", padding: "0.75rem 0.9rem", margin: "0.5rem 0" }}>
+            <legend style={{ fontWeight: 600, fontSize: "0.85rem", padding: "0 0.35rem" }}>Bimestre atual</legend>
+            <p style={{ color: "#667085", fontSize: "0.85rem", margin: "0 0 0.6rem" }}>
+              Define o bimestre que o app usa nas telas de turma, aluno e mensagens à família.
+              Deixe em <strong>Automático</strong> para o app decidir pela data de hoje (usando as datas de início abaixo)
+              ou, se elas não estiverem preenchidas, pelo maior bimestre já importado.
+            </p>
+            <label>
+              Modo
+              <select
+                value={config.bimestre_pin}
+                onChange={(event) => setConfig((atual) => ({ ...atual, bimestre_pin: event.target.value }))}
+              >
+                <option value="">Automático</option>
+                <option value="1">Fixo no 1º bimestre</option>
+                <option value="2">Fixo no 2º bimestre</option>
+                <option value="3">Fixo no 3º bimestre</option>
+                <option value="4">Fixo no 4º bimestre</option>
+              </select>
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.5rem", marginTop: "0.5rem" }}>
+              {[0, 1, 2, 3].map((i) => (
+                <label key={i} style={{ fontSize: "0.82rem" }}>
+                  Início do {i + 1}º bimestre
+                  <input
+                    type="date"
+                    value={config.bimestre_datas_inicio[i] ?? ""}
+                    onChange={(event) =>
+                      setConfig((atual) => {
+                        const datas = [...(atual.bimestre_datas_inicio ?? ["", "", "", ""])];
+                        datas[i] = event.target.value;
+                        return { ...atual, bimestre_datas_inicio: datas };
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <div className="settings-file-group">
             <span>Cabeçalho da ata</span>
             <p>Use uma imagem JPG ou PNG com o cabeçalho oficial da escola. Ela aparecerá na ata e no relatório dos professores.</p>

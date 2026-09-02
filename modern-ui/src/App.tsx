@@ -778,6 +778,7 @@ export function App() {
   });
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
+  const [bimestreOrigem, setBimestreOrigem] = useState<"manual" | "datas" | "dados" | "padrao">("padrao");
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
   const [turmaRefreshKey, setTurmaRefreshKey] = useState(0);
   const [erroTurmas, setErroTurmas] = useState("");
@@ -874,6 +875,33 @@ export function App() {
       .then(aplicarConfigCarregada)
       .catch(() => {});
   }, []);
+
+  // Resolve o bimestre atual (pin manual → calendário → dados importados → 1º)
+  // uma vez na abertura; as telas herdam esse valor.
+  useEffect(() => {
+    if (!tauriDisponivel) return;
+    invokeApp<{ valor: string; origem: "manual" | "datas" | "dados" | "padrao" }>("resolver_bimestre_atual")
+      .then((resp) => {
+        setBimestreSelecionado(resp.valor);
+        setBimestreOrigem(resp.origem);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Muda o bimestre global. `pin` = fixar em Configurações; senão volta ao automático.
+  function mudarBimestre(valor: string, pin: boolean) {
+    setBimestreSelecionado(valor);
+    setBimestreOrigem(pin ? "manual" : bimestreOrigem);
+    if (!tauriDisponivel) return;
+    invokeApp<{ valor: string; origem: "manual" | "datas" | "dados" | "padrao" }>("fixar_bimestre_pin", {
+      valor: pin ? valor : "",
+    })
+      .then((resp) => {
+        setBimestreSelecionado(resp.valor);
+        setBimestreOrigem(resp.origem);
+      })
+      .catch(() => {});
+  }
 
   useEffect(() => {
     if (!tauriDisponivel) return;
@@ -1435,6 +1463,33 @@ export function App() {
       </aside>
 
       <section className="workspace">
+        {["dashboard", "turmas", "gestao-turma", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
+          <div className="bimestre-switcher">
+            <span>Bimestre atual</span>
+            <select
+              value={bimestreSelecionado}
+              onChange={(e) => mudarBimestre(e.target.value, true)}
+              title={
+                bimestreOrigem === "manual" ? "Fixado manualmente"
+                : bimestreOrigem === "datas" ? "Definido pelo calendário em Configurações"
+                : bimestreOrigem === "dados" ? "Inferido pelo maior bimestre já importado"
+                : "Padrão (nada configurado)"
+              }
+            >
+              <option value="1">1º bimestre</option>
+              <option value="2">2º bimestre</option>
+              <option value="3">3º bimestre</option>
+              <option value="4">4º bimestre</option>
+            </select>
+            {bimestreOrigem !== "manual" ? (
+              <small>automático</small>
+            ) : (
+              <button type="button" className="ghost-action" onClick={() => mudarBimestre(bimestreSelecionado, false)}>
+                voltar ao automático
+              </button>
+            )}
+          </div>
+        )}
         {pendrivesConselho.map((pendrive) => (
           <div key={pendrive.pasta} className="data-warning neutral pendrive-detectado">
             <Usb size={17} />
@@ -1490,7 +1545,7 @@ export function App() {
             turmaSelecionada={turmaSelecionada}
             turmaDetalhe={turmaDetalhe}
             bimestreSelecionado={bimestreSelecionado}
-            setBimestreSelecionado={setBimestreSelecionado}
+            setBimestreSelecionado={(v) => mudarBimestre(v, true)}
             erroConselho={erroConselho}
             selecionarAluno={selecionarAluno}
             salvarAjustesMedia={salvarAjustesMedia}

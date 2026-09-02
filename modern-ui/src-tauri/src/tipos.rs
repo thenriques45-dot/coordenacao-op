@@ -81,6 +81,24 @@ pub(crate) struct ConfiguracoesApp {
     // para colorir seus indicadores de status de entrega.
     pub(crate) prazo_1_semestre: String,
     pub(crate) prazo_2_semestre: String,
+    // Datas de início de cada bimestre (YYYY-MM-DD, "" = não informado).
+    // Sempre 4 posições. Usadas para resolver automaticamente o "bimestre
+    // atual" a partir da data de hoje. Ver `resolver_bimestre_atual`.
+    #[serde(default)]
+    pub(crate) bimestre_datas_inicio: Vec<String>,
+    // Fixa manualmente o bimestre atual ("" = automático; "1".."4" = fixo).
+    #[serde(default)]
+    pub(crate) bimestre_pin: String,
+}
+
+/// Resultado de `resolver_bimestre_atual`: o bimestre em vigor ("1".."4") e
+/// de onde veio essa decisão, para a interface poder explicar ao usuário.
+#[derive(Serialize)]
+pub(crate) struct BimestreAtualResposta {
+    pub(crate) valor: String,
+    /// "manual" (pin), "datas" (calendário da config), "dados" (maior
+    /// bimestre já importado) ou "padrao" (nada configurado → 1º).
+    pub(crate) origem: String,
 }
 
 #[derive(Deserialize)]
@@ -114,6 +132,10 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) prazo_1_semestre: String,
     #[serde(default)]
     pub(crate) prazo_2_semestre: String,
+    #[serde(default)]
+    pub(crate) bimestre_datas_inicio: Vec<String>,
+    #[serde(default)]
+    pub(crate) bimestre_pin: String,
 }
 
 #[derive(Deserialize)]

@@ -1,6 +1,6 @@
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { BookOpen, CalendarClock, Copy, FileText, Paperclip, Pencil, Plus, Printer, Search, Sparkles, TrendingUp, Users, X } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   assistentePedagogicoDisponivel,
   assistenteManualDisponivel,
@@ -1068,6 +1068,176 @@ const PARENTESCO_OPCOES: { valor: string; rotulo: string }[] = [
   { valor: "outro", rotulo: "Outro" },
 ];
 
+function escaparHtml(texto: string) {
+  return texto
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function chipHtml(seg: Extract<SegmentoMensagem, { tipo: "var" }>) {
+  const classe = seg.resolvido ? "msg-chip msg-chip--ok" : "msg-chip msg-chip--pend";
+  const rotulo = seg.resolvido
+    ? `Preenchido pela variável: ${seg.rotulo}`
+    : `Sem dado para: ${seg.rotulo}`;
+  const conteudo = seg.resolvido ? (seg.valor ?? "") : `‹${seg.rotulo}›`;
+  return `<span class="${classe}" contenteditable="false" data-chave="${seg.chave}" title="${escaparHtml(rotulo)}">${escaparHtml(conteudo)}</span>`;
+}
+
+function segmentosParaHtml(segmentos: SegmentoMensagem[]) {
+  const corpo = segmentos
+    .map((seg) =>
+      seg.tipo === "texto" ? escaparHtml(seg.texto).replace(/\n/g, "<br>") : chipHtml(seg),
+    )
+    .join("");
+  return corpo || "";
+}
+
+// Compositor de campo único: o texto e a prévia são a mesma coisa. Cada
+// {variável} aparece como um bloco em linha (azul = resolvida / amarelo = sem
+// dado). Apagável como caractere; clicar numa tag reinsere na posição do cursor.
+function EditorMensagemChips({
+  corpo,
+  segmentos,
+  onCorpoChange,
+  resolverChip,
+}: {
+  corpo: string;
+  segmentos: SegmentoMensagem[];
+  onCorpoChange: (corpo: string) => void;
+  resolverChip: (chave: string) => { valor?: string; rotulo: string; resolvido: boolean };
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const rangeSalvo = useRef<Range | null>(null);
+  const ultimoEmitido = useRef<string | null>(null);
+
+  const serializar = useCallback((): string => {
+    const raiz = ref.current;
+    if (!raiz) return "";
+    const walk = (node: Node): string => {
+      let s = "";
+      node.childNodes.forEach((child) => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          s += (child.textContent ?? "").replace(/ /g, " ");
+        } else if (child instanceof HTMLElement) {
+          if (child.dataset.chave) {
+            s += `{${child.dataset.chave}}`;
+          } else if (child.tagName === "BR") {
+            s += "\n";
+          } else if (child.tagName === "DIV" || child.tagName === "P") {
+            if (s && !s.endsWith("\n")) s += "\n";
+            const soBr = child.childNodes.length === 1 && child.firstChild?.nodeName === "BR";
+            s += soBr ? "" : walk(child);
+          } else {
+            s += walk(child);
+          }
+        }
+      });
+      return s;
+    };
+    return walk(raiz);
+  }, []);
+
+  const emitir = useCallback(() => {
+    const txt = serializar();
+    ultimoEmitido.current = txt;
+    onCorpoChange(txt);
+  }, [serializar, onCorpoChange]);
+
+  const salvarSelecao = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && ref.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      rangeSalvo.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  // Reconstrói o HTML quando o texto muda de fora (troca de modelo, variáveis
+  // que terminaram de carregar) — mas nunca enquanto o usuário digita, para
+  // não jogar o cursor para o início.
+  useEffect(() => {
+    const raiz = ref.current;
+    if (!raiz) return;
+    if (document.activeElement === raiz) return;
+    raiz.innerHTML = segmentosParaHtml(segmentos);
+    ultimoEmitido.current = corpo;
+  }, [corpo, segmentos]);
+
+  function inserirChip(chave: string) {
+    const raiz = ref.current;
+    if (!raiz) return;
+    raiz.focus();
+    const sel = window.getSelection();
+    if (!sel) return;
+    let range = rangeSalvo.current;
+    if (!range || !raiz.contains(range.commonAncestorContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(raiz);
+      range.collapse(false);
+    }
+    sel.removeAllRanges();
+    sel.addRange(range);
+    range.deleteContents();
+
+    const info = resolverChip(chave);
+    const chip = document.createElement("span");
+    chip.className = info.resolvido ? "msg-chip msg-chip--ok" : "msg-chip msg-chip--pend";
+    chip.setAttribute("contenteditable", "false");
+    chip.dataset.chave = chave;
+    chip.title = info.resolvido ? `Preenchido pela variável: ${info.rotulo}` : `Sem dado para: ${info.rotulo}`;
+    chip.textContent = info.resolvido ? (info.valor ?? "") : `‹${info.rotulo}›`;
+    range.insertNode(chip);
+    const espaco = document.createTextNode(" ");
+    chip.after(espaco);
+    const depois = document.createRange();
+    depois.setStartAfter(espaco);
+    depois.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(depois);
+    rangeSalvo.current = depois.cloneRange();
+    emitir();
+  }
+
+  return (
+    <div style={{ display: "grid", gap: "0.35rem" }}>
+      <div
+        ref={ref}
+        className="msg-editor"
+        contentEditable
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Texto da mensagem"
+        data-placeholder="Escreva a mensagem. Clique nas etiquetas abaixo para inserir dados do aluno."
+        suppressContentEditableWarning
+        onInput={emitir}
+        onBlur={() => {
+          const raiz = ref.current;
+          if (raiz) raiz.innerHTML = segmentosParaHtml(segmentos);
+          ultimoEmitido.current = corpo;
+        }}
+        onKeyUp={salvarSelecao}
+        onMouseUp={salvarSelecao}
+      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+        {(VARIAVEIS_MENSAGEM).map((v) => {
+          const info = resolverChip(v.chave);
+          return (
+            <button
+              key={v.chave}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => inserirChip(v.chave)}
+              title={`${v.rotulo}${info.resolvido ? ` — ${info.valor}` : " — sem dado para este aluno"}`}
+              className={info.resolvido ? "msg-tag msg-tag--ok" : "msg-tag"}
+            >
+              {v.rotulo}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PainelResponsaveisEMensagem({
   aluno,
   bimestre,
@@ -1092,13 +1262,13 @@ function PainelResponsaveisEMensagem({
 
   const [composerAberto, setComposerAberto] = useState(false);
   const [destinatarioIndice, setDestinatarioIndice] = useState(0);
+  const [bimestreComposer, setBimestreComposer] = useState(bimestre);
   const [templateId, setTemplateId] = useState(mensagemTemplates[0]?.id ?? "");
   const [corpo, setCorpo] = useState("");
   const [variaveis, setVariaveis] = useState<VariavelMensagem[]>([]);
   const [carregandoVariaveis, setCarregandoVariaveis] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erroComposer, setErroComposer] = useState("");
-  const corpoRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setResponsaveis(aluno.responsaveis ?? []);
@@ -1157,6 +1327,21 @@ function PainelResponsaveisEMensagem({
       .finally(() => setSalvando(false));
   }
 
+  const carregarVariaveis = useCallback(
+    (bim: string) => {
+      if (!caminhoTurma || !matricula) {
+        setVariaveis([]);
+        return;
+      }
+      setCarregandoVariaveis(true);
+      invokeApp<VariavelMensagem[]>("resolver_variaveis_mensagem", { caminho: caminhoTurma, matricula, bimestre: bim })
+        .then(setVariaveis)
+        .catch(() => setVariaveis([]))
+        .finally(() => setCarregandoVariaveis(false));
+    },
+    [caminhoTurma, matricula],
+  );
+
   function abrirComposer() {
     setComposerAberto(true);
     setErroComposer("");
@@ -1164,15 +1349,8 @@ function PainelResponsaveisEMensagem({
     const primeiro = mensagemTemplates[0];
     setTemplateId(primeiro?.id ?? "");
     setCorpo(primeiro?.corpo ?? "");
-    if (!caminhoTurma || !matricula) {
-      setVariaveis([]);
-      return;
-    }
-    setCarregandoVariaveis(true);
-    invokeApp<VariavelMensagem[]>("resolver_variaveis_mensagem", { caminho: caminhoTurma, matricula, bimestre })
-      .then(setVariaveis)
-      .catch(() => setVariaveis([]))
-      .finally(() => setCarregandoVariaveis(false));
+    setBimestreComposer(bimestre);
+    carregarVariaveis(bimestre);
   }
 
   function trocarTemplate(id: string) {
@@ -1184,24 +1362,18 @@ function PainelResponsaveisEMensagem({
     setCorpo(templateAtual?.corpo ?? "");
   }
 
-  function inserirVariavel(chave: string) {
-    const token = `{${chave}}`;
-    const campo = corpoRef.current;
-    if (!campo) {
-      setCorpo((atual) => `${atual}${token}`);
-      return;
-    }
-    const inicio = campo.selectionStart ?? corpo.length;
-    const fim = campo.selectionEnd ?? corpo.length;
-    const novo = corpo.slice(0, inicio) + token + corpo.slice(fim);
-    setCorpo(novo);
-    // Reposiciona o cursor logo após o token inserido.
-    requestAnimationFrame(() => {
-      campo.focus();
-      const pos = inicio + token.length;
-      campo.setSelectionRange(pos, pos);
-    });
-  }
+  const resolverChip = useCallback(
+    (chave: string) => {
+      if (extras[chave] != null && extras[chave] !== "") {
+        return { valor: extras[chave], rotulo: rotuloVariavel(chave), resolvido: true };
+      }
+      const v = variaveis.find((item) => item.chave === chave);
+      if (v && v.disponivel) return { valor: v.valor, rotulo: v.rotulo, resolvido: true };
+      return { rotulo: v?.rotulo ?? rotuloVariavel(chave), resolvido: false };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [variaveis, destinatarioIndice, responsaveis],
+  );
 
   async function enviarPeloWhatsapp() {
     if (!destinatario || !apenasDigitos(destinatario.telefone)) {
@@ -1384,20 +1556,42 @@ function PainelResponsaveisEMensagem({
                 )}
               </label>
 
-              <label style={{ display: "grid", gap: "0.25rem" }}>
-                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Modelo</span>
-                <select value={templateId} onChange={(e) => trocarTemplate(e.target.value)}>
-                  {mensagemTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>{t.titulo || "(sem título)"}</option>
-                  ))}
-                </select>
-              </label>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <label style={{ display: "grid", gap: "0.25rem", flex: "2 1 220px" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Modelo</span>
+                  <select value={templateId} onChange={(e) => trocarTemplate(e.target.value)}>
+                    {mensagemTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.titulo || "(sem título)"}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ display: "grid", gap: "0.25rem", flex: "1 1 120px" }}>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Bimestre dos dados</span>
+                  <select
+                    value={bimestreComposer}
+                    onChange={(e) => {
+                      setBimestreComposer(e.target.value);
+                      carregarVariaveis(e.target.value);
+                    }}
+                  >
+                    <option value="1">1º bimestre</option>
+                    <option value="2">2º bimestre</option>
+                    <option value="3">3º bimestre</option>
+                    <option value="4">4º bimestre</option>
+                  </select>
+                </label>
+              </div>
+              {bimestreComposer !== bimestre && (
+                <span style={{ fontSize: "0.78rem", color: "#7a5b12" }}>
+                  Usando dados do {bimestreComposer}º bimestre (diferente do bimestre atual do app).
+                </span>
+              )}
 
               {carregandoVariaveis && <span style={{ fontSize: "0.8rem", color: "#667085" }}>Carregando dados do aluno...</span>}
 
               <div style={{ display: "grid", gap: "0.35rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Texto da mensagem</span>
+                  <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Mensagem — o que você vê é o que será enviado</span>
                   {corpo !== (templateAtual?.corpo ?? "") && (
                     <button
                       type="button"
@@ -1408,69 +1602,17 @@ function PainelResponsaveisEMensagem({
                     </button>
                   )}
                 </div>
-                <textarea
-                  ref={corpoRef}
-                  value={corpo}
-                  onChange={(e) => setCorpo(e.target.value)}
-                  rows={9}
-                  placeholder="Escreva a mensagem. Use {variavel} para inserir dados do aluno."
+                <EditorMensagemChips
+                  corpo={corpo}
+                  segmentos={segmentos}
+                  onCorpoChange={setCorpo}
+                  resolverChip={resolverChip}
                 />
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
-                  {(variaveis.length ? variaveis : VARIAVEIS_MENSAGEM.map((v) => ({ ...v, valor: "", disponivel: false }))).map((v) => (
-                    <button
-                      key={v.chave}
-                      type="button"
-                      onClick={() => inserirVariavel(v.chave)}
-                      title={`${v.rotulo}${v.disponivel ? ` — ${v.valor}` : " — sem dado para este aluno"}`}
-                      style={{ fontSize: "0.78rem", padding: "0.15rem 0.5rem", borderRadius: "999px", border: "1px solid #e4e7ec", background: v.disponivel ? "#eef6ff" : "#f2f4f7", color: v.disponivel ? "#175cd3" : "#98a2b3", cursor: "pointer" }}
-                    >
-                      {`{${v.chave}}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: "0.25rem" }}>
-                <span style={{ fontWeight: 600, fontSize: "0.85rem" }}>Prévia — assim será enviada</span>
-                <div
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    background: "#f9fafb",
-                    border: "1px solid #e4e7ec",
-                    borderRadius: "0.5rem",
-                    padding: "0.7rem 0.8rem",
-                    fontSize: "0.9rem",
-                    lineHeight: 1.5,
-                    minHeight: "6rem",
-                  }}
-                >
-                  {segmentos.map((seg, i) =>
-                    seg.tipo === "texto" ? (
-                      <span key={i}>{seg.texto}</span>
-                    ) : seg.resolvido ? (
-                      <span
-                        key={i}
-                        title={`Preenchido pela variável: ${seg.rotulo}`}
-                        style={{ background: "#e6f0ff", color: "#175cd3", borderRadius: "3px", padding: "0 3px", fontWeight: 600 }}
-                      >
-                        {seg.valor}
-                      </span>
-                    ) : (
-                      <span
-                        key={i}
-                        title={`Sem dado para: ${seg.rotulo}`}
-                        style={{ background: "#fef0c7", color: "#7a5b12", borderRadius: "3px", padding: "0 3px", fontWeight: 600 }}
-                      >
-                        ‹{seg.rotulo}›
-                      </span>
-                    ),
-                  )}
-                </div>
               </div>
 
               {variaveisNaoResolvidas.length > 0 && (
                 <div className="notice" style={{ background: "#fffaeb", border: "1px solid #f0c36d", color: "#7a5b12", fontSize: "0.82rem" }}>
-                  Sem dado para este aluno: {variaveisNaoResolvidas.join(", ")}. Ajuste o texto ou apague a frase antes de enviar.
+                  Sem dado para este aluno (aparecem em amarelo): {variaveisNaoResolvidas.join(", ")}. Apague o trecho ou troque o bimestre antes de enviar.
                 </div>
               )}
             </div>

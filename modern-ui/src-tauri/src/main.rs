@@ -124,6 +124,8 @@ fn main() {
             config::salvar_perfil_turma,
             config::carregar_alunos_destaque,
             config::salvar_alunos_destaque,
+            config::resolver_bimestre_atual,
+            config::fixar_bimestre_pin,
             sync::publicar_estado_sincronizacao,
             sync::carregar_estados_sincronizacao,
             sync::publicar_dados_institucionais_sincronizacao,
@@ -657,6 +659,8 @@ mod tests {
             modo_notas_ata: modo_notas_ata_padrao(),
             prazo_1_semestre: String::new(),
             prazo_2_semestre: String::new(),
+            bimestre_datas_inicio: vec![String::new(); 4],
+            bimestre_pin: String::new(),
         };
         escrever_ata_docx(&ata, &dados, "1", "Texto base da ata", &config_teste).unwrap();
         escrever_relatorio_professores_docx(&relatorio, &dados, "1").unwrap();
