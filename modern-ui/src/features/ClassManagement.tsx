@@ -10,6 +10,12 @@ import {
   type AiAssistantSettings,
 } from "./aiAssistant";
 import { TaskLinkList } from "./Dashboard";
+import type {
+  AtendimentoAluno,
+  AtendimentoAlunoInput,
+  AtendimentoAnexo,
+  AtendimentoFollowUp,
+} from "./atendimentos/tipos";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
 import {
@@ -96,40 +102,6 @@ type VariavelMensagem = {
   rotulo: string;
   valor: string;
   disponivel: boolean;
-};
-
-type AtendimentoAnexo = {
-  id: string;
-  nome: string;
-  tipo: string;
-  dados: string;
-  caminho: string | null;
-  origem: string;
-};
-
-type AtendimentoAluno = {
-  id: string;
-  data: string;
-  tipos: string[];
-  atendido: string;
-  tags: string[];
-  descricao: string;
-  anexos: AtendimentoAnexo[];
-  followups?: AtendimentoFollowUp[];
-  criado_em?: string | null;
-  atualizado_em?: string | null;
-};
-
-type AtendimentoFollowUp = {
-  id: string;
-  data: string;
-  tipos: string[];
-  atendido: string;
-  tags: string[];
-  descricao: string;
-  anexos: AtendimentoAnexo[];
-  criado_em?: string | null;
-  atualizado_em?: string | null;
 };
 
 type AtendimentoModalState =
@@ -475,7 +447,7 @@ export function GestaoTurma({
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   onOpenKanban: () => void;
 }) {
@@ -1251,7 +1223,7 @@ function PainelResponsaveisEMensagem({
   caminhoTurma?: string;
   mensagemTemplates: MensagemTemplate[];
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
 }) {
   const matricula = aluno.matricula ?? "";
   const [responsaveis, setResponsaveis] = useState<ResponsavelAluno[]>(aluno.responsaveis ?? []);
@@ -1414,9 +1386,12 @@ function PainelResponsaveisEMensagem({
         data: new Date().toISOString().slice(0, 10),
         tipos: [TIPO_ATENDIMENTO_CONTATO_FAMILIA],
         atendido: "responsavel",
+        atendido_nome: destinatario.nome || undefined,
         tags: templateAtual?.tags ?? [],
         descricao: `${textoParaEnviar}${assinatura}`,
         anexos: [],
+        canal: "wa_me",
+        modelo_id: templateAtual?.id,
       });
       setComposerAberto(false);
     } catch (err) {
@@ -1656,7 +1631,7 @@ function AlunoDetalheGestao({
   encaminhamentoOpcoes: OpcaoEncaminhamento[];
   mensagemTemplates: MensagemTemplate[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   tarefas: KanbanTarefa[];
   eventos: CalendarEvent[];
@@ -1883,7 +1858,7 @@ function AlunoDetalheGestao({
       setErroAtendimento("Descreva o atendimento realizado.");
       return;
     }
-    const input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] } = {
+    const input: AtendimentoAlunoInput = {
       data: dataAtendimento,
       tipos: tiposAtendimentoSelecionados,
       atendido,

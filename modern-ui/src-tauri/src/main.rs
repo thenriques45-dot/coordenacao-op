@@ -914,6 +914,35 @@ mod tests {
         assert_eq!(matematica.total_aulas_acumuladas, Some(80.0));
     }
 
+    // followup_previsto no input tem 3 estados (Option<Option<_>>): ausente
+    // não mexe no combinado, `null` limpa (registrar desfecho), objeto define.
+    // Data vazia também limpa.
+    #[test]
+    fn normalizar_followup_previsto_input_cobre_os_tres_estados() {
+        // Ausente: não mexe.
+        assert_eq!(normalizar_followup_previsto_input(&None), None);
+
+        // null explícito: limpar.
+        assert_eq!(normalizar_followup_previsto_input(&Some(None)), Some(None));
+
+        // Objeto com data: definir (com trim).
+        let definir = Some(Some(FollowupPrevisto {
+            data: " 2026-08-30 ".to_string(),
+            descricao: "  Conferir entrega  ".to_string(),
+        }));
+        assert_eq!(
+            normalizar_followup_previsto_input(&definir),
+            Some(Some(json!({ "data": "2026-08-30", "descricao": "Conferir entrega" })))
+        );
+
+        // Objeto sem data: limpar.
+        let sem_data = Some(Some(FollowupPrevisto {
+            data: "  ".to_string(),
+            descricao: "sobra".to_string(),
+        }));
+        assert_eq!(normalizar_followup_previsto_input(&sem_data), Some(None));
+    }
+
     // Só "Projeto de Vida" não tem professor de componente que escreva Plano
     // de Ensino nem PEI — confirmado pelo coordenador em 10/08/2026. Redação
     // e Leitura e Orientação de Estudo são disciplinas regulares normais,

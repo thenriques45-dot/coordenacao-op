@@ -29,6 +29,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 import { invokeApp, tauriDisponivel } from "./features/appBridge";
+import type { AtendimentoAlunoInput, CanalAtendimento, FollowupPrevisto } from "./features/atendimentos/tipos";
 import { BuscaGlobal } from "./features/GlobalSearch";
 import { CalendarioGestao } from "./features/CalendarManagement";
 import { Turmas } from "./features/ClassList";
@@ -158,10 +159,15 @@ type AtendimentoAlunoApi = {
   data: string;
   tipos: string[];
   atendido: string;
+  atendido_nome?: string | null;
   tags: string[];
   descricao: string;
   anexos: AtendimentoAnexoApi[];
   followups?: AtendimentoFollowUpApi[];
+  canal: CanalAtendimento;
+  lote_id?: string | null;
+  modelo_id?: string | null;
+  followup_previsto?: FollowupPrevisto | null;
   criado_em: string | null;
   atualizado_em?: string | null;
 };
@@ -171,9 +177,12 @@ type AtendimentoFollowUpApi = {
   data: string;
   tipos: string[];
   atendido: string;
+  atendido_nome?: string | null;
   tags: string[];
   descricao: string;
   anexos: AtendimentoAnexoApi[];
+  canal: CanalAtendimento;
+  modelo_id?: string | null;
   criado_em: string | null;
   atualizado_em?: string | null;
 };
@@ -1278,7 +1287,7 @@ export function App() {
     });
   }
 
-  function salvarAtendimentoAluno(matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexoApi[] }) {
+  function salvarAtendimentoAluno(matricula: string, input: AtendimentoAlunoInput) {
     if (!turmaSelecionada || !turmaDetalhe) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar atendimento."));
     }

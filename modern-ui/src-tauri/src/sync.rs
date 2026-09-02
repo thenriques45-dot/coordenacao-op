@@ -1219,6 +1219,59 @@ mod testes {
         assert_eq!(ids, vec!["followup-local", "followup-remoto"]);
     }
 
+    /// Campos novos do atendimento (canal, modelo_id, followup_previsto) fazem
+    /// parte do corpo do registro: quando o incoming mais recente vence, eles
+    /// acompanham sem tratamento especial.
+    #[test]
+    fn campos_novos_do_atendimento_acompanham_o_corpo_no_merge() {
+        let mut local = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Só registro", "canal": "manual", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Mensagem enviada e combinado retorno",
+                    "canal": "wa_me",
+                    "modelo_id": "cobranca_tarefas",
+                    "followup_previsto": { "data": "2026-08-30", "descricao": "Conferir entrega" },
+                    "atualizado_em": "2026-08-03T10:00:00-03:00"
+                }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let a = &local["atendimentos"][0];
+        assert_eq!(a["canal"], "wa_me");
+        assert_eq!(a["modelo_id"], "cobranca_tarefas");
+        assert_eq!(a["followup_previsto"]["data"], "2026-08-30");
+    }
+
+    /// Registrar o desfecho (limpar o follow-up combinado) numa máquina tem que
+    /// vencer o outro lado que ainda tem o combinado em aberto — o corpo do
+    /// registro mais recente vence, então o campo simplesmente some.
+    #[test]
+    fn followup_previsto_limpo_no_incoming_mais_recente_vence() {
+        let mut local = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Combinado retorno",
+                    "followup_previsto": { "data": "2026-08-30", "descricao": "Conferir entrega" },
+                    "atualizado_em": "2026-08-20T10:00:00-03:00"
+                }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Desfecho registrado", "atualizado_em": "2026-08-31T10:00:00-03:00" }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert!(local["atendimentos"][0].get("followup_previsto").is_none());
+    }
+
     /// Reproduz o mesmo bug de classe do teste de atendimentos, mas para
     /// expansao_online: o aluno já existe localmente (sem o campo), e uma
     /// importação feita só na outra máquina não pode ser descartada.

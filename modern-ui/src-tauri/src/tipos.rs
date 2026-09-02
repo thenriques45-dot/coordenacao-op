@@ -340,6 +340,30 @@ pub(crate) struct AbrirDocumentoConselhoInput {
     pub(crate) caminho: String,
 }
 
+/// Canal de origem do atendimento — dá o selo na lista da tela de Atendimentos
+/// e liga o registro ao histórico de disparos em lote. Registros antigos, sem
+/// o campo, contam como "manual".
+pub(crate) fn canal_atendimento_padrao() -> String {
+    "manual".to_string()
+}
+
+pub(crate) fn normalizar_canal_atendimento(valor: Option<&str>) -> String {
+    match valor.map(str::trim) {
+        Some("wa_me") => "wa_me".to_string(),
+        Some("api") => "api".to_string(),
+        _ => canal_atendimento_padrao(),
+    }
+}
+
+/// "Follow-up combinado": o compromisso datado que substitui o campo de status.
+/// Mora no atendimento principal; some quando o desfecho é registrado.
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct FollowupPrevisto {
+    pub(crate) data: String,
+    #[serde(default)]
+    pub(crate) descricao: String,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct AtendimentoAluno {
     pub(crate) id: String,
@@ -348,12 +372,22 @@ pub(crate) struct AtendimentoAluno {
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
     #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     #[serde(default)]
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
     #[serde(default)]
     pub(crate) followups: Vec<AtendimentoFollowUp>,
+    #[serde(default = "canal_atendimento_padrao")]
+    pub(crate) canal: String,
+    #[serde(default)]
+    pub(crate) lote_id: Option<String>,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
+    #[serde(default)]
+    pub(crate) followup_previsto: Option<FollowupPrevisto>,
     pub(crate) criado_em: Option<String>,
     pub(crate) atualizado_em: Option<String>,
 }
@@ -366,10 +400,16 @@ pub(crate) struct AtendimentoFollowUp {
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
     #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     #[serde(default)]
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
+    #[serde(default = "canal_atendimento_padrao")]
+    pub(crate) canal: String,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
     pub(crate) criado_em: Option<String>,
     pub(crate) atualizado_em: Option<String>,
 }
@@ -566,9 +606,21 @@ pub(crate) struct AtendimentoAlunoInput {
     pub(crate) data: String,
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
+    #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
+    #[serde(default)]
+    pub(crate) canal: Option<String>,
+    #[serde(default)]
+    pub(crate) lote_id: Option<String>,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
+    // Option<Option<_>>: ausente = não mexe no follow-up combinado; `null` =
+    // limpar (registrar desfecho); objeto = definir/reagendar.
+    #[serde(default)]
+    pub(crate) followup_previsto: Option<Option<FollowupPrevisto>>,
 }
 
 #[derive(Serialize)]
