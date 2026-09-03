@@ -153,8 +153,8 @@ export function ModalAtendimento({
 
           {aba === "detalhes" && (
             <>
-              <div className="atd-modal-grade">
-                {modo.tipo === "novo" ? (
+              {modo.tipo === "novo" ? (
+                <div className="atd-modal-grade">
                   <label>
                     <span>Aluno</span>
                     <select value={matricula} onChange={(e) => setMatricula(e.target.value)}>
@@ -165,14 +165,17 @@ export function ModalAtendimento({
                       ))}
                     </select>
                   </label>
-                ) : (
-                  <div />
-                )}
-                <label>
+                  <label>
+                    <span>Data</span>
+                    <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+                  </label>
+                </div>
+              ) : (
+                <label className="atd-modal-data-so">
                   <span>Data</span>
                   <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
                 </label>
-              </div>
+              )}
 
               <fieldset className="atd-segmentado">
                 <legend>Quem foi atendido</legend>

@@ -10192,6 +10192,10 @@ th:nth-child(3) {
   gap: 14px;
 }
 
+.atd-modal-data-so input {
+  max-width: 200px;
+}
+
 .atd-modal-corpo label > span,
 .atd-campo-rotulo {
   display: flex;
@@ -10683,7 +10687,9 @@ th:nth-child(3) {
   background: rgba(16, 24, 40, 0.42);
   display: flex;
   justify-content: flex-end;
-  z-index: 60;
+  /* Abaixo de .modal-backdrop (z-index 40): os modais de follow-up/desfecho
+     abrem a partir do drawer e precisam ficar por cima dele. */
+  z-index: 30;
 }
 
 .atd-drawer {
