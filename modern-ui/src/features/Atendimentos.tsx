@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { montarLinhas, seloCanal } from "./atendimentos/dados";
 import { dataCurta, iniciais, tempoRelativo, useMediaQuery } from "./atendimentos/formato";
+import { AbaDisparos, type DisparoLoteRegistro } from "./atendimentos/AbaDisparos";
 import { AbaPorAluno } from "./atendimentos/AbaPorAluno";
 import { AssistenteLote } from "./atendimentos/AssistenteLote";
 import { CompositorMensagem } from "./atendimentos/CompositorMensagem";
@@ -84,6 +85,7 @@ export function TelaAtendimentos({
   const [modalModo, setModalModo] = useState<ModoModalAtendimento | null>(null);
   const [compositorMatricula, setCompositorMatricula] = useState<string | null>(null);
   const [assistenteLote, setAssistenteLote] = useState(false);
+  const [disparos, setDisparos] = useState<DisparoLoteRegistro[]>([]);
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [varsPainel, setVarsPainel] = useState<{ freq: number | null; tarefas: string | null }>({ freq: null, tarefas: null });
 
@@ -139,6 +141,13 @@ export function TelaAtendimentos({
   useEffect(() => {
     if (aba !== "lista") setAbertoId(null);
   }, [aba]);
+
+  useEffect(() => {
+    if (aba !== "lote" || !turma) return;
+    invokeApp<DisparoLoteRegistro[]>("carregar_disparos_lote", { caminho: turma.caminho })
+      .then(setDisparos)
+      .catch(() => setDisparos([]));
+  }, [aba, turma?.caminho, assistenteLote]);
 
   // Resolve frequência / tarefas pendentes para o cabeçalho do painel.
   useEffect(() => {
@@ -438,8 +447,13 @@ export function TelaAtendimentos({
         ) : null
       )}
 
-      {aba === "lote" && (
-        <div className="atd-carregando">Os disparos em lote entram em uma próxima etapa da implantação.</div>
+      {aba === "lote" && turma && (
+        <AbaDisparos
+          disparos={disparos}
+          turmaCodigo={turma.codigo}
+          onRetomar={() => setAssistenteLote(true)}
+          onVerRelatorio={() => setAssistenteLote(true)}
+        />
       )}
 
       {/* Drawer: tabela sempre; cartões abaixo de 1280px (painelLado = false). */}

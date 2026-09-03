@@ -11,23 +11,11 @@ import {
   variaveisNaoResolvidas,
   type VariavelMensagem,
 } from "./mensagemFamilia";
+import type { DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
 
 const TIPO_CONTATO_FAMILIA = "Contato com a família";
 const SEGUNDOS_POR_ENVIO = 15;
-
-type DisparoLote = {
-  id: string;
-  modelo_id: string;
-  modelo_titulo: string;
-  canal: string;
-  destinatarios: { matricula: string; nome: string; responsavel_nome: string | null; telefone: string | null }[];
-  enviados: string[];
-  pulados: string[];
-  posicao_atual: number;
-  situacao: string;
-  [k: string]: unknown;
-};
 
 export function FilaAssistida({
   disparo: disparoInicial,

@@ -2,8 +2,10 @@ import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, P
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
+import { useOnline } from "./formato";
 import { FilaAssistida } from "./FilaAssistida";
-import { tomFrequencia } from "./lote";
+import { LoteApi } from "./LoteApi";
+import { tomFrequencia, type DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
 import {
   CAMPOS,
@@ -24,15 +26,9 @@ const TETO_FILA_ASSISTIDA = 40;
 let seq = 0;
 const novoId = () => `c${Date.now().toString(36)}_${seq++}`;
 
-type Passo = "modelo" | "destinatarios" | "enviar" | "fila-assistida";
+type Passo = "modelo" | "destinatarios" | "enviar" | "fila-assistida" | "lote-api";
 
 type ApiStatus = { configurada: boolean; ativo: boolean; limite_dia: number; uso_hoje: number };
-type DisparoLote = {
-  id: string; modelo_id: string; modelo_titulo: string; canal: string;
-  destinatarios: { matricula: string; nome: string; responsavel_nome: string | null; telefone: string | null }[];
-  enviados: string[]; pulados: string[]; posicao_atual: number; situacao: string;
-  [k: string]: unknown;
-};
 
 export function AssistenteLote({
   turma,
@@ -52,10 +48,13 @@ export function AssistenteLote({
   onConcluir: () => void;
 }) {
   const [passo, setPasso] = useState<Passo>("modelo");
+  const online = useOnline();
   const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null);
   const [disparoAtivo, setDisparoAtivo] = useState<DisparoLote | null>(null);
   const [pausada, setPausada] = useState<DisparoLote | null>(null);
   const [iniciando, setIniciando] = useState(false);
+  const [metaTemplate, setMetaTemplate] = useState("");
+  const [idiomaApi, setIdiomaApi] = useState("pt_BR");
   const [modeloId, setModeloId] = useState(templates[0]?.id ?? "");
   const modelo = templates.find((t) => t.id === modeloId);
 
@@ -101,7 +100,7 @@ export function AssistenteLote({
     setDisparoAtivo(r);
   }
 
-  async function iniciarFilaAssistida() {
+  async function iniciarDisparo(canal: "wa_me" | "api") {
     setIniciando(true);
     setErro("");
     try {
@@ -115,10 +114,10 @@ export function AssistenteLote({
         }));
       const d = await invokeApp<DisparoLote>("iniciar_disparo_lote", {
         caminho: turma.caminho,
-        input: { modelo_id: modelo?.id ?? "", modelo_titulo: modelo?.titulo ?? "", canal: "wa_me", destinatarios },
+        input: { modelo_id: modelo?.id ?? "", modelo_titulo: modelo?.titulo ?? "", canal, destinatarios },
       });
       setDisparoAtivo(d);
-      setPasso("fila-assistida");
+      setPasso(canal === "api" ? "lote-api" : "fila-assistida");
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e));
     } finally {
@@ -262,6 +261,23 @@ export function AssistenteLote({
     );
   }
 
+  // ── Lote via API em andamento (2b) ────────────────────────────────────────
+  if (passo === "lote-api" && disparoAtivo) {
+    return (
+      <LoteApi
+        disparo={disparoAtivo}
+        turma={turma}
+        bimestre={bimestre}
+        modelo={modelo}
+        metaTemplate={metaTemplate}
+        idioma={idiomaApi}
+        onSalvarAtendimento={onSalvarAtendimento}
+        onAtualizarDisparo={atualizarDisparo}
+        onConcluir={onConcluir}
+      />
+    );
+  }
+
   // ── Passo Enviar — escolha de canal (de 1e) ───────────────────────────────
   if (passo === "enviar") {
     const minutos = Math.max(1, Math.round((totalDestinatarios * 15) / 60));
@@ -271,6 +287,11 @@ export function AssistenteLote({
       <div className="atd-lote">
         <TrilhoPassos atual="enviar" onSair={onSair} turma={turma.codigo} modelo={modelo?.titulo} />
         {erro && <div className="notice error">{erro}</div>}
+        {!online && (
+          <div className="notice warning">
+            Você está offline. Montar a fila e copiar textos funciona; abrir o WhatsApp e o envio automático precisam de internet.
+          </div>
+        )}
         <div className="atd-lote-canais">
           <div className="atd-lote-canal recomendado">
             <div className="atd-lote-canal-topo">
@@ -287,7 +308,7 @@ export function AssistenteLote({
                 Acima do teto de {TETO_FILA_ASSISTIDA} por sessão — reduza a fila ou use o envio automático.
               </p>
             )}
-            <button type="button" className="atd-btn-primario" disabled={iniciando || totalDestinatarios === 0 || acimaDoTeto} onClick={iniciarFilaAssistida}>
+            <button type="button" className="atd-btn-primario" disabled={iniciando || totalDestinatarios === 0 || acimaDoTeto} onClick={() => iniciarDisparo("wa_me")}>
               {iniciando ? "Preparando…" : "Iniciar fila assistida"}
             </button>
           </div>
@@ -316,9 +337,26 @@ export function AssistenteLote({
                 <strong>R$ {custo}</strong>
               </div>
               <p>Limite de {apiStatus?.limite_dia ?? 250} destinatários por dia neste número. {apiStatus?.uso_hoje ?? 0} de {apiStatus?.limite_dia ?? 250} usados hoje.</p>
-              <button type="button" className="atd-lote-btn-escuro" disabled title="O disparo via API entra na Fase 8">
-                Confirmar e disparar {totalDestinatarios}
+              <label className="atd-lote-meta-template">
+                <span>Nome do template aprovado na Meta</span>
+                <input value={metaTemplate} onChange={(e) => setMetaTemplate(e.target.value)} placeholder="ex.: cobranca_tarefas_v2" />
+                <small>As variáveis do modelo viram os parâmetros {"{{1}}, {{2}}…"} na ordem em que aparecem no texto.</small>
+              </label>
+              <label className="atd-lote-meta-template">
+                <span>Idioma do template</span>
+                <input value={idiomaApi} onChange={(e) => setIdiomaApi(e.target.value)} placeholder="pt_BR" />
+              </label>
+              <button
+                type="button"
+                className="atd-lote-btn-escuro"
+                disabled={iniciando || !apiStatus?.ativo || !metaTemplate.trim() || totalDestinatarios === 0 || (apiStatus ? apiStatus.uso_hoje + totalDestinatarios > apiStatus.limite_dia : false)}
+                onClick={() => iniciarDisparo("api")}
+              >
+                {iniciando ? "Preparando…" : `Confirmar e disparar ${totalDestinatarios}`}
               </button>
+              {apiStatus && apiStatus.uso_hoje + totalDestinatarios > apiStatus.limite_dia && (
+                <p className="atd-lote-canal-aviso">Passaria do limite de {apiStatus.limite_dia}/dia ({apiStatus.uso_hoje} já usados). Reduza a fila ou envie amanhã.</p>
+              )}
             </div>
           )}
         </div>

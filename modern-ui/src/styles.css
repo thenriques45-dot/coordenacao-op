@@ -13223,6 +13223,309 @@ th:nth-child(3) {
   font-size: 13px;
 }
 
+.atd-lote-meta-template {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-nav);
+}
+
+.atd-lote-meta-template input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text-body);
+}
+
+.atd-lote-meta-template small {
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+/* ── Aba "Disparos em lote" (2c) ── */
+.atd-disparos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.atd-disparos-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.atd-disparos-topo strong {
+  font-size: 15px;
+}
+
+.atd-disparos-topo p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.atd-disparos-filtros {
+  display: flex;
+  gap: 8px;
+}
+
+.atd-disparos-filtros select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-disparos-tabela {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.atd-disparos-grade {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1.2fr) 130px 90px 90px 84px 150px 130px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.atd-disparos-cab {
+  height: 42px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.atd-disparos-linha {
+  height: 58px;
+  border-bottom: 1px solid var(--atd-divisor);
+  font-size: 13px;
+}
+
+.atd-disparos-linha:last-child {
+  border-bottom: 0;
+}
+
+.atd-disparos-linha.pausada {
+  background: var(--atd-atencao-bg);
+}
+
+.atd-disparos-linha strong {
+  font-size: 13.5px;
+}
+
+.atd-disparos-quando {
+  color: var(--text-nav);
+  font-size: 12.5px;
+}
+
+.atd-disparos-ok {
+  color: var(--atd-sucesso-texto);
+}
+
+.atd-disparos-falha {
+  color: #c01620;
+}
+
+.atd-disparos-neutro {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.atd-disparos-sit {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.atd-disparos-sit.tom-ok { color: var(--atd-sucesso-texto); }
+.atd-disparos-sit.tom-atencao { color: var(--atd-atencao-texto); }
+.atd-disparos-sit.tom-acento { color: var(--accent-dark); font-weight: 700; }
+
+/* ── Lote via API (2b) ── */
+.atd-lote-api {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.atd-lote-api-progresso,
+.atd-lote-api-concluido {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.atd-lote-api-topo > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.atd-lote-api-topo strong {
+  font-size: 16px;
+}
+
+.atd-lote-api-topo p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.atd-lote-api-selo-pend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--atd-atencao-bg);
+  border: 1px solid var(--atd-atencao-borda);
+  color: var(--atd-atencao-texto);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.atd-lote-api-barra {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--atd-divisor);
+  overflow: hidden;
+}
+
+.atd-lote-api-barra span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--text-primary);
+  transition: width 0.2s;
+}
+
+.atd-lote-api-num {
+  font-size: 13px;
+  color: var(--text-nav);
+  font-weight: 600;
+}
+
+.atd-lote-api-legenda {
+  display: flex;
+  gap: 16px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.atd-lote-api-legenda .ok { color: var(--atd-sucesso-texto); }
+.atd-lote-api-legenda .falha { color: #c01620; }
+
+.atd-lote-api-aviso {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-lote-api-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.atd-lote-api-cards > div {
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-inner);
+}
+
+.atd-lote-api-cards > div.ok {
+  background: var(--atd-sucesso-bg);
+  border-color: var(--atd-sucesso-borda);
+}
+
+.atd-lote-api-cards > div.falha {
+  background: var(--accent-soft);
+  border-color: var(--atd-accent-borda);
+}
+
+.atd-lote-api-cards strong {
+  display: block;
+  font-size: 22px;
+}
+
+.atd-lote-api-cards span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.atd-lote-api-falhas {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.atd-lote-api-falha-grade {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.3fr 190px;
+  gap: 12px;
+  padding: 0 14px;
+  align-items: center;
+}
+
+.atd-lote-api-falha-grade.cab {
+  height: 40px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.atd-lote-api-falha-grade.linha {
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--atd-divisor);
+  font-size: 13px;
+}
+
+.atd-lote-api-motivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-dark);
+  font-size: 12.5px;
+}
+
+.atd-lote-api-rodape {
+  display: flex;
+  justify-content: flex-end;
+}
+
 @media (max-width: 1280px) {
   .atd-lote-3a {
     grid-template-columns: minmax(0, 1fr);
@@ -13232,6 +13535,15 @@ th:nth-child(3) {
   }
   .atd-fa-corpo {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .atd-lote-api-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .atd-disparos-tabela {
+    overflow-x: auto;
+  }
+  .atd-disparos-grade {
+    min-width: 900px;
   }
 }
 

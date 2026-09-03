@@ -121,6 +121,39 @@ export const PRESETS: {
   },
 ];
 
+// Entidade "Disparo em lote" (atendimentos_lote.rs). O JSON completo circula
+// entre a fila assistida / lote API e o backend.
+export type DisparoDestinatario = {
+  matricula: string;
+  nome: string;
+  responsavel_nome: string | null;
+  telefone: string | null;
+};
+
+export type DisparoFalha = {
+  matricula: string;
+  destinatario?: string;
+  motivo?: string;
+  codigo_meta?: number;
+};
+
+export type DisparoLote = {
+  id: string;
+  data_hora: string;
+  modelo_id: string;
+  modelo_titulo: string;
+  canal: string;
+  turma: string;
+  destinatarios: DisparoDestinatario[];
+  enviados: string[];
+  pulados: string[];
+  falhas: DisparoFalha[];
+  posicao_atual: number;
+  situacao: string;
+  custo: number | null;
+  atualizado_em: string;
+};
+
 export type OrdemFila =
   | "urgente"
   | "alfabetica"
