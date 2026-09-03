@@ -409,6 +409,7 @@ export function Configuracoes({
   onAbrirAssistenteSync,
   onDadosAlterados,
   onConfigSalva,
+  onVerNovidades,
   secaoInicial,
 }: {
   turmas: TurmaConfiguracoes[];
@@ -417,6 +418,7 @@ export function Configuracoes({
   onAbrirAssistenteSync: () => void;
   onDadosAlterados: () => void;
   onConfigSalva: (config: ConfiguracoesApp) => void;
+  onVerNovidades?: () => void;
   secaoInicial?: SettingsSection;
 }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
@@ -1910,6 +1912,9 @@ export function Configuracoes({
           <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="A verificação consulta a última versão publicada no GitHub." />
           <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
           <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
+          {onVerNovidades && (
+            <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
+          )}
           {atualizacao && (
             <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
           )}

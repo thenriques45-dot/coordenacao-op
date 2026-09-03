@@ -41,6 +41,7 @@ import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
+import { NovidadesWizard, normalizarNovidades, type EntradaNovidades } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
 import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRelatorios";
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
@@ -358,22 +359,96 @@ type SyncInstitutionalResultado = {
   backup_seguranca: string | null;
 };
 
-const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
-  "4.0.0": [
-    "Nova tela 'Atendimentos', item próprio no menu (entre Turmas e Importar Dados), com contador de follow-ups pendentes. Reúne todos os atendimentos da turma numa lista com filtros (tipo, período, canal, tag, follow-up pendente), selo de canal por linha (Manual / wa.me / wa.me · lote / API oficial) e alternância entre tabela e cartões.",
-    "Detalhe do atendimento em thread: registro inicial, follow-ups e o 'follow-up combinado' — um compromisso datado que substitui o antigo campo de status. É o que sinaliza que um caso tem pendência. 'Registrar desfecho' encerra o combinado.",
-    "Compositor de mensagem à família redesenhado: destinatário, modelo e variáveis em três passos, com prévia em bolha de WhatsApp e os trechos sem dado destacados para preencher na hora ou remover.",
-    "Aba 'Por aluno': histórico de contato com a família por estudante (mensagens e presencial), responsáveis à vista e acesso rápido a 'Nova mensagem'.",
-    "Disparo em lote — 'Contatar famílias': monte a fila por filtros prontos (com tarefa pendente, frequência baixa, sem acesso à plataforma…) ou por condições (campo · operador · valor, o mesmo vocabulário do construtor de relatórios). Depois, escolha o canal: fila assistida no WhatsApp (grátis, você aperta enviar em cada um, com atalhos de teclado e teto de 40 por sessão, pausável e retomável) ou envio automático pela API oficial da Meta.",
-    "Envio automático (opcional): configure em Configurações › Integrações › 'WhatsApp'. Cobra por mensagem, vale só nesta máquina e não sincroniza com o grupo. Sem isso, tudo continua funcionando pela fila assistida.",
-    "Aba 'Disparos em lote': histórico dos envios da turma, com situação (concluída, pausada, com pendências) e retomada de filas paradas.",
-    "A aba 'Atendimentos' da ficha do aluno ganhou um atalho para abrir o mesmo aluno na tela nova.",
-    "Configurações reorganizada: 4 grupos que dizem a natureza do ajuste (Institucional, Conselho, Este computador, Integrações), busca no topo que acha tanto a seção quanto o campo (ex.: 'token', 'código do grupo'), e uma 'Visão geral' de entrada com avisos de manutenção (backup vencido, atualização) e o estado de cada seção. 'Sincronização de grupo' e 'Turmas e alunos' viraram uma seção só; 'Envio automático' virou 'WhatsApp'.",
-    "Os modelos de mensagem à família saíram de Configurações e agora se editam em Atendimentos → 'Gerenciar modelos', perto de onde são usados.",
-    "Nova seção Configurações › Institucional › 'Equipe gestora': cadastre a direção, as vice-direções e as coordenações (quantas houver), cada uma com nome e gênero. O gênero flexiona os títulos nos documentos ('Diretora' / 'Diretor', 'Coordenadora' / 'Coordenador'); quem preferir pode deixar 'não informar'. A direção saiu da seção 'Instituição' para cá.",
-    "Com grupo de trabalho ativo, a Equipe gestora 'casa' cada pessoa: quem entrou no grupo só como 'Wilton' é reconhecido como 'Wilton Bortolleto · Coordenação' — automático quando o nome bate, e revisável na própria seção. O nome completo passa a valer nas assinaturas do PEI, no Quadro de Gestão e nos documentos.",
-    "'AvD1' e 'AvD2' agora aparecem como 'Diagnóstica 1' e 'Diagnóstica 2' nas telas de conselho, na ficha do aluno e no importador.",
-  ],
+const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.0.0": {
+    paginas: [
+      {
+        area: "Novo no menu",
+        titulo: "Uma tela só para os atendimentos da turma",
+        corpo:
+          "Entre 'Turmas' e 'Importar Dados' agora tem 'Atendimentos', com um contador de follow-ups pendentes. Ela reúne todos os atendimentos da turma numa lista só.",
+        destaques: [
+          { icone: "filtro", titulo: "Filtros", texto: "Tipo, período, canal, tag e 'follow-up pendente' — combináveis." },
+          { icone: "conversa", titulo: "Selo de canal", texto: "Cada linha mostra como o contato saiu: Manual, wa.me, wa.me · lote ou API oficial." },
+          { icone: "grade", titulo: "Tabela ou cartões", texto: "Alterna a visão conforme você prefere ler a lista." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Cada caso é uma conversa, com um combinado datado",
+        corpo:
+          "O atendimento abre em thread: o registro inicial, os follow-ups e o 'follow-up combinado' — um compromisso com data que substituiu o antigo campo de status. É ele que marca que um caso tem pendência.",
+        destaques: [
+          { icone: "conversa", titulo: "Thread do caso", texto: "Registro inicial e follow-ups na ordem em que aconteceram." },
+          { icone: "agenda", titulo: "Follow-up combinado", texto: "Um compromisso datado; enquanto está aberto, o caso conta como pendente." },
+          { icone: "lista", titulo: "Registrar desfecho", texto: "Encerra o combinado quando o assunto se resolve." },
+        ],
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Montar a mensagem para a família em três passos",
+        corpo:
+          "O compositor separa destinatário, modelo e variáveis, com prévia em bolha de WhatsApp. Os trechos sem dado do aluno ficam destacados para preencher na hora ou remover.",
+        destaques: [
+          { icone: "mensagem", titulo: "Três passos", texto: "Destinatário, modelo e variáveis, um de cada vez." },
+          { icone: "conversa", titulo: "Prévia real", texto: "Vê o texto final na bolha antes de enviar." },
+          { icone: "aluno", titulo: "Aba 'Por aluno'", texto: "Histórico de contato com a família de cada estudante, por mensagem e presencial." },
+        ],
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Contatar várias famílias de uma vez",
+        corpo:
+          "Em 'Contatar famílias', monte a fila por filtros prontos (com tarefa pendente, frequência baixa, sem acesso à plataforma…) ou por condições no mesmo formato do construtor de relatórios (campo · operador · valor).",
+        destaques: [
+          { icone: "filtro", titulo: "Monte a fila", texto: "Filtros prontos ou condições combináveis." },
+          { icone: "conversa", titulo: "Fila assistida no WhatsApp", texto: "Grátis: você aperta enviar em cada um, com atalhos de teclado, teto de 40 por sessão, pausável e retomável." },
+          { icone: "envio", titulo: "Envio automático", texto: "Opcional, pela API oficial da Meta." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+      {
+        area: "Configurações › Integrações",
+        titulo: "Envio automático pela API oficial (opcional)",
+        corpo:
+          "Se quiser que o lote saia sozinho, configure em Configurações › Integrações › 'WhatsApp'. Sem isso, tudo continua funcionando pela fila assistida.",
+        destaques: [
+          { icone: "envio", titulo: "Cobra por mensagem", texto: "É a API oficial da Meta, com custo por envio." },
+          { icone: "config", titulo: "Só nesta máquina", texto: "A configuração não sincroniza com o grupo." },
+          { icone: "lista", titulo: "Histórico em 'Disparos em lote'", texto: "Situação de cada fila (concluída, pausada, com pendências) e retomada das que pararam." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+      {
+        area: "Configurações",
+        titulo: "Configurações mais fáceis de percorrer",
+        corpo:
+          "A tela passou a ter 4 grupos que dizem a natureza do ajuste — Institucional, Conselho, Este computador, Integrações — com uma busca no topo e uma 'Visão geral' de entrada.",
+        destaques: [
+          { icone: "busca", titulo: "Busca no topo", texto: "Acha tanto a seção quanto o campo — 'token', 'código do grupo'…" },
+          { icone: "grade", titulo: "Visão geral", texto: "Avisos de manutenção (backup vencido, atualização) e o estado de cada seção." },
+          { icone: "mensagem", titulo: "Modelos de mensagem", texto: "Saíram daqui e agora se editam em Atendimentos → 'Gerenciar modelos', perto de onde são usados." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+      {
+        area: "Configurações › Institucional",
+        titulo: "Equipe gestora: nome e gênero de quem assina",
+        corpo:
+          "Uma seção nova para cadastrar a direção, as vice-direções e as coordenações (quantas houver), cada uma com nome e gênero. O gênero flexiona os títulos nos documentos; quem preferir pode deixar 'não informar'.",
+        destaques: [
+          { icone: "equipe", titulo: "Nome + gênero", texto: "'Diretora' / 'Diretor', 'Coordenadora' / 'Coordenador' saem certos na ATA e no PEI." },
+          { icone: "config", titulo: "Casa com o grupo", texto: "Quem entrou como 'Wilton' é reconhecido como 'Wilton Bortolleto · Coordenação' — automático e revisável." },
+          { icone: "documento", titulo: "Vale em todo lugar", texto: "Nome completo nas assinaturas do PEI, no Quadro de Gestão e nos documentos." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+    ],
+    outrasMudancas: [
+      "'AvD1' e 'AvD2' agora aparecem como 'Diagnóstica 1' e 'Diagnóstica 2' nas telas de conselho, na ficha do aluno e no importador.",
+    ],
+  },
   "3.5.1": [
     "Corrigido: o boletim da ficha do aluno (aba Desempenho) voltava a não mostrar nenhuma nota nem frequência quando o bimestre selecionado ainda não tinha lançamento — por exemplo, ao entrar no 3º bimestre antes de importar o mapão. Agora o boletim sempre lista as disciplinas do ano e as notas já lançadas (1º, 2º…), preservando a comparação da progressão ao longo do ano. A tabela de disciplinas do Conselho e as métricas da turma passam a seguir a mesma regra: mostram o rol de disciplinas do ano mesmo antes de o bimestre atual ter notas.",
   ],
@@ -879,7 +954,7 @@ export function App() {
     [alunosConselho],
   );
   const aluno = alunosConselhoAtivos[Math.min(indiceAluno, alunosConselhoAtivos.length - 1)] ?? alunosDemo[0];
-  const novidadesVersao = appInfo?.version ? NOVIDADES_POR_VERSAO[appInfo.version] ?? [] : [];
+  const novidades = appInfo?.version ? normalizarNovidades(NOVIDADES_POR_VERSAO[appInfo.version]) : null;
 
   useEffect(() => {
     localStorage.setItem("coordenacaoop:tema", temaEscuro ? "escuro" : "claro");
@@ -960,7 +1035,7 @@ export function App() {
       .then((info) => {
         setAppInfo(info);
         const chave = `coordenacaoop:novidades-lidas:${info.version}`;
-        if (NOVIDADES_POR_VERSAO[info.version]?.length && localStorage.getItem(chave) !== "sim") {
+        if (normalizarNovidades(NOVIDADES_POR_VERSAO[info.version]) && localStorage.getItem(chave) !== "sim") {
           setMostrarNovidades(true);
         }
       })
@@ -1071,19 +1146,6 @@ export function App() {
     }
     setMostrarNovidades(false);
   }
-
-  useEffect(() => {
-    if (!mostrarNovidades) {
-      return;
-    }
-    function aoPressionarEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        fecharNovidades();
-      }
-    }
-    window.addEventListener("keydown", aoPressionarEsc);
-    return () => window.removeEventListener("keydown", aoPressionarEsc);
-  }, [mostrarNovidades, appInfo?.version]);
 
   function atualizarPerfilSync(perfil: WorkgroupSyncProfile) {
     setPerfilSync(salvarPerfilSincronizacao(perfil));
@@ -1730,7 +1792,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
@@ -1820,22 +1882,16 @@ export function App() {
           </section>
         </div>
       )}
-      {mostrarNovidades && novidadesVersao.length > 0 && (
-        <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) fecharNovidades(); }}>
-          <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
-            <span className="eyebrow">Atualização concluída</span>
-            <h2 id="whats-new-title">O que há de novidade</h2>
-            <p>Versão {appInfo?.version ? `v${appInfo.version}` : "atual"} do CoordenacaoOP.</p>
-            <ul>
-              {novidadesVersao.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <div className="modal-actions">
-              <button className="primary-action" onClick={fecharNovidades}>Entendi</button>
-            </div>
-          </section>
-        </div>
+      {mostrarNovidades && novidades && (
+        <NovidadesWizard
+          versao={appInfo?.version ?? null}
+          dados={novidades}
+          onFechar={fecharNovidades}
+          onNavegar={(destino) => {
+            fecharNovidades();
+            navegarPara(destino as Tela);
+          }}
+        />
       )}
       {!mostrarNovidades && mostrarAssistenteSync && (
         <AssistenteConfiguracaoInicial

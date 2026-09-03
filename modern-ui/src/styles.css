@@ -3910,6 +3910,71 @@ th:nth-child(3) {
   padding: 0 12px;
 }
 
+/* "O que há de novidade" paginado (reaproveita o molde .sync-wizard). */
+.novidades-wizard-topo {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.novidades-wizard-versao {
+  color: #98959f;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.novidades-wizard-fechar {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #6b6670;
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+}
+
+.novidades-wizard-fechar:hover {
+  background: #f1f0ee;
+  color: #101828;
+}
+
+.novidades-wizard h2 {
+  font-size: 20px;
+}
+
+.novidades-wizard-atalho {
+  align-items: center;
+  justify-self: start;
+  background: #fff5f5;
+  border: 1px solid #f4c9c9;
+  border-radius: 8px;
+  color: #c0182a;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.novidades-wizard-atalho:hover {
+  background: #ffe9e9;
+}
+
+.novidades-wizard-lista {
+  display: grid;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.novidades-wizard-lista li {
+  color: #344054;
+  line-height: 1.45;
+}
+
 .sync-folder-picker {
   align-items: center;
   background: #f8fafc;
@@ -7375,6 +7440,33 @@ th:nth-child(3) {
 .theme-dark .sync-wizard-note,
 .theme-dark .sync-folder-picker span {
   color: #9a96a4;
+}
+
+.theme-dark .novidades-wizard-versao {
+  color: #7c7889;
+}
+
+.theme-dark .novidades-wizard-fechar {
+  color: #9a96a4;
+}
+
+.theme-dark .novidades-wizard-fechar:hover {
+  background: #26232f;
+  color: #ececf0;
+}
+
+.theme-dark .novidades-wizard-atalho {
+  background: #2b1f24;
+  border-color: #5c2b31;
+  color: #f4a8b0;
+}
+
+.theme-dark .novidades-wizard-atalho:hover {
+  background: #37262c;
+}
+
+.theme-dark .novidades-wizard-lista li {
+  color: #c8c4d4;
 }
 
 .theme-dark .sync-folder-picker button {
