@@ -31,6 +31,7 @@ Escopo aprovado: **todas as 13 telas** (1a–1f, 2a–2e, 3a). Várias sessões 
 - **F7** ✅ entidade "Disparo em lote" + escolha de canal + fila assistida (2a).
 - **F8** ✅ lote via API (2b, não verificado em produção) + aba "Disparos em lote" (2c) + offline (2e).
 - **F9** ✅ link na ficha do aluno, acessibilidade, versões 4.0.0 + NOVIDADES.
+- **F10** ✅ verificação visual F7–F9 no app nativo: aba "Disparos em lote" tinha `disabled` fixo do stub da F1 (F8 inteira inacessível); contagem do subtítulo defasada; pluralização "1 destinatários" → helper `plural()`.
 
 "Filtro salvo" (Meus filtros) e "Registrar por telefone"/"Cadastrar telefone" nas
 linhas de falha do lote API ficaram fora deste ciclo — pontos de melhoria futuros.
