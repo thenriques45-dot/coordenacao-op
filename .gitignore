@@ -28,3 +28,5 @@ dados/**
 # padrao "dados/**" acima, entao precisa de entrada propria.
 modern-ui/src-tauri/dados/
 modern-ui/src-tauri/config/
+
+.claude/settings.local.json

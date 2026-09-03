@@ -4118,6 +4118,7 @@ th:nth-child(3) {
 /* ===== Configurações v2 — busca, visão geral, nav com contraste ===== */
 
 .settings-nav-v2 {
+  align-self: start;
   background: #ffffff;
   border-color: #eae8e3;
   gap: 0;
@@ -4533,6 +4534,247 @@ th:nth-child(3) {
   100% {
     box-shadow: 0 0 0 3px rgba(232, 32, 42, 0);
   }
+}
+
+/* Cabeçalho de seção (1b / 1d) e padrão de conteúdo interno */
+
+.cfg-secao-cabecalho {
+  border-bottom: 1px solid #eae8e3;
+  margin: -18px -18px 4px;
+  padding: 22px 24px 18px;
+}
+
+.cfg-trilha {
+  align-items: center;
+  color: #8b8794;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 6px;
+}
+
+.cfg-trilha strong {
+  color: #475467;
+  font-weight: 700;
+}
+
+.cfg-secao-cabecalho-linha {
+  align-items: flex-start;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.cfg-secao-cabecalho-linha h2 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.cfg-secao-cabecalho-linha p {
+  color: #6b6670;
+  font-size: 13.5px;
+  margin: 5px 0 0;
+}
+
+.cfg-secao-acao {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 9px;
+}
+
+.cfg-salvo-chip {
+  align-items: center;
+  background: #faf9f6;
+  border: 1px solid #eae8e3;
+  border-radius: 8px;
+  color: #8b8794;
+  display: inline-flex;
+  font-size: 12.5px;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.cfg-artigo {
+  background: #fff;
+  border: 1px solid #eae8e3;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.cfg-artigo-titulo {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.cfg-artigo-titulo strong {
+  font-size: 15px;
+}
+
+.cfg-artigo-titulo span {
+  color: #8b8794;
+  font-size: 12.5px;
+}
+
+.cfg-campos-2col {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cfg-campos-2col label,
+.cfg-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cfg-campos-2col label > span,
+.cfg-campo > span {
+  color: #475467;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.cfg-consequencia {
+  align-items: flex-start;
+  background: #faf9f6;
+  border: 1px solid #eef0f3;
+  border-radius: 9px;
+  color: #6b6670;
+  display: flex;
+  font-size: 12.5px;
+  gap: 9px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.cfg-consequencia svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  stroke: #8b8794;
+}
+
+.cfg-chips-ciclo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cfg-chip-ciclo {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e6e3dd;
+  border-radius: 9px;
+  color: #475467;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 13px;
+}
+
+.cfg-chip-ciclo:hover {
+  background: #f4f3f0;
+}
+
+.cfg-chip-ciclo.ativo {
+  background: #fdeceb;
+  border-color: #e8202a;
+  border-width: 1.5px;
+  color: #c01620;
+}
+
+.cfg-cabecalho-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.cfg-preview-ata {
+  background: #faf9f6;
+  border: 1px solid #eef0f3;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
+.cfg-preview-ata-rotulo {
+  color: #8b8794;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cfg-preview-ata-folha {
+  background: #fff;
+  border: 1px solid #eae8e3;
+  border-radius: 8px;
+  margin-top: 10px;
+  padding: 16px 14px;
+  text-align: center;
+}
+
+.cfg-preview-ata-topo {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+  justify-content: center;
+  text-align: left;
+}
+
+.cfg-preview-ata-l1 {
+  color: #475467;
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.cfg-preview-ata-l2 {
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.cfg-preview-ata-regua {
+  background: #eae8e3;
+  height: 1px;
+  margin: 11px 0;
+}
+
+.cfg-preview-ata-titulo {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cfg-preview-ata-sub {
+  color: #8b8794;
+  font-size: 9.5px;
+  margin-top: 3px;
+}
+
+.cfg-preview-ata-linhas {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.cfg-preview-ata-linhas span {
+  background: #f2f0ec;
+  border-radius: 3px;
+  height: 5px;
 }
 
 .settings-check-row {

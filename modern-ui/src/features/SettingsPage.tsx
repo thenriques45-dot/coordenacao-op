@@ -287,7 +287,8 @@ const CAMPOS_INDEXADOS: Array<{ secao: SettingsSection; campo: string; ancora: s
   { secao: "turmas", campo: "Líder de sala", ancora: "cfg-turmas-campos" },
   { secao: "turmas", campo: "Elegível", ancora: "cfg-turmas-campos" },
   { secao: "turmas", campo: "Tipos de atendimento", ancora: "cfg-turmas-tipos" },
-  { secao: "conselho-notas", campo: "Nota mínima", ancora: "cfg-notas-minima" },
+  { secao: "instituicao", campo: "Média mínima (nota vermelha)", ancora: "cfg-instituicao-ciclo" },
+  { secao: "conselho-notas", campo: "Modo de exibição das notas", ancora: "cfg-notas-minima" },
   { secao: "sincronizacao", campo: "Código do grupo", ancora: "cfg-sync-grupo" },
   { secao: "sincronizacao", campo: "Pasta compartilhada", ancora: "cfg-sync-pasta" },
   { secao: "sincronizacao", campo: "Turmas e alunos", ancora: "cfg-sync-institucional" },
@@ -1181,54 +1182,64 @@ export function Configuracoes({
         )}
         {secaoConfig === "instituicao" && (
         <article className="settings-card">
-          <h2>Direção e critérios</h2>
-          <label>
-            Nome da direção
-            <input value={config.direcao_nome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_nome: event.target.value }))} />
-          </label>
-          <label>
-            Pronome
-            <select value={config.direcao_pronome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_pronome: event.target.value }))}>
-              <option value="F">Feminino: Diretora Sra.</option>
-              <option value="M">Masculino: Diretor Sr.</option>
-            </select>
-          </label>
-          <label>
-            Média mínima
-            <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
-          </label>
-          <label>
-            Prazo do 1º semestre (bimestres 1º e 2º)
-            <input type="date" value={config.prazo_1_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_1_semestre: event.target.value }))} />
-          </label>
-          <label>
-            Prazo do 2º semestre (bimestres 3º e 4º)
-            <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
-          </label>
+          <CabecalhoSecao
+            secao="instituicao"
+            titulo="Instituição"
+            descricao="Identificação da direção e cabeçalho usado na ATA, nos relatórios e nos documentos impressos."
+            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
+          />
 
-          <fieldset style={{ border: "1px solid #e4e7ec", borderRadius: "0.5rem", padding: "0.75rem 0.9rem", margin: "0.5rem 0" }}>
-            <legend style={{ fontWeight: 600, fontSize: "0.85rem", padding: "0 0.35rem" }}>Bimestre atual</legend>
-            <p style={{ color: "#667085", fontSize: "0.85rem", margin: "0 0 0.6rem" }}>
-              Define o bimestre que o app usa nas telas de turma, aluno e mensagens à família.
-              Deixe em <strong>Automático</strong> para o app decidir pela data de hoje (usando as datas de início abaixo)
-              ou, se elas não estiverem preenchidas, pelo maior bimestre já importado.
-            </p>
-            <label>
-              Modo
-              <select
-                value={config.bimestre_pin}
-                onChange={(event) => setConfig((atual) => ({ ...atual, bimestre_pin: event.target.value }))}
-              >
-                <option value="">Automático</option>
-                <option value="1">Fixo no 1º bimestre</option>
-                <option value="2">Fixo no 2º bimestre</option>
-                <option value="3">Fixo no 3º bimestre</option>
-                <option value="4">Fixo no 4º bimestre</option>
-              </select>
-            </label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.5rem", marginTop: "0.5rem" }}>
+          <div className="cfg-artigo" id="cfg-instituicao-identificacao">
+            <div className="cfg-artigo-titulo">
+              <strong>Identificação</strong>
+              <span>aparece no topo de todo documento gerado</span>
+            </div>
+            <div className="cfg-campos-2col">
+              <label>
+                Nome da direção
+                <input value={config.direcao_nome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_nome: event.target.value }))} />
+              </label>
+              <label>
+                Pronome
+                <select value={config.direcao_pronome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_pronome: event.target.value }))}>
+                  <option value="F">Feminino: Diretora Sra.</option>
+                  <option value="M">Masculino: Diretor Sr.</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div className="cfg-artigo" id="cfg-instituicao-ciclo">
+            <div className="cfg-artigo-titulo">
+              <strong>Calendário letivo</strong>
+              <span>define o bimestre que as telas mostram por padrão</span>
+            </div>
+            <div className="cfg-campos-2col">
+              <label>
+                Bimestre atual
+                <select
+                  value={config.bimestre_pin}
+                  onChange={(event) => setConfig((atual) => ({ ...atual, bimestre_pin: event.target.value }))}
+                >
+                  <option value="">Automático (pela data de hoje)</option>
+                  <option value="1">Fixo no 1º bimestre</option>
+                  <option value="2">Fixo no 2º bimestre</option>
+                  <option value="3">Fixo no 3º bimestre</option>
+                  <option value="4">Fixo no 4º bimestre</option>
+                </select>
+              </label>
+              <label>
+                Média mínima
+                <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
+              </label>
+            </div>
+            <div className="cfg-consequencia">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" /></svg>
+              <span>No modo automático, o app decide o bimestre pelas datas de início abaixo; se elas estiverem vazias, usa o maior bimestre já importado.</span>
+            </div>
+            <div className="cfg-campos-2col" id="cfg-instituicao-bimestres">
               {[0, 1, 2, 3].map((i) => (
-                <label key={i} style={{ fontSize: "0.82rem" }}>
+                <label key={i}>
                   Início do {i + 1}º bimestre
                   <input
                     type="date"
@@ -1244,26 +1255,65 @@ export function Configuracoes({
                 </label>
               ))}
             </div>
-          </fieldset>
-
-          <div className="settings-file-group">
-            <span>Cabeçalho da ata</span>
-            <p>Use uma imagem JPG ou PNG com o cabeçalho oficial da escola. Ela aparecerá na ata e no relatório dos professores.</p>
-            <label className="file-action">
-              Enviar imagem de cabeçalho
-              <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={(event) => enviarCabecalhoAta(event.target.files?.[0] ?? null)} />
-            </label>
-            <span className="settings-version">
-              {config.cabecalho_ata ? "Cabeçalho personalizado configurado." : "Usando cabeçalho padrão, se existir na pasta de dados."}
-            </span>
+            <div className="cfg-campos-2col">
+              <label>
+                Prazo do 1º semestre (bimestres 1º e 2º)
+                <input type="date" value={config.prazo_1_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_1_semestre: event.target.value }))} />
+              </label>
+              <label>
+                Prazo do 2º semestre (bimestres 3º e 4º)
+                <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
+              </label>
+            </div>
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando}>Salvar configurações</button>
+
+          <div className="cfg-artigo" id="cfg-instituicao-cabecalho">
+            <div className="cfg-artigo-titulo">
+              <strong>Cabeçalho dos documentos</strong>
+              <span>prévia à direita</span>
+            </div>
+            <div className="cfg-cabecalho-grid">
+              <div className="settings-file-group" style={{ margin: 0 }}>
+                <span>Imagem de cabeçalho</span>
+                <p>JPG ou PNG com o cabeçalho oficial da escola. Aparece na ATA e no relatório dos professores.</p>
+                <label className="file-action">
+                  Enviar imagem de cabeçalho
+                  <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={(event) => enviarCabecalhoAta(event.target.files?.[0] ?? null)} />
+                </label>
+                <span className="settings-version">
+                  {config.cabecalho_ata ? "Cabeçalho personalizado configurado." : "Usando cabeçalho padrão, se existir na pasta de dados."}
+                </span>
+              </div>
+              <div className="cfg-preview-ata">
+                <span className="cfg-preview-ata-rotulo">Prévia</span>
+                <div className="cfg-preview-ata-folha">
+                  <div className="cfg-preview-ata-topo">
+                    <span style={{ width: 26, height: 26, borderRadius: 5, background: "#f2f0ec", flexShrink: 0 }} aria-hidden="true" />
+                    <div>
+                      <div className="cfg-preview-ata-l1">Prefeitura / Secretaria de Educação</div>
+                      <div className="cfg-preview-ata-l2">{config.cabecalho_ata ? "Cabeçalho enviado" : "Nome da escola"}</div>
+                    </div>
+                  </div>
+                  <div className="cfg-preview-ata-regua" />
+                  <div className="cfg-preview-ata-titulo">ATA DO CONSELHO DE CLASSE</div>
+                  <div className="cfg-preview-ata-sub">2ª A · 3º bimestre</div>
+                  <div className="cfg-preview-ata-linhas">
+                    <span /><span /><span style={{ width: "72%" }} /><span style={{ width: "84%" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </article>
         )}
         {secaoConfig === "turmas" && (
         <article className="settings-card">
-          <h2>Configuração de turmas</h2>
-          <p>Ative/desative e renomeie campos usados nas turmas e no conselho. Ao desativar, o campo é removido dessas telas.</p>
+          <CabecalhoSecao
+            secao="turmas"
+            titulo="Turmas"
+            descricao="Campos usados nas turmas e no conselho, e os tipos de atendimento da ficha do aluno. Valem para toda a escola."
+            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
+          />
           <div id="cfg-turmas-campos" style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <input type="checkbox" checked={config.lider_ativo} onChange={(e) => setConfig((a) => ({ ...a, lider_ativo: e.target.checked }))} />
@@ -1307,14 +1357,12 @@ export function Configuracoes({
             </div>
             <button type="button" className="secondary-action" onClick={adicionarTipoAtendimento}>Adicionar tipo</button>
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1rem" }}>Salvar configurações</button>
         </article>
         )}
 
         {secaoConfig === "conselho-perfil" && (
         <article className="settings-card">
-          <h2>Perfil da turma</h2>
-          <p>Critérios de observação exibidos no conselho e na ATA.</p>
+          <CabecalhoSecao secao="conselho-perfil" titulo="Perfil da turma" descricao="Critérios de observação exibidos no conselho e na ATA." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <label className="settings-check-row">
             <input
               type="checkbox"
@@ -1364,16 +1412,12 @@ export function Configuracoes({
               </button>
             </>
           )}
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-destaque" && (
         <article className="settings-card">
-          <h2>Aluno destaque/superação</h2>
-          <p>Categorias registradas por aluno no conselho e na ATA.</p>
+          <CabecalhoSecao secao="conselho-destaque" titulo="Aluno destaque" descricao="Categorias de destaque e superação registradas por aluno no conselho e na ATA." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <label className="settings-check-row">
             <input
               type="checkbox"
@@ -1432,16 +1476,12 @@ export function Configuracoes({
               </button>
             </>
           )}
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-encaminhamentos" && (
         <article className="settings-card">
-          <h2>Encaminhamentos</h2>
-          <p>Opções disponíveis para marcar por aluno no conselho e listadas em "Outras observações e encaminhamentos" na ATA.</p>
+          <CabecalhoSecao secao="conselho-encaminhamentos" titulo="Encaminhamentos" descricao={`Opções para marcar por aluno no conselho e listadas em "Outras observações e encaminhamentos" na ATA.`} acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <div style={{ display: "grid", gap: "0.5rem", marginBottom: "0.5rem" }}>
             {config.encaminhamento_opcoes.map((opcao, indice) => (
               <div key={opcao.numero} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -1462,20 +1502,17 @@ export function Configuracoes({
             )}
           </div>
           <button type="button" className="secondary-action" onClick={adicionarEncaminhamento}>Adicionar encaminhamento</button>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "mensagens-familia" && (
         <article className="settings-card">
-          <h2>Mensagens à família</h2>
-          <p>
-            Modelos de mensagem enviados ao responsável pela tela do aluno (via WhatsApp). Crie
-            um modelo por situação — faltas, tarefas em atraso, convocação. Cada envio fica
-            registrado como atendimento do aluno, com as <strong>tags</strong> definidas aqui.
-          </p>
+          <CabecalhoSecao
+            secao="mensagens-familia"
+            titulo="Mensagens à família"
+            descricao="Modelos de mensagem enviados ao responsável pela tela do aluno (via WhatsApp). Cada envio fica registrado como atendimento, com as tags definidas aqui."
+            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
+          />
           <p style={{ color: "#667085", fontSize: "0.85rem" }}>
             Use variáveis entre chaves no texto — elas são trocadas pelos dados reais do estudante
             ao compor a mensagem. Clique para inserir:
@@ -1542,17 +1579,13 @@ export function Configuracoes({
           <button type="button" className="secondary-action" onClick={adicionarTemplateMensagem} style={{ marginTop: "0.5rem" }}>
             Adicionar modelo
           </button>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-notas" && (
         <article className="settings-card">
-          <h2>Notas na ATA</h2>
-          <p>Escolha como as notas de cada disciplina aparecem na ATA do conselho.</p>
-          <div className="ata-notas-options">
+          <CabecalhoSecao secao="conselho-notas" titulo="Notas na ATA" descricao="Como as notas de cada disciplina aparecem na ATA do conselho." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
+          <div className="ata-notas-options" id="cfg-notas-minima">
             {opcoesModoNotasAta.map((opcao) => (
               <label key={opcao.valor} className="settings-check-row">
                 <input
@@ -1566,16 +1599,12 @@ export function Configuracoes({
               </label>
             ))}
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "perfil-dispositivo" && (
         <article className="settings-card">
-          <h2>Perfil e dispositivo</h2>
-          <p>Identifique esta instalação antes de compartilhar dados com outros coordenadores.</p>
+          <CabecalhoSecao secao="perfil-dispositivo" titulo="Perfil e dispositivo" descricao="Identifique esta instalação antes de compartilhar dados com outros coordenadores. Salva sozinho." />
           <div className="profile-photo-settings">
             {perfilSync.avatarDataUrl ? (
               <img src={perfilSync.avatarDataUrl} alt="" />
@@ -1608,8 +1637,7 @@ export function Configuracoes({
         {secaoConfig === "sincronizacao" && (
         <>
         <article className="settings-card" id="cfg-sync-grupo">
-          <h2>Sincronização</h2>
-          <p>Compartilhe turmas, alunos e o Quadro de Gestão com outros coordenadores da instituição.</p>
+          <CabecalhoSecao secao="sincronizacao" titulo="Sincronização" descricao="Compartilhe turmas, alunos e o Quadro de Gestão com outros coordenadores da instituição." />
           <label className="settings-check-row">
             <input type="checkbox" checked={perfilSync.syncEnabled} onChange={(event) => atualizarPerfilSync("syncEnabled", event.target.checked)} />
             Ativar sincronização de grupo de trabalho
@@ -1654,19 +1682,18 @@ export function Configuracoes({
 
         {secaoConfig === "whatsapp" && (
         <article className="settings-card" id="cfg-whatsapp-token">
-          <h2>WhatsApp</h2>
-          <p>
-            Credenciais da API oficial do WhatsApp, para disparos em lote sem abrir o app a cada
-            aluno. A fila assistida (abrir o WhatsApp e apertar enviar) funciona sem configurar nada.
-          </p>
+          <CabecalhoSecao
+            secao="whatsapp"
+            titulo="WhatsApp"
+            descricao="Credenciais da API oficial do WhatsApp, para disparos em lote. A fila assistida (abrir o WhatsApp e apertar enviar) funciona sem configurar nada."
+          />
           <ConfigEnvioAutomatico />
         </article>
         )}
 
         {secaoConfig === "backup" && (
         <article className="settings-card">
-          <h2>Backup</h2>
-          <p>O formato antigo de backup é compatível com a modern-ui.</p>
+          <CabecalhoSecao secao="backup" titulo="Backup" descricao="Exporta e restaura os dados do app. Compatível com o formato antigo de backup." />
           <div className="backup-cycle-options" aria-label="Selecionar ciclos para backup">
             <button className={ciclosBackup.includes("todos") ? "selected" : ""} onClick={() => alternarCicloBackup("todos")}>
               Tudo
@@ -1702,13 +1729,14 @@ export function Configuracoes({
 
         {secaoConfig === "manutencao-dados" && (
         <article className="settings-card">
-          <h2>Manutenção de dados</h2>
-          <p>
-            Encontra disciplinas gravadas com grafias diferentes (ex.: com e sem hífen) que
-            deveriam ser a mesma matéria — resíduo de importações antigas, antes da normalização
-            atual existir. Revise a lista antes de corrigir: a correção funde as notas, a
-            frequência e a carga horária sob uma única grafia, preferindo sempre o valor mais
-            recente.
+          <CabecalhoSecao
+            secao="manutencao-dados"
+            titulo="Manutenção de dados"
+            descricao="Encontra disciplinas gravadas com grafias diferentes que deveriam ser a mesma matéria — resíduo de importações antigas."
+          />
+          <p className="settings-version">
+            Revise a lista antes de corrigir: a correção funde notas, frequência e carga horária sob
+            uma única grafia, preferindo sempre o valor mais recente.
           </p>
           <button
             type="button"
@@ -1783,8 +1811,7 @@ export function Configuracoes({
 
         {secaoConfig === "assistente" && (
         <article className="settings-card">
-          <h2>Assistente Pedagógico</h2>
-          <p>Gera rascunhos de relatórios pedagógicos. Provedores em nuvem recebem os dados enviados para o relatório; use apenas com autorização da escola.</p>
+          <CabecalhoSecao secao="assistente" titulo="Assistente pedagógico" descricao="Gera rascunhos de relatórios pedagógicos. Provedores em nuvem recebem os dados do relatório; use apenas com autorização da escola." />
           <label className="settings-check-row">
             <input type="checkbox" checked={aiSettings.enabled} onChange={(event) => atualizarAiSettings("enabled", event.target.checked)} />
             Ativar geração de relatórios com IA
@@ -1940,8 +1967,7 @@ export function Configuracoes({
 
         {secaoConfig === "atualizacao" && (
         <article className="settings-card">
-          <h2>Atualização</h2>
-          <p>A verificação consulta a última versão publicada no GitHub.</p>
+          <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="A verificação consulta a última versão publicada no GitHub." />
           <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
           <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
           {atualizacao && (
@@ -1978,6 +2004,43 @@ export function Configuracoes({
         />
       )}
     </section>
+  );
+}
+
+// Cabeçalho único de seção (handoff #6): trilha + título + descrição + slot de ação.
+function CabecalhoSecao({
+  secao,
+  titulo,
+  descricao,
+  acao,
+}: {
+  secao: SettingsSection;
+  titulo: string;
+  descricao: string;
+  acao?: ReactNode;
+}) {
+  const seta = (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+  return (
+    <header className="cfg-secao-cabecalho">
+      <div className="cfg-trilha">
+        <span>Configurações</span>
+        {seta}
+        <span>{GRUPO_DA_SECAO[secao] || "Geral"}</span>
+        {seta}
+        <strong>{LABEL_DA_SECAO[secao]}</strong>
+      </div>
+      <div className="cfg-secao-cabecalho-linha">
+        <div>
+          <h2>{titulo}</h2>
+          <p>{descricao}</p>
+        </div>
+        {acao && <div className="cfg-secao-acao">{acao}</div>}
+      </div>
+    </header>
   );
 }
 
@@ -2070,7 +2133,6 @@ function VisaoGeralConfig({
           estado: atualizacaoDisponivel ? `${atualizacaoDisponivel.version} disponível` : `${appInfo?.version ? `v${appInfo.version}` : "versão atual"} · em dia`,
           tom: atualizacaoDisponivel ? "atencao" : undefined,
         },
-        { label: "Manutenção de dados", secao: "manutencao-dados", estado: "Verificar disciplinas duplicadas" },
       ],
     },
     {
@@ -2086,11 +2148,6 @@ function VisaoGeralConfig({
 
   return (
     <div className="cfg-visaogeral">
-      <div className="cfg-vg-cabecalho">
-        <h2>Configurações</h2>
-        <p>Ajustes desta instalação e da instituição. Listas usadas no dia a dia ficam nas próprias telas.</p>
-      </div>
-
       {avisos.length > 0 && (
         <div className="cfg-vg-manutencao">
           {avisos.map((aviso) => (
