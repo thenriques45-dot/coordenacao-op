@@ -265,6 +265,141 @@ pub(crate) fn avaliar_condicoes_atendimento_lote(
     Ok(saida)
 }
 
+// ── Entidade "Disparo em lote" ──────────────────────────────────────────────
+// Vive no array `disparos_lote` do JSON da turma. A fila assistida grava o
+// progresso aqui para pausar/retomar entre sessões; o lote via API guarda o
+// resultado e as falhas. Merge por id no sync (sync.rs::mesclar_disparos_lote).
+
+#[derive(Deserialize)]
+pub(crate) struct DisparoDestinatarioInput {
+    pub(crate) matricula: String,
+    pub(crate) nome: String,
+    #[serde(default)]
+    pub(crate) responsavel_nome: Option<String>,
+    #[serde(default)]
+    pub(crate) telefone: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub(crate) struct IniciarDisparoInput {
+    pub(crate) modelo_id: String,
+    #[serde(default)]
+    pub(crate) modelo_titulo: String,
+    pub(crate) canal: String,
+    pub(crate) destinatarios: Vec<DisparoDestinatarioInput>,
+}
+
+fn agora_rfc3339() -> String {
+    chrono::Local::now().to_rfc3339()
+}
+
+fn ler_turma(caminho: &std::path::Path) -> Result<Value, String> {
+    validar_caminho_turma(caminho)?;
+    let texto = std::fs::read_to_string(caminho).map_err(|e| e.to_string())?;
+    serde_json::from_str(&texto).map_err(|e| e.to_string())
+}
+
+fn gravar_turma(caminho: &std::path::Path, dados: &Value) -> Result<(), String> {
+    let texto = serde_json::to_string_pretty(dados).map_err(|e| e.to_string())?;
+    escrever_json_atomicamente(caminho, &texto).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub(crate) fn carregar_disparos_lote(caminho: String) -> Result<Vec<Value>, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    let dados = ler_turma(&caminho)?;
+    let mut lista = dados
+        .get("disparos_lote")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    // Mais recentes primeiro.
+    lista.sort_by(|a, b| {
+        b.get("data_hora").and_then(Value::as_str).unwrap_or("")
+            .cmp(a.get("data_hora").and_then(Value::as_str).unwrap_or(""))
+    });
+    Ok(lista)
+}
+
+#[tauri::command]
+pub(crate) fn iniciar_disparo_lote(caminho: String, input: IniciarDisparoInput) -> Result<Value, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    let mut dados = ler_turma(&caminho)?;
+
+    let agora = agora_rfc3339();
+    let turma_codigo = dados.get("codigo").and_then(Value::as_str).unwrap_or("").to_string();
+    let destinatarios: Vec<Value> = input
+        .destinatarios
+        .iter()
+        .map(|d| serde_json::json!({
+            "matricula": d.matricula,
+            "nome": d.nome,
+            "responsavel_nome": d.responsavel_nome,
+            "telefone": d.telefone,
+        }))
+        .collect();
+
+    let registro = serde_json::json!({
+        "id": format!("disparo-{}", chrono::Local::now().timestamp_millis()),
+        "data_hora": agora,
+        "modelo_id": input.modelo_id,
+        "modelo_titulo": input.modelo_titulo,
+        "canal": input.canal,
+        "turma": turma_codigo,
+        "destinatarios": destinatarios,
+        "enviados": [],
+        "pulados": [],
+        "falhas": [],
+        "posicao_atual": 0,
+        "situacao": "em_progresso",
+        "custo": Value::Null,
+        "atualizado_em": agora,
+    });
+
+    let obj = dados.as_object_mut().ok_or_else(|| "Turma invalida.".to_string())?;
+    obj.entry("disparos_lote".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or_else(|| "Lista de disparos invalida.".to_string())?
+        .push(registro.clone());
+
+    gravar_turma(&caminho, &dados)?;
+    Ok(registro)
+}
+
+/// Substitui um disparo por id pelo `disparo` recebido (progresso da fila,
+/// falhas do lote…). O frontend manda o registro inteiro, já com a situacao.
+#[tauri::command]
+pub(crate) fn atualizar_disparo_lote(caminho: String, disparo: Value) -> Result<Value, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    let mut dados = ler_turma(&caminho)?;
+    let id = disparo.get("id").and_then(Value::as_str).unwrap_or("").to_string();
+    if id.is_empty() {
+        return Err("Disparo sem id.".to_string());
+    }
+    let mut registro = disparo;
+    if let Some(obj) = registro.as_object_mut() {
+        obj.insert("atualizado_em".to_string(), Value::String(agora_rfc3339()));
+    }
+
+    let lista = dados
+        .as_object_mut()
+        .and_then(|o| o.get_mut("disparos_lote"))
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "Nenhum disparo nesta turma.".to_string())?;
+    let alvo = lista
+        .iter_mut()
+        .find(|d| d.get("id").and_then(Value::as_str) == Some(id.as_str()))
+        .ok_or_else(|| "Disparo nao encontrado.".to_string())?;
+    *alvo = registro.clone();
+
+    gravar_turma(&caminho, &dados)?;
+    Ok(registro)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,6 +432,23 @@ mod tests {
         let m = metricas_de(&json!({}));
         assert!(condicao_atendida(&m, &CondicaoLote { campo: "ultimo_contato_familia".into(), operador: "ha_mais_de".into(), valor: "15".into(), valor2: None }));
         assert!(!condicao_atendida(&m, &CondicaoLote { campo: "ultimo_contato_familia".into(), operador: "ha_menos_de".into(), valor: "15".into(), valor2: None }));
+    }
+
+    #[test]
+    fn merge_disparos_lote_une_por_id_e_o_mais_recente_vence() {
+        let mut local = json!({ "disparos_lote": [
+            { "id": "d1", "situacao": "em_progresso", "enviados": ["a"], "atualizado_em": "2026-05-01T10:00:00-03:00" }
+        ] });
+        let incoming = json!({ "disparos_lote": [
+            { "id": "d1", "situacao": "pausada", "enviados": ["a", "b"], "atualizado_em": "2026-05-01T12:00:00-03:00" },
+            { "id": "d2", "situacao": "concluida", "atualizado_em": "2026-05-02T09:00:00-03:00" }
+        ] });
+        crate::mesclar_disparos_lote(local.as_object_mut().unwrap(), &incoming);
+        let lista = local["disparos_lote"].as_array().unwrap();
+        assert_eq!(lista.len(), 2);
+        let d1 = lista.iter().find(|d| d["id"] == "d1").unwrap();
+        assert_eq!(d1["situacao"], "pausada");
+        assert_eq!(d1["enviados"].as_array().unwrap().len(), 2);
     }
 
     #[test]

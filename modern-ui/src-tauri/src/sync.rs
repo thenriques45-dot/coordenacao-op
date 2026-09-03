@@ -684,8 +684,41 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
     }
 
     mesclar_conselhos_turma(res_obj, incoming);
+    mesclar_disparos_lote(res_obj, incoming);
 
     resultado
+}
+
+// Disparos em lote (fila assistida / lote API): união por id, o registro com
+// `atualizado_em` mais recente vence inteiro. Um disparo é editado de uma
+// máquina por vez (quem está tocando a fila), então não precisa de merge
+// campo a campo como os atendimentos.
+pub(crate) fn mesclar_disparos_lote(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &Value,
+) {
+    let Some(inc_lista) = incoming.get("disparos_lote").and_then(Value::as_array) else { return; };
+    let local_valor = local
+        .entry("disparos_lote".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let Some(local_lista) = local_valor.as_array_mut() else { return; };
+
+    for inc_item in inc_lista {
+        let Some(inc_id) = inc_item.get("id").and_then(Value::as_str) else { continue; };
+        match local_lista
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(inc_id))
+        {
+            Some(local_item) => {
+                let em_local = local_item.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+                let em_inc = inc_item.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+                if em_inc > em_local {
+                    *local_item = inc_item.clone();
+                }
+            }
+            None => local_lista.push(inc_item.clone()),
+        }
+    }
 }
 
 // Finalização do conselho (nó "conselhos") e texto da ata: por bimestre, vence
