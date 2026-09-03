@@ -276,24 +276,23 @@ const LABEL_DA_SECAO: Record<SettingsSection, string> = (() => {
 })();
 
 // Campos indexados pela busca, além das seções. `ancora` = id do elemento.
-const CAMPOS_INDEXADOS: Array<{ secao: SettingsSection; campo: string; ancora: string }> = [
-  { secao: "instituicao", campo: "Nome da escola", ancora: "cfg-instituicao-identificacao" },
-  { secao: "instituicao", campo: "Direção", ancora: "cfg-instituicao-identificacao" },
+const CAMPOS_INDEXADOS: Array<{ secao: SettingsSection; campo: string; ancora?: string }> = [
+  { secao: "instituicao", campo: "Nome da direção", ancora: "cfg-instituicao-identificacao" },
+  { secao: "instituicao", campo: "Pronome da direção", ancora: "cfg-instituicao-identificacao" },
   { secao: "instituicao", campo: "Cabeçalho dos documentos", ancora: "cfg-instituicao-cabecalho" },
-  { secao: "instituicao", campo: "Ciclo letivo", ancora: "cfg-instituicao-ciclo" },
+  { secao: "instituicao", campo: "Calendário letivo", ancora: "cfg-instituicao-ciclo" },
   { secao: "instituicao", campo: "Datas dos bimestres", ancora: "cfg-instituicao-bimestres" },
+  { secao: "instituicao", campo: "Média mínima (nota vermelha)", ancora: "cfg-instituicao-ciclo" },
   { secao: "turmas", campo: "Líder de sala", ancora: "cfg-turmas-campos" },
   { secao: "turmas", campo: "Elegível", ancora: "cfg-turmas-campos" },
   { secao: "turmas", campo: "Tipos de atendimento", ancora: "cfg-turmas-tipos" },
-  { secao: "instituicao", campo: "Média mínima (nota vermelha)", ancora: "cfg-instituicao-ciclo" },
   { secao: "conselho-notas", campo: "Modo de exibição das notas", ancora: "cfg-notas-minima" },
-  { secao: "sincronizacao", campo: "Código do grupo", ancora: "cfg-sync-grupo" },
   { secao: "sincronizacao", campo: "Pasta compartilhada", ancora: "cfg-sync-pasta" },
   { secao: "sincronizacao", campo: "Turmas e alunos", ancora: "cfg-sync-institucional" },
-  { secao: "assistente", campo: "Chave da API", ancora: "cfg-ai-chave" },
-  { secao: "whatsapp", campo: "Token permanente", ancora: "cfg-whatsapp-token" },
+  { secao: "assistente", campo: "Chave da API do assistente" },
+  { secao: "whatsapp", campo: "Token permanente da Meta", ancora: "cfg-whatsapp-token" },
   { secao: "whatsapp", campo: "ID do número de telefone", ancora: "cfg-whatsapp-token" },
-  { secao: "atualizacao", campo: "Iniciar com o Windows", ancora: "cfg-atualizacao-autostart" },
+  { secao: "atualizacao", campo: "Iniciar com o Windows" },
 ];
 
 export function construirIndiceBusca(): IndiceConfig[] {
