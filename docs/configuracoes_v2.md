@@ -49,6 +49,23 @@ cada pessoa com gênero "F" / "M" / "não informar".
 - **Fora**: perfis de uso / permissões; concordância de gênero no relatório do assistente
   (o texto não cita o coordenador hoje).
 
+## "O que há de novidade" paginado (commit `de05547`)
+
+O modal de novidades virou um wizard no formato dos tutoriais de tela
+(`Novidades.tsx`): uma novidade por página — área + título + texto +
+destaques com ícone — e um atalho opcional que fecha e abre a função.
+Reaproveita `.sync-wizard` (bolinhas de progresso, Voltar/Próximo/Pular,
+teclado). `NOVIDADES_POR_VERSAO` aceita o formato rico
+(`{ paginas, outrasMudancas }`) ou a lista de strings antiga; `normalizarNovidades`
+resolve os dois. 4.0.0 reescrita em 7 páginas + "Outras mudanças"
+(Diagnóstica). Reabre em Configurações › Este computador › Atualização.
+
+## Correção de sync (commit `9b37974`)
+
+`adotarEquipeGestoraRecebida` entrava em loop de readoção (o comando
+`salvar_equipe_gestora` recarimba `atualizado_em`). Agora compara o
+conteúdo sem o carimbo e só grava quando difere.
+
 ## Fora deste ciclo
 
 - Padrão de conteúdo 1d completo só em Instituição; as demais seções recebem o cabeçalho novo
