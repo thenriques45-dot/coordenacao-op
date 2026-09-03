@@ -326,7 +326,7 @@ function DiagnosticSubjectCard({
       )}
       {diagnostico.evolucao && (
         <small className={`diagnostic-evolution ${classeEvolucao(diagnostico.evolucao)}`}>
-          {setaEvolucao(diagnostico.evolucao)} {diagnostico.evolucao} da AvD1 para a AvD2
+          {setaEvolucao(diagnostico.evolucao)} {diagnostico.evolucao} da Diagnóstica 1 para a Diagnóstica 2
         </small>
       )}
     </article>
@@ -2090,7 +2090,7 @@ function AlunoDetalheGestao({
                             <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente}</i>
                           )}
                           {diagnosticoDisciplina.evolucao && (
-                            <i className={`diagnostic-evolution-tag ${classeEvolucao(diagnosticoDisciplina.evolucao)}`} title={`AvD1 → AvD2: ${diagnosticoDisciplina.evolucao}`}>
+                            <i className={`diagnostic-evolution-tag ${classeEvolucao(diagnosticoDisciplina.evolucao)}`} title={`Diagnóstica 1 → Diagnóstica 2: ${diagnosticoDisciplina.evolucao}`}>
                               {setaEvolucao(diagnosticoDisciplina.evolucao)} {diagnosticoDisciplina.evolucao}
                             </i>
                           )}
