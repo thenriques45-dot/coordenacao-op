@@ -1,8 +1,10 @@
-import { Check, ChevronDown, GripVertical, Info, Plus, X } from "lucide-react";
+import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, Pause, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
+import { FilaAssistida } from "./FilaAssistida";
 import { tomFrequencia } from "./lote";
+import type { AtendimentoAlunoInput } from "./tipos";
 import {
   CAMPOS,
   OPERADORES,
@@ -22,20 +24,38 @@ const TETO_FILA_ASSISTIDA = 40;
 let seq = 0;
 const novoId = () => `c${Date.now().toString(36)}_${seq++}`;
 
-type Passo = "modelo" | "destinatarios" | "enviar";
+type Passo = "modelo" | "destinatarios" | "enviar" | "fila-assistida";
+
+type ApiStatus = { configurada: boolean; ativo: boolean; limite_dia: number; uso_hoje: number };
+type DisparoLote = {
+  id: string; modelo_id: string; modelo_titulo: string; canal: string;
+  destinatarios: { matricula: string; nome: string; responsavel_nome: string | null; telefone: string | null }[];
+  enviados: string[]; pulados: string[]; posicao_atual: number; situacao: string;
+  [k: string]: unknown;
+};
 
 export function AssistenteLote({
   turma,
   bimestre,
   templates,
+  onSalvarAtendimento,
+  onAtivarEnvioAutomatico,
   onSair,
+  onConcluir,
 }: {
   turma: { codigo: string; caminho: string };
   bimestre: string;
   templates: MensagemTemplate[];
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
+  onAtivarEnvioAutomatico: () => void;
   onSair: () => void;
+  onConcluir: () => void;
 }) {
   const [passo, setPasso] = useState<Passo>("modelo");
+  const [apiStatus, setApiStatus] = useState<ApiStatus | null>(null);
+  const [disparoAtivo, setDisparoAtivo] = useState<DisparoLote | null>(null);
+  const [pausada, setPausada] = useState<DisparoLote | null>(null);
+  const [iniciando, setIniciando] = useState(false);
   const [modeloId, setModeloId] = useState(templates[0]?.id ?? "");
   const modelo = templates.find((t) => t.id === modeloId);
 
@@ -68,6 +88,43 @@ export function AssistenteLote({
   useEffect(() => {
     avaliar();
   }, [avaliar]);
+
+  useEffect(() => {
+    invokeApp<ApiStatus>("carregar_config_whatsapp_api").then(setApiStatus).catch(() => setApiStatus(null));
+    invokeApp<DisparoLote[]>("carregar_disparos_lote", { caminho: turma.caminho })
+      .then((lista) => setPausada(lista.find((d) => d.situacao === "pausada" && d.canal === "wa_me") ?? null))
+      .catch(() => {});
+  }, [turma.caminho]);
+
+  async function atualizarDisparo(d: DisparoLote) {
+    const r = await invokeApp<DisparoLote>("atualizar_disparo_lote", { caminho: turma.caminho, disparo: d });
+    setDisparoAtivo(r);
+  }
+
+  async function iniciarFilaAssistida() {
+    setIniciando(true);
+    setErro("");
+    try {
+      const destinatarios = fila
+        .filter((a) => !a.sem_telefone)
+        .map((a) => ({
+          matricula: a.matricula,
+          nome: a.nome,
+          responsavel_nome: a.responsavel_nome,
+          telefone: a.telefone,
+        }));
+      const d = await invokeApp<DisparoLote>("iniciar_disparo_lote", {
+        caminho: turma.caminho,
+        input: { modelo_id: modelo?.id ?? "", modelo_titulo: modelo?.titulo ?? "", canal: "wa_me", destinatarios },
+      });
+      setDisparoAtivo(d);
+      setPasso("fila-assistida");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIniciando(false);
+    }
+  }
 
   const porMatricula = useMemo(() => new Map(avaliacao.map((a) => [a.matricula, a])), [avaliacao]);
 
@@ -145,6 +202,17 @@ export function AssistenteLote({
     return (
       <div className="atd-lote">
         <TrilhoPassos atual="modelo" onSair={onSair} turma={turma.codigo} modelo={modelo?.titulo} />
+        {pausada && (
+          <div className="atd-lote-retomar">
+            <Pause size={16} aria-hidden />
+            <div>
+              <strong>{pausada.modelo_titulo || "Fila"} · pausada</strong>
+              <p>{pausada.enviados.length} de {pausada.destinatarios.length} enviados. Quem já recebeu não recebe de novo.</p>
+            </div>
+            <button type="button" className="atd-btn-primario" onClick={() => { setDisparoAtivo(pausada); setPasso("fila-assistida"); }}>Retomar fila</button>
+            <button type="button" className="atd-thread-link" onClick={() => setPausada(null)}>Descartar</button>
+          </div>
+        )}
         <div className="atd-lote-modelo">
           <h2>Qual mensagem enviar?</h2>
           <p>Cada envio vira um atendimento do tipo "Contato com a família" no aluno correspondente.</p>
@@ -178,17 +246,84 @@ export function AssistenteLote({
     );
   }
 
-  // ── Passo Enviar (placeholder até a Fase 7) ────────────────────────────────
+  // ── Fila assistida em andamento (2a) ──────────────────────────────────────
+  if (passo === "fila-assistida" && disparoAtivo) {
+    return (
+      <FilaAssistida
+        disparo={disparoAtivo}
+        turma={turma}
+        bimestre={bimestre}
+        modelo={modelo}
+        onSalvarAtendimento={onSalvarAtendimento}
+        onAtualizarDisparo={atualizarDisparo}
+        onSair={onSair}
+        onConcluir={onConcluir}
+      />
+    );
+  }
+
+  // ── Passo Enviar — escolha de canal (de 1e) ───────────────────────────────
   if (passo === "enviar") {
+    const minutos = Math.max(1, Math.round((totalDestinatarios * 15) / 60));
+    const apiOculta = !apiStatus?.configurada;
+    const custo = (totalDestinatarios * 0.04).toFixed(2).replace(".", ",");
     return (
       <div className="atd-lote">
         <TrilhoPassos atual="enviar" onSair={onSair} turma={turma.codigo} modelo={modelo?.titulo} />
-        <div className="atd-lote-modelo">
-          <h2>{totalDestinatarios} destinatários prontos</h2>
-          <p>A escolha de canal (fila assistida no WhatsApp ou envio automático) entra na próxima etapa da implantação.</p>
+        {erro && <div className="notice error">{erro}</div>}
+        <div className="atd-lote-canais">
+          <div className="atd-lote-canal recomendado">
+            <div className="atd-lote-canal-topo">
+              <span className="atd-lote-canal-icone verde"><MessageCircle size={17} aria-hidden /></span>
+              <div><strong>Fila assistida no WhatsApp</strong><small>Grátis · você aperta enviar em cada um</small></div>
+              <span className="atd-lote-canal-selo">Recomendado</span>
+            </div>
+            <p>
+              {totalDestinatarios} destinatários, um por vez. Cerca de {minutos} min no ritmo sugerido de 15 s.
+              Dá para pausar e retomar depois; o progresso fica guardado. Atalho: <strong>Enter</strong> envia e avança.
+            </p>
+            {acimaDoTeto && (
+              <p className="atd-lote-canal-aviso">
+                Acima do teto de {TETO_FILA_ASSISTIDA} por sessão — reduza a fila ou use o envio automático.
+              </p>
+            )}
+            <button type="button" className="atd-btn-primario" disabled={iniciando || totalDestinatarios === 0 || acimaDoTeto} onClick={iniciarFilaAssistida}>
+              {iniciando ? "Preparando…" : "Iniciar fila assistida"}
+            </button>
+          </div>
+
+          {apiOculta ? (
+            <div className="atd-lote-canal apagado">
+              <div className="atd-lote-canal-topo">
+                <span className="atd-lote-canal-icone cinza"><ArrowUpToLine size={17} aria-hidden /></span>
+                <div><strong>Envio automático</strong><small>Desligado nesta máquina</small></div>
+              </div>
+              <p>
+                Dispara os {totalDestinatarios} sem clicar em cada aluno, usando a API oficial do WhatsApp.
+                Precisa de credenciais da Meta e cobra por mensagem (cerca de R$ 0,04). Requer internet.
+              </p>
+              <button type="button" className="atd-btn-secundario" onClick={onAtivarEnvioAutomatico}>Ativar envio automático</button>
+            </div>
+          ) : (
+            <div className="atd-lote-canal">
+              <div className="atd-lote-canal-topo">
+                <span className="atd-lote-canal-icone azul"><ArrowUpToLine size={17} aria-hidden /></span>
+                <div><strong>Envio automático</strong><small>API oficial{apiStatus?.ativo ? "" : " · desativada"}</small></div>
+                <span className="atd-lote-canal-selo pago">Pago</span>
+              </div>
+              <div className="atd-lote-canal-custo">
+                <span>Custo estimado · {totalDestinatarios} mensagens</span>
+                <strong>R$ {custo}</strong>
+              </div>
+              <p>Limite de {apiStatus?.limite_dia ?? 250} destinatários por dia neste número. {apiStatus?.uso_hoje ?? 0} de {apiStatus?.limite_dia ?? 250} usados hoje.</p>
+              <button type="button" className="atd-lote-btn-escuro" disabled title="O disparo via API entra na Fase 8">
+                Confirmar e disparar {totalDestinatarios}
+              </button>
+            </div>
+          )}
         </div>
         <div className="atd-lote-rodape">
-          <button type="button" className="atd-btn-secundario" onClick={() => setPasso("destinatarios")}>Voltar</button>
+          <button type="button" className="atd-btn-secundario" onClick={() => setPasso("destinatarios")}>Voltar aos destinatários</button>
           <span />
         </div>
       </div>

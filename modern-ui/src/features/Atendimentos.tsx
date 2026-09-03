@@ -266,7 +266,10 @@ export function TelaAtendimentos({
         turma={{ codigo: turma.codigo, caminho: turma.caminho }}
         bimestre={bimestre}
         templates={templatesConfig}
+        onSalvarAtendimento={salvarAtendimento}
+        onAtivarEnvioAutomatico={onAtivarEnvioAutomatico}
         onSair={() => { setAssistenteLote(false); carregar(); }}
+        onConcluir={() => { setAssistenteLote(false); carregar(); }}
       />
     );
   }
