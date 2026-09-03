@@ -446,6 +446,7 @@ export function GestaoTurma({
   onSalvarAtendimento,
   onSalvarResponsaveis,
   onOpenKanban,
+  onAbrirTelaAtendimentos,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
@@ -460,6 +461,7 @@ export function GestaoTurma({
   onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   onOpenKanban: () => void;
+  onAbrirTelaAtendimentos?: (alunoNome: string) => void;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
   const [busca, setBusca] = useState("");
@@ -648,6 +650,7 @@ export function GestaoTurma({
           tarefas={tarefasKanban}
           eventos={eventosCalendario}
           onOpenKanban={onOpenKanban}
+          onAbrirTelaAtendimentos={onAbrirTelaAtendimentos}
         />
       </>
     );
@@ -1562,6 +1565,7 @@ function AlunoDetalheGestao({
   tarefas,
   eventos,
   onOpenKanban,
+  onAbrirTelaAtendimentos,
 }: {
   aluno: Aluno;
   bimestre: string;
@@ -1578,6 +1582,7 @@ function AlunoDetalheGestao({
   tarefas: KanbanTarefa[];
   eventos: CalendarEvent[];
   onOpenKanban: () => void;
+  onAbrirTelaAtendimentos?: (alunoNome: string) => void;
 }) {
   const [aba, setAba] = useState<"desempenho" | "atendimentos" | "educacao" | "tarefas">("desempenho");
   const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
@@ -2161,7 +2166,21 @@ function AlunoDetalheGestao({
           <div className="panel-heading attendance-heading">
             <div>
               <h3>Atendimentos</h3>
-              <p>Histórico de casos e seguimentos registrados para este aluno.</p>
+              <p>
+                Histórico de casos e seguimentos registrados para este aluno.
+                {onAbrirTelaAtendimentos && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() => onAbrirTelaAtendimentos(aluno.nome)}
+                      style={{ background: "none", border: "none", padding: 0, minHeight: 0, color: "#175cd3", fontSize: "inherit", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Abrir na Tela de Atendimentos →
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
             <button type="button" className="primary-action" onClick={abrirNovoAtendimento} disabled={!opcoesTipoAtendimento.length}>
               <Plus size={17} />

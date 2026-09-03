@@ -220,10 +220,10 @@ export function FilaAssistida({
                 <button type="button" className="atd-btn-primario" onClick={abrirWhatsapp} disabled={!atual.telefone}>
                   <MessageCircle size={17} aria-hidden /> Abrir no WhatsApp
                 </button>
-                <button type="button" className="atd-fa-enviei" onClick={marcarEnviei} disabled={ocupado}>
+                <button type="button" className="atd-fa-enviei" onClick={marcarEnviei} disabled={ocupado} aria-keyshortcuts="Enter">
                   <Check size={15} aria-hidden /> Enviei · próximo <kbd>Enter</kbd>
                 </button>
-                <button type="button" className="atd-fa-pular" onClick={pular} disabled={ocupado}>
+                <button type="button" className="atd-fa-pular" onClick={pular} disabled={ocupado} aria-keyshortcuts="ArrowRight">
                   Pular <kbd>→</kbd>
                 </button>
               </div>

@@ -9940,10 +9940,25 @@ th:nth-child(3) {
   border-bottom: 0;
 }
 
-.atd-linha:hover,
+.atd-linha:hover {
+  background: var(--surface-subtle);
+}
+
 .atd-linha:focus-visible {
   background: var(--surface-subtle);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Foco visível consistente nos controles densos da tela. */
+.atd-tela button:focus-visible,
+.atd-lote button:focus-visible,
+.atd-fa button:focus-visible,
+.atd-familia button:focus-visible,
+.atd-compositor button:focus-visible,
+.atd-thread button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .atd-col-data {

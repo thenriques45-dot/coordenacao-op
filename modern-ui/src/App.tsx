@@ -359,6 +359,16 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+  "4.0.0": [
+    "Nova tela 'Atendimentos', item próprio no menu (entre Turmas e Importar Dados), com contador de follow-ups pendentes. Reúne todos os atendimentos da turma numa lista com filtros (tipo, período, canal, tag, follow-up pendente), selo de canal por linha (Manual / wa.me / wa.me · lote / API oficial) e alternância entre tabela e cartões.",
+    "Detalhe do atendimento em thread: registro inicial, follow-ups e o 'follow-up combinado' — um compromisso datado que substitui o antigo campo de status. É o que sinaliza que um caso tem pendência. 'Registrar desfecho' encerra o combinado.",
+    "Compositor de mensagem à família redesenhado: destinatário, modelo e variáveis em três passos, com prévia em bolha de WhatsApp e os trechos sem dado destacados para preencher na hora ou remover.",
+    "Aba 'Por aluno': histórico de contato com a família por estudante (mensagens e presencial), responsáveis à vista e acesso rápido a 'Nova mensagem'.",
+    "Disparo em lote — 'Contatar famílias': monte a fila por filtros prontos (com tarefa pendente, frequência baixa, sem acesso à plataforma…) ou por condições (campo · operador · valor, o mesmo vocabulário do construtor de relatórios). Depois, escolha o canal: fila assistida no WhatsApp (grátis, você aperta enviar em cada um, com atalhos de teclado e teto de 40 por sessão, pausável e retomável) ou envio automático pela API oficial da Meta.",
+    "Envio automático (opcional): configure em Configurações › Sistema › 'Envio automático de mensagens'. Cobra por mensagem, vale só nesta máquina e não sincroniza com o grupo. Sem isso, tudo continua funcionando pela fila assistida.",
+    "Aba 'Disparos em lote': histórico dos envios da turma, com situação (concluída, pausada, com pendências) e retomada de filas paradas.",
+    "A aba 'Atendimentos' da ficha do aluno ganhou um atalho para abrir o mesmo aluno na tela nova.",
+  ],
   "3.5.1": [
     "Corrigido: o boletim da ficha do aluno (aba Desempenho) voltava a não mostrar nenhuma nota nem frequência quando o bimestre selecionado ainda não tinha lançamento — por exemplo, ao entrar no 3º bimestre antes de importar o mapão. Agora o boletim sempre lista as disciplinas do ano e as notas já lançadas (1º, 2º…), preservando a comparação da progressão ao longo do ano. A tabela de disciplinas do Conselho e as métricas da turma passam a seguir a mesma regra: mostram o rol de disciplinas do ano mesmo antes de o bimestre atual ter notas.",
   ],
@@ -804,6 +814,7 @@ export function App() {
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
   const [bimestreOrigem, setBimestreOrigem] = useState<"manual" | "datas" | "dados" | "padrao">("padrao");
   const [configSecaoInicial, setConfigSecaoInicial] = useState<SettingsSection | undefined>(undefined);
+  const [atendimentosTurmaInicial, setAtendimentosTurmaInicial] = useState<string | null>(null);
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
   const [turmaRefreshKey, setTurmaRefreshKey] = useState(0);
   const [erroTurmas, setErroTurmas] = useState("");
@@ -1616,12 +1627,17 @@ export function App() {
             onSalvarAtendimento={salvarAtendimentoAluno}
             onSalvarResponsaveis={salvarResponsaveisAluno}
             onOpenKanban={() => navegarPara("kanban")}
+            onAbrirTelaAtendimentos={() => {
+              setAtendimentosTurmaInicial(turmaSelecionada?.codigo ?? null);
+              navegarPara("atendimentos");
+            }}
           />
         )}
         {tela === "atendimentos" && (
           <TelaAtendimentos
             turmas={turmas}
             bimestre={bimestreSelecionado}
+            turmaCodigoInicial={atendimentosTurmaInicial}
             tiposAtendimento={turmaConfig.atendimento_tipos}
             mensagemTemplates={turmaConfig.mensagem_familia_templates}
             onAtivarEnvioAutomatico={() => {

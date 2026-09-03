@@ -519,7 +519,7 @@ function LinhaTabela({ linha, onAbrir }: { linha: LinhaAtendimento; onAbrir: () 
   const at = linha.atendimento;
   const selo = seloCanal(at.canal, Boolean(at.lote_id));
   return (
-    <div className="atd-linha" role="row" onClick={onAbrir} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter") onAbrir(); }}>
+    <div className="atd-linha" role="row" aria-label={`Abrir atendimento de ${linha.alunoNome}`} onClick={onAbrir} tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir(); } }}>
       <span role="cell" className="atd-col-data">{dataCurta(at.data)}</span>
       <span role="cell" className="atd-col-aluno">
         <strong>{linha.alunoNome}</strong>

@@ -416,14 +416,15 @@ export function AssistenteLote({
                 return (
                   <div key={c.id} className="atd-lote-condicao">
                     <span className="atd-lote-cond-junc">{i === 0 ? "Se" : combinador === "todas" ? "E" : "OU"}</span>
-                    <select value={c.campo} onChange={(e) => atualizarCondicao(c.id, { campo: e.target.value as Condicao["campo"] })}>
+                    <select aria-label={`Condição ${i + 1}: campo`} value={c.campo} onChange={(e) => atualizarCondicao(c.id, { campo: e.target.value as Condicao["campo"] })}>
                       {CAMPOS.map((campo) => <option key={campo.valor} value={campo.valor}>{campo.rotulo}</option>)}
                     </select>
-                    <select value={c.operador} onChange={(e) => atualizarCondicao(c.id, { operador: e.target.value as Condicao["operador"] })}>
+                    <select aria-label={`Condição ${i + 1}: operador`} value={c.operador} onChange={(e) => atualizarCondicao(c.id, { operador: e.target.value as Condicao["operador"] })}>
                       {operadoresDoTipo(tipo).map((op) => <option key={op} value={op}>{OPERADORES[op]}</option>)}
                     </select>
                     <input
                       className="atd-lote-cond-valor"
+                      aria-label={`Condição ${i + 1}: valor`}
                       value={c.valor}
                       inputMode={tipo === "texto" ? "text" : "numeric"}
                       onChange={(e) => atualizarCondicao(c.id, { valor: e.target.value })}

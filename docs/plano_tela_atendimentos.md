@@ -20,10 +20,20 @@ Escopo aprovado: **todas as 13 telas** (1a–1f, 2a–2e, 3a). Várias sessões 
 
 ---
 
-## Andamento
-- **F0a** ✅ campos novos do registro (`canal`, `lote_id`, `modelo_id`, `atendido_nome`, `followup_previsto`), `atendido="outro"`, merge no sync + testes. Módulo `features/atendimentos/tipos.ts`.
-- **F1** 🚧 item de menu + tela de lista (1a) + modal criar (1c) + estado vazio.
-- Fase 0 restante (Disparo em lote, Filtro salvo, `whatsapp_api.rs`, comandos de apoio) fica **just-in-time** nas fases que consomem (6–8) — a forma exata depende da UI.
+## Andamento — implantação concluída (rumo à 4.0)
+- **F0a** ✅ campos novos do registro (`canal`, `lote_id`, `modelo_id`, `atendido_nome`, `followup_previsto`), `atendido="outro"`, merge no sync.
+- **F1** ✅ item de menu + tela de lista (1a) + modal criar (1c) + estado vazio.
+- **F2** ✅ thread/detalhe (1b), follow-up combinado com desfecho, cartões, anexos.
+- **F3** ✅ compositor individual (1d) + extração de `mensagemFamilia.ts`.
+- **F4** ✅ aba "Por aluno" / modo família (1f).
+- **F5** ✅ envio automático (2d): `whatsapp_api.rs` + seção em Configurações.
+- **F6** ✅ montagem da fila (3a): `avaliar_condicoes_atendimento_lote` + wizard.
+- **F7** ✅ entidade "Disparo em lote" + escolha de canal + fila assistida (2a).
+- **F8** ✅ lote via API (2b, não verificado em produção) + aba "Disparos em lote" (2c) + offline (2e).
+- **F9** ✅ link na ficha do aluno, acessibilidade, versões 4.0.0 + NOVIDADES.
+
+"Filtro salvo" (Meus filtros) e "Registrar por telefone"/"Cadastrar telefone" nas
+linhas de falha do lote API ficaram fora deste ciclo — pontos de melhoria futuros.
 
 ## Fase 0 — Modelo de dados + fundação backend
 Bloqueia todas as demais. Sem UI nova (ou mínima).
