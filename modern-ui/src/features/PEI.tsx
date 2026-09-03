@@ -5,6 +5,8 @@ import { semestreAtivo, type PrazosSemestre } from "./semestre";
 import { useWebAppConfig } from "./useWebAppConfig";
 import { BIMESTRES, ConfiguradoPorOutroBanner, MatrizBimestral } from "./webAppConfigUi";
 import { agruparMembrosPorPessoa, carregarMembrosSincronizacao, garantirPerfilPersistido } from "./workgroupSync";
+import { equipeGestoraVazia, type EquipeGestora } from "./SettingsPage";
+import { listarEquipe, nomeExibicao, resolverPessoa } from "./equipe";
 
 type TurmaResumoPei = {
   codigo: string;
@@ -194,9 +196,7 @@ export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResu
 
   // Tela de assinaturas do PEI: nomes impressos acima das linhas de assinatura.
   const [assinAberta, setAssinAberta] = useState(false);
-  // Config completo do app (para gravar vice_direcao sem perder os demais campos).
-  const [cfgApp, setCfgApp] = useState<Record<string, unknown> | null>(null);
-  const [viceTexto, setViceTexto] = useState("");
+  const [equipe, setEquipe] = useState<EquipeGestora>(equipeGestoraVazia());
   const [pessoasPorTurma, setPessoasPorTurma] = useState<Record<string, PessoasPeiTurma>>({});
   const [salvandoAssin, setSalvandoAssin] = useState(false);
   const [msgAssin, setMsgAssin] = useState("");
@@ -204,11 +204,10 @@ export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResu
   const [salvandoResp, setSalvandoResp] = useState(false);
 
   useEffect(() => {
-    invokeApp<PrazosSemestre & { vice_direcao?: string[]; direcao_nome?: string }>("carregar_configuracoes")
+    invokeApp<PrazosSemestre & { equipe_gestora?: EquipeGestora }>("carregar_configuracoes")
       .then((c) => {
         setPrazos({ prazo_1_semestre: c.prazo_1_semestre, prazo_2_semestre: c.prazo_2_semestre });
-        setCfgApp(c as unknown as Record<string, unknown>);
-        setViceTexto((c.vice_direcao ?? []).join("\n"));
+        if (c.equipe_gestora) setEquipe(c.equipe_gestora);
       })
       .catch(() => {});
   }, []);
@@ -236,32 +235,38 @@ export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResu
     [alunosElegiveis]
   );
 
-  // Nomes do grupo de trabalho, para a menção "@nome" nos campos de assinante.
+  // Nomes para a menção "@nome": equipe gestora (fonte da verdade) + membros do
+  // grupo de trabalho + este dispositivo.
   const membrosGrupo = useMemo(() => {
     const s = new Set<string>();
+    for (const p of listarEquipe(equipe)) s.add(p.nome);
     for (const m of agruparMembrosPorPessoa(carregarMembrosSincronizacao())) {
-      if (m.displayName?.trim()) s.add(m.displayName.trim());
+      if (m.displayName?.trim()) s.add(nomeExibicao(m.displayName.trim(), equipe));
     }
     const perfil = garantirPerfilPersistido();
-    if (perfil.displayName?.trim()) s.add(perfil.displayName.trim());
+    if (perfil.displayName?.trim()) s.add(nomeExibicao(perfil.displayName.trim(), equipe));
     return Array.from(s);
-  }, []);
+  }, [equipe]);
 
-  // "@wilton" -> nome completo do membro do grupo cujo nome começa com "wilton".
-  // Sem correspondência, mantém o texto como digitado (nome livre).
+  // "@wilton" -> nome completo (equipe gestora tem prioridade). Um nome livre
+  // que casa com alguém da equipe também é promovido ao nome completo.
   function resolverMencao(texto: string): string {
-    const m = texto.trim().match(/^@(.+)$/);
-    if (!m) return texto;
-    const alvo = normalizarNome(m[1]);
+    const bruto = texto.trim();
+    const mencao = bruto.match(/^@(.+)$/);
+    const alvo = normalizarNome(mencao ? mencao[1] : bruto);
+    if (!alvo) return texto;
+    const daEquipe = resolverPessoa(mencao ? mencao[1] : bruto, equipe);
+    if (daEquipe) return daEquipe.pessoa.nome;
+    if (!mencao) return texto;
     const achado = membrosGrupo.find((nome) => normalizarNome(nome).startsWith(alvo));
     return achado ?? texto;
   }
 
-  const direcaoNome = (cfgApp?.direcao_nome as string) ?? "";
-  const opcoesDirecao = useMemo(() => {
-    const vices = viceTexto.split("\n").map((v) => v.trim()).filter(Boolean);
-    return [direcaoNome, ...vices].filter(Boolean);
-  }, [direcaoNome, viceTexto]);
+  const direcaoNome = equipe.direcao.nome.trim();
+  const opcoesDirecao = useMemo(
+    () => [equipe.direcao, ...(equipe.vices ?? [])].map((m) => m.nome.trim()).filter(Boolean),
+    [equipe],
+  );
 
   const turmasOrdenadas = useMemo(
     () => turmas
@@ -351,12 +356,6 @@ export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResu
     setSalvandoAssin(true);
     setMsgAssin("");
     try {
-      const vice = viceTexto.split("\n").map((v) => v.trim()).filter(Boolean);
-      if (cfgApp) {
-        const atualizado = { ...cfgApp, vice_direcao: vice };
-        await invokeApp("salvar_configuracoes", { input: atualizado });
-        setCfgApp(atualizado);
-      }
       for (const t of turmas) {
         const p = pessoasPorTurma[t.caminho];
         if (!p) continue;
@@ -832,18 +831,15 @@ export function TelaPEI({ turmas = [], onTurmasAlteradas }: { turmas?: TurmaResu
             </p>
 
             <div style={{ border: "1px solid var(--border)", borderRadius: "8px", padding: "0.85rem 1rem", marginBottom: "1.2rem" }}>
-              <strong>Direção</strong>
-              <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0.3rem 0 0.5rem" }}>
-                Diretor(a): <strong>{direcaoNome || "defina em Configurações"}</strong>. Um vice-diretor por
-                linha — ficam disponíveis para escolher em cada turma abaixo.
+              <strong>Direção e vice-direção</strong>
+              <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0.3rem 0 0" }}>
+                Direção: <strong>{direcaoNome || "defina em Configurações › Equipe gestora"}</strong>
+                {opcoesDirecao.length > 1 && (
+                  <> · vice-direção: {opcoesDirecao.slice(1).join(", ")}</>
+                )}
+                . Editada em <strong>Configurações › Equipe gestora</strong>; ficam disponíveis para
+                escolher em cada turma abaixo.
               </p>
-              <textarea
-                value={viceTexto}
-                onChange={(e) => setViceTexto(e.target.value)}
-                rows={3}
-                placeholder={"NOME DO VICE-DIRETOR 1\nNOME DO VICE-DIRETOR 2"}
-                style={{ width: "100%", resize: "vertical" }}
-              />
             </div>
 
             <strong>Por turma</strong>

@@ -62,6 +62,8 @@ import {
   type WorkgroupSyncMember,
   type WorkgroupSyncProfile,
 } from "./workgroupSync";
+import { equipeGestoraVazia, type EquipeGestora } from "./SettingsPage";
+import { listarEquipe, nomeExibicao } from "./equipe";
 
 type TurmaKanban = {
   codigo: string;
@@ -263,6 +265,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   const [mensagemQuadro, setMensagemQuadro] = useState("");
   const [erroQuadro, setErroQuadro] = useState("");
   const [membrosSync, setMembrosSync] = useState<WorkgroupSyncMember[]>(() => carregarMembrosSincronizacao());
+  const [equipeGestora, setEquipeGestora] = useState<EquipeGestora>(equipeGestoraVazia());
   const [eventosCalendario, setEventosCalendario] = useState<CalendarEvent[]>(() => carregarEventosCalendario());
   const [novaTarefa, setNovaTarefa] = useState({
     titulo: "",
@@ -286,6 +289,17 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   useEffect(() => {
     salvarTarefasKanban(tarefas);
   }, [tarefas]);
+
+  useEffect(() => {
+    function carregarEquipe() {
+      invokeApp<{ equipe_gestora?: EquipeGestora }>("carregar_configuracoes")
+        .then((c) => { if (c.equipe_gestora) setEquipeGestora(c.equipe_gestora); })
+        .catch(() => {});
+    }
+    carregarEquipe();
+    window.addEventListener(WORKGROUP_SYNC_APPLIED_EVENT, carregarEquipe);
+    return () => window.removeEventListener(WORKGROUP_SYNC_APPLIED_EVENT, carregarEquipe);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));
@@ -326,8 +340,13 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         updatedAt: perfil.updatedAt,
       });
     }
+    // Equipe gestora entra no roster: nome completo + função, pra "Wilton" no
+    // cartão casar com "Wilton Bortolleto · Coordenação" (via nomesCompativeis).
+    for (const p of listarEquipe(equipeGestora)) {
+      membros.push({ userId: `equipe-${p.id}`, displayName: p.nome, role: "", deviceName: "" });
+    }
     return membros;
-  }, [membrosSync, perfil]);
+  }, [membrosSync, perfil, equipeGestora]);
 
   useEffect(() => {
     if (!modalNovaTarefa) return;
@@ -749,6 +768,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                     tarefa={tarefa}
                     evento={eventosCalendario.find((evento) => evento.id === tarefa.eventId)}
                     membros={membrosParaCards}
+                    equipeGestora={equipeGestora}
                     sugestoesEtiquetas={sugestoesEtiquetas}
                     menuAberto={menuTarefaAberto === tarefa.id}
                     editandoEtiquetas={etiquetasEditando === tarefa.id}
@@ -1113,6 +1133,7 @@ function KanbanTaskCard({
   tarefa,
   evento,
   membros,
+  equipeGestora,
   sugestoesEtiquetas,
   menuAberto,
   editandoEtiquetas,
@@ -1133,6 +1154,7 @@ function KanbanTaskCard({
   tarefa: KanbanTarefa;
   evento?: CalendarEvent;
   membros: WorkgroupSyncMember[];
+  equipeGestora: EquipeGestora;
   sugestoesEtiquetas: string[];
   menuAberto: boolean;
   editandoEtiquetas: boolean;
@@ -1316,7 +1338,7 @@ function KanbanTaskCard({
               ? <span className="kanban-assignee-initials">{iniciaisPerfil(membroResponsavel.displayName)}</span>
               : <UserRound size={14} />
           )}
-          {responsaveis.join(", ")}
+          {responsaveis.map((nome) => nomeExibicao(nome, equipeGestora)).join(", ")}
         </span>
         <span>
           <CalendarDays size={14} />

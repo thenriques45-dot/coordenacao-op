@@ -1877,17 +1877,12 @@ pub(crate) fn texto_ata_para_turma(turma: &TurmaArquivo, bimestre: &str) -> Stri
 }
 
 pub(crate) fn texto_ata_padrao(turma: &TurmaArquivo) -> String {
-    let (direcao_nome, direcao_pronome) = obter_direcao_configurada();
-    let artigo = if direcao_pronome == "M" { "do" } else { "da" };
-    let titulo_direcao = if direcao_pronome == "M" {
-        "Diretor Sr."
-    } else {
-        "Diretora Sra."
-    };
-    let cargo_direcao = if direcao_pronome == "M" {
-        "diretor"
-    } else {
-        "diretora"
+    let (direcao_nome, direcao_genero) = obter_direcao_configurada();
+    // "M" → masculino; "F" → feminino; "" (não informado) → neutro ("Direção").
+    let (artigo, titulo_direcao, cargo_direcao) = match direcao_genero.as_str() {
+        "M" => ("do", "Diretor Sr.", "diretor"),
+        "F" => ("da", "Diretora Sra.", "diretora"),
+        _ => ("da", "Direção", "direção"),
     };
     let turma_rotulo = rotulo_turma(turma);
     let total = turma
@@ -1991,42 +1986,41 @@ pub(crate) fn numero_por_extenso(numero: u32) -> String {
     }
 }
 
+/// Nome e gênero da direção para os documentos gerados. O gênero é 3-estados:
+/// "F", "M" ou "" (não informado → formas neutras: "Direção", "a direção").
+/// Prefere `equipe_gestora.direcao`; cai no campo plano `direcao_pronome`.
 pub(crate) fn obter_direcao_configurada() -> (String, String) {
-    let caminho = match app_base_dir() {
-        Ok(base) => base.join("config").join("configuracoes.json"),
-        Err(_) => {
-            return (
-                "________________________________".to_string(),
-                "F".to_string(),
-            )
-        }
-    };
-    let Ok(texto) = fs::read_to_string(caminho) else {
-        return (
-            "________________________________".to_string(),
-            "F".to_string(),
-        );
+    const PLACEHOLDER: &str = "________________________________";
+    let padrao = || (PLACEHOLDER.to_string(), "F".to_string());
+    let Ok(base) = app_base_dir() else { return padrao() };
+    let Ok(texto) = fs::read_to_string(base.join("config").join("configuracoes.json")) else {
+        return padrao();
     };
     let Ok(dados) = serde_json::from_str::<Value>(&texto) else {
-        return (
-            "________________________________".to_string(),
-            "F".to_string(),
-        );
+        return padrao();
     };
-    let nome = dados
-        .get("direcao_nome")
+
+    let equipe_direcao = dados.get("equipe_gestora").and_then(|eq| eq.get("direcao"));
+    let nome = equipe_direcao
+        .and_then(|d| d.get("nome"))
         .and_then(Value::as_str)
-        .filter(|valor| !valor.trim().is_empty())
-        .unwrap_or("________________________________")
+        .or_else(|| dados.get("direcao_nome").and_then(Value::as_str))
+        .filter(|valor| !valor.trim().is_empty() && valor.trim() != PLACEHOLDER)
+        .unwrap_or(PLACEHOLDER)
         .trim()
         .to_string();
-    let pronome = dados
-        .get("direcao_pronome")
-        .and_then(Value::as_str)
-        .unwrap_or("F")
-        .trim()
-        .to_ascii_uppercase();
-    (nome, pronome)
+
+    let genero = match equipe_direcao.and_then(|d| d.get("genero")).and_then(Value::as_str) {
+        Some(g) if !g.trim().is_empty() => g.trim().to_ascii_uppercase(),
+        Some(_) => String::new(), // equipe existe e gênero é "" → não informado
+        None => dados
+            .get("direcao_pronome")
+            .and_then(Value::as_str)
+            .unwrap_or("F")
+            .trim()
+            .to_ascii_uppercase(),
+    };
+    (nome, genero)
 }
 
 pub(crate) fn rotulo_turma(turma: &TurmaArquivo) -> String {

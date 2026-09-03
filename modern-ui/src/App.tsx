@@ -370,6 +370,8 @@ const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
     "A aba 'Atendimentos' da ficha do aluno ganhou um atalho para abrir o mesmo aluno na tela nova.",
     "Configurações reorganizada: 4 grupos que dizem a natureza do ajuste (Institucional, Conselho, Este computador, Integrações), busca no topo que acha tanto a seção quanto o campo (ex.: 'token', 'código do grupo'), e uma 'Visão geral' de entrada com avisos de manutenção (backup vencido, atualização) e o estado de cada seção. 'Sincronização de grupo' e 'Turmas e alunos' viraram uma seção só; 'Envio automático' virou 'WhatsApp'.",
     "Os modelos de mensagem à família saíram de Configurações e agora se editam em Atendimentos → 'Gerenciar modelos', perto de onde são usados.",
+    "Nova seção Configurações › Institucional › 'Equipe gestora': cadastre a direção, as vice-direções e as coordenações (quantas houver), cada uma com nome e gênero. O gênero flexiona os títulos nos documentos ('Diretora' / 'Diretor', 'Coordenadora' / 'Coordenador'); quem preferir pode deixar 'não informar'. A direção saiu da seção 'Instituição' para cá.",
+    "Com grupo de trabalho ativo, a Equipe gestora 'casa' cada pessoa: quem entrou no grupo só como 'Wilton' é reconhecido como 'Wilton Bortolleto · Coordenação' — automático quando o nome bate, e revisável na própria seção. O nome completo passa a valer nas assinaturas do PEI, no Quadro de Gestão e nos documentos.",
     "'AvD1' e 'AvD2' agora aparecem como 'Diagnóstica 1' e 'Diagnóstica 2' nas telas de conselho, na ficha do aluno e no importador.",
   ],
   "3.5.1": [
