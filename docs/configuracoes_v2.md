@@ -27,6 +27,28 @@ conselho, ficha do aluno, importador do Diagnóstico SARESP, NOVIDADES). O parse
   (é lista única da escola — a alternativa do próprio handoff).
 - **Tema escuro** ✅ (`08aa7a9`).
 
+## Equipe gestora (F1–F5, commits `f4c7761`…`7f616d0`)
+
+Base para os **perfis de uso**. Nova seção **Configurações › Institucional › Equipe gestora**:
+direção (nome + gênero), e listas de tamanho variável de **vice-direção** e **coordenação**,
+cada pessoa com gênero "F" / "M" / "não informar".
+
+- **Modelo (Rust)** — `MembroEquipe` / `EquipeGestora` em `configuracoes.json`. Migra dos campos
+  planos `direcao_nome` / `direcao_pronome` / `vice_direcao` e os regrava derivados na gravação
+  (leitores antigos — `obter_direcao_configurada`, PEI — seguem intactos). Comando
+  `salvar_equipe_gestora` (troca só esse campo, carimba `atualizado_em`).
+- **Vínculo com o grupo de trabalho** — `equipe.ts`: `resolverPessoa` casa o nome do membro
+  (curto) com uma entrada da equipe, por vínculo manual ou pelo `nomesCompativeis` existente
+  ("Wilton" ⊂ "Wilton Bortolleto"). O casamento automático **já vale** (selo "automático" na
+  tabela), sem gravar nada; `vinculos` guarda só os overrides manuais e o "não vincular".
+- **Sync** — `equipeGestora` viaja no payload de estado do grupo (`configuracoes.json` fica
+  fora do `data_dir()` sincronizado); adota a recebida quando o `atualizado_em` é mais novo.
+- **Consumidores** — ATA flexiona a direção pelo gênero da equipe ("Direção" / "a direção"
+  quando "não informar"); PEI resolve @menção e o select de direção pelo roster; Kanban mostra
+  o nome completo do responsável.
+- **Fora**: perfis de uso / permissões; concordância de gênero no relatório do assistente
+  (o texto não cita o coordenador hoje).
+
 ## Fora deste ciclo
 
 - Padrão de conteúdo 1d completo só em Instituição; as demais seções recebem o cabeçalho novo
