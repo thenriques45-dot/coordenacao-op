@@ -68,3 +68,7 @@ cada pessoa com gênero "F" / "M" / "não informar".
   padrão 1d com a miniatura da ATA, Sincronização fundida, e o modal "Gerenciar modelos" —
   editar um título, Salvar e reabrir confirmou que `salvar_modelos_mensagem` persiste
   (fluxo end-to-end OK).
+- Equipe gestora no app nativo: a config antiga migrou (direção "HILDA SOARES DE JESUS" + F);
+  adicionar uma coordenação e Salvar gravou em `configuracoes.json` com os campos planos
+  derivados; e um membro do grupo "Débora Nascimento" casou automaticamente com a entrada
+  "DEBORA NASCIMENTO SILVA" (sem depender de acento). 140 testes Rust.
