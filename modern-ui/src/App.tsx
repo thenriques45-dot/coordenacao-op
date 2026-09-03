@@ -1641,7 +1641,7 @@ export function App() {
             tiposAtendimento={turmaConfig.atendimento_tipos}
             mensagemTemplates={turmaConfig.mensagem_familia_templates}
             onAtivarEnvioAutomatico={() => {
-              setConfigSecaoInicial("envio-automatico");
+              setConfigSecaoInicial("whatsapp");
               navegarPara("configuracoes");
             }}
             onAbrirFichaAluno={(turmaCodigo, alunoNome) => {
