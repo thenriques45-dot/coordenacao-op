@@ -324,6 +324,20 @@ async function buscarEquipeGestoraParaSync(): Promise<EquipeGestora | null> {
   }
 }
 
+// Conteúdo da equipe sem o carimbo de data — pra comparar duas versões pelo que
+// importa. Sem isso, adotar a equipe de um colega faria `salvar_equipe_gestora`
+// recarimbar `atualizado_em`, deixando a cópia "mais nova" que a origem e
+// disparando readoção em loop a cada sincronização.
+function equipeSemCarimbo(eq: EquipeGestora | null | undefined): string {
+  if (!eq) return "";
+  return JSON.stringify({
+    direcao: eq.direcao ?? null,
+    vices: eq.vices ?? [],
+    coordenacoes: eq.coordenacoes ?? [],
+    vinculos: eq.vinculos ?? [],
+  });
+}
+
 async function adotarEquipeGestoraRecebida(recebida: EquipeGestora | null | undefined) {
   if (!recebida) return;
   const recebidaEm = Date.parse(recebida.atualizado_em ?? "") || 0;
@@ -331,9 +345,9 @@ async function adotarEquipeGestoraRecebida(recebida: EquipeGestora | null | unde
   try {
     const atual = await invokeApp<Partial<ConfiguracoesApp>>("carregar_configuracoes");
     const atualEm = Date.parse(atual?.equipe_gestora?.atualizado_em ?? "") || 0;
-    if (recebidaEm > atualEm) {
-      await invokeApp("salvar_equipe_gestora", { equipe: recebida });
-    }
+    if (recebidaEm <= atualEm) return;
+    if (equipeSemCarimbo(recebida) === equipeSemCarimbo(atual?.equipe_gestora)) return;
+    await invokeApp("salvar_equipe_gestora", { equipe: recebida });
   } catch {
     // Sincronização automática é silenciosa.
   }
