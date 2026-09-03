@@ -10,6 +10,22 @@ import {
   type AiAssistantSettings,
 } from "./aiAssistant";
 import { TaskLinkList } from "./Dashboard";
+import type {
+  AtendimentoAluno,
+  AtendimentoAlunoInput,
+  AtendimentoAnexo,
+  AtendimentoFollowUp,
+} from "./atendimentos/tipos";
+import {
+  apenasDigitos,
+  formatarTelefoneBR,
+  montarSegmentosMensagem,
+  PARENTESCO_OPCOES,
+  rotuloParentesco,
+  rotuloVariavel,
+  telefoneParaWhatsapp,
+  type SegmentoMensagem,
+} from "./atendimentos/mensagemFamilia";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
 import {
@@ -96,40 +112,6 @@ type VariavelMensagem = {
   rotulo: string;
   valor: string;
   disponivel: boolean;
-};
-
-type AtendimentoAnexo = {
-  id: string;
-  nome: string;
-  tipo: string;
-  dados: string;
-  caminho: string | null;
-  origem: string;
-};
-
-type AtendimentoAluno = {
-  id: string;
-  data: string;
-  tipos: string[];
-  atendido: string;
-  tags: string[];
-  descricao: string;
-  anexos: AtendimentoAnexo[];
-  followups?: AtendimentoFollowUp[];
-  criado_em?: string | null;
-  atualizado_em?: string | null;
-};
-
-type AtendimentoFollowUp = {
-  id: string;
-  data: string;
-  tipos: string[];
-  atendido: string;
-  tags: string[];
-  descricao: string;
-  anexos: AtendimentoAnexo[];
-  criado_em?: string | null;
-  atualizado_em?: string | null;
 };
 
 type AtendimentoModalState =
@@ -222,24 +204,6 @@ function calcularFrequenciaDisciplina(disciplina: Disciplina) {
     return null;
   }
   return Math.max(0, Math.min(100, ((totalAulas - faltas) / totalAulas) * 100));
-}
-
-function abreviarDisciplina(nome: string) {
-  const abreviacoes: Record<string, string> = {
-    "EDUCACAO FINANCEIRA": "ED. FINANC.",
-    "LINGUA PORTUGUESA": "PORTUGUESA",
-    "LINGUA INGLESA": "INGLES",
-    "PROJETO DE VIDA": "PROJ. VIDA",
-    "REDACAO E LEITURA": "REDACAO",
-    "MATEMATICA": "MATEMAT.",
-    "GEOGRAFIA": "GEOGRAF.",
-    "BIOLOGIA": "BIOLOGIA",
-    "FILOSOFIA": "FILOSOF.",
-    "HISTORIA": "HISTORIA",
-    "QUIMICA": "QUIMICA",
-    "FISICA": "FISICA",
-  };
-  return abreviacoes[nome] ?? (nome.length > 10 ? `${nome.slice(0, 9)}.` : nome);
 }
 
 function notasBimestresDisciplina(disciplina: Disciplina, bimestreAtual: number): Array<number | null> {
@@ -344,7 +308,7 @@ function DiagnosticSubjectCard({
       )}
       {diagnostico.evolucao && (
         <small className={`diagnostic-evolution ${classeEvolucao(diagnostico.evolucao)}`}>
-          {setaEvolucao(diagnostico.evolucao)} {diagnostico.evolucao} da AvD1 para a AvD2
+          {setaEvolucao(diagnostico.evolucao)} {diagnostico.evolucao} da Diagnóstica 1 para a Diagnóstica 2
         </small>
       )}
     </article>
@@ -464,6 +428,7 @@ export function GestaoTurma({
   onSalvarAtendimento,
   onSalvarResponsaveis,
   onOpenKanban,
+  onAbrirTelaAtendimentos,
 }: {
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
@@ -475,9 +440,10 @@ export function GestaoTurma({
   onSalvarElegibilidade: (matricula: string, elegivel: boolean) => Promise<void>;
   onSalvarLideranca: (matricula: string, lideranca: "lider" | "vice" | null) => Promise<void>;
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   onOpenKanban: () => void;
+  onAbrirTelaAtendimentos?: (alunoNome: string) => void;
 }) {
   const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
   const [busca, setBusca] = useState("");
@@ -666,6 +632,7 @@ export function GestaoTurma({
           tarefas={tarefasKanban}
           eventos={eventosCalendario}
           onOpenKanban={onOpenKanban}
+          onAbrirTelaAtendimentos={onAbrirTelaAtendimentos}
         />
       </>
     );
@@ -868,10 +835,6 @@ export function GestaoTurma({
   );
 }
 
-function apenasDigitos(valor: string) {
-  return valor.replace(/\D/g, "");
-}
-
 // Campo de tags: cada texto vira um "chip" ao digitar vírgula / Enter / sair
 // do campo. Guarda e devolve o valor como string separada por vírgula (para
 // encaixar sem mudança nos formulários que já usavam um <input> de texto).
@@ -1003,70 +966,6 @@ function TagsInput({
   );
 }
 
-function formatarTelefoneBR(valor: string) {
-  const d = apenasDigitos(valor).replace(/^55/, "");
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return valor;
-}
-
-function telefoneParaWhatsapp(valor: string) {
-  const d = apenasDigitos(valor);
-  if (!d) return "";
-  return d.startsWith("55") ? d : `55${d}`;
-}
-
-function rotuloParentesco(r: ResponsavelAluno) {
-  if (r.parentesco === "mae") return "mãe";
-  if (r.parentesco === "pai") return "pai";
-  return (r.parentesco_desc || "").trim() || "responsável";
-}
-
-function rotuloVariavel(chave: string) {
-  return VARIAVEIS_MENSAGEM.find((v) => v.chave === chave)?.rotulo ?? chave;
-}
-
-type SegmentoMensagem =
-  | { tipo: "texto"; texto: string; chave?: undefined }
-  | { tipo: "var"; chave: string; rotulo: string; valor?: string; resolvido: boolean; texto?: undefined };
-
-// Quebra o texto da mensagem em trechos literais + ocorrências de {variavel},
-// já resolvendo cada variável pelo valor real (ou marcando como pendente). A
-// prévia renderiza isso com destaque visual; `textoParaEnviar` reconstrói a
-// string final a partir dos mesmos segmentos.
-function montarSegmentosMensagem(
-  corpo: string,
-  variaveis: VariavelMensagem[],
-  extras: Record<string, string>,
-): SegmentoMensagem[] {
-  const mapa = new Map(variaveis.map((v) => [v.chave, v]));
-  const segmentos: SegmentoMensagem[] = [];
-  const regex = /\{([a-z_]+)\}/g;
-  let ultimo = 0;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(corpo)) !== null) {
-    if (m.index > ultimo) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo, m.index) });
-    const chave = m[1];
-    const extra = extras[chave];
-    const variavel = mapa.get(chave);
-    if (extra != null && extra !== "") {
-      segmentos.push({ tipo: "var", chave, rotulo: rotuloVariavel(chave), valor: extra, resolvido: true });
-    } else if (variavel && variavel.disponivel) {
-      segmentos.push({ tipo: "var", chave, rotulo: variavel.rotulo, valor: variavel.valor, resolvido: true });
-    } else {
-      segmentos.push({ tipo: "var", chave, rotulo: variavel?.rotulo ?? rotuloVariavel(chave), resolvido: false });
-    }
-    ultimo = regex.lastIndex;
-  }
-  if (ultimo < corpo.length) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo) });
-  return segmentos;
-}
-
-const PARENTESCO_OPCOES: { valor: string; rotulo: string }[] = [
-  { valor: "mae", rotulo: "Mãe" },
-  { valor: "pai", rotulo: "Pai" },
-  { valor: "outro", rotulo: "Outro" },
-];
 
 function escaparHtml(texto: string) {
   return texto
@@ -1251,7 +1150,7 @@ function PainelResponsaveisEMensagem({
   caminhoTurma?: string;
   mensagemTemplates: MensagemTemplate[];
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
 }) {
   const matricula = aluno.matricula ?? "";
   const [responsaveis, setResponsaveis] = useState<ResponsavelAluno[]>(aluno.responsaveis ?? []);
@@ -1414,9 +1313,12 @@ function PainelResponsaveisEMensagem({
         data: new Date().toISOString().slice(0, 10),
         tipos: [TIPO_ATENDIMENTO_CONTATO_FAMILIA],
         atendido: "responsavel",
+        atendido_nome: destinatario.nome || undefined,
         tags: templateAtual?.tags ?? [],
         descricao: `${textoParaEnviar}${assinatura}`,
         anexos: [],
+        canal: "wa_me",
+        modelo_id: templateAtual?.id,
       });
       setComposerAberto(false);
     } catch (err) {
@@ -1645,6 +1547,7 @@ function AlunoDetalheGestao({
   tarefas,
   eventos,
   onOpenKanban,
+  onAbrirTelaAtendimentos,
 }: {
   aluno: Aluno;
   bimestre: string;
@@ -1656,11 +1559,12 @@ function AlunoDetalheGestao({
   encaminhamentoOpcoes: OpcaoEncaminhamento[];
   mensagemTemplates: MensagemTemplate[];
   onSalvarEducacaoEspecial: (matricula: string, deficiencias: string[], comentario: string) => Promise<void>;
-  onSalvarAtendimento: (matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] }) => Promise<void>;
+  onSalvarAtendimento: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onSalvarResponsaveis: (matricula: string, responsaveis: ResponsavelAluno[]) => Promise<void>;
   tarefas: KanbanTarefa[];
   eventos: CalendarEvent[];
   onOpenKanban: () => void;
+  onAbrirTelaAtendimentos?: (alunoNome: string) => void;
 }) {
   const [aba, setAba] = useState<"desempenho" | "atendimentos" | "educacao" | "tarefas">("desempenho");
   const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
@@ -1689,26 +1593,6 @@ function AlunoDetalheGestao({
   const bimestreAtual = bimestreParaNumero(bimestre);
   const status = classificarAluno(aluno, bimestreAtual);
   const mediaAluno = calcularMediaAluno(aluno, bimestreAtual);
-  const alturaLinhaGrafico = 22;
-  const larguraGraficoAluno = 760;
-  const alturaGraficoAluno = Math.max(180, 66 + aluno.disciplinas.length * alturaLinhaGrafico);
-  const escalaGraficoAluno = 1.1;
-  const graficoDisciplinas = aluno.disciplinas.map((disciplina, indice) => {
-    const notas = notasBimestresDisciplina(disciplina, bimestreAtual);
-    const pontos = notas
-      .map((nota, bimestreIndice) => {
-        if (nota === null) return null;
-        const x = 220 + bimestreIndice * 150;
-        const y = 46 + indice * alturaLinhaGrafico;
-        return { x, y, nota, bimestre: bimestreIndice + 1 };
-      })
-      .filter((ponto): ponto is { x: number; y: number; nota: number; bimestre: number } => ponto !== null);
-
-    return {
-      nome: disciplina.nome,
-      pontos,
-    };
-  });
   const opcoesDeficiencia = useMemo(() => {
     const itens = new Set([...catalogoDeficiencias, ...deficienciasSelecionadas].map((item) => item.trim()).filter(Boolean));
     return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
@@ -1883,7 +1767,7 @@ function AlunoDetalheGestao({
       setErroAtendimento("Descreva o atendimento realizado.");
       return;
     }
-    const input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexo[] } = {
+    const input: AtendimentoAlunoInput = {
       data: dataAtendimento,
       tipos: tiposAtendimentoSelecionados,
       atendido,
@@ -2084,57 +1968,6 @@ function AlunoDetalheGestao({
           </div>
         </section>
       )}
-      <section className="student-performance-grid">
-        <article className="student-subject-evolution">
-          <div className="student-chart-heading">
-            <h3>Evolução por Disciplina</h3>
-          </div>
-          <div className="student-chart-scroll">
-          <svg
-            className="student-multi-line-chart"
-            width={larguraGraficoAluno * escalaGraficoAluno}
-            height={alturaGraficoAluno * escalaGraficoAluno}
-            viewBox={`0 0 ${larguraGraficoAluno} ${alturaGraficoAluno}`}
-            role="img"
-            aria-label="Evolução das notas por disciplina"
-          >
-            {[1, 2, 3, 4].map((bim, indice) => {
-              const x = 220 + indice * 150;
-              return (
-                <g key={bim}>
-                  <line x1={x} x2={x} y1="40" y2={alturaGraficoAluno - 34} />
-                  <text x={x} y="24">{bim}º bim</text>
-                </g>
-              );
-            })}
-            {graficoDisciplinas.map((disciplina, indice) => {
-              const y = 46 + indice * alturaLinhaGrafico;
-              return (
-              <g key={disciplina.nome}>
-                  <line className="student-subject-row-line" x1="160" x2="690" y1={y} y2={y} />
-                  <text className="student-subject-axis-label" x="24" y={y + 4}>{abreviarDisciplina(disciplina.nome)}</text>
-                {disciplina.pontos.map((ponto) => (
-                  <g key={`${disciplina.nome}-${ponto.bimestre}`}>
-                    <circle className={`student-grade-dot ${classeNota(ponto.nota)}`} cx={ponto.x} cy={ponto.y} r="3.8">
-                    <title>{`${disciplina.nome} - ${ponto.bimestre}º bimestre: ${formatarNota(ponto.nota)}`}</title>
-                  </circle>
-                    <text className="student-grade-dot-label" x={ponto.x + 10} y={ponto.y + 4}>{formatarNota(ponto.nota)}</text>
-                  </g>
-                ))}
-              </g>
-              );
-            })}
-          </svg>
-          </div>
-          <div className="student-chart-legend">
-            <span><i className="adequada" />Acima da média</span>
-            <span><i className="cuidado" />Exatamente 5</span>
-            <span><i className="abaixo" />Abaixo</span>
-            <span><i className="sem-nota" />Sem nota</span>
-          </div>
-        </article>
-      </section>
-
       <div className="printable-student-report">
       <div className="print-only print-report-header">
         <h2>{aluno.nome}</h2>
@@ -2168,7 +2001,7 @@ function AlunoDetalheGestao({
                             <i className="diagnostic-year-tag">{diagnosticoDisciplina.aprendizagem_equivalente}</i>
                           )}
                           {diagnosticoDisciplina.evolucao && (
-                            <i className={`diagnostic-evolution-tag ${classeEvolucao(diagnosticoDisciplina.evolucao)}`} title={`AvD1 → AvD2: ${diagnosticoDisciplina.evolucao}`}>
+                            <i className={`diagnostic-evolution-tag ${classeEvolucao(diagnosticoDisciplina.evolucao)}`} title={`Diagnóstica 1 → Diagnóstica 2: ${diagnosticoDisciplina.evolucao}`}>
                               {setaEvolucao(diagnosticoDisciplina.evolucao)} {diagnosticoDisciplina.evolucao}
                             </i>
                           )}
@@ -2244,7 +2077,21 @@ function AlunoDetalheGestao({
           <div className="panel-heading attendance-heading">
             <div>
               <h3>Atendimentos</h3>
-              <p>Histórico de casos e seguimentos registrados para este aluno.</p>
+              <p>
+                Histórico de casos e seguimentos registrados para este aluno.
+                {onAbrirTelaAtendimentos && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() => onAbrirTelaAtendimentos(aluno.nome)}
+                      style={{ background: "none", border: "none", padding: 0, minHeight: 0, color: "#175cd3", fontSize: "inherit", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Abrir na Tela de Atendimentos →
+                    </button>
+                  </>
+                )}
+              </p>
             </div>
             <button type="button" className="primary-action" onClick={abrirNovoAtendimento} disabled={!opcoesTipoAtendimento.length}>
               <Plus size={17} />

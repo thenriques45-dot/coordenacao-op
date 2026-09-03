@@ -684,8 +684,41 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
     }
 
     mesclar_conselhos_turma(res_obj, incoming);
+    mesclar_disparos_lote(res_obj, incoming);
 
     resultado
+}
+
+// Disparos em lote (fila assistida / lote API): união por id, o registro com
+// `atualizado_em` mais recente vence inteiro. Um disparo é editado de uma
+// máquina por vez (quem está tocando a fila), então não precisa de merge
+// campo a campo como os atendimentos.
+pub(crate) fn mesclar_disparos_lote(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &Value,
+) {
+    let Some(inc_lista) = incoming.get("disparos_lote").and_then(Value::as_array) else { return; };
+    let local_valor = local
+        .entry("disparos_lote".to_string())
+        .or_insert_with(|| Value::Array(Vec::new()));
+    let Some(local_lista) = local_valor.as_array_mut() else { return; };
+
+    for inc_item in inc_lista {
+        let Some(inc_id) = inc_item.get("id").and_then(Value::as_str) else { continue; };
+        match local_lista
+            .iter_mut()
+            .find(|item| item.get("id").and_then(Value::as_str) == Some(inc_id))
+        {
+            Some(local_item) => {
+                let em_local = local_item.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+                let em_inc = inc_item.get("atualizado_em").and_then(Value::as_str).unwrap_or("");
+                if em_inc > em_local {
+                    *local_item = inc_item.clone();
+                }
+            }
+            None => local_lista.push(inc_item.clone()),
+        }
+    }
 }
 
 // Finalização do conselho (nó "conselhos") e texto da ata: por bimestre, vence
@@ -1217,6 +1250,59 @@ mod testes {
             .collect();
         ids.sort();
         assert_eq!(ids, vec!["followup-local", "followup-remoto"]);
+    }
+
+    /// Campos novos do atendimento (canal, modelo_id, followup_previsto) fazem
+    /// parte do corpo do registro: quando o incoming mais recente vence, eles
+    /// acompanham sem tratamento especial.
+    #[test]
+    fn campos_novos_do_atendimento_acompanham_o_corpo_no_merge() {
+        let mut local = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Só registro", "canal": "manual", "atualizado_em": "2026-08-01T10:00:00-03:00" }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Mensagem enviada e combinado retorno",
+                    "canal": "wa_me",
+                    "modelo_id": "cobranca_tarefas",
+                    "followup_previsto": { "data": "2026-08-30", "descricao": "Conferir entrega" },
+                    "atualizado_em": "2026-08-03T10:00:00-03:00"
+                }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        let a = &local["atendimentos"][0];
+        assert_eq!(a["canal"], "wa_me");
+        assert_eq!(a["modelo_id"], "cobranca_tarefas");
+        assert_eq!(a["followup_previsto"]["data"], "2026-08-30");
+    }
+
+    /// Registrar o desfecho (limpar o follow-up combinado) numa máquina tem que
+    /// vencer o outro lado que ainda tem o combinado em aberto — o corpo do
+    /// registro mais recente vence, então o campo simplesmente some.
+    #[test]
+    fn followup_previsto_limpo_no_incoming_mais_recente_vence() {
+        let mut local = json!({
+            "atendimentos": [
+                {
+                    "id": "atendimento-1",
+                    "descricao": "Combinado retorno",
+                    "followup_previsto": { "data": "2026-08-30", "descricao": "Conferir entrega" },
+                    "atualizado_em": "2026-08-20T10:00:00-03:00"
+                }
+            ]
+        });
+        let incoming = json!({
+            "atendimentos": [
+                { "id": "atendimento-1", "descricao": "Desfecho registrado", "atualizado_em": "2026-08-31T10:00:00-03:00" }
+            ]
+        });
+        mesclar_aluno(&mut local, &incoming);
+        assert!(local["atendimentos"][0].get("followup_previsto").is_none());
     }
 
     /// Reproduz o mesmo bug de classe do teste de atendimentos, mas para

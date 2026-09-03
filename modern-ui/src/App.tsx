@@ -10,6 +10,7 @@ import {
   Filter,
   Home,
   Menu,
+  MessageCircle,
   Moon,
   NotebookPen,
   Pencil,
@@ -29,21 +30,24 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import brandLogo from "./assets/logo.png";
 import { invokeApp, tauriDisponivel } from "./features/appBridge";
+import type { AtendimentoAlunoInput, CanalAtendimento, FollowupPrevisto } from "./features/atendimentos/tipos";
 import { BuscaGlobal } from "./features/GlobalSearch";
 import { CalendarioGestao } from "./features/CalendarManagement";
 import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
+import { TelaAtendimentos } from "./features/Atendimentos";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
+import { NovidadesWizard, normalizarNovidades, type EntradaNovidades } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
 import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRelatorios";
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
-import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate } from "./features/SettingsPage";
+import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate, type SettingsSection } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -57,7 +61,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -158,10 +162,15 @@ type AtendimentoAlunoApi = {
   data: string;
   tipos: string[];
   atendido: string;
+  atendido_nome?: string | null;
   tags: string[];
   descricao: string;
   anexos: AtendimentoAnexoApi[];
   followups?: AtendimentoFollowUpApi[];
+  canal: CanalAtendimento;
+  lote_id?: string | null;
+  modelo_id?: string | null;
+  followup_previsto?: FollowupPrevisto | null;
   criado_em: string | null;
   atualizado_em?: string | null;
 };
@@ -171,9 +180,12 @@ type AtendimentoFollowUpApi = {
   data: string;
   tipos: string[];
   atendido: string;
+  atendido_nome?: string | null;
   tags: string[];
   descricao: string;
   anexos: AtendimentoAnexoApi[];
+  canal: CanalAtendimento;
+  modelo_id?: string | null;
   criado_em: string | null;
   atualizado_em?: string | null;
 };
@@ -216,6 +228,11 @@ type TurmaResumo = {
   nomes_alunos: string[];
   conselhos_com_ajustes: number;
   conselho_finalizado: boolean;
+  // Sempre presentes vindos de `listar_turmas`; opcionais no tipo porque
+  // componentes-filhos (ClassList, Council, BuscaGlobal) devolvem o objeto por
+  // callback declarando só um subconjunto dos campos.
+  total_atendimentos?: number;
+  followups_pendentes?: number;
   conselhos_finalizados: Record<string, string>;
   em_conselho_externo: string[];
   caminho: string;
@@ -342,7 +359,96 @@ type SyncInstitutionalResultado = {
   backup_seguranca: string | null;
 };
 
-const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
+const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.0.0": {
+    paginas: [
+      {
+        area: "Novo no menu",
+        titulo: "Uma tela só para os atendimentos da turma",
+        corpo:
+          "Entre 'Turmas' e 'Importar Dados' agora tem 'Atendimentos', com um contador de follow-ups pendentes. Ela reúne todos os atendimentos da turma numa lista só.",
+        destaques: [
+          { icone: "filtro", titulo: "Filtros", texto: "Tipo, período, canal, tag e 'follow-up pendente' — combináveis." },
+          { icone: "conversa", titulo: "Selo de canal", texto: "Cada linha mostra como o contato saiu: Manual, wa.me, wa.me · lote ou API oficial." },
+          { icone: "grade", titulo: "Tabela ou cartões", texto: "Alterna a visão conforme você prefere ler a lista." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Cada caso é uma conversa, com um combinado datado",
+        corpo:
+          "O atendimento abre em thread: o registro inicial, os follow-ups e o 'follow-up combinado' — um compromisso com data que substituiu o antigo campo de status. É ele que marca que um caso tem pendência.",
+        destaques: [
+          { icone: "conversa", titulo: "Thread do caso", texto: "Registro inicial e follow-ups na ordem em que aconteceram." },
+          { icone: "agenda", titulo: "Follow-up combinado", texto: "Um compromisso datado; enquanto está aberto, o caso conta como pendente." },
+          { icone: "lista", titulo: "Registrar desfecho", texto: "Encerra o combinado quando o assunto se resolve." },
+        ],
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Montar a mensagem para a família em três passos",
+        corpo:
+          "O compositor separa destinatário, modelo e variáveis, com prévia em bolha de WhatsApp. Os trechos sem dado do aluno ficam destacados para preencher na hora ou remover.",
+        destaques: [
+          { icone: "mensagem", titulo: "Três passos", texto: "Destinatário, modelo e variáveis, um de cada vez." },
+          { icone: "conversa", titulo: "Prévia real", texto: "Vê o texto final na bolha antes de enviar." },
+          { icone: "aluno", titulo: "Aba 'Por aluno'", texto: "Histórico de contato com a família de cada estudante, por mensagem e presencial." },
+        ],
+      },
+      {
+        area: "Atendimentos",
+        titulo: "Contatar várias famílias de uma vez",
+        corpo:
+          "Em 'Contatar famílias', monte a fila por filtros prontos (com tarefa pendente, frequência baixa, sem acesso à plataforma…) ou por condições no mesmo formato do construtor de relatórios (campo · operador · valor).",
+        destaques: [
+          { icone: "filtro", titulo: "Monte a fila", texto: "Filtros prontos ou condições combináveis." },
+          { icone: "conversa", titulo: "Fila assistida no WhatsApp", texto: "Grátis: você aperta enviar em cada um, com atalhos de teclado, teto de 40 por sessão, pausável e retomável." },
+          { icone: "envio", titulo: "Envio automático", texto: "Opcional, pela API oficial da Meta." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+      {
+        area: "Configurações › Integrações",
+        titulo: "Envio automático pela API oficial (opcional)",
+        corpo:
+          "Se quiser que o lote saia sozinho, configure em Configurações › Integrações › 'WhatsApp'. Sem isso, tudo continua funcionando pela fila assistida.",
+        destaques: [
+          { icone: "envio", titulo: "Cobra por mensagem", texto: "É a API oficial da Meta, com custo por envio." },
+          { icone: "config", titulo: "Só nesta máquina", texto: "A configuração não sincroniza com o grupo." },
+          { icone: "lista", titulo: "Histórico em 'Disparos em lote'", texto: "Situação de cada fila (concluída, pausada, com pendências) e retomada das que pararam." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+      {
+        area: "Configurações",
+        titulo: "Configurações mais fáceis de percorrer",
+        corpo:
+          "A tela passou a ter 4 grupos que dizem a natureza do ajuste — Institucional, Conselho, Este computador, Integrações — com uma busca no topo e uma 'Visão geral' de entrada.",
+        destaques: [
+          { icone: "busca", titulo: "Busca no topo", texto: "Acha tanto a seção quanto o campo — 'token', 'código do grupo'…" },
+          { icone: "grade", titulo: "Visão geral", texto: "Avisos de manutenção (backup vencido, atualização) e o estado de cada seção." },
+          { icone: "mensagem", titulo: "Modelos de mensagem", texto: "Saíram daqui e agora se editam em Atendimentos → 'Gerenciar modelos', perto de onde são usados." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+      {
+        area: "Configurações › Institucional",
+        titulo: "Equipe gestora: nome e gênero de quem assina",
+        corpo:
+          "Uma seção nova para cadastrar a direção, as vice-direções e as coordenações (quantas houver), cada uma com nome e gênero. O gênero flexiona os títulos nos documentos; quem preferir pode deixar 'não informar'.",
+        destaques: [
+          { icone: "equipe", titulo: "Nome + gênero", texto: "'Diretora' / 'Diretor', 'Coordenadora' / 'Coordenador' saem certos na ATA e no PEI." },
+          { icone: "config", titulo: "Casa com o grupo", texto: "Quem entrou como 'Wilton' é reconhecido como 'Wilton Bortolleto · Coordenação' — automático e revisável." },
+          { icone: "documento", titulo: "Vale em todo lugar", texto: "Nome completo nas assinaturas do PEI, no Quadro de Gestão e nos documentos." },
+        ],
+        irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+      },
+    ],
+    outrasMudancas: [
+      "'AvD1' e 'AvD2' agora aparecem como 'Diagnóstica 1' e 'Diagnóstica 2' nas telas de conselho, na ficha do aluno e no importador.",
+    ],
+  },
   "3.5.1": [
     "Corrigido: o boletim da ficha do aluno (aba Desempenho) voltava a não mostrar nenhuma nota nem frequência quando o bimestre selecionado ainda não tinha lançamento — por exemplo, ao entrar no 3º bimestre antes de importar o mapão. Agora o boletim sempre lista as disciplinas do ano e as notas já lançadas (1º, 2º…), preservando a comparação da progressão ao longo do ano. A tabela de disciplinas do Conselho e as métricas da turma passam a seguir a mesma regra: mostram o rol de disciplinas do ano mesmo antes de o bimestre atual ter notas.",
   ],
@@ -357,7 +463,7 @@ const NOVIDADES_POR_VERSAO: Record<string, string[]> = {
     "Importar Tarefas: agora aceita várias planilhas de uma vez (ou ir adicionando uma a uma, com a lista à vista). O app junta todas antes de cruzar os alunos pelo nome, então dá pra importar todas as turmas num passo só.",
     "As tags do formulário de atendimento viraram um campo de 'chips': digite e tecle vírgula ou Enter para criar a tag, e o campo sugere as tags já usadas neste aluno e as definidas nos modelos de mensagem.",
     "Quadro Kanban: no campo 'Responsável' de uma tarefa, digite '@' para escolher um coordenador do grupo de trabalho; também dá pra adicionar um nome que não esteja no grupo.",
-    "O importador do Diagnóstico SARESP lê o novo relatório 'Aprendizagem Equivalente' das Devolutivas Pedagógicas, com as duas aplicações do ano (AvD1 e AvD2) e a evolução por componente. As telas de conselho passam a mostrar o resultado mais recente e um selo de evolução (Avançou / Manteve / Regrediu).",
+    "O importador do Diagnóstico SARESP lê o novo relatório 'Aprendizagem Equivalente' das Devolutivas Pedagógicas, com as duas aplicações do ano (Diagnóstica 1 e Diagnóstica 2) e a evolução por componente. As telas de conselho passam a mostrar o resultado mais recente e um selo de evolução (Avançou / Manteve / Regrediu).",
     "Disciplinas lançadas com grafias diferentes que são a mesma matéria (ex.: 'Língua Inglesa' e 'LINGUA INGLESA', vindas de mapões diferentes) passam a ser tratadas como uma só na tela do conselho — antes a versão de expansão aparecia como disciplina separada, sem plano nem PEI. Também há uma correção para isso em Configurações › Manutenção de dados.",
     "Repositório de relatórios ganhou botão 'Atualizar' e passa a buscar sempre a versão mais recente da lista publicada no GitHub, sem cache preso.",
   ],
@@ -787,6 +893,8 @@ export function App() {
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
   const [bimestreOrigem, setBimestreOrigem] = useState<"manual" | "datas" | "dados" | "padrao">("padrao");
+  const [configSecaoInicial, setConfigSecaoInicial] = useState<SettingsSection | undefined>(undefined);
+  const [atendimentosTurmaInicial, setAtendimentosTurmaInicial] = useState<string | null>(null);
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
   const [turmaRefreshKey, setTurmaRefreshKey] = useState(0);
   const [erroTurmas, setErroTurmas] = useState("");
@@ -846,7 +954,7 @@ export function App() {
     [alunosConselho],
   );
   const aluno = alunosConselhoAtivos[Math.min(indiceAluno, alunosConselhoAtivos.length - 1)] ?? alunosDemo[0];
-  const novidadesVersao = appInfo?.version ? NOVIDADES_POR_VERSAO[appInfo.version] ?? [] : [];
+  const novidades = appInfo?.version ? normalizarNovidades(NOVIDADES_POR_VERSAO[appInfo.version]) : null;
 
   useEffect(() => {
     localStorage.setItem("coordenacaoop:tema", temaEscuro ? "escuro" : "claro");
@@ -927,7 +1035,7 @@ export function App() {
       .then((info) => {
         setAppInfo(info);
         const chave = `coordenacaoop:novidades-lidas:${info.version}`;
-        if (NOVIDADES_POR_VERSAO[info.version]?.length && localStorage.getItem(chave) !== "sim") {
+        if (normalizarNovidades(NOVIDADES_POR_VERSAO[info.version]) && localStorage.getItem(chave) !== "sim") {
           setMostrarNovidades(true);
         }
       })
@@ -1038,19 +1146,6 @@ export function App() {
     }
     setMostrarNovidades(false);
   }
-
-  useEffect(() => {
-    if (!mostrarNovidades) {
-      return;
-    }
-    function aoPressionarEsc(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        fecharNovidades();
-      }
-    }
-    window.addEventListener("keydown", aoPressionarEsc);
-    return () => window.removeEventListener("keydown", aoPressionarEsc);
-  }, [mostrarNovidades, appInfo?.version]);
 
   function atualizarPerfilSync(perfil: WorkgroupSyncProfile) {
     setPerfilSync(salvarPerfilSincronizacao(perfil));
@@ -1278,7 +1373,7 @@ export function App() {
     });
   }
 
-  function salvarAtendimentoAluno(matricula: string, input: { id?: string; parent_id?: string; data: string; tipos: string[]; atendido: string; tags: string[]; descricao: string; anexos: AtendimentoAnexoApi[] }) {
+  function salvarAtendimentoAluno(matricula: string, input: AtendimentoAlunoInput) {
     if (!turmaSelecionada || !turmaDetalhe) {
       return Promise.reject(new Error("Selecione uma turma antes de salvar atendimento."));
     }
@@ -1420,6 +1515,13 @@ export function App() {
         <nav className="nav-list">
           <NavButton icon={<Home size={18} />} label="Dashboard" active={tela === "dashboard"} onClick={() => navegarPara("dashboard")} />
           <NavButton icon={<Users size={18} />} label="Turmas" active={tela === "turmas"} onClick={() => navegarPara("turmas")} />
+          <NavButton
+            icon={<MessageCircle size={18} />}
+            label="Atendimentos"
+            active={tela === "atendimentos"}
+            onClick={() => navegarPara("atendimentos")}
+            badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
+          />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
@@ -1471,7 +1573,7 @@ export function App() {
       </aside>
 
       <section className="workspace">
-        {["dashboard", "turmas", "gestao-turma", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
+        {["dashboard", "turmas", "gestao-turma", "atendimentos", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
           <div className="bimestre-switcher">
             <span>Bimestre atual</span>
             <select
@@ -1592,6 +1694,31 @@ export function App() {
             onSalvarAtendimento={salvarAtendimentoAluno}
             onSalvarResponsaveis={salvarResponsaveisAluno}
             onOpenKanban={() => navegarPara("kanban")}
+            onAbrirTelaAtendimentos={() => {
+              setAtendimentosTurmaInicial(turmaSelecionada?.codigo ?? null);
+              navegarPara("atendimentos");
+            }}
+          />
+        )}
+        {tela === "atendimentos" && (
+          <TelaAtendimentos
+            turmas={turmas}
+            bimestre={bimestreSelecionado}
+            turmaCodigoInicial={atendimentosTurmaInicial}
+            tiposAtendimento={turmaConfig.atendimento_tipos}
+            mensagemTemplates={turmaConfig.mensagem_familia_templates}
+            onAtivarEnvioAutomatico={() => {
+              setConfigSecaoInicial("whatsapp");
+              navegarPara("configuracoes");
+            }}
+            onAbrirFichaAluno={(turmaCodigo, alunoNome) => {
+              const alvo = turmas.find((t) => t.codigo === turmaCodigo);
+              if (!alvo) return;
+              setNomeAlunoParaAbrir(alunoNome);
+              setTurmaSelecionada(alvo);
+              navegarPara("gestao-turma");
+            }}
+            onConfigAtualizada={aplicarConfigCarregada}
           />
         )}
         {tela === "importar-dados" && (
@@ -1665,7 +1792,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (
@@ -1755,22 +1882,16 @@ export function App() {
           </section>
         </div>
       )}
-      {mostrarNovidades && novidadesVersao.length > 0 && (
-        <div className="modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) fecharNovidades(); }}>
-          <section className="whats-new-modal" role="dialog" aria-modal="true" aria-labelledby="whats-new-title">
-            <span className="eyebrow">Atualização concluída</span>
-            <h2 id="whats-new-title">O que há de novidade</h2>
-            <p>Versão {appInfo?.version ? `v${appInfo.version}` : "atual"} do CoordenacaoOP.</p>
-            <ul>
-              {novidadesVersao.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <div className="modal-actions">
-              <button className="primary-action" onClick={fecharNovidades}>Entendi</button>
-            </div>
-          </section>
-        </div>
+      {mostrarNovidades && novidades && (
+        <NovidadesWizard
+          versao={appInfo?.version ?? null}
+          dados={novidades}
+          onFechar={fecharNovidades}
+          onNavegar={(destino) => {
+            fecharNovidades();
+            navegarPara(destino as Tela);
+          }}
+        />
       )}
       {!mostrarNovidades && mostrarAssistenteSync && (
         <AssistenteConfiguracaoInicial
@@ -1833,16 +1954,19 @@ function NavButton({
   label,
   active,
   onClick,
+  badge,
 }: {
   icon: ReactNode;
   label: string;
   active: boolean;
   onClick: () => void;
+  badge?: number;
 }) {
   return (
     <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
       {icon}
       {label}
+      {badge != null && badge > 0 && <span className="nav-item-badge">{badge}</span>}
     </button>
   );
 }

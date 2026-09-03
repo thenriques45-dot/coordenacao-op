@@ -56,12 +56,55 @@ pub(crate) struct MensagemTemplate {
     pub(crate) tags: Vec<String>,
 }
 
+/// Uma pessoa da equipe gestora (direção, vice-direção ou coordenação).
+/// `genero`: "F" | "M" | "" (não informado → formas neutras nos textos).
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct MembroEquipe {
+    #[serde(default)]
+    pub(crate) id: String,
+    #[serde(default)]
+    pub(crate) nome: String,
+    #[serde(default)]
+    pub(crate) genero: String,
+}
+
+/// Escolha MANUAL de com quem casar um membro do grupo de trabalho.
+/// O casamento automático (por nome compatível) não é gravado — é resolvido
+/// ao vivo no frontend. `membro_id` vazio = "não vincular".
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct VinculoMembroEquipe {
+    #[serde(default)]
+    pub(crate) nome_curto: String,
+    #[serde(default)]
+    pub(crate) membro_id: String,
+}
+
+/// Equipe gestora da escola. Fonte da verdade para nome + gênero das pessoas
+/// que assinam documentos e aparecem no grupo de trabalho.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct EquipeGestora {
+    #[serde(default)]
+    pub(crate) direcao: MembroEquipe,
+    #[serde(default)]
+    pub(crate) vices: Vec<MembroEquipe>,
+    #[serde(default)]
+    pub(crate) coordenacoes: Vec<MembroEquipe>,
+    #[serde(default)]
+    pub(crate) vinculos: Vec<VinculoMembroEquipe>,
+    /// RFC3339 — usado para "mais novo vence" na sincronização de grupo.
+    #[serde(default)]
+    pub(crate) atualizado_em: String,
+}
+
 #[derive(Serialize)]
 pub(crate) struct ConfiguracoesApp {
     pub(crate) direcao_nome: String,
     pub(crate) direcao_pronome: String,
     // Nomes dos vice-diretores — assinam o PEI quando indicados por turma.
+    // Derivado de `equipe_gestora.vices` na gravação (compat com leitores antigos).
     pub(crate) vice_direcao: Vec<String>,
+    // Equipe gestora completa (direção + vices + coordenações + vínculos).
+    pub(crate) equipe_gestora: EquipeGestora,
     pub(crate) nota_minima: f64,
     pub(crate) cabecalho_ata: Option<String>,
     pub(crate) lider_ativo: bool,
@@ -107,6 +150,10 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) direcao_pronome: String,
     #[serde(default)]
     pub(crate) vice_direcao: Vec<String>,
+    // Quando presente, é a fonte da verdade: os campos planos acima são
+    // derivados dela na gravação.
+    #[serde(default)]
+    pub(crate) equipe_gestora: Option<EquipeGestora>,
     pub(crate) nota_minima: f64,
     pub(crate) lider_ativo: bool,
     pub(crate) lider_rotulo: String,
@@ -303,6 +350,11 @@ pub(crate) struct TurmaResumo {
     pub(crate) nomes_alunos: Vec<String>,
     pub(crate) conselhos_com_ajustes: usize,
     pub(crate) conselho_finalizado: bool,
+    // Atendimentos registrados na turma (registros principais, sem contar
+    // follow-ups aninhados) e quantos deles têm follow-up combinado em aberto.
+    // Alimentam o subtítulo e a pílula da sidebar na Tela de Atendimentos.
+    pub(crate) total_atendimentos: usize,
+    pub(crate) followups_pendentes: usize,
     // Bimestre -> data da finalização (RFC3339; vazio em registros antigos).
     pub(crate) conselhos_finalizados: BTreeMap<String, String>,
     // Bimestres com conselho preparado em pendrive e ainda não reintegrado.
@@ -340,6 +392,30 @@ pub(crate) struct AbrirDocumentoConselhoInput {
     pub(crate) caminho: String,
 }
 
+/// Canal de origem do atendimento — dá o selo na lista da tela de Atendimentos
+/// e liga o registro ao histórico de disparos em lote. Registros antigos, sem
+/// o campo, contam como "manual".
+pub(crate) fn canal_atendimento_padrao() -> String {
+    "manual".to_string()
+}
+
+pub(crate) fn normalizar_canal_atendimento(valor: Option<&str>) -> String {
+    match valor.map(str::trim) {
+        Some("wa_me") => "wa_me".to_string(),
+        Some("api") => "api".to_string(),
+        _ => canal_atendimento_padrao(),
+    }
+}
+
+/// "Follow-up combinado": o compromisso datado que substitui o campo de status.
+/// Mora no atendimento principal; some quando o desfecho é registrado.
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct FollowupPrevisto {
+    pub(crate) data: String,
+    #[serde(default)]
+    pub(crate) descricao: String,
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct AtendimentoAluno {
     pub(crate) id: String,
@@ -348,12 +424,22 @@ pub(crate) struct AtendimentoAluno {
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
     #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     #[serde(default)]
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
     #[serde(default)]
     pub(crate) followups: Vec<AtendimentoFollowUp>,
+    #[serde(default = "canal_atendimento_padrao")]
+    pub(crate) canal: String,
+    #[serde(default)]
+    pub(crate) lote_id: Option<String>,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
+    #[serde(default)]
+    pub(crate) followup_previsto: Option<FollowupPrevisto>,
     pub(crate) criado_em: Option<String>,
     pub(crate) atualizado_em: Option<String>,
 }
@@ -366,10 +452,16 @@ pub(crate) struct AtendimentoFollowUp {
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
     #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
+    #[serde(default)]
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     #[serde(default)]
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
+    #[serde(default = "canal_atendimento_padrao")]
+    pub(crate) canal: String,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
     pub(crate) criado_em: Option<String>,
     pub(crate) atualizado_em: Option<String>,
 }
@@ -566,9 +658,21 @@ pub(crate) struct AtendimentoAlunoInput {
     pub(crate) data: String,
     pub(crate) tipos: Vec<String>,
     pub(crate) atendido: String,
+    #[serde(default)]
+    pub(crate) atendido_nome: Option<String>,
     pub(crate) tags: Vec<String>,
     pub(crate) descricao: String,
     pub(crate) anexos: Vec<KanbanAnexoResultado>,
+    #[serde(default)]
+    pub(crate) canal: Option<String>,
+    #[serde(default)]
+    pub(crate) lote_id: Option<String>,
+    #[serde(default)]
+    pub(crate) modelo_id: Option<String>,
+    // Option<Option<_>>: ausente = não mexe no follow-up combinado; `null` =
+    // limpar (registrar desfecho); objeto = definir/reagendar.
+    #[serde(default)]
+    pub(crate) followup_previsto: Option<Option<FollowupPrevisto>>,
 }
 
 #[derive(Serialize)]

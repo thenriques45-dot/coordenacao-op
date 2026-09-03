@@ -595,6 +595,30 @@ pub(crate) fn salvar_responsaveis_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
+// Resolve o `followup_previsto` que o input pede a partir do enum de 3 estados
+// (`Option<Option<_>>`): ausente = não mexe no combinado atual; `null` = limpar
+// (registrar desfecho); objeto = definir/reagendar. Data vazia também limpa.
+// Devolve `Option<Option<Value>>` com o mesmo contrato para o chamador aplicar.
+pub(crate) fn normalizar_followup_previsto_input(
+    entrada: &Option<Option<FollowupPrevisto>>,
+) -> Option<Option<Value>> {
+    match entrada {
+        None => None,
+        Some(None) => Some(None),
+        Some(Some(fp)) => {
+            let dia = fp.data.trim();
+            if dia.is_empty() {
+                Some(None)
+            } else {
+                Some(Some(serde_json::json!({
+                    "data": dia,
+                    "descricao": fp.descricao.trim(),
+                })))
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub(crate) fn salvar_atendimento_aluno(
     caminho: String,
@@ -615,13 +639,32 @@ pub(crate) fn salvar_atendimento_aluno(
     if atendido.is_empty() {
         return Err("Informe quem foi atendido.".to_string());
     }
-    if atendido != "aluno" && atendido != "responsavel" {
+    if atendido != "aluno" && atendido != "responsavel" && atendido != "outro" {
         return Err("Tipo de atendido invalido.".to_string());
     }
+    let atendido_nome = input
+        .atendido_nome
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string);
     let descricao = input.descricao.trim();
     if descricao.is_empty() {
         return Err("Descreva o atendimento realizado.".to_string());
     }
+    let canal = normalizar_canal_atendimento(input.canal.as_deref());
+    let lote_id = input
+        .lote_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string);
+    let modelo_id = input
+        .modelo_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|valor| !valor.is_empty())
+        .map(str::to_string);
     let id_informado = input
         .id
         .as_deref()
@@ -657,22 +700,38 @@ pub(crate) fn salvar_atendimento_aluno(
         .and_then(Value::as_array_mut)
         .ok_or_else(|| "Lista de atendimentos invalida.".to_string())?;
 
-    let montar_registro = |id: String, criado_em: String, followups: Option<Value>| {
-        let mut objeto = serde_json::Map::new();
-        objeto.insert("id".to_string(), Value::String(id));
-        objeto.insert("data".to_string(), Value::String(data.to_string()));
-        objeto.insert("tipos".to_string(), serde_json::to_value(&tipos).unwrap_or(Value::Array(Vec::new())));
-        objeto.insert("atendido".to_string(), Value::String(atendido.to_string()));
-        objeto.insert("tags".to_string(), serde_json::to_value(&tags).unwrap_or(Value::Array(Vec::new())));
-        objeto.insert("descricao".to_string(), Value::String(descricao.to_string()));
-        objeto.insert("anexos".to_string(), anexos.clone());
-        if let Some(followups) = followups {
-            objeto.insert("followups".to_string(), followups);
-        }
-        objeto.insert("criado_em".to_string(), Value::String(criado_em));
-        objeto.insert("atualizado_em".to_string(), Value::String(agora.clone()));
-        Value::Object(objeto)
-    };
+    let followup_previsto_input = normalizar_followup_previsto_input(&input.followup_previsto);
+
+    let montar_registro =
+        |id: String, criado_em: String, followups: Option<Value>, followup_previsto: Option<Value>| {
+            let mut objeto = serde_json::Map::new();
+            objeto.insert("id".to_string(), Value::String(id));
+            objeto.insert("data".to_string(), Value::String(data.to_string()));
+            objeto.insert("tipos".to_string(), serde_json::to_value(&tipos).unwrap_or(Value::Array(Vec::new())));
+            objeto.insert("atendido".to_string(), Value::String(atendido.to_string()));
+            if let Some(nome) = &atendido_nome {
+                objeto.insert("atendido_nome".to_string(), Value::String(nome.clone()));
+            }
+            objeto.insert("tags".to_string(), serde_json::to_value(&tags).unwrap_or(Value::Array(Vec::new())));
+            objeto.insert("descricao".to_string(), Value::String(descricao.to_string()));
+            objeto.insert("anexos".to_string(), anexos.clone());
+            objeto.insert("canal".to_string(), Value::String(canal.clone()));
+            if let Some(valor) = &lote_id {
+                objeto.insert("lote_id".to_string(), Value::String(valor.clone()));
+            }
+            if let Some(valor) = &modelo_id {
+                objeto.insert("modelo_id".to_string(), Value::String(valor.clone()));
+            }
+            if let Some(followups) = followups {
+                objeto.insert("followups".to_string(), followups);
+            }
+            if let Some(previsto) = followup_previsto {
+                objeto.insert("followup_previsto".to_string(), previsto);
+            }
+            objeto.insert("criado_em".to_string(), Value::String(criado_em));
+            objeto.insert("atualizado_em".to_string(), Value::String(agora.clone()));
+            Value::Object(objeto)
+        };
 
     if let Some(parent_id) = parent_id {
         let atendimento = atendimentos
@@ -700,13 +759,25 @@ pub(crate) fn salvar_atendimento_aluno(
                 .and_then(Value::as_str)
                 .unwrap_or(&agora)
                 .to_string();
-            *followup = montar_registro(id, criado_em, None);
+            *followup = montar_registro(id, criado_em, None, None);
         } else {
             followups.push(montar_registro(
                 format!("followup-{}", Local::now().timestamp_millis()),
                 agora.clone(),
                 None,
+                None,
             ));
+        }
+        // O follow-up combinado (previsto) mora no atendimento principal:
+        // registrar um follow-up pode encerrá-lo (desfecho) ou reagendá-lo.
+        match &followup_previsto_input {
+            None => {}
+            Some(None) => {
+                atendimento_obj.remove("followup_previsto");
+            }
+            Some(Some(valor)) => {
+                atendimento_obj.insert("followup_previsto".to_string(), valor.clone());
+            }
         }
         atendimento_obj.insert("atualizado_em".to_string(), Value::String(agora.clone()));
     } else if let Some(id) = id_informado {
@@ -723,14 +794,76 @@ pub(crate) fn salvar_atendimento_aluno(
             .get("followups")
             .cloned()
             .or_else(|| Some(Value::Array(Vec::new())));
-        *atendimento = montar_registro(id, criado_em, followups);
+        // Preserva o follow-up combinado atual quando o input não trouxe o campo.
+        let followup_previsto = match &followup_previsto_input {
+            None => atendimento.get("followup_previsto").cloned(),
+            Some(escolha) => escolha.clone(),
+        };
+        *atendimento = montar_registro(id, criado_em, followups, followup_previsto);
     } else {
         atendimentos.push(montar_registro(
             format!("atendimento-{}", Local::now().timestamp_millis()),
             agora.clone(),
             Some(Value::Array(Vec::new())),
+            followup_previsto_input.clone().flatten(),
         ));
     }
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+// Define ou limpa o follow-up combinado ("previsto") de um atendimento sem
+// reescrever os demais campos — usado por "Combinar retorno" e por
+// "Registrar desfecho" na thread. `previsto = None` limpa.
+#[tauri::command]
+pub(crate) fn definir_followup_previsto(
+    caminho: String,
+    matricula: String,
+    atendimento_id: String,
+    previsto: Option<FollowupPrevisto>,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let _dados = travar_dados();
+    let agora = Local::now().to_rfc3339();
+    let valor = match &previsto {
+        Some(fp) if !fp.data.trim().is_empty() => Some(serde_json::json!({
+            "data": fp.data.trim(),
+            "descricao": fp.descricao.trim(),
+        })),
+        _ => None,
+    };
+
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let atendimento = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .and_then(|aluno| aluno.get_mut("atendimentos"))
+        .and_then(Value::as_array_mut)
+        .and_then(|lista| {
+            lista
+                .iter_mut()
+                .find(|item| item.get("id").and_then(Value::as_str) == Some(atendimento_id.trim()))
+        })
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Atendimento nao encontrado.".to_string())?;
+
+    match valor {
+        Some(v) => {
+            atendimento.insert("followup_previsto".to_string(), v);
+        }
+        None => {
+            atendimento.remove("followup_previsto");
+        }
+    }
+    atendimento.insert("atualizado_em".to_string(), Value::String(agora));
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
@@ -1504,11 +1637,26 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
     let mut alunos_ativos = 0;
     let mut alunos_elegiveis = 0;
     let mut conselhos_com_ajustes = 0;
+    let mut total_atendimentos = 0;
+    let mut followups_pendentes = 0;
     let mut lider_sala = None;
     let mut vice_lider_sala = None;
     let mut nomes_alunos = Vec::new();
 
     for info in alunos.values() {
+        if let Some(atendimentos) = info.get("atendimentos").and_then(Value::as_array) {
+            for atendimento in atendimentos {
+                total_atendimentos += 1;
+                if atendimento
+                    .get("followup_previsto")
+                    .and_then(Value::as_object)
+                    .is_some_and(|previsto| !previsto.is_empty())
+                {
+                    followups_pendentes += 1;
+                }
+            }
+        }
+
         let ativo = info.get("ativo").and_then(Value::as_bool).unwrap_or(true);
         if ativo {
             alunos_ativos += 1;
@@ -1579,6 +1727,8 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         nomes_alunos,
         conselhos_com_ajustes,
         conselho_finalizado,
+        total_atendimentos,
+        followups_pendentes,
         conselhos_finalizados,
         // Preenchido em listar_turmas, que cruza com o registro de check-outs.
         em_conselho_externo: Vec::new(),

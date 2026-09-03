@@ -2,8 +2,10 @@ import { enable as autostartEnable, disable as autostartDisable, isEnabled as au
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
+import { ConfigEnvioAutomatico } from "./atendimentos/ConfigEnvioAutomatico";
+import { EquipeGestoraSecao } from "./EquipeGestoraSecao";
 import {
   aplicarPadroesDoProvedor,
   carregarAiAssistantSettings,
@@ -115,9 +117,45 @@ export const MENSAGEM_TEMPLATES_PADRAO: MensagemTemplate[] = [
   },
 ];
 
+// "F" | "M" | "" (não informado → formas neutras nos textos gerados).
+export type GeneroEquipe = "F" | "M" | "";
+
+export type MembroEquipe = {
+  id: string;
+  nome: string;
+  genero: GeneroEquipe;
+};
+
+// Escolha manual de com quem casar um membro do grupo de trabalho.
+// membro_id "" = "não vincular". O casamento automático (nome compatível) não
+// entra aqui — é resolvido ao vivo.
+export type VinculoMembroEquipe = {
+  nome_curto: string;
+  membro_id: string;
+};
+
+export type EquipeGestora = {
+  direcao: MembroEquipe;
+  vices: MembroEquipe[];
+  coordenacoes: MembroEquipe[];
+  vinculos: VinculoMembroEquipe[];
+  atualizado_em: string;
+};
+
+export function equipeGestoraVazia(): EquipeGestora {
+  return {
+    direcao: { id: "direcao", nome: "", genero: "" },
+    vices: [],
+    coordenacoes: [],
+    vinculos: [],
+    atualizado_em: "",
+  };
+}
+
 export type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
+  equipe_gestora: EquipeGestora;
   nota_minima: number;
   cabecalho_ata: string | null;
   lider_ativo: boolean;
@@ -196,21 +234,159 @@ type DiagnosticoIaLocal = {
   mensagem: string;
 };
 
-type SettingsSection =
+export type SettingsSection =
+  | "visao-geral"
   | "instituicao"
   | "turmas"
+  | "equipe-gestora"
   | "conselho-perfil"
   | "conselho-destaque"
   | "conselho-encaminhamentos"
   | "conselho-notas"
-  | "mensagens-familia"
   | "perfil-dispositivo"
-  | "sync-grupo"
-  | "sync-institucional"
-  | "assistente"
+  | "sincronizacao"
   | "backup"
   | "manutencao-dados"
-  | "atualizacao";
+  | "atualizacao"
+  | "assistente"
+  | "whatsapp";
+
+// Índice de busca da tela (handoff v2 — busca casa seção E campo). Uma entrada
+// por seção; entradas com `campo` apontam para um id de elemento (`ancora`)
+// que a busca rola até a vista e destaca por um instante.
+export type IndiceConfig = {
+  secao: SettingsSection;
+  grupo: string;
+  secaoLabel: string;
+  campo?: string;
+  ancora?: string;
+};
+
+// Grupos e destinos da nav (4 grupos, nomes que dizem a natureza do ajuste).
+export const GRUPOS_CONFIG: Array<{ titulo: string; itens: Array<{ id: SettingsSection; label: string }> }> = [
+  {
+    titulo: "Institucional",
+    itens: [
+      { id: "instituicao", label: "Instituição" },
+      { id: "turmas", label: "Turmas" },
+      { id: "equipe-gestora", label: "Equipe gestora" },
+    ],
+  },
+  {
+    titulo: "Conselho",
+    itens: [
+      { id: "conselho-perfil", label: "Perfil da turma" },
+      { id: "conselho-destaque", label: "Aluno destaque" },
+      { id: "conselho-encaminhamentos", label: "Encaminhamentos" },
+      { id: "conselho-notas", label: "Notas na ATA" },
+    ],
+  },
+  {
+    titulo: "Este computador",
+    itens: [
+      { id: "perfil-dispositivo", label: "Perfil e dispositivo" },
+      { id: "sincronizacao", label: "Sincronização" },
+      { id: "backup", label: "Backup" },
+      { id: "atualizacao", label: "Atualização" },
+      { id: "manutencao-dados", label: "Manutenção de dados" },
+    ],
+  },
+  {
+    titulo: "Integrações",
+    itens: [
+      { id: "assistente", label: "Assistente pedagógico" },
+      { id: "whatsapp", label: "WhatsApp" },
+    ],
+  },
+];
+
+const GRUPO_DA_SECAO: Record<SettingsSection, string> = (() => {
+  const mapa = {} as Record<SettingsSection, string>;
+  mapa["visao-geral"] = "";
+  for (const grupo of GRUPOS_CONFIG) for (const item of grupo.itens) mapa[item.id] = grupo.titulo;
+  return mapa;
+})();
+
+const LABEL_DA_SECAO: Record<SettingsSection, string> = (() => {
+  const mapa = {} as Record<SettingsSection, string>;
+  mapa["visao-geral"] = "Visão geral";
+  for (const grupo of GRUPOS_CONFIG) for (const item of grupo.itens) mapa[item.id] = item.label;
+  return mapa;
+})();
+
+// Campos indexados pela busca, além das seções. `ancora` = id do elemento.
+const CAMPOS_INDEXADOS: Array<{ secao: SettingsSection; campo: string; ancora?: string }> = [
+  { secao: "equipe-gestora", campo: "Nome e gênero da direção", ancora: "cfg-equipe-direcao" },
+  { secao: "equipe-gestora", campo: "Vice-direção", ancora: "cfg-equipe-vices" },
+  { secao: "equipe-gestora", campo: "Coordenação", ancora: "cfg-equipe-coordenacoes" },
+  { secao: "equipe-gestora", campo: "Vincular membros do grupo de trabalho", ancora: "cfg-equipe-vinculos" },
+  { secao: "instituicao", campo: "Cabeçalho dos documentos", ancora: "cfg-instituicao-cabecalho" },
+  { secao: "instituicao", campo: "Calendário letivo", ancora: "cfg-instituicao-ciclo" },
+  { secao: "instituicao", campo: "Datas dos bimestres", ancora: "cfg-instituicao-bimestres" },
+  { secao: "instituicao", campo: "Média mínima (nota vermelha)", ancora: "cfg-instituicao-ciclo" },
+  { secao: "turmas", campo: "Líder de sala", ancora: "cfg-turmas-campos" },
+  { secao: "turmas", campo: "Elegível", ancora: "cfg-turmas-campos" },
+  { secao: "turmas", campo: "Tipos de atendimento", ancora: "cfg-turmas-tipos" },
+  { secao: "conselho-notas", campo: "Modo de exibição das notas", ancora: "cfg-notas-minima" },
+  { secao: "sincronizacao", campo: "Pasta compartilhada", ancora: "cfg-sync-pasta" },
+  { secao: "sincronizacao", campo: "Turmas e alunos", ancora: "cfg-sync-institucional" },
+  { secao: "assistente", campo: "Chave da API do assistente" },
+  { secao: "whatsapp", campo: "Token permanente da Meta", ancora: "cfg-whatsapp-token" },
+  { secao: "whatsapp", campo: "ID do número de telefone", ancora: "cfg-whatsapp-token" },
+  { secao: "atualizacao", campo: "Iniciar com o Windows" },
+];
+
+export function construirIndiceBusca(): IndiceConfig[] {
+  const entradas: IndiceConfig[] = [];
+  for (const grupo of GRUPOS_CONFIG) {
+    for (const item of grupo.itens) {
+      entradas.push({ secao: item.id, grupo: grupo.titulo, secaoLabel: item.label });
+    }
+  }
+  for (const c of CAMPOS_INDEXADOS) {
+    entradas.push({
+      secao: c.secao,
+      grupo: GRUPO_DA_SECAO[c.secao],
+      secaoLabel: LABEL_DA_SECAO[c.secao],
+      campo: c.campo,
+      ancora: c.ancora,
+    });
+  }
+  return entradas;
+}
+
+function semAcento(texto: string): string {
+  return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+}
+
+// Ultimo backup feito NESTE computador - registro local, so para o aviso de
+// manutencao da Visao geral. Nao substitui o backup em si.
+const CHAVE_ULTIMO_BACKUP = "coordenacaoop:ultimo-backup";
+function registrarBackupFeito(ciclos: string[]) {
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_BACKUP, JSON.stringify({ em: new Date().toISOString(), ciclos }));
+  } catch {
+    /* localStorage indisponivel - sem aviso, tudo bem */
+  }
+}
+function lerUltimoBackup(): { em: string; ciclos: string[] } | null {
+  try {
+    const bruto = localStorage.getItem(CHAVE_ULTIMO_BACKUP);
+    if (!bruto) return null;
+    const dado = JSON.parse(bruto) as { em?: unknown; ciclos?: unknown };
+    if (dado && typeof dado.em === "string") {
+      return { em: dado.em, ciclos: Array.isArray(dado.ciclos) ? (dado.ciclos as string[]) : [] };
+    }
+  } catch {
+    /* valor corrompido - ignora */
+  }
+  return null;
+}
+function diasDesde(iso: string): number {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return 0;
+  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
+}
 
 function rotuloCiclo(ciclo: string) {
   const rotulos: Record<string, string> = {
@@ -233,6 +409,8 @@ export function Configuracoes({
   onAbrirAssistenteSync,
   onDadosAlterados,
   onConfigSalva,
+  onVerNovidades,
+  secaoInicial,
 }: {
   turmas: TurmaConfiguracoes[];
   perfilSync: WorkgroupSyncProfile;
@@ -240,10 +418,13 @@ export function Configuracoes({
   onAbrirAssistenteSync: () => void;
   onDadosAlterados: () => void;
   onConfigSalva: (config: ConfiguracoesApp) => void;
+  onVerNovidades?: () => void;
+  secaoInicial?: SettingsSection;
 }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
     direcao_pronome: "F",
+    equipe_gestora: equipeGestoraVazia(),
     nota_minima: 5,
     cabecalho_ata: null,
     lider_ativo: true,
@@ -276,8 +457,76 @@ export function Configuracoes({
   const [verificandoIa, setVerificandoIa] = useState(false);
   const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
-  const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
+  const [secaoConfig, setSecaoConfig] = useState<SettingsSection>(secaoInicial ?? "visao-geral");
   const [autostartAtivo, setAutostartAtivo] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [buscaFoco, setBuscaFoco] = useState(false);
+  const [buscaIndiceAtivo, setBuscaIndiceAtivo] = useState(0);
+  const [ancoraDestacada, setAncoraDestacada] = useState<string | null>(null);
+  const buscaRef = useRef<HTMLInputElement | null>(null);
+  const indiceBusca = useMemo(() => construirIndiceBusca(), []);
+  const resultadosBusca = useMemo(() => {
+    const termo = semAcento(busca.trim());
+    if (!termo) return [];
+    return indiceBusca
+      .filter((e) => {
+        const alvo = semAcento(`${e.campo ?? ""} ${e.secaoLabel} ${e.grupo}`);
+        return alvo.includes(termo);
+      })
+      .slice(0, 8);
+  }, [busca, indiceBusca]);
+
+  function irParaResultado(resultado: IndiceConfig) {
+    setSecaoConfig(resultado.secao);
+    setBusca("");
+    setBuscaFoco(false);
+    setBuscaIndiceAtivo(0);
+    if (resultado.ancora) {
+      const ancora = resultado.ancora;
+      window.setTimeout(() => {
+        document.getElementById(ancora)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setAncoraDestacada(ancora);
+      }, 60);
+    }
+  }
+
+  useEffect(() => {
+    if (!ancoraDestacada) return;
+    const alvo = document.getElementById(ancoraDestacada);
+    if (!alvo) return;
+    alvo.classList.add("cfg-ancora-destacada");
+    const limpar = window.setTimeout(() => {
+      alvo.classList.remove("cfg-ancora-destacada");
+      setAncoraDestacada(null);
+    }, 1900);
+    return () => {
+      window.clearTimeout(limpar);
+      alvo.classList.remove("cfg-ancora-destacada");
+    };
+  }, [ancoraDestacada]);
+
+  function aoTeclarNaBusca(evento: ReactKeyboardEvent<HTMLInputElement>) {
+    if (!resultadosBusca.length) {
+      if (evento.key === "Escape") buscaRef.current?.blur();
+      return;
+    }
+    if (evento.key === "ArrowDown") {
+      evento.preventDefault();
+      setBuscaIndiceAtivo((i) => (i + 1) % resultadosBusca.length);
+    } else if (evento.key === "ArrowUp") {
+      evento.preventDefault();
+      setBuscaIndiceAtivo((i) => (i - 1 + resultadosBusca.length) % resultadosBusca.length);
+    } else if (evento.key === "Enter") {
+      evento.preventDefault();
+      const escolhido = resultadosBusca[buscaIndiceAtivo] ?? resultadosBusca[0];
+      if (escolhido) irParaResultado(escolhido);
+    } else if (evento.key === "Escape") {
+      evento.preventDefault();
+      setBusca("");
+      setBuscaFoco(false);
+      buscaRef.current?.blur();
+    }
+  }
   const [duplicatasDisciplinas, setDuplicatasDisciplinas] = useState<GrupoDisciplinaDuplicada[] | null>(null);
   const [processandoDuplicatas, setProcessandoDuplicatas] = useState(false);
   const [mensagemDuplicatas, setMensagemDuplicatas] = useState("");
@@ -355,42 +604,6 @@ export function Configuracoes({
       ...atual,
       encaminhamento_opcoes: atual.encaminhamento_opcoes.filter((_, i) => i !== indice),
     }));
-  }
-
-  function adicionarTemplateMensagem() {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: [
-        ...atual.mensagem_familia_templates,
-        { id: `tpl-${Date.now()}`, titulo: "", corpo: "", tags: [] },
-      ],
-    }));
-  }
-
-  function atualizarTemplateMensagem(indice: number, campos: Partial<MensagemTemplate>) {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: atual.mensagem_familia_templates.map((item, i) =>
-        i === indice ? { ...item, ...campos } : item,
-      ),
-    }));
-  }
-
-  function removerTemplateMensagem(indice: number) {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: atual.mensagem_familia_templates.filter((_, i) => i !== indice),
-    }));
-  }
-
-  function moverTemplateMensagem(indice: number, direcao: -1 | 1) {
-    setConfig((atual) => {
-      const alvo = indice + direcao;
-      if (alvo < 0 || alvo >= atual.mensagem_familia_templates.length) return atual;
-      const lista = [...atual.mensagem_familia_templates];
-      [lista[indice], lista[alvo]] = [lista[alvo], lista[indice]];
-      return { ...atual, mensagem_familia_templates: lista };
-    });
   }
 
   function adicionarCriterioPerfil() {
@@ -480,6 +693,24 @@ export function Configuracoes({
     }
   }
 
+  // Equipe gestora: salva só esse campo (carimba atualizado_em p/ o sync do grupo).
+  async function salvarEquipe() {
+    setProcessando(true);
+    setMensagem("");
+    setErro("");
+    try {
+      const salvo = await invokeApp<ConfiguracoesApp>("salvar_equipe_gestora", { equipe: config.equipe_gestora });
+      setConfig(salvo);
+      setMensagem("Equipe gestora salva.");
+      onConfigSalva(salvo);
+      onDadosAlterados();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
   async function enviarCabecalhoAta(arquivo: File | null) {
     if (!arquivo) return;
     const nome = arquivo.name.toLowerCase();
@@ -512,6 +743,7 @@ export function Configuracoes({
       const ciclos = ciclosBackup.includes("todos") ? [] : ciclosBackup;
       const resultado = await invokeApp<BackupResultado>("exportar_backup_seletivo", { input: { ciclos } });
       setUltimoBackup(resultado.caminho);
+      registrarBackupFeito(ciclos);
       setMensagem(`Backup gerado com ${resultado.arquivos} arquivos em: ${resultado.caminho}`);
     } catch (err) {
       setErro(String(err));
@@ -865,90 +1097,81 @@ export function Configuracoes({
     }
   }
 
-  const gruposConfiguracoes: Array<{
-    titulo: string;
-    itens: Array<{ id: SettingsSection; label: string; resumo?: string }>;
-  }> = [
-    {
-      titulo: "Institucional",
-      itens: [
-        { id: "instituicao", label: "Instituição" },
-        {
-          id: "turmas",
-          label: "Turmas",
-          resumo: pluralizar(config.atendimento_tipos.length, "tipo de atendimento", "tipos de atendimento"),
-        },
-        {
-          id: "mensagens-familia",
-          label: "Mensagens à família",
-          resumo: pluralizar(config.mensagem_familia_templates.length, "modelo", "modelos"),
-        },
-      ],
-    },
-    {
-      titulo: "Conselho",
-      itens: [
-        {
-          id: "conselho-perfil",
-          label: "Perfil da turma",
-          resumo: config.perfil_turma_ativo
-            ? `Ativo · ${pluralizar((config.perfil_turma_criterios ?? []).length, "critério", "critérios")}`
-            : "Desativado",
-        },
-        {
-          id: "conselho-destaque",
-          label: "Aluno destaque",
-          resumo: config.aluno_destaque_ativo
-            ? `Ativo · ${pluralizar((config.aluno_destaque_criterios ?? []).length, "categoria", "categorias")}`
-            : "Desativado",
-        },
-        {
-          id: "conselho-encaminhamentos",
-          label: "Encaminhamentos",
-          resumo: pluralizar(config.encaminhamento_opcoes.length, "opção", "opções"),
-        },
-        {
-          id: "conselho-notas",
-          label: "Notas na ATA",
-          resumo: opcoesModoNotasAta.find((opcao) => opcao.valor === config.modo_notas_ata)?.rotulo,
-        },
-      ],
-    },
-    {
-      titulo: "Perfil & Sincronização",
-      itens: [
-        { id: "perfil-dispositivo", label: "Perfil e dispositivo" },
-        {
-          id: "sync-grupo",
-          label: "Sincronização de grupo",
-          resumo: perfilSync.syncEnabled ? "Ativa" : "Desativada",
-        },
-        { id: "sync-institucional", label: "Turmas e alunos" },
-      ],
-    },
-    {
-      titulo: "Sistema",
-      itens: [
-        { id: "assistente", label: "Assistente pedagógico" },
-        { id: "backup", label: "Backup" },
-        { id: "manutencao-dados", label: "Manutenção de dados" },
-        { id: "atualizacao", label: "Atualização" },
-      ],
-    },
-  ];
+  const totalResultados = resultadosBusca.length;
 
   return (
     <section className="settings-page">
       <div className="page-title-row">
         <div>
           <h1>Configurações</h1>
-          <p>Dados institucionais, backup e atualização do programa.</p>
+          <p>Ajustes desta instalação e da instituição. Listas usadas no dia a dia ficam nas próprias telas.</p>
         </div>
       </div>
 
-      <section className="panel settings-layout">
-        <nav className="settings-nav" aria-label="Seções de configurações">
-          {gruposConfiguracoes.map((grupo) => {
+      <section className="panel settings-layout settings-layout-v2">
+        <nav className="settings-nav settings-nav-v2" aria-label="Seções de configurações">
+          <div className={`settings-busca ${buscaFoco ? "focada" : ""}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              ref={buscaRef}
+              type="search"
+              value={busca}
+              placeholder="Buscar ajuste ou campo…"
+              onChange={(evento) => { setBusca(evento.target.value); setBuscaIndiceAtivo(0); }}
+              onFocus={() => setBuscaFoco(true)}
+              onBlur={() => window.setTimeout(() => setBuscaFoco(false), 120)}
+              onKeyDown={aoTeclarNaBusca}
+              aria-label="Buscar ajuste ou campo"
+              aria-expanded={buscaFoco && totalResultados > 0}
+              aria-controls="settings-busca-lista"
+              role="combobox"
+            />
+            {buscaFoco && busca.trim() && (
+              <div className="settings-busca-dropdown" id="settings-busca-lista" role="listbox">
+                {totalResultados === 0 ? (
+                  <div className="settings-busca-vazio">Nada encontrado para “{busca.trim()}”.</div>
+                ) : (
+                  <>
+                    {resultadosBusca.some((r) => r.campo) && <div className="settings-busca-grupo">Campos</div>}
+                    {resultadosBusca.map((resultado, indice) => (
+                      <button
+                        key={`${resultado.secao}-${resultado.campo ?? "secao"}-${indice}`}
+                        type="button"
+                        role="option"
+                        aria-selected={indice === buscaIndiceAtivo}
+                        className={`settings-busca-item ${indice === buscaIndiceAtivo ? "ativo" : ""}`}
+                        onMouseDown={(evento) => { evento.preventDefault(); irParaResultado(resultado); }}
+                        onMouseEnter={() => setBuscaIndiceAtivo(indice)}
+                      >
+                        <strong>{resultado.campo ?? resultado.secaoLabel}</strong>
+                        <small>{resultado.campo ? `${resultado.grupo} › ${resultado.secaoLabel}` : resultado.grupo}</small>
+                      </button>
+                    ))}
+                    <div className="settings-busca-rodape">
+                      <span>{pluralizar(totalResultados, "resultado", "resultados")}</span>
+                      <span className="settings-busca-teclas">navegar <kbd>↑↓</kbd></span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={`settings-nav-visaogeral ${secaoConfig === "visao-geral" ? "active" : ""}`}
+            onClick={() => setSecaoConfig("visao-geral")}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" />
+              <rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
+            </svg>
+            Visão geral
+          </button>
+
+          {GRUPOS_CONFIG.map((grupo) => {
             const grupoAtivo = grupo.itens.some((item) => item.id === secaoConfig);
             return (
               <div key={grupo.titulo} className={`settings-nav-group ${grupoAtivo ? "active" : ""}`}>
@@ -961,7 +1184,6 @@ export function Configuracoes({
                     onClick={() => setSecaoConfig(item.id)}
                   >
                     <strong>{item.label}</strong>
-                    {item.resumo && <span>{item.resumo}</span>}
                   </button>
                 ))}
               </div>
@@ -970,56 +1192,73 @@ export function Configuracoes({
         </nav>
 
         <div className="settings-content">
+        {secaoConfig === "visao-geral" && (
+          <VisaoGeralConfig
+            config={config}
+            perfilSync={perfilSync}
+            appInfo={appInfo}
+            ultimoBackup={ultimoBackup}
+            atualizacaoDisponivel={atualizacao}
+            aiSettings={aiSettings}
+            onIr={setSecaoConfig}
+          />
+        )}
+        {secaoConfig === "equipe-gestora" && (
+        <article className="settings-card">
+          <CabecalhoSecao
+            secao="equipe-gestora"
+            titulo="Equipe gestora"
+            descricao="Direção, vice-direções e coordenações com nome e gênero. É a fonte da verdade para quem assina documentos e aparece no grupo de trabalho."
+            acao={<button type="button" className="primary-action" onClick={salvarEquipe} disabled={processando}>Salvar alterações</button>}
+          />
+          <EquipeGestoraSecao
+            equipe={config.equipe_gestora}
+            onPatch={(fn) => setConfig((atual) => ({ ...atual, equipe_gestora: fn(atual.equipe_gestora) }))}
+            perfilSync={perfilSync}
+          />
+        </article>
+        )}
+
         {secaoConfig === "instituicao" && (
         <article className="settings-card">
-          <h2>Direção e critérios</h2>
-          <label>
-            Nome da direção
-            <input value={config.direcao_nome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_nome: event.target.value }))} />
-          </label>
-          <label>
-            Pronome
-            <select value={config.direcao_pronome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_pronome: event.target.value }))}>
-              <option value="F">Feminino: Diretora Sra.</option>
-              <option value="M">Masculino: Diretor Sr.</option>
-            </select>
-          </label>
-          <label>
-            Média mínima
-            <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
-          </label>
-          <label>
-            Prazo do 1º semestre (bimestres 1º e 2º)
-            <input type="date" value={config.prazo_1_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_1_semestre: event.target.value }))} />
-          </label>
-          <label>
-            Prazo do 2º semestre (bimestres 3º e 4º)
-            <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
-          </label>
+          <CabecalhoSecao
+            secao="instituicao"
+            titulo="Instituição"
+            descricao="Calendário letivo e cabeçalho usado na ATA, nos relatórios e nos documentos impressos."
+            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
+          />
 
-          <fieldset style={{ border: "1px solid #e4e7ec", borderRadius: "0.5rem", padding: "0.75rem 0.9rem", margin: "0.5rem 0" }}>
-            <legend style={{ fontWeight: 600, fontSize: "0.85rem", padding: "0 0.35rem" }}>Bimestre atual</legend>
-            <p style={{ color: "#667085", fontSize: "0.85rem", margin: "0 0 0.6rem" }}>
-              Define o bimestre que o app usa nas telas de turma, aluno e mensagens à família.
-              Deixe em <strong>Automático</strong> para o app decidir pela data de hoje (usando as datas de início abaixo)
-              ou, se elas não estiverem preenchidas, pelo maior bimestre já importado.
-            </p>
-            <label>
-              Modo
-              <select
-                value={config.bimestre_pin}
-                onChange={(event) => setConfig((atual) => ({ ...atual, bimestre_pin: event.target.value }))}
-              >
-                <option value="">Automático</option>
-                <option value="1">Fixo no 1º bimestre</option>
-                <option value="2">Fixo no 2º bimestre</option>
-                <option value="3">Fixo no 3º bimestre</option>
-                <option value="4">Fixo no 4º bimestre</option>
-              </select>
-            </label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.5rem", marginTop: "0.5rem" }}>
+          <div className="cfg-artigo" id="cfg-instituicao-ciclo">
+            <div className="cfg-artigo-titulo">
+              <strong>Calendário letivo</strong>
+              <span>define o bimestre que as telas mostram por padrão</span>
+            </div>
+            <div className="cfg-campos-2col">
+              <label>
+                Bimestre atual
+                <select
+                  value={config.bimestre_pin}
+                  onChange={(event) => setConfig((atual) => ({ ...atual, bimestre_pin: event.target.value }))}
+                >
+                  <option value="">Automático (pela data de hoje)</option>
+                  <option value="1">Fixo no 1º bimestre</option>
+                  <option value="2">Fixo no 2º bimestre</option>
+                  <option value="3">Fixo no 3º bimestre</option>
+                  <option value="4">Fixo no 4º bimestre</option>
+                </select>
+              </label>
+              <label>
+                Média mínima
+                <input type="number" min="0" max="10" step="0.1" value={config.nota_minima} onChange={(event) => setConfig((atual) => ({ ...atual, nota_minima: Number(event.target.value) }))} />
+              </label>
+            </div>
+            <div className="cfg-consequencia">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" /></svg>
+              <span>No modo automático, o app decide o bimestre pelas datas de início abaixo; se elas estiverem vazias, usa o maior bimestre já importado.</span>
+            </div>
+            <div className="cfg-campos-2col" id="cfg-instituicao-bimestres">
               {[0, 1, 2, 3].map((i) => (
-                <label key={i} style={{ fontSize: "0.82rem" }}>
+                <label key={i}>
                   Início do {i + 1}º bimestre
                   <input
                     type="date"
@@ -1035,27 +1274,66 @@ export function Configuracoes({
                 </label>
               ))}
             </div>
-          </fieldset>
-
-          <div className="settings-file-group">
-            <span>Cabeçalho da ata</span>
-            <p>Use uma imagem JPG ou PNG com o cabeçalho oficial da escola. Ela aparecerá na ata e no relatório dos professores.</p>
-            <label className="file-action">
-              Enviar imagem de cabeçalho
-              <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={(event) => enviarCabecalhoAta(event.target.files?.[0] ?? null)} />
-            </label>
-            <span className="settings-version">
-              {config.cabecalho_ata ? "Cabeçalho personalizado configurado." : "Usando cabeçalho padrão, se existir na pasta de dados."}
-            </span>
+            <div className="cfg-campos-2col">
+              <label>
+                Prazo do 1º semestre (bimestres 1º e 2º)
+                <input type="date" value={config.prazo_1_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_1_semestre: event.target.value }))} />
+              </label>
+              <label>
+                Prazo do 2º semestre (bimestres 3º e 4º)
+                <input type="date" value={config.prazo_2_semestre} onChange={(event) => setConfig((atual) => ({ ...atual, prazo_2_semestre: event.target.value }))} />
+              </label>
+            </div>
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando}>Salvar configurações</button>
+
+          <div className="cfg-artigo" id="cfg-instituicao-cabecalho">
+            <div className="cfg-artigo-titulo">
+              <strong>Cabeçalho dos documentos</strong>
+              <span>prévia à direita</span>
+            </div>
+            <div className="cfg-cabecalho-grid">
+              <div className="settings-file-group" style={{ margin: 0 }}>
+                <span>Imagem de cabeçalho</span>
+                <p>JPG ou PNG com o cabeçalho oficial da escola. Aparece na ATA e no relatório dos professores.</p>
+                <label className="file-action">
+                  Enviar imagem de cabeçalho
+                  <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onChange={(event) => enviarCabecalhoAta(event.target.files?.[0] ?? null)} />
+                </label>
+                <span className="settings-version">
+                  {config.cabecalho_ata ? "Cabeçalho personalizado configurado." : "Usando cabeçalho padrão, se existir na pasta de dados."}
+                </span>
+              </div>
+              <div className="cfg-preview-ata">
+                <span className="cfg-preview-ata-rotulo">Prévia</span>
+                <div className="cfg-preview-ata-folha">
+                  <div className="cfg-preview-ata-topo">
+                    <span style={{ width: 26, height: 26, borderRadius: 5, background: "#f2f0ec", flexShrink: 0 }} aria-hidden="true" />
+                    <div>
+                      <div className="cfg-preview-ata-l1">Prefeitura / Secretaria de Educação</div>
+                      <div className="cfg-preview-ata-l2">{config.cabecalho_ata ? "Cabeçalho enviado" : "Nome da escola"}</div>
+                    </div>
+                  </div>
+                  <div className="cfg-preview-ata-regua" />
+                  <div className="cfg-preview-ata-titulo">ATA DO CONSELHO DE CLASSE</div>
+                  <div className="cfg-preview-ata-sub">2ª A · 3º bimestre</div>
+                  <div className="cfg-preview-ata-linhas">
+                    <span /><span /><span style={{ width: "72%" }} /><span style={{ width: "84%" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </article>
         )}
         {secaoConfig === "turmas" && (
         <article className="settings-card">
-          <h2>Configuração de turmas</h2>
-          <p>Ative/desative e renomeie campos usados nas turmas e no conselho. Ao desativar, o campo é removido dessas telas.</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
+          <CabecalhoSecao
+            secao="turmas"
+            titulo="Turmas"
+            descricao="Campos usados nas turmas e no conselho, e os tipos de atendimento da ficha do aluno. Valem para toda a escola."
+            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
+          />
+          <div id="cfg-turmas-campos" style={{ display: "flex", flexWrap: "wrap", gap: "1rem", alignItems: "flex-end" }}>
             <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <input type="checkbox" checked={config.lider_ativo} onChange={(e) => setConfig((a) => ({ ...a, lider_ativo: e.target.checked }))} />
               Usar líder de sala
@@ -1075,9 +1353,9 @@ export function Configuracoes({
               <input value={config.elegivel_rotulo} disabled={!config.elegivel_ativo} onChange={(e) => setConfig((a) => ({ ...a, elegivel_rotulo: e.target.value }))} placeholder="Ex.: Elegível" style={{ width: "100%" }} />
             </label>
           </div>
-          <div style={{ marginTop: "1.25rem" }}>
+          <div style={{ marginTop: "1.25rem" }} id="cfg-turmas-tipos">
             <h3 style={{ marginBottom: "0.25rem" }}>Tipos de atendimento</h3>
-            <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>Defina as opções disponíveis na aba Atendimentos da ficha do aluno.</p>
+            <p style={{ color: "#667085", fontSize: "0.9rem", marginBottom: "0.75rem" }}>Defina as opções disponíveis na aba Atendimentos da ficha do aluno. Valem para toda a escola.</p>
             <div style={{ display: "grid", gap: "0.5rem", marginBottom: "0.5rem" }}>
               {config.atendimento_tipos.map((tipo, indice) => (
                 <div key={indice} style={{ display: "flex", gap: "0.5rem" }}>
@@ -1098,14 +1376,12 @@ export function Configuracoes({
             </div>
             <button type="button" className="secondary-action" onClick={adicionarTipoAtendimento}>Adicionar tipo</button>
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "1rem" }}>Salvar configurações</button>
         </article>
         )}
 
         {secaoConfig === "conselho-perfil" && (
         <article className="settings-card">
-          <h2>Perfil da turma</h2>
-          <p>Critérios de observação exibidos no conselho e na ATA.</p>
+          <CabecalhoSecao secao="conselho-perfil" titulo="Perfil da turma" descricao="Critérios de observação exibidos no conselho e na ATA." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <label className="settings-check-row">
             <input
               type="checkbox"
@@ -1155,16 +1431,12 @@ export function Configuracoes({
               </button>
             </>
           )}
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-destaque" && (
         <article className="settings-card">
-          <h2>Aluno destaque/superação</h2>
-          <p>Categorias registradas por aluno no conselho e na ATA.</p>
+          <CabecalhoSecao secao="conselho-destaque" titulo="Aluno destaque" descricao="Categorias de destaque e superação registradas por aluno no conselho e na ATA." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <label className="settings-check-row">
             <input
               type="checkbox"
@@ -1223,16 +1495,12 @@ export function Configuracoes({
               </button>
             </>
           )}
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-encaminhamentos" && (
         <article className="settings-card">
-          <h2>Encaminhamentos</h2>
-          <p>Opções disponíveis para marcar por aluno no conselho e listadas em "Outras observações e encaminhamentos" na ATA.</p>
+          <CabecalhoSecao secao="conselho-encaminhamentos" titulo="Encaminhamentos" descricao={`Opções para marcar por aluno no conselho e listadas em "Outras observações e encaminhamentos" na ATA.`} acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
           <div style={{ display: "grid", gap: "0.5rem", marginBottom: "0.5rem" }}>
             {config.encaminhamento_opcoes.map((opcao, indice) => (
               <div key={opcao.numero} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
@@ -1253,97 +1521,13 @@ export function Configuracoes({
             )}
           </div>
           <button type="button" className="secondary-action" onClick={adicionarEncaminhamento}>Adicionar encaminhamento</button>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
-        </article>
-        )}
-
-        {secaoConfig === "mensagens-familia" && (
-        <article className="settings-card">
-          <h2>Mensagens à família</h2>
-          <p>
-            Modelos de mensagem enviados ao responsável pela tela do aluno (via WhatsApp). Crie
-            um modelo por situação — faltas, tarefas em atraso, convocação. Cada envio fica
-            registrado como atendimento do aluno, com as <strong>tags</strong> definidas aqui.
-          </p>
-          <p style={{ color: "#667085", fontSize: "0.85rem" }}>
-            Use variáveis entre chaves no texto — elas são trocadas pelos dados reais do estudante
-            ao compor a mensagem. Clique para inserir:
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
-            {VARIAVEIS_MENSAGEM.map((variavel) => (
-              <span
-                key={variavel.chave}
-                title={variavel.rotulo}
-                style={{
-                  background: "#f2f4f7",
-                  border: "1px solid #e4e7ec",
-                  borderRadius: "999px",
-                  padding: "0.15rem 0.6rem",
-                  fontSize: "0.8rem",
-                  color: "#475467",
-                }}
-              >
-                {`{${variavel.chave}}`}
-              </span>
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gap: "1rem" }}>
-            {config.mensagem_familia_templates.map((template, indice) => (
-              <div
-                key={template.id}
-                style={{ border: "1px solid #e4e7ec", borderRadius: "0.6rem", padding: "0.85rem", display: "grid", gap: "0.5rem" }}
-              >
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <input
-                    value={template.titulo}
-                    onChange={(event) => atualizarTemplateMensagem(indice, { titulo: event.target.value })}
-                    placeholder="Título do modelo (ex.: Excesso de faltas)"
-                    style={{ flex: 1, fontWeight: 600 }}
-                  />
-                  <button type="button" onClick={() => moverTemplateMensagem(indice, -1)} disabled={indice === 0} aria-label="Mover para cima">↑</button>
-                  <button type="button" onClick={() => moverTemplateMensagem(indice, 1)} disabled={indice === config.mensagem_familia_templates.length - 1} aria-label="Mover para baixo">↓</button>
-                  <button type="button" className="danger-action" onClick={() => removerTemplateMensagem(indice)}>Remover</button>
-                </div>
-                <textarea
-                  value={template.corpo}
-                  onChange={(event) => atualizarTemplateMensagem(indice, { corpo: event.target.value })}
-                  placeholder="Corpo da mensagem. Ex.: Prezado(a) responsável por {aluno}, ..."
-                  rows={6}
-                />
-                <input
-                  value={template.tags.join(", ")}
-                  onChange={(event) =>
-                    atualizarTemplateMensagem(indice, {
-                      tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean),
-                    })
-                  }
-                  placeholder="Tags do atendimento (separadas por vírgula) — ex.: Faltas"
-                />
-              </div>
-            ))}
-            {!config.mensagem_familia_templates.length && (
-              <span style={{ color: "#667085", fontSize: "0.85rem" }}>
-                Nenhum modelo. Sem modelos, o app usa os exemplos padrão ao salvar.
-              </span>
-            )}
-          </div>
-          <button type="button" className="secondary-action" onClick={adicionarTemplateMensagem} style={{ marginTop: "0.5rem" }}>
-            Adicionar modelo
-          </button>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "conselho-notas" && (
         <article className="settings-card">
-          <h2>Notas na ATA</h2>
-          <p>Escolha como as notas de cada disciplina aparecem na ATA do conselho.</p>
-          <div className="ata-notas-options">
+          <CabecalhoSecao secao="conselho-notas" titulo="Notas na ATA" descricao="Como as notas de cada disciplina aparecem na ATA do conselho." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
+          <div className="ata-notas-options" id="cfg-notas-minima">
             {opcoesModoNotasAta.map((opcao) => (
               <label key={opcao.valor} className="settings-check-row">
                 <input
@@ -1357,16 +1541,12 @@ export function Configuracoes({
               </label>
             ))}
           </div>
-          <button className="primary-action" onClick={salvar} disabled={processando} style={{ marginTop: "0.5rem" }}>
-            Salvar configurações
-          </button>
         </article>
         )}
 
         {secaoConfig === "perfil-dispositivo" && (
         <article className="settings-card">
-          <h2>Perfil e dispositivo</h2>
-          <p>Identifique esta instalação antes de compartilhar dados com outros coordenadores.</p>
+          <CabecalhoSecao secao="perfil-dispositivo" titulo="Perfil e dispositivo" descricao="Identifique esta instalação antes de compartilhar dados com outros coordenadores. Salva sozinho." />
           <div className="profile-photo-settings">
             {perfilSync.avatarDataUrl ? (
               <img src={perfilSync.avatarDataUrl} alt="" />
@@ -1396,15 +1576,15 @@ export function Configuracoes({
         </article>
         )}
 
-        {secaoConfig === "sync-grupo" && (
-        <article className="settings-card">
-          <h2>Sincronização de grupo</h2>
-          <p>Compartilhe o Quadro de Gestão com outros coordenadores.</p>
+        {secaoConfig === "sincronizacao" && (
+        <>
+        <article className="settings-card" id="cfg-sync-grupo">
+          <CabecalhoSecao secao="sincronizacao" titulo="Sincronização" descricao="Compartilhe turmas, alunos e o Quadro de Gestão com outros coordenadores da instituição." />
           <label className="settings-check-row">
             <input type="checkbox" checked={perfilSync.syncEnabled} onChange={(event) => atualizarPerfilSync("syncEnabled", event.target.checked)} />
             Ativar sincronização de grupo de trabalho
           </label>
-          <div className="settings-file-group">
+          <div className="settings-file-group" id="cfg-sync-pasta">
             <span>Pasta compartilhada</span>
             <p>Use uma pasta OneDrive compartilhada exclusivamente para o CoordenacaoOP.</p>
             <button type="button" onClick={escolherPastaSincronizacao}>Escolher pasta</button>
@@ -1426,28 +1606,36 @@ export function Configuracoes({
             </div>
           )}
         </article>
-        )}
-
-        {secaoConfig === "sync-institucional" && (
-        <article className="settings-card">
+        <article className="settings-card" id="cfg-sync-institucional">
           <h2>Turmas e alunos</h2>
-          <p>Sincroniza os dados institucionais da pasta local, incluindo turmas, alunos, elegibilidade, liderança, notas ajustadas e demais registros de conselho.</p>
+          <p>Sincroniza os dados institucionais da pasta local: turmas, alunos, elegibilidade, liderança, notas ajustadas e demais registros de conselho.</p>
           <div className="sync-actions-row">
             <button type="button" onClick={publicarDadosInstitucionaisGrupo} disabled={processando || !perfilSync.syncFolder}>Publicar turmas e alunos</button>
             <button type="button" onClick={atualizarDadosInstitucionaisGrupo} disabled={processando || !perfilSync.syncFolder}>Atualizar turmas e alunos</button>
           </div>
           {!perfilSync.syncFolder && (
-            <span className="settings-version">Escolha a pasta compartilhada em "Sincronização de grupo" antes de publicar ou atualizar.</span>
+            <span className="settings-version">Escolha a pasta compartilhada acima antes de publicar ou atualizar.</span>
           )}
           {perfilSync.lastInstitutionalPublishedAt && <span className="settings-version">Última publicação de turmas: {new Date(perfilSync.lastInstitutionalPublishedAt).toLocaleString("pt-BR")}</span>}
           {perfilSync.lastInstitutionalPulledAt && <span className="settings-version">Última atualização de turmas: {new Date(perfilSync.lastInstitutionalPulledAt).toLocaleString("pt-BR")}</span>}
+        </article>
+        </>
+        )}
+
+        {secaoConfig === "whatsapp" && (
+        <article className="settings-card" id="cfg-whatsapp-token">
+          <CabecalhoSecao
+            secao="whatsapp"
+            titulo="WhatsApp"
+            descricao="Credenciais da API oficial do WhatsApp, para disparos em lote. A fila assistida (abrir o WhatsApp e apertar enviar) funciona sem configurar nada."
+          />
+          <ConfigEnvioAutomatico />
         </article>
         )}
 
         {secaoConfig === "backup" && (
         <article className="settings-card">
-          <h2>Backup</h2>
-          <p>O formato antigo de backup é compatível com a modern-ui.</p>
+          <CabecalhoSecao secao="backup" titulo="Backup" descricao="Exporta e restaura os dados do app. Compatível com o formato antigo de backup." />
           <div className="backup-cycle-options" aria-label="Selecionar ciclos para backup">
             <button className={ciclosBackup.includes("todos") ? "selected" : ""} onClick={() => alternarCicloBackup("todos")}>
               Tudo
@@ -1483,13 +1671,14 @@ export function Configuracoes({
 
         {secaoConfig === "manutencao-dados" && (
         <article className="settings-card">
-          <h2>Manutenção de dados</h2>
-          <p>
-            Encontra disciplinas gravadas com grafias diferentes (ex.: com e sem hífen) que
-            deveriam ser a mesma matéria — resíduo de importações antigas, antes da normalização
-            atual existir. Revise a lista antes de corrigir: a correção funde as notas, a
-            frequência e a carga horária sob uma única grafia, preferindo sempre o valor mais
-            recente.
+          <CabecalhoSecao
+            secao="manutencao-dados"
+            titulo="Manutenção de dados"
+            descricao="Encontra disciplinas gravadas com grafias diferentes que deveriam ser a mesma matéria — resíduo de importações antigas."
+          />
+          <p className="settings-version">
+            Revise a lista antes de corrigir: a correção funde notas, frequência e carga horária sob
+            uma única grafia, preferindo sempre o valor mais recente.
           </p>
           <button
             type="button"
@@ -1564,8 +1753,7 @@ export function Configuracoes({
 
         {secaoConfig === "assistente" && (
         <article className="settings-card">
-          <h2>Assistente Pedagógico</h2>
-          <p>Gera rascunhos de relatórios pedagógicos. Provedores em nuvem recebem os dados enviados para o relatório; use apenas com autorização da escola.</p>
+          <CabecalhoSecao secao="assistente" titulo="Assistente pedagógico" descricao="Gera rascunhos de relatórios pedagógicos. Provedores em nuvem recebem os dados do relatório; use apenas com autorização da escola." />
           <label className="settings-check-row">
             <input type="checkbox" checked={aiSettings.enabled} onChange={(event) => atualizarAiSettings("enabled", event.target.checked)} />
             Ativar geração de relatórios com IA
@@ -1721,10 +1909,12 @@ export function Configuracoes({
 
         {secaoConfig === "atualizacao" && (
         <article className="settings-card">
-          <h2>Atualização</h2>
-          <p>A verificação consulta a última versão publicada no GitHub.</p>
+          <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="A verificação consulta a última versão publicada no GitHub." />
           <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
           <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
+          {onVerNovidades && (
+            <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
+          )}
           {atualizacao && (
             <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
           )}
@@ -1759,6 +1949,197 @@ export function Configuracoes({
         />
       )}
     </section>
+  );
+}
+
+// Cabeçalho único de seção (handoff #6): trilha + título + descrição + slot de ação.
+function CabecalhoSecao({
+  secao,
+  titulo,
+  descricao,
+  acao,
+}: {
+  secao: SettingsSection;
+  titulo: string;
+  descricao: string;
+  acao?: ReactNode;
+}) {
+  const seta = (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+  return (
+    <header className="cfg-secao-cabecalho">
+      <div className="cfg-trilha">
+        <span>Configurações</span>
+        {seta}
+        <span>{GRUPO_DA_SECAO[secao] || "Geral"}</span>
+        {seta}
+        <strong>{LABEL_DA_SECAO[secao]}</strong>
+      </div>
+      <div className="cfg-secao-cabecalho-linha">
+        <div>
+          <h2>{titulo}</h2>
+          <p>{descricao}</p>
+        </div>
+        {acao && <div className="cfg-secao-acao">{acao}</div>}
+      </div>
+    </header>
+  );
+}
+
+type LinhaCard = { label: string; secao: SettingsSection; estado: string; tom?: "ok" | "atencao" };
+
+// Porta de entrada (handoff 1a): faixa de manutencao + grade 2x2 de grupos com
+// o estado real de cada destino.
+function VisaoGeralConfig({
+  config,
+  perfilSync,
+  appInfo,
+  atualizacaoDisponivel,
+  aiSettings,
+  onIr,
+}: {
+  config: ConfiguracoesApp;
+  perfilSync: WorkgroupSyncProfile;
+  appInfo: AppInfo | null;
+  ultimoBackup: string | null;
+  atualizacaoDisponivel: Update | null;
+  aiSettings: AiAssistantSettings;
+  onIr: (secao: SettingsSection) => void;
+}) {
+  const backup = lerUltimoBackup();
+  const backupDias = backup ? diasDesde(backup.em) : null;
+  const modoNotas = opcoesModoNotasAta.find((o) => o.valor === config.modo_notas_ata)?.rotulo ?? "Padrão";
+
+  const avisos: Array<{ texto: string; rotulo: string; secao: SettingsSection }> = [];
+  if (backupDias === null) {
+    avisos.push({ texto: "Você ainda não gerou um backup neste computador.", rotulo: "Fazer backup", secao: "backup" });
+  } else if (backupDias >= 7) {
+    avisos.push({
+      texto: `Backup há ${backupDias} ${backupDias === 1 ? "dia" : "dias"}.${backup && backup.ciclos.length ? ` Último: ${backup.ciclos.join(", ")}.` : ""}`,
+      rotulo: "Exportar agora",
+      secao: "backup",
+    });
+  }
+  if (atualizacaoDisponivel) {
+    avisos.push({ texto: `Atualização ${atualizacaoDisponivel.version} disponível.`, rotulo: "Ver atualização", secao: "atualizacao" });
+  }
+  if (perfilSync.lastSyncError) {
+    avisos.push({ texto: "A última sincronização automática falhou.", rotulo: "Abrir Sincronização", secao: "sincronizacao" });
+  }
+
+  const grupos: Array<{ titulo: string; icone: ReactNode; linhas: LinhaCard[]; nota?: string }> = [
+    {
+      titulo: "Institucional",
+      icone: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1" /></svg>,
+      linhas: [
+        { label: "Instituição", secao: "instituicao", estado: config.cabecalho_ata ? "Cabeçalho pronto" : "Sem cabeçalho" },
+        { label: "Turmas", secao: "turmas", estado: pluralizar(config.atendimento_tipos.length, "tipo de atendimento", "tipos de atendimento") },
+      ],
+    },
+    {
+      titulo: "Conselho",
+      icone: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>,
+      linhas: [
+        {
+          label: "Perfil da turma",
+          secao: "conselho-perfil",
+          estado: config.perfil_turma_ativo ? `Ativo · ${pluralizar((config.perfil_turma_criterios ?? []).length, "critério", "critérios")}` : "Desativado",
+          tom: config.perfil_turma_ativo ? "ok" : undefined,
+        },
+        {
+          label: "Aluno destaque",
+          secao: "conselho-destaque",
+          estado: config.aluno_destaque_ativo ? `Ativo · ${pluralizar((config.aluno_destaque_criterios ?? []).length, "categoria", "categorias")}` : "Desativado",
+          tom: config.aluno_destaque_ativo ? "ok" : undefined,
+        },
+        { label: "Encaminhamentos", secao: "conselho-encaminhamentos", estado: pluralizar(config.encaminhamento_opcoes.length, "opção", "opções") },
+        { label: "Notas na ATA", secao: "conselho-notas", estado: modoNotas },
+      ],
+    },
+    {
+      titulo: "Este computador",
+      icone: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="3" rx="2" /><path d="M8 21h8M12 17v4" /></svg>,
+      linhas: [
+        { label: "Perfil e dispositivo", secao: "perfil-dispositivo", estado: [perfilSync.displayName, perfilSync.deviceName].filter(Boolean).join(" · ") || "A configurar" },
+        { label: "Sincronização", secao: "sincronizacao", estado: perfilSync.syncEnabled ? "Ativa" : "Desativada", tom: perfilSync.syncEnabled ? "ok" : undefined },
+        {
+          label: "Backup",
+          secao: "backup",
+          estado: backupDias === null ? "Nunca neste computador" : `Há ${backupDias} ${backupDias === 1 ? "dia" : "dias"}`,
+          tom: backupDias !== null && backupDias >= 7 ? "atencao" : undefined,
+        },
+        {
+          label: "Atualização",
+          secao: "atualizacao",
+          estado: atualizacaoDisponivel ? `${atualizacaoDisponivel.version} disponível` : `${appInfo?.version ? `v${appInfo.version}` : "versão atual"} · em dia`,
+          tom: atualizacaoDisponivel ? "atencao" : undefined,
+        },
+      ],
+    },
+    {
+      titulo: "Integrações",
+      icone: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0-6 6c0 7-3 8-3 8h18s-3-1-3-8a6 6 0 0 0-6-6" /><path d="M10.3 21a2 2 0 0 0 3.4 0" /></svg>,
+      linhas: [
+        { label: "Assistente pedagógico", secao: "assistente", estado: aiSettings.enabled ? `Ativo · ${rotuloAiProvider(aiSettings.provider)}` : "Desligado", tom: aiSettings.enabled ? "ok" : undefined },
+        { label: "WhatsApp", secao: "whatsapp", estado: "Fila assistida sempre disponível" },
+      ],
+      nota: "A fila assistida funciona sem configurar nada.",
+    },
+  ];
+
+  return (
+    <div className="cfg-visaogeral">
+      {avisos.length > 0 && (
+        <div className="cfg-vg-manutencao">
+          {avisos.map((aviso) => (
+            <div key={aviso.secao + aviso.rotulo} className="cfg-vg-aviso">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3" /><path d="M12 9v4M12 17h.01" />
+              </svg>
+              <span>{aviso.texto}</span>
+              <button type="button" onClick={() => onIr(aviso.secao)}>{aviso.rotulo}</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="cfg-vg-grade">
+        {grupos.map((grupo) => (
+          <article key={grupo.titulo} className="cfg-vg-card">
+            <div className="cfg-vg-card-topo">
+              <span className="cfg-vg-card-icone" aria-hidden="true">{grupo.icone}</span>
+              <strong>{grupo.titulo}</strong>
+            </div>
+            <div className="cfg-vg-linhas">
+              {grupo.linhas.map((linha) => (
+                <button key={linha.secao} type="button" className="cfg-vg-linha" onClick={() => onIr(linha.secao)}>
+                  <span className="cfg-vg-linha-label">{linha.label}</span>
+                  <span className={`cfg-vg-linha-estado ${linha.tom ? `tom-${linha.tom}` : ""}`}>
+                    {linha.tom && <span className="cfg-vg-ponto" aria-hidden="true" />}
+                    {linha.estado}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {grupo.nota && <p className="cfg-vg-card-nota">{grupo.nota}</p>}
+          </article>
+        ))}
+      </div>
+
+      <div className="cfg-vg-movidos">
+        <div className="cfg-vg-movidos-topo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <strong>Saiu de Configurações</strong>
+          <span>agora se edita na tela onde é usado</span>
+        </div>
+        <div className="cfg-vg-movidos-chips">
+          <span>Modelos de mensagem<em>Atendimentos › Gerenciar modelos</em></span>
+        </div>
+      </div>
+    </div>
   );
 }
 

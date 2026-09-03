@@ -192,16 +192,16 @@ pub(crate) fn resolver_variaveis_mensagem(
     Ok(vars)
 }
 
-struct SnapshotExpansaoAtual {
-    progresso: Option<f64>,
-    ultimo_acesso: Option<NaiveDate>,
+pub(crate) struct SnapshotExpansaoAtual {
+    pub(crate) progresso: Option<f64>,
+    pub(crate) ultimo_acesso: Option<NaiveDate>,
 }
 
 /// Réplica enxuta de `campos.rs::ultimo_snapshot_do_bimestre`: o snapshot
 /// mais recente (chave ISO "AAAA-MM-DD", ordem crescente no BTreeMap) cujo
 /// bimestre bate com o pedido. Não faz deltas — a mensagem à família é sobre
 /// "agora", não sobre variação entre importações.
-fn snapshot_expansao_atual(aluno: &Value, bimestre: &str) -> Option<SnapshotExpansaoAtual> {
+pub(crate) fn snapshot_expansao_atual(aluno: &Value, bimestre: &str) -> Option<SnapshotExpansaoAtual> {
     let snapshots = aluno
         .get("expansao_online")
         .and_then(|envelope| envelope.get("snapshots"))

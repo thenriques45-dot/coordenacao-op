@@ -1,6 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod apps_script_api;
+mod atendimentos_lote;
 mod apps_script_webapp_conteudo;
 mod apps_script_webapp_pei_conteudo;
 mod backup;
@@ -27,16 +28,17 @@ mod shell;
 mod sync;
 mod tipos;
 mod turmas;
+mod whatsapp_api;
 
 // Re-exporta tudo na raiz do crate: os módulos (e o mod tests) enxergam
 // os itens uns dos outros como antes da divisão do arquivo. O allow cobre os
 // módulos autocontidos, cujos itens ninguém referencia pela raiz.
 #[allow(unused_imports)]
 pub(crate) use {
-    apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
+    apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
+    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 
 use tauri::{
@@ -117,6 +119,8 @@ fn main() {
             config::app_info,
             config::carregar_configuracoes,
             config::salvar_configuracoes,
+            config::salvar_modelos_mensagem,
+            config::salvar_equipe_gestora,
             infra::salvar_estado_ui,
             infra::carregar_estado_ui,
             config::salvar_cabecalho_ata,
@@ -176,7 +180,17 @@ fn main() {
             docx::abrir_documento_conselho,
             turmas::carregar_relatorio_atendimentos,
             turmas::salvar_atendimento_aluno,
+            turmas::definir_followup_previsto,
             mensagem_familia::resolver_variaveis_mensagem,
+            atendimentos_lote::avaliar_condicoes_atendimento_lote,
+            atendimentos_lote::carregar_disparos_lote,
+            atendimentos_lote::iniciar_disparo_lote,
+            atendimentos_lote::atualizar_disparo_lote,
+            whatsapp_api::carregar_config_whatsapp_api,
+            whatsapp_api::salvar_config_whatsapp_api,
+            whatsapp_api::desativar_whatsapp_api,
+            whatsapp_api::testar_conexao_whatsapp_api,
+            whatsapp_api::enviar_mensagem_whatsapp_api,
             turmas::salvar_finalizacao_conselho,
             conselho_pendrive::preparar_pendrive_conselho,
             conselho_pendrive::reintegrar_pendrive_conselho,
@@ -643,6 +657,7 @@ mod tests {
             direcao_nome: "DIRECAO".to_string(),
             direcao_pronome: "F".to_string(),
             vice_direcao: vec![],
+            equipe_gestora: EquipeGestora::default(),
             nota_minima: 5.0,
             cabecalho_ata: None,
             lider_ativo: false,
@@ -912,6 +927,65 @@ mod tests {
         // Frequência acumulada considera o ano todo.
         assert_eq!(matematica.faltas_acumuladas, Some(3.0));
         assert_eq!(matematica.total_aulas_acumuladas, Some(80.0));
+    }
+
+    // O resumo da turma conta os atendimentos e quantos têm follow-up
+    // combinado em aberto — alimenta o subtítulo e a pílula da sidebar.
+    #[test]
+    fn resumir_turma_conta_atendimentos_e_followups_pendentes() {
+        let turma: TurmaArquivo = serde_json::from_value(json!({
+            "codigo": "2ª Série A",
+            "ano": 2026,
+            "serie": "2ª Série",
+            "sala": "01",
+            "periodo": "Manhã",
+            "ciclo": "EM",
+            "carga_horaria": {},
+            "conselhos": {},
+            "alunos": {
+                "1": { "nome": "ALUNO UM", "ativo": true, "atendimentos": [
+                    { "id": "a1", "followup_previsto": { "data": "2026-09-30", "descricao": "x" } },
+                    { "id": "a2" }
+                ]},
+                "2": { "nome": "ALUNO DOIS", "ativo": true, "atendimentos": [
+                    { "id": "a3", "followup_previsto": {} }
+                ]},
+                "3": { "nome": "ALUNO TRES", "ativo": true }
+            }
+        }))
+        .unwrap();
+        let resumo = resumir_turma(turma, std::path::PathBuf::from("turma_2a.json"));
+        assert_eq!(resumo.total_atendimentos, 3);
+        assert_eq!(resumo.followups_pendentes, 1, "objeto vazio não conta como pendência");
+    }
+
+    // followup_previsto no input tem 3 estados (Option<Option<_>>): ausente
+    // não mexe no combinado, `null` limpa (registrar desfecho), objeto define.
+    // Data vazia também limpa.
+    #[test]
+    fn normalizar_followup_previsto_input_cobre_os_tres_estados() {
+        // Ausente: não mexe.
+        assert_eq!(normalizar_followup_previsto_input(&None), None);
+
+        // null explícito: limpar.
+        assert_eq!(normalizar_followup_previsto_input(&Some(None)), Some(None));
+
+        // Objeto com data: definir (com trim).
+        let definir = Some(Some(FollowupPrevisto {
+            data: " 2026-08-30 ".to_string(),
+            descricao: "  Conferir entrega  ".to_string(),
+        }));
+        assert_eq!(
+            normalizar_followup_previsto_input(&definir),
+            Some(Some(json!({ "data": "2026-08-30", "descricao": "Conferir entrega" })))
+        );
+
+        // Objeto sem data: limpar.
+        let sem_data = Some(Some(FollowupPrevisto {
+            data: "  ".to_string(),
+            descricao: "sobra".to_string(),
+        }));
+        assert_eq!(normalizar_followup_previsto_input(&sem_data), Some(None));
     }
 
     // Só "Projeto de Vida" não tem professor de componente que escreva Plano

@@ -10,6 +10,7 @@ import {
   type KanbanTarefa,
 } from "./management";
 import { invokeApp } from "./appBridge";
+import type { ConfiguracoesApp, EquipeGestora } from "./SettingsPage";
 
 // Formato mínimo usado só para carregar a config de Planejamento/PEI do Web
 // App automático via sincronização de grupo — ver WebAppConfigSync abaixo.
@@ -79,6 +80,7 @@ export type WorkgroupSyncPayload = {
     deletedCalendarEvents?: Record<string, string>;
     planejamentoConfig?: WebAppConfigSync | null;
     peiConfig?: WebAppConfigSync | null;
+    equipeGestora?: EquipeGestora | null;
   };
 };
 
@@ -177,7 +179,13 @@ function salvarTombstones(tombstones: SyncTombstones) {
 }
 
 function normalizarNome(valor: string): string[] {
-  return valor.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean);
+  return valor
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // tira acento: "José" == "Jose"
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
 // Compara dois nomes de exibição por prefixo de palavras (não por igualdade
@@ -302,12 +310,56 @@ async function buscarConfigWebAppParaSync(comando: string): Promise<WebAppConfig
   }
 }
 
+// Equipe gestora do config local, só quando há alguém cadastrado — pra não
+// sobrescrever a de um colega com um objeto vazio.
+async function buscarEquipeGestoraParaSync(): Promise<EquipeGestora | null> {
+  try {
+    const cfg = await invokeApp<Partial<ConfiguracoesApp>>("carregar_configuracoes");
+    const eq = cfg?.equipe_gestora;
+    if (!eq) return null;
+    const temGente = Boolean(eq.direcao?.nome?.trim()) || (eq.vices?.length ?? 0) > 0 || (eq.coordenacoes?.length ?? 0) > 0;
+    return temGente ? eq : null;
+  } catch {
+    return null;
+  }
+}
+
+// Conteúdo da equipe sem o carimbo de data — pra comparar duas versões pelo que
+// importa. Sem isso, adotar a equipe de um colega faria `salvar_equipe_gestora`
+// recarimbar `atualizado_em`, deixando a cópia "mais nova" que a origem e
+// disparando readoção em loop a cada sincronização.
+function equipeSemCarimbo(eq: EquipeGestora | null | undefined): string {
+  if (!eq) return "";
+  return JSON.stringify({
+    direcao: eq.direcao ?? null,
+    vices: eq.vices ?? [],
+    coordenacoes: eq.coordenacoes ?? [],
+    vinculos: eq.vinculos ?? [],
+  });
+}
+
+async function adotarEquipeGestoraRecebida(recebida: EquipeGestora | null | undefined) {
+  if (!recebida) return;
+  const recebidaEm = Date.parse(recebida.atualizado_em ?? "") || 0;
+  if (!recebidaEm) return;
+  try {
+    const atual = await invokeApp<Partial<ConfiguracoesApp>>("carregar_configuracoes");
+    const atualEm = Date.parse(atual?.equipe_gestora?.atualizado_em ?? "") || 0;
+    if (recebidaEm <= atualEm) return;
+    if (equipeSemCarimbo(recebida) === equipeSemCarimbo(atual?.equipe_gestora)) return;
+    await invokeApp("salvar_equipe_gestora", { equipe: recebida });
+  } catch {
+    // Sincronização automática é silenciosa.
+  }
+}
+
 export async function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Promise<WorkgroupSyncPayload> {
   const tombstones = carregarTombstones();
   registrarMembroSincronizacao(perfil);
-  const [planejamentoConfig, peiConfig] = await Promise.all([
+  const [planejamentoConfig, peiConfig, equipeGestora] = await Promise.all([
     buscarConfigWebAppParaSync("carregar_config_planejamento"),
     buscarConfigWebAppParaSync("carregar_config_pei"),
+    buscarEquipeGestoraParaSync(),
   ]);
   return {
     tipo: "coordenacaoop-workgroup-state",
@@ -329,6 +381,7 @@ export async function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): 
       deletedCalendarEvents: tombstones.calendarEvents,
       planejamentoConfig,
       peiConfig,
+      equipeGestora,
     },
   };
 }
@@ -413,6 +466,7 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   await Promise.all([
     adotarConfigWebAppRecebida(payload.data.planejamentoConfig, "carregar_config_planejamento", "salvar_config_planejamento"),
     adotarConfigWebAppRecebida(payload.data.peiConfig, "carregar_config_pei", "salvar_config_pei"),
+    adotarEquipeGestoraRecebida(payload.data.equipeGestora),
   ]);
   const tarefasAtuais = carregarTarefasKanban();
   const eventosAtuais = carregarEventosCalendario();
