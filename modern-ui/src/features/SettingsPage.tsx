@@ -1211,7 +1211,7 @@ export function Configuracoes({
           />
           <EquipeGestoraSecao
             equipe={config.equipe_gestora}
-            onChange={(equipe) => setConfig((atual) => ({ ...atual, equipe_gestora: equipe }))}
+            onPatch={(fn) => setConfig((atual) => ({ ...atual, equipe_gestora: fn(atual.equipe_gestora) }))}
             perfilSync={perfilSync}
           />
         </article>

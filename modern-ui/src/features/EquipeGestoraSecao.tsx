@@ -47,29 +47,29 @@ function LinhaMembro({
 
 function ListaMembros({
   itens,
-  onChange,
+  onPatchLista,
   addLabel,
   vazio,
 }: {
   itens: MembroEquipe[];
-  onChange: (itens: MembroEquipe[]) => void;
+  onPatchLista: (fn: (prev: MembroEquipe[]) => MembroEquipe[]) => void;
   addLabel: string;
   vazio: string;
 }) {
   return (
     <>
       <div className="cfg-equipe-lista">
-        {itens.map((m, i) => (
+        {itens.map((m) => (
           <LinhaMembro
             key={m.id}
             membro={m}
-            onChange={(campos) => onChange(itens.map((x, j) => (j === i ? { ...x, ...campos } : x)))}
-            onRemover={() => onChange(itens.filter((_, j) => j !== i))}
+            onChange={(campos) => onPatchLista((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...campos } : x)))}
+            onRemover={() => onPatchLista((prev) => prev.filter((x) => x.id !== m.id))}
           />
         ))}
         {!itens.length && <span className="cfg-equipe-vazio">{vazio}</span>}
       </div>
-      <button type="button" className="secondary-action" onClick={() => onChange([...itens, novoMembro()])}>
+      <button type="button" className="secondary-action" onClick={() => onPatchLista((prev) => [...prev, novoMembro()])}>
         {addLabel}
       </button>
     </>
@@ -78,16 +78,17 @@ function ListaMembros({
 
 export function EquipeGestoraSecao({
   equipe,
-  onChange,
+  onPatch,
   perfilSync,
 }: {
   equipe: EquipeGestora;
-  onChange: (equipe: EquipeGestora) => void;
+  // Recebe um updater funcional para compor mudanças sem perder edições concorrentes.
+  onPatch: (fn: (prev: EquipeGestora) => EquipeGestora) => void;
   perfilSync: WorkgroupSyncProfile;
 }) {
   // Pessoas do grupo de trabalho (membros sincronizados + este dispositivo).
   const membrosGrupo = useMemo(() => {
-    const nomes = new Map<string, string>(); // chave normalizada -> nome exibido
+    const nomes = new Map<string, string>();
     for (const m of agruparMembrosPorPessoa(carregarMembrosSincronizacao())) {
       if (m.displayName?.trim()) nomes.set(m.displayName.trim().toLowerCase(), m.displayName.trim());
     }
@@ -99,12 +100,14 @@ export function EquipeGestoraSecao({
   const roster = useMemo(() => listarEquipe(equipe), [equipe]);
 
   function definirVinculo(nomeCurto: string, membroId: string | null) {
-    const outros = (equipe.vinculos ?? []).filter(
-      (v) => v.nome_curto.trim().toLowerCase() !== nomeCurto.trim().toLowerCase(),
-    );
-    // membroId null = volta ao automático (remove o vínculo)
-    const vinculos = membroId === null ? outros : [...outros, { nome_curto: nomeCurto, membro_id: membroId }];
-    onChange({ ...equipe, vinculos });
+    onPatch((prev) => {
+      const outros = (prev.vinculos ?? []).filter(
+        (v) => v.nome_curto.trim().toLowerCase() !== nomeCurto.trim().toLowerCase(),
+      );
+      // membroId null = volta ao automático (remove o vínculo)
+      const vinculos = membroId === null ? outros : [...outros, { nome_curto: nomeCurto, membro_id: membroId }];
+      return { ...prev, vinculos };
+    });
   }
 
   return (
@@ -119,7 +122,7 @@ export function EquipeGestoraSecao({
             Nome da direção
             <input
               value={equipe.direcao.nome}
-              onChange={(e) => onChange({ ...equipe, direcao: { ...equipe.direcao, nome: e.target.value } })}
+              onChange={(e) => onPatch((prev) => ({ ...prev, direcao: { ...prev.direcao, nome: e.target.value } }))}
               placeholder="Nome completo"
             />
           </label>
@@ -127,7 +130,10 @@ export function EquipeGestoraSecao({
             Gênero
             <select
               value={equipe.direcao.genero}
-              onChange={(e) => onChange({ ...equipe, direcao: { ...equipe.direcao, genero: e.target.value as GeneroEquipe } })}
+              onChange={(e) => {
+                const genero = e.target.value as GeneroEquipe;
+                onPatch((prev) => ({ ...prev, direcao: { ...prev.direcao, genero } }));
+              }}
             >
               {OPCOES_GENERO.map((o) => (
                 <option key={o.rotulo} value={o.valor}>{o.rotulo}</option>
@@ -144,7 +150,7 @@ export function EquipeGestoraSecao({
         </div>
         <ListaMembros
           itens={equipe.vices ?? []}
-          onChange={(vices) => onChange({ ...equipe, vices })}
+          onPatchLista={(fn) => onPatch((prev) => ({ ...prev, vices: fn(prev.vices ?? []) }))}
           addLabel="Adicionar vice-direção"
           vazio="Nenhuma vice-direção cadastrada."
         />
@@ -157,7 +163,7 @@ export function EquipeGestoraSecao({
         </div>
         <ListaMembros
           itens={equipe.coordenacoes ?? []}
-          onChange={(coordenacoes) => onChange({ ...equipe, coordenacoes })}
+          onPatchLista={(fn) => onPatch((prev) => ({ ...prev, coordenacoes: fn(prev.coordenacoes ?? []) }))}
           addLabel="Adicionar coordenação"
           vazio="Nenhuma coordenação cadastrada."
         />
@@ -188,9 +194,7 @@ export function EquipeGestoraSecao({
                 const vinculoExplicito = (equipe.vinculos ?? []).find(
                   (v) => v.nome_curto.trim().toLowerCase() === nomeCurto.trim().toLowerCase(),
                 );
-                const valorSelect = vinculoExplicito
-                  ? vinculoExplicito.membro_id || "__nao__"
-                  : "__auto__";
+                const valorSelect = vinculoExplicito ? vinculoExplicito.membro_id || "__nao__" : "__auto__";
                 return (
                   <div key={nomeCurto} className="cfg-equipe-vinculo-linha">
                     <span className="cfg-equipe-vinculo-curto">
