@@ -70,6 +70,11 @@ export function useOnline(): boolean {
   return online;
 }
 
+// "1 destinatário" / "3 destinatários" — inclui o número.
+export function plural(n: number, singular: string, plural: string): string {
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
 export function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return "?";

@@ -11,6 +11,7 @@ import {
 } from "./mensagemFamilia";
 import type { DisparoDestinatario as Dest, DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
+import { plural } from "./formato";
 
 const TIPO_CONTATO_FAMILIA = "Contato com a família";
 const PAUSA_MS = 900;
@@ -158,7 +159,7 @@ export function LoteApi({
               <strong>Enviando pela API oficial</strong>
               <span className="atd-selo-canal api">Em progresso</span>
             </div>
-            <p>Modelo aprovado <strong>{metaTemplate}</strong> · {total} destinatários · R$ {(total * 0.04).toFixed(2).replace(".", ",")} estimado</p>
+            <p>Modelo aprovado <strong>{metaTemplate}</strong> · {plural(total, "destinatário", "destinatários")} · R$ {(total * 0.04).toFixed(2).replace(".", ",")} estimado</p>
           </div>
           <div className="atd-lote-api-barra"><span style={{ width: `${total ? ((enviados + disparo.falhas.length) / total) * 100 : 0}%` }} /></div>
           <div className="atd-lote-api-num">{pos + 1} de {total}</div>

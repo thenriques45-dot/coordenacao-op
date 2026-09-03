@@ -2,7 +2,7 @@ import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, P
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
-import { useOnline } from "./formato";
+import { plural, useOnline } from "./formato";
 import { FilaAssistida } from "./FilaAssistida";
 import { LoteApi } from "./LoteApi";
 import { tomFrequencia, type DisparoLote } from "./lote";
@@ -300,7 +300,7 @@ export function AssistenteLote({
               <span className="atd-lote-canal-selo">Recomendado</span>
             </div>
             <p>
-              {totalDestinatarios} destinatários, um por vez. Cerca de {minutos} min no ritmo sugerido de 15 s.
+              {plural(totalDestinatarios, "destinatário", "destinatários")}, um por vez. Cerca de {minutos} min no ritmo sugerido de 15 s.
               Dá para pausar e retomar depois; o progresso fica guardado. Atalho: <strong>Enter</strong> envia e avança.
             </p>
             {acimaDoTeto && (

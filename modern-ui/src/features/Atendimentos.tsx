@@ -254,8 +254,10 @@ export function TelaAtendimentos({
     }
   }
 
-  const totalAtd = turma?.total_atendimentos ?? 0;
-  const pendentesTurma = turma?.followups_pendentes ?? 0;
+  // Com o detalhe carregado, conta pela lista viva (o resumo da turma só
+  // atualiza no próximo reload geral, então defasa após um disparo/registro).
+  const totalAtd = detalhe ? linhas.length : turma?.total_atendimentos ?? 0;
+  const pendentesTurma = detalhe ? followupsPendentes : turma?.followups_pendentes ?? 0;
   const subtitulo = turma
     ? `${totalAtd} ${totalAtd === 1 ? "atendimento" : "atendimentos"} na turma` +
       (pendentesTurma > 0 ? `, ${pendentesTurma} com follow-up pendente` : "")
@@ -316,7 +318,7 @@ export function TelaAtendimentos({
         <button role="tab" aria-selected={aba === "por-aluno"} className={aba === "por-aluno" ? "ativo" : ""} onClick={() => setAba("por-aluno")}>
           Por aluno
         </button>
-        <button role="tab" aria-selected={aba === "lote"} className={aba === "lote" ? "ativo" : ""} onClick={() => setAba("lote")} disabled>
+        <button role="tab" aria-selected={aba === "lote"} className={aba === "lote" ? "ativo" : ""} onClick={() => setAba("lote")}>
           Disparos em lote
         </button>
       </nav>

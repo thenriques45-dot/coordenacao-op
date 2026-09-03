@@ -13,6 +13,7 @@ import {
 } from "./mensagemFamilia";
 import type { DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
+import { plural } from "./formato";
 
 const TIPO_CONTATO_FAMILIA = "Contato com a família";
 const SEGUNDOS_POR_ENVIO = 15;
@@ -177,7 +178,7 @@ export function FilaAssistida({
         <div className="atd-fa-header-topo">
           <div>
             <h1>Fila assistida · {modelo?.titulo ?? "mensagem"}</h1>
-            <p>{turma.codigo} · {total} destinatários · você aperta enviar no WhatsApp e volta aqui.</p>
+            <p>{turma.codigo} · {plural(total, "destinatário", "destinatários")} · você aperta enviar no WhatsApp e volta aqui.</p>
           </div>
           <div className="atd-fa-header-acoes">
             <button type="button" className="atd-btn-secundario" onClick={pausar}><Pause size={15} aria-hidden /> Pausar</button>
@@ -186,8 +187,8 @@ export function FilaAssistida({
         </div>
         <div className="atd-fa-progresso">
           <div className="atd-fa-barra"><span style={{ width: `${progresso}%` }} /></div>
-          <span><strong>{enviados.size} enviados</strong> · {pulados.size} pulados · {restantes} restantes</span>
-          {restantes > 0 && <span className="atd-fa-eta">≈ {etaMin} min restantes</span>}
+          <span><strong>{enviados.size} enviados</strong> · {pulados.size} pulados · {plural(restantes, "restante", "restantes")}</span>
+          {restantes > 0 && <span className="atd-fa-eta">≈ {etaMin} min {restantes === 1 ? "restante" : "restantes"}</span>}
         </div>
       </header>
 
@@ -202,7 +203,7 @@ export function FilaAssistida({
                   <div className="atd-fa-resp">→ {atual.responsavel_nome ?? "responsável"} · {atual.telefone ? formatarTelefoneBR(atual.telefone) : "sem telefone"}</div>
                 </div>
                 {pendentes.length > 0 && (
-                  <span className="atd-fa-selo-var"><TriangleAlert size={13} aria-hidden /> {pendentes.length} variável sem dado</span>
+                  <span className="atd-fa-selo-var"><TriangleAlert size={13} aria-hidden /> {plural(pendentes.length, "variável sem dado", "variáveis sem dado")}</span>
                 )}
               </div>
 
