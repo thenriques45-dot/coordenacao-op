@@ -108,6 +108,25 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
     Ok(config)
 }
 
+/// Salva apenas os modelos de mensagem à família, sem tocar no resto da
+/// configuração. Usado pela tela de Atendimentos ("Gerenciar modelos"), que
+/// não carrega o objeto de configuração inteiro.
+#[tauri::command]
+pub(crate) fn salvar_modelos_mensagem(
+    modelos: Vec<MensagemTemplate>,
+) -> Result<ConfiguracoesApp, String> {
+    let _dados = travar_dados();
+    let mut config = ler_configuracoes();
+    let modelos = normalizar_mensagem_templates(&modelos);
+    config.mensagem_familia_templates = if modelos.is_empty() {
+        mensagem_familia_templates_padrao()
+    } else {
+        modelos
+    };
+    salvar_configuracoes_arquivo(&config)?;
+    Ok(config)
+}
+
 /// Sempre devolve 4 posições; cada uma é "" ou uma data ISO "AAAA-MM-DD".
 /// Entrada inválida vira "".
 pub(crate) fn normalizar_bimestre_datas(datas: &[String]) -> Vec<String> {

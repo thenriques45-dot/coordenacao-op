@@ -4520,6 +4520,53 @@ th:nth-child(3) {
   padding-top: 12px;
 }
 
+.cfg-vg-movidos {
+  background: #fff;
+  border: 1px dashed #dcd8d0;
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.cfg-vg-movidos-topo {
+  align-items: center;
+  color: #8b8794;
+  display: flex;
+  gap: 9px;
+}
+
+.cfg-vg-movidos-topo strong {
+  color: #101828;
+  font-size: 13.5px;
+}
+
+.cfg-vg-movidos-topo span {
+  font-size: 12.5px;
+}
+
+.cfg-vg-movidos-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cfg-vg-movidos-chips span {
+  align-items: center;
+  background: #faf9f6;
+  border: 1px solid #eae8e3;
+  border-radius: 999px;
+  color: #475467;
+  display: inline-flex;
+  font-size: 12.5px;
+  gap: 7px;
+  padding: 5px 11px;
+}
+
+.cfg-vg-movidos-chips em {
+  color: #8b8794;
+  font-style: normal;
+}
+
 /* Âncora destacada pela busca */
 .cfg-ancora-destacada {
   animation: cfg-realce 1.8s ease-out;
@@ -11355,6 +11402,137 @@ th:nth-child(3) {
 .atd-card-thread.pendente {
   color: var(--accent-dark);
   font-weight: 600;
+}
+
+/* ── Gerenciar modelos de mensagem (modal, migrado de Configurações) ── */
+.atd-modelos-modal {
+  background: #fff;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  max-width: 720px;
+  overflow: hidden;
+  width: calc(100vw - 48px);
+}
+
+.atd-modelos-modal > header {
+  border-bottom: 1px solid var(--atd-divisor, #eef0f3);
+  padding: 20px 22px 16px;
+}
+
+.atd-modelos-modal > header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.atd-modelos-modal > header p {
+  color: #6b6670;
+  font-size: 13px;
+  margin: 5px 0 0;
+}
+
+.atd-modelos-corpo {
+  overflow-y: auto;
+  padding: 18px 22px;
+}
+
+.atd-modelos-modal > footer {
+  border-top: 1px solid var(--atd-divisor, #eef0f3);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 22px;
+}
+
+.atd-modelos-ajuda {
+  color: #6b6670;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.atd-modelos-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.atd-modelos-vars span {
+  background: #f2f4f7;
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  color: #475467;
+  font-size: 11.5px;
+  padding: 2px 9px;
+}
+
+.atd-modelos-lista {
+  display: grid;
+  gap: 14px;
+}
+
+.atd-modelo-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.atd-modelo-topo {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.atd-modelo-titulo {
+  flex: 1;
+  font-weight: 600;
+}
+
+.atd-modelo-card textarea {
+  font: inherit;
+  resize: vertical;
+  width: 100%;
+}
+
+.atd-modelo-topo button {
+  background: #fff;
+  border: 1px solid #d5dbe6;
+  border-radius: 7px;
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 9px;
+}
+
+.atd-modelo-topo button.danger-action {
+  border-color: #f2c5c1;
+  color: #b42318;
+}
+
+.atd-modelo-topo button:disabled {
+  opacity: 0.4;
+}
+
+.atd-modelos-vazio {
+  color: #667085;
+  font-size: 13px;
+}
+
+.atd-modelos-lista + .atd-btn-secundario {
+  margin-top: 12px;
+}
+
+.theme-dark .atd-modelos-modal {
+  background: #1b2130;
+}
+
+.theme-dark .atd-modelo-card,
+.theme-dark .atd-modelos-vars span {
+  background: #232b3b;
+  border-color: #33405a;
 }
 
 /* ── Painel / drawer da thread (artboard 1b detalhe) ── */

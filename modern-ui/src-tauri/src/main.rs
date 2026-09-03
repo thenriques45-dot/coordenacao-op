@@ -119,6 +119,7 @@ fn main() {
             config::app_info,
             config::carregar_configuracoes,
             config::salvar_configuracoes,
+            config::salvar_modelos_mensagem,
             infra::salvar_estado_ui,
             infra::carregar_estado_ui,
             config::salvar_cabecalho_ata,

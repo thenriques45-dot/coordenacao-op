@@ -201,7 +201,6 @@ export type SettingsSection =
   | "visao-geral"
   | "instituicao"
   | "turmas"
-  | "mensagens-familia"
   | "conselho-perfil"
   | "conselho-destaque"
   | "conselho-encaminhamentos"
@@ -232,7 +231,6 @@ export const GRUPOS_CONFIG: Array<{ titulo: string; itens: Array<{ id: SettingsS
     itens: [
       { id: "instituicao", label: "Instituição" },
       { id: "turmas", label: "Turmas" },
-      { id: "mensagens-familia", label: "Mensagens à família" },
     ],
   },
   {
@@ -563,42 +561,6 @@ export function Configuracoes({
       ...atual,
       encaminhamento_opcoes: atual.encaminhamento_opcoes.filter((_, i) => i !== indice),
     }));
-  }
-
-  function adicionarTemplateMensagem() {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: [
-        ...atual.mensagem_familia_templates,
-        { id: `tpl-${Date.now()}`, titulo: "", corpo: "", tags: [] },
-      ],
-    }));
-  }
-
-  function atualizarTemplateMensagem(indice: number, campos: Partial<MensagemTemplate>) {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: atual.mensagem_familia_templates.map((item, i) =>
-        i === indice ? { ...item, ...campos } : item,
-      ),
-    }));
-  }
-
-  function removerTemplateMensagem(indice: number) {
-    setConfig((atual) => ({
-      ...atual,
-      mensagem_familia_templates: atual.mensagem_familia_templates.filter((_, i) => i !== indice),
-    }));
-  }
-
-  function moverTemplateMensagem(indice: number, direcao: -1 | 1) {
-    setConfig((atual) => {
-      const alvo = indice + direcao;
-      if (alvo < 0 || alvo >= atual.mensagem_familia_templates.length) return atual;
-      const lista = [...atual.mensagem_familia_templates];
-      [lista[indice], lista[alvo]] = [lista[alvo], lista[indice]];
-      return { ...atual, mensagem_familia_templates: lista };
-    });
   }
 
   function adicionarCriterioPerfil() {
@@ -1505,83 +1467,6 @@ export function Configuracoes({
         </article>
         )}
 
-        {secaoConfig === "mensagens-familia" && (
-        <article className="settings-card">
-          <CabecalhoSecao
-            secao="mensagens-familia"
-            titulo="Mensagens à família"
-            descricao="Modelos de mensagem enviados ao responsável pela tela do aluno (via WhatsApp). Cada envio fica registrado como atendimento, com as tags definidas aqui."
-            acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
-          />
-          <p style={{ color: "#667085", fontSize: "0.85rem" }}>
-            Use variáveis entre chaves no texto — elas são trocadas pelos dados reais do estudante
-            ao compor a mensagem. Clique para inserir:
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.75rem" }}>
-            {VARIAVEIS_MENSAGEM.map((variavel) => (
-              <span
-                key={variavel.chave}
-                title={variavel.rotulo}
-                style={{
-                  background: "#f2f4f7",
-                  border: "1px solid #e4e7ec",
-                  borderRadius: "999px",
-                  padding: "0.15rem 0.6rem",
-                  fontSize: "0.8rem",
-                  color: "#475467",
-                }}
-              >
-                {`{${variavel.chave}}`}
-              </span>
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gap: "1rem" }}>
-            {config.mensagem_familia_templates.map((template, indice) => (
-              <div
-                key={template.id}
-                style={{ border: "1px solid #e4e7ec", borderRadius: "0.6rem", padding: "0.85rem", display: "grid", gap: "0.5rem" }}
-              >
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <input
-                    value={template.titulo}
-                    onChange={(event) => atualizarTemplateMensagem(indice, { titulo: event.target.value })}
-                    placeholder="Título do modelo (ex.: Excesso de faltas)"
-                    style={{ flex: 1, fontWeight: 600 }}
-                  />
-                  <button type="button" onClick={() => moverTemplateMensagem(indice, -1)} disabled={indice === 0} aria-label="Mover para cima">↑</button>
-                  <button type="button" onClick={() => moverTemplateMensagem(indice, 1)} disabled={indice === config.mensagem_familia_templates.length - 1} aria-label="Mover para baixo">↓</button>
-                  <button type="button" className="danger-action" onClick={() => removerTemplateMensagem(indice)}>Remover</button>
-                </div>
-                <textarea
-                  value={template.corpo}
-                  onChange={(event) => atualizarTemplateMensagem(indice, { corpo: event.target.value })}
-                  placeholder="Corpo da mensagem. Ex.: Prezado(a) responsável por {aluno}, ..."
-                  rows={6}
-                />
-                <input
-                  value={template.tags.join(", ")}
-                  onChange={(event) =>
-                    atualizarTemplateMensagem(indice, {
-                      tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean),
-                    })
-                  }
-                  placeholder="Tags do atendimento (separadas por vírgula) — ex.: Faltas"
-                />
-              </div>
-            ))}
-            {!config.mensagem_familia_templates.length && (
-              <span style={{ color: "#667085", fontSize: "0.85rem" }}>
-                Nenhum modelo. Sem modelos, o app usa os exemplos padrão ao salvar.
-              </span>
-            )}
-          </div>
-          <button type="button" className="secondary-action" onClick={adicionarTemplateMensagem} style={{ marginTop: "0.5rem" }}>
-            Adicionar modelo
-          </button>
-        </article>
-        )}
-
         {secaoConfig === "conselho-notas" && (
         <article className="settings-card">
           <CabecalhoSecao secao="conselho-notas" titulo="Notas na ATA" descricao="Como as notas de cada disciplina aparecem na ATA do conselho." acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>} />
@@ -2092,7 +1977,6 @@ function VisaoGeralConfig({
       linhas: [
         { label: "Instituição", secao: "instituicao", estado: config.cabecalho_ata ? "Cabeçalho pronto" : "Sem cabeçalho" },
         { label: "Turmas", secao: "turmas", estado: pluralizar(config.atendimento_tipos.length, "tipo de atendimento", "tipos de atendimento") },
-        { label: "Mensagens à família", secao: "mensagens-familia", estado: pluralizar(config.mensagem_familia_templates.length, "modelo", "modelos") },
       ],
     },
     {
@@ -2183,6 +2067,17 @@ function VisaoGeralConfig({
             {grupo.nota && <p className="cfg-vg-card-nota">{grupo.nota}</p>}
           </article>
         ))}
+      </div>
+
+      <div className="cfg-vg-movidos">
+        <div className="cfg-vg-movidos-topo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+          <strong>Saiu de Configurações</strong>
+          <span>agora se edita na tela onde é usado</span>
+        </div>
+        <div className="cfg-vg-movidos-chips">
+          <span>Modelos de mensagem<em>Atendimentos › Gerenciar modelos</em></span>
+        </div>
       </div>
     </div>
   );

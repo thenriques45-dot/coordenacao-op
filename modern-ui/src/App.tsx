@@ -1651,6 +1651,7 @@ export function App() {
               setTurmaSelecionada(alvo);
               navegarPara("gestao-turma");
             }}
+            onConfigAtualizada={aplicarConfigCarregada}
           />
         )}
         {tela === "importar-dados" && (

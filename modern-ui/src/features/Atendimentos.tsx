@@ -9,7 +9,8 @@ import { AssistenteLote } from "./atendimentos/AssistenteLote";
 import { CompositorMensagem } from "./atendimentos/CompositorMensagem";
 import { ModalAtendimento, type ModoModalAtendimento } from "./atendimentos/ModalAtendimento";
 import { PainelThread } from "./atendimentos/PainelThread";
-import type { MensagemTemplate } from "./SettingsPage";
+import { EditorModelosMensagem } from "./atendimentos/EditorModelosMensagem";
+import type { ConfiguracoesApp, MensagemTemplate } from "./SettingsPage";
 import type {
   AtendimentoAlunoInput,
   AtendimentoAnexo,
@@ -47,6 +48,7 @@ type Props = {
   turmaCodigoInicial?: string | null;
   onAbrirFichaAluno: (turmaCodigo: string, alunoNome: string) => void;
   onAtivarEnvioAutomatico: () => void;
+  onConfigAtualizada?: (config: ConfiguracoesApp) => void;
 };
 
 export function TelaAtendimentos({
@@ -57,6 +59,7 @@ export function TelaAtendimentos({
   turmaCodigoInicial,
   onAbrirFichaAluno,
   onAtivarEnvioAutomatico,
+  onConfigAtualizada,
 }: Props) {
   const turmasOrdenadas = useMemo(
     () => [...turmas].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR")),
@@ -88,9 +91,31 @@ export function TelaAtendimentos({
   const [disparos, setDisparos] = useState<DisparoLoteRegistro[]>([]);
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [varsPainel, setVarsPainel] = useState<{ freq: number | null; tarefas: string | null }>({ freq: null, tarefas: null });
+  const [gerenciarModelos, setGerenciarModelos] = useState(false);
+  const [rascunhoModelos, setRascunhoModelos] = useState<MensagemTemplate[]>([]);
+  const [salvandoModelos, setSalvandoModelos] = useState(false);
 
   const tiposConfig = tiposAtendimento?.length ? tiposAtendimento : TIPOS_ATENDIMENTO_PADRAO;
   const templatesConfig = mensagemTemplates ?? [];
+
+  function abrirGerenciadorModelos() {
+    setRascunhoModelos(templatesConfig.map((modelo) => ({ ...modelo, tags: [...modelo.tags] })));
+    setGerenciarModelos(true);
+  }
+
+  async function salvarModelos() {
+    setSalvandoModelos(true);
+    setErro("");
+    try {
+      const config = await invokeApp<ConfiguracoesApp>("salvar_modelos_mensagem", { modelos: rascunhoModelos });
+      onConfigAtualizada?.(config);
+      setGerenciarModelos(false);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvandoModelos(false);
+    }
+  }
 
   const carregar = useCallback(() => {
     if (!turma) {
@@ -302,6 +327,9 @@ export function TelaAtendimentos({
             </select>
             <ChevronDown size={15} aria-hidden />
           </label>
+          <button type="button" className="atd-btn-secundario" onClick={abrirGerenciadorModelos}>
+            Gerenciar modelos
+          </button>
           <button type="button" className="atd-btn-secundario" onClick={() => setAssistenteLote(true)} disabled={!turma}>
             <MessageCircle size={16} /> Contatar famílias
           </button>
@@ -504,6 +532,36 @@ export function TelaAtendimentos({
           onCadastrarResponsavel={() => onAbrirFichaAluno(turma.codigo, compositorAluno.nome)}
           onAtivarEnvioAutomatico={onAtivarEnvioAutomatico}
         />
+      )}
+
+      {gerenciarModelos && (
+        <div className="modal-backdrop" onClick={() => !salvandoModelos && setGerenciarModelos(false)}>
+          <section
+            className="atd-modelos-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="atd-modelos-titulo"
+            onClick={(evento) => evento.stopPropagation()}
+          >
+            <header>
+              <div>
+                <h2 id="atd-modelos-titulo">Gerenciar modelos de mensagem</h2>
+                <p>Valem para toda a escola. Usados no compositor individual e no assistente de lote.</p>
+              </div>
+            </header>
+            <div className="atd-modelos-corpo">
+              <EditorModelosMensagem modelos={rascunhoModelos} onChange={setRascunhoModelos} />
+            </div>
+            <footer>
+              <button type="button" className="atd-btn-secundario" onClick={() => setGerenciarModelos(false)} disabled={salvandoModelos}>
+                Cancelar
+              </button>
+              <button type="button" className="atd-btn-primario" onClick={salvarModelos} disabled={salvandoModelos}>
+                {salvandoModelos ? "Salvando…" : "Salvar modelos"}
+              </button>
+            </footer>
+          </section>
+        </div>
       )}
     </div>
   );
