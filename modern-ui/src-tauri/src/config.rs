@@ -38,13 +38,24 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
     if input.nota_minima < 0.0 || input.nota_minima > 10.0 {
         return Err("A media minima deve ficar entre 0 e 10.".to_string());
     }
-    let pronome = input.direcao_pronome.trim().to_uppercase();
-    if pronome != "F" && pronome != "M" {
-        return Err("Selecione o pronome da direcao.".to_string());
-    }
     if !modo_notas_ata_valido(&input.modo_notas_ata) {
         return Err("Selecione uma opção válida para exibição de notas na ata.".to_string());
     }
+
+    // A equipe gestora, quando enviada, é a fonte da verdade — os campos planos
+    // (direcao_nome/pronome/vice_direcao) são derivados dela. Sem ela, cai no
+    // caminho antigo (dados planos, pronome F/M obrigatório).
+    let equipe_gestora = match &input.equipe_gestora {
+        Some(eq) => normalizar_equipe_gestora(eq),
+        None => {
+            let pronome = input.direcao_pronome.trim().to_uppercase();
+            if pronome != "F" && pronome != "M" {
+                return Err("Selecione o pronome da direcao.".to_string());
+            }
+            equipe_de_campos_planos(&input.direcao_nome, &pronome, &input.vice_direcao)
+        }
+    };
+    let (direcao_nome, direcao_pronome, vice_direcao) = campos_planos_da_equipe(&equipe_gestora);
 
     let lider_rotulo = {
         let r = input.lider_rotulo.trim();
@@ -78,9 +89,10 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
     };
 
     let config = ConfiguracoesApp {
-        direcao_nome: input.direcao_nome.trim().to_uppercase(),
-        direcao_pronome: pronome,
-        vice_direcao: normalizar_lista_texto(&input.vice_direcao),
+        direcao_nome,
+        direcao_pronome,
+        vice_direcao,
+        equipe_gestora,
         nota_minima: input.nota_minima,
         cabecalho_ata: caminho_cabecalho_ata().map(|path| path.to_string_lossy().to_string()),
         lider_ativo: input.lider_ativo,
@@ -319,29 +331,46 @@ pub(crate) fn ler_configuracoes() -> ConfiguracoesApp {
         }
     }
 
+    let direcao_nome_plano = dados
+        .get("direcao_nome")
+        .and_then(Value::as_str)
+        .unwrap_or(DIRECAO_PLACEHOLDER)
+        .to_string();
+    let direcao_pronome_plano = dados
+        .get("direcao_pronome")
+        .and_then(Value::as_str)
+        .unwrap_or("F")
+        .to_string();
+    let vice_direcao_plano: Vec<String> = dados
+        .get("vice_direcao")
+        .and_then(Value::as_array)
+        .map(|lista| {
+            lista
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .map(|lista| normalizar_lista_texto(&lista))
+        .unwrap_or_default();
+
+    // Equipe gestora: se já existe no arquivo, normaliza; senão migra dos
+    // campos planos (instalações anteriores a esta versão).
+    let equipe_gestora = dados
+        .get("equipe_gestora")
+        .and_then(|v| serde_json::from_value::<EquipeGestora>(v.clone()).ok())
+        .filter(|eq| !eq.direcao.nome.trim().is_empty() || !eq.vices.is_empty() || !eq.coordenacoes.is_empty())
+        .map(|eq| normalizar_equipe_gestora(&eq))
+        .unwrap_or_else(|| {
+            equipe_de_campos_planos(&direcao_nome_plano, &direcao_pronome_plano, &vice_direcao_plano)
+        });
+    let (direcao_nome, direcao_pronome, vice_direcao) = campos_planos_da_equipe(&equipe_gestora);
+
     ConfiguracoesApp {
-        direcao_nome: dados
-            .get("direcao_nome")
-            .and_then(Value::as_str)
-            .unwrap_or("________________________________")
-            .to_string(),
-        direcao_pronome: dados
-            .get("direcao_pronome")
-            .and_then(Value::as_str)
-            .unwrap_or("F")
-            .to_string(),
-        vice_direcao: dados
-            .get("vice_direcao")
-            .and_then(Value::as_array)
-            .map(|lista| {
-                lista
-                    .iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect::<Vec<_>>()
-            })
-            .map(|lista| normalizar_lista_texto(&lista))
-            .unwrap_or_default(),
+        direcao_nome,
+        direcao_pronome,
+        vice_direcao,
+        equipe_gestora,
         nota_minima: dados
             .get("nota_minima")
             .and_then(valor_para_f64)
@@ -545,6 +574,165 @@ pub(crate) fn criterios_perfil_padrao() -> Vec<CriterioPerfil> {
     ]
 }
 
+// ── Equipe gestora ────────────────────────────────────────────────────────
+
+const DIRECAO_PLACEHOLDER: &str = "________________________________";
+
+fn normalizar_genero_equipe(g: &str) -> String {
+    match g.trim().to_ascii_uppercase().as_str() {
+        "F" => "F".to_string(),
+        "M" => "M".to_string(),
+        _ => String::new(),
+    }
+}
+
+fn normalizar_membro_equipe(
+    membro: &MembroEquipe,
+    indice: usize,
+    ids_vistos: &mut BTreeSet<String>,
+) -> Option<MembroEquipe> {
+    let nome = membro.nome.trim();
+    if nome.is_empty() {
+        return None;
+    }
+    let mut id = membro.id.trim().to_string();
+    if id.is_empty() || !ids_vistos.insert(id.clone()) {
+        let base = normalizar_nome_busca(nome).replace(' ', "-");
+        id = format!("m-{}-{}", if base.is_empty() { "x".into() } else { base }, indice + 1);
+        ids_vistos.insert(id.clone());
+    }
+    Some(MembroEquipe {
+        id,
+        nome: nome.to_string(),
+        genero: normalizar_genero_equipe(&membro.genero),
+    })
+}
+
+/// Sanitiza a equipe: direção com id fixo "direcao", ids únicos para vices e
+/// coordenações, gênero só "F"/"M"/"" e vínculos apontando para membros reais.
+pub(crate) fn normalizar_equipe_gestora(equipe: &EquipeGestora) -> EquipeGestora {
+    let mut ids = BTreeSet::new();
+    ids.insert("direcao".to_string());
+    let direcao = MembroEquipe {
+        id: "direcao".to_string(),
+        nome: equipe.direcao.nome.trim().to_string(),
+        genero: normalizar_genero_equipe(&equipe.direcao.genero),
+    };
+    let vices: Vec<MembroEquipe> = equipe
+        .vices
+        .iter()
+        .enumerate()
+        .filter_map(|(i, m)| normalizar_membro_equipe(m, i, &mut ids))
+        .collect();
+    let coordenacoes: Vec<MembroEquipe> = equipe
+        .coordenacoes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, m)| normalizar_membro_equipe(m, i, &mut ids))
+        .collect();
+
+    let mut curtos_vistos = BTreeSet::new();
+    let vinculos: Vec<VinculoMembroEquipe> = equipe
+        .vinculos
+        .iter()
+        .filter_map(|v| {
+            let curto = v.nome_curto.trim().to_string();
+            if curto.is_empty() {
+                return None;
+            }
+            let membro_id = v.membro_id.trim().to_string();
+            if !membro_id.is_empty() && !ids.contains(membro_id.as_str()) {
+                return None;
+            }
+            if !curtos_vistos.insert(curto.to_lowercase()) {
+                return None;
+            }
+            Some(VinculoMembroEquipe { nome_curto: curto, membro_id })
+        })
+        .collect();
+
+    EquipeGestora {
+        direcao,
+        vices,
+        coordenacoes,
+        vinculos,
+        atualizado_em: equipe.atualizado_em.trim().to_string(),
+    }
+}
+
+/// Deriva os campos planos (`direcao_nome` etc.) a partir da equipe, para os
+/// leitores antigos (docx.rs, PEI) seguirem funcionando sem alteração.
+fn campos_planos_da_equipe(equipe: &EquipeGestora) -> (String, String, Vec<String>) {
+    let nome = if equipe.direcao.nome.trim().is_empty() {
+        DIRECAO_PLACEHOLDER.to_string()
+    } else {
+        equipe.direcao.nome.trim().to_string()
+    };
+    let pronome = if equipe.direcao.genero.is_empty() {
+        "F".to_string()
+    } else {
+        equipe.direcao.genero.clone()
+    };
+    let vices = equipe.vices.iter().map(|v| v.nome.clone()).collect();
+    (nome, pronome, vices)
+}
+
+/// Migração: monta a equipe a partir dos campos planos quando `equipe_gestora`
+/// ainda não existe no arquivo (instalações anteriores a esta versão).
+fn equipe_de_campos_planos(
+    direcao_nome: &str,
+    direcao_pronome: &str,
+    vice_direcao: &[String],
+) -> EquipeGestora {
+    let mut ids = BTreeSet::new();
+    ids.insert("direcao".to_string());
+    let vices = vice_direcao
+        .iter()
+        .enumerate()
+        .filter_map(|(i, nome)| {
+            normalizar_membro_equipe(
+                &MembroEquipe { id: String::new(), nome: nome.clone(), genero: String::new() },
+                i,
+                &mut ids,
+            )
+        })
+        .collect();
+    let nome = direcao_nome.trim();
+    EquipeGestora {
+        direcao: MembroEquipe {
+            id: "direcao".to_string(),
+            nome: if nome == DIRECAO_PLACEHOLDER { String::new() } else { nome.to_string() },
+            genero: normalizar_genero_equipe(direcao_pronome),
+        },
+        vices,
+        coordenacoes: Vec::new(),
+        vinculos: Vec::new(),
+        atualizado_em: String::new(),
+    }
+}
+
+fn agora_rfc3339_equipe() -> String {
+    chrono::Local::now().to_rfc3339()
+}
+
+/// Salva só a equipe gestora, sem tocar no resto da configuração. Regrava os
+/// campos planos derivados e carimba `atualizado_em`. Usado pela seção "Equipe
+/// gestora" e pela adoção via sincronização de grupo.
+#[tauri::command]
+pub(crate) fn salvar_equipe_gestora(equipe: EquipeGestora) -> Result<ConfiguracoesApp, String> {
+    let _dados = travar_dados();
+    let mut config = ler_configuracoes();
+    let mut equipe = normalizar_equipe_gestora(&equipe);
+    equipe.atualizado_em = agora_rfc3339_equipe();
+    let (nome, pronome, vices) = campos_planos_da_equipe(&equipe);
+    config.direcao_nome = nome;
+    config.direcao_pronome = pronome;
+    config.vice_direcao = vices;
+    config.equipe_gestora = equipe;
+    salvar_configuracoes_arquivo(&config)?;
+    Ok(config)
+}
+
 pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<(), String> {
     let caminho = config_path().map_err(|err| err.to_string())?;
     if let Some(parent) = caminho.parent() {
@@ -554,6 +742,7 @@ pub(crate) fn salvar_configuracoes_arquivo(config: &ConfiguracoesApp) -> Result<
         "direcao_nome": config.direcao_nome,
         "direcao_pronome": config.direcao_pronome,
         "vice_direcao": config.vice_direcao,
+        "equipe_gestora": serde_json::to_value(&config.equipe_gestora).unwrap_or_default(),
         "nota_minima": config.nota_minima,
         "cabecalho_ata": config.cabecalho_ata,
         "lider_ativo": config.lider_ativo,
@@ -661,4 +850,94 @@ fn bimestre_por_dados_importados() -> Option<String> {
         }
     }
     (1..=4).contains(&maior).then(|| maior.to_string())
+}
+
+#[cfg(test)]
+mod testes_equipe {
+    use super::*;
+
+    fn membro(nome: &str, genero: &str) -> MembroEquipe {
+        MembroEquipe { id: String::new(), nome: nome.to_string(), genero: genero.to_string() }
+    }
+
+    #[test]
+    fn migra_dos_campos_planos() {
+        let eq = equipe_de_campos_planos(
+            "MARIA DA SILVA",
+            "F",
+            &["JOAO VICE".to_string(), "  ".to_string(), "ANA VICE".to_string()],
+        );
+        assert_eq!(eq.direcao.id, "direcao");
+        assert_eq!(eq.direcao.nome, "MARIA DA SILVA");
+        assert_eq!(eq.direcao.genero, "F");
+        assert_eq!(eq.vices.len(), 2, "descarta o vice em branco");
+        assert!(eq.vices.iter().all(|v| !v.id.is_empty()));
+        assert!(eq.coordenacoes.is_empty());
+    }
+
+    #[test]
+    fn placeholder_da_direcao_vira_vazio_na_migracao() {
+        let eq = equipe_de_campos_planos(DIRECAO_PLACEHOLDER, "", &[]);
+        assert_eq!(eq.direcao.nome, "");
+        assert_eq!(eq.direcao.genero, "", "pronome vazio = nao informado");
+    }
+
+    #[test]
+    fn campos_planos_derivam_da_equipe() {
+        let eq = EquipeGestora {
+            direcao: membro("CARLA GESTORA", "F"),
+            vices: vec![membro("VICE 1", "M")],
+            coordenacoes: vec![membro("COORD 1", "")],
+            ..Default::default()
+        };
+        let (nome, pronome, vices) = campos_planos_da_equipe(&eq);
+        assert_eq!(nome, "CARLA GESTORA");
+        assert_eq!(pronome, "F");
+        assert_eq!(vices, vec!["VICE 1".to_string()]);
+    }
+
+    #[test]
+    fn direcao_sem_nome_gera_placeholder_e_pronome_f() {
+        let (nome, pronome, _) = campos_planos_da_equipe(&EquipeGestora::default());
+        assert_eq!(nome, DIRECAO_PLACEHOLDER);
+        assert_eq!(pronome, "F", "sem genero, cai no F para os leitores antigos");
+    }
+
+    #[test]
+    fn normaliza_ids_unicos_e_genero_invalido() {
+        let eq = EquipeGestora {
+            direcao: membro("D", "x"),
+            vices: vec![
+                MembroEquipe { id: "dup".into(), nome: "A".into(), genero: "f".into() },
+                MembroEquipe { id: "dup".into(), nome: "B".into(), genero: "MASCULINO".into() },
+            ],
+            coordenacoes: vec![membro("", "F")], // sem nome -> descartado
+            ..Default::default()
+        };
+        let n = normalizar_equipe_gestora(&eq);
+        assert_eq!(n.direcao.genero, "", "genero invalido vira vazio");
+        assert_eq!(n.vices.len(), 2);
+        assert_ne!(n.vices[0].id, n.vices[1].id, "ids duplicados sao regerados");
+        assert_eq!(n.vices[0].genero, "F");
+        assert_eq!(n.vices[1].genero, "", "'MASCULINO' nao e 'M' -> vazio");
+        assert!(n.coordenacoes.is_empty());
+    }
+
+    #[test]
+    fn vinculo_para_membro_inexistente_e_descartado() {
+        let eq = EquipeGestora {
+            direcao: membro("D", "F"),
+            vices: vec![MembroEquipe { id: "v1".into(), nome: "Vice".into(), genero: "".into() }],
+            vinculos: vec![
+                VinculoMembroEquipe { nome_curto: "wilton".into(), membro_id: "v1".into() },
+                VinculoMembroEquipe { nome_curto: "fantasma".into(), membro_id: "nao-existe".into() },
+                VinculoMembroEquipe { nome_curto: "nao-vincular".into(), membro_id: "".into() },
+            ],
+            ..Default::default()
+        };
+        let n = normalizar_equipe_gestora(&eq);
+        assert_eq!(n.vinculos.len(), 2, "descarta so o que aponta pra id inexistente");
+        assert!(n.vinculos.iter().any(|v| v.nome_curto == "wilton" && v.membro_id == "v1"));
+        assert!(n.vinculos.iter().any(|v| v.nome_curto == "nao-vincular" && v.membro_id.is_empty()));
+    }
 }

@@ -4824,6 +4824,121 @@ th:nth-child(3) {
   height: 5px;
 }
 
+/* Equipe gestora */
+
+.cfg-equipe-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cfg-equipe-linha {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+}
+
+.cfg-equipe-linha input,
+.cfg-equipe-linha select {
+  min-height: 38px;
+}
+
+.cfg-equipe-linha .danger-action {
+  border: 1px solid #f2c5c1;
+  border-radius: 8px;
+  color: #b42318;
+  cursor: pointer;
+  min-height: 38px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.cfg-equipe-vazio {
+  color: #8b8794;
+  font-size: 12.5px;
+}
+
+.cfg-equipe-vinculo-tabela {
+  border: 1px solid #eef0f3;
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.cfg-equipe-vinculo-cab,
+.cfg-equipe-vinculo-linha {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  padding: 9px 12px;
+}
+
+.cfg-equipe-vinculo-cab {
+  background: #faf9f6;
+  border-bottom: 1px solid #eef0f3;
+  color: #8b8794;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.cfg-equipe-vinculo-linha + .cfg-equipe-vinculo-linha {
+  border-top: 1px solid #f2f0ec;
+}
+
+.cfg-equipe-vinculo-curto {
+  align-items: center;
+  color: #101828;
+  display: flex;
+  font-size: 13.5px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.cfg-equipe-selo {
+  background: #edf6ef;
+  border-radius: 999px;
+  color: #0b7a3b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+.cfg-equipe-vinculo-linha select {
+  min-height: 36px;
+  width: 100%;
+}
+
+.theme-dark .cfg-equipe-linha .danger-action {
+  border-color: #7a3338;
+  color: #ff8a8f;
+}
+
+.theme-dark .cfg-equipe-vinculo-tabela {
+  border-color: #33405a;
+}
+
+.theme-dark .cfg-equipe-vinculo-cab {
+  background: #232b3b;
+  border-bottom-color: #33405a;
+}
+
+.theme-dark .cfg-equipe-vinculo-linha + .cfg-equipe-vinculo-linha {
+  border-top-color: #2c3444;
+}
+
+.theme-dark .cfg-equipe-vinculo-curto {
+  color: #ececf0;
+}
+
+.theme-dark .cfg-equipe-selo {
+  background: #17321f;
+  color: #6fd39b;
+}
+
 .settings-check-row {
   align-items: center;
   background: #f8fafc;

@@ -5,6 +5,7 @@ import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { ConfigEnvioAutomatico } from "./atendimentos/ConfigEnvioAutomatico";
+import { EquipeGestoraSecao } from "./EquipeGestoraSecao";
 import {
   aplicarPadroesDoProvedor,
   carregarAiAssistantSettings,
@@ -116,9 +117,45 @@ export const MENSAGEM_TEMPLATES_PADRAO: MensagemTemplate[] = [
   },
 ];
 
+// "F" | "M" | "" (não informado → formas neutras nos textos gerados).
+export type GeneroEquipe = "F" | "M" | "";
+
+export type MembroEquipe = {
+  id: string;
+  nome: string;
+  genero: GeneroEquipe;
+};
+
+// Escolha manual de com quem casar um membro do grupo de trabalho.
+// membro_id "" = "não vincular". O casamento automático (nome compatível) não
+// entra aqui — é resolvido ao vivo.
+export type VinculoMembroEquipe = {
+  nome_curto: string;
+  membro_id: string;
+};
+
+export type EquipeGestora = {
+  direcao: MembroEquipe;
+  vices: MembroEquipe[];
+  coordenacoes: MembroEquipe[];
+  vinculos: VinculoMembroEquipe[];
+  atualizado_em: string;
+};
+
+export function equipeGestoraVazia(): EquipeGestora {
+  return {
+    direcao: { id: "direcao", nome: "", genero: "" },
+    vices: [],
+    coordenacoes: [],
+    vinculos: [],
+    atualizado_em: "",
+  };
+}
+
 export type ConfiguracoesApp = {
   direcao_nome: string;
   direcao_pronome: string;
+  equipe_gestora: EquipeGestora;
   nota_minima: number;
   cabecalho_ata: string | null;
   lider_ativo: boolean;
@@ -201,6 +238,7 @@ export type SettingsSection =
   | "visao-geral"
   | "instituicao"
   | "turmas"
+  | "equipe-gestora"
   | "conselho-perfil"
   | "conselho-destaque"
   | "conselho-encaminhamentos"
@@ -231,6 +269,7 @@ export const GRUPOS_CONFIG: Array<{ titulo: string; itens: Array<{ id: SettingsS
     itens: [
       { id: "instituicao", label: "Instituição" },
       { id: "turmas", label: "Turmas" },
+      { id: "equipe-gestora", label: "Equipe gestora" },
     ],
   },
   {
@@ -277,8 +316,10 @@ const LABEL_DA_SECAO: Record<SettingsSection, string> = (() => {
 
 // Campos indexados pela busca, além das seções. `ancora` = id do elemento.
 const CAMPOS_INDEXADOS: Array<{ secao: SettingsSection; campo: string; ancora?: string }> = [
-  { secao: "instituicao", campo: "Nome da direção", ancora: "cfg-instituicao-identificacao" },
-  { secao: "instituicao", campo: "Pronome da direção", ancora: "cfg-instituicao-identificacao" },
+  { secao: "equipe-gestora", campo: "Nome e gênero da direção", ancora: "cfg-equipe-direcao" },
+  { secao: "equipe-gestora", campo: "Vice-direção", ancora: "cfg-equipe-vices" },
+  { secao: "equipe-gestora", campo: "Coordenação", ancora: "cfg-equipe-coordenacoes" },
+  { secao: "equipe-gestora", campo: "Vincular membros do grupo de trabalho", ancora: "cfg-equipe-vinculos" },
   { secao: "instituicao", campo: "Cabeçalho dos documentos", ancora: "cfg-instituicao-cabecalho" },
   { secao: "instituicao", campo: "Calendário letivo", ancora: "cfg-instituicao-ciclo" },
   { secao: "instituicao", campo: "Datas dos bimestres", ancora: "cfg-instituicao-bimestres" },
@@ -381,6 +422,7 @@ export function Configuracoes({
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
     direcao_pronome: "F",
+    equipe_gestora: equipeGestoraVazia(),
     nota_minima: 5,
     cabecalho_ata: null,
     lider_ativo: true,
@@ -640,6 +682,24 @@ export function Configuracoes({
       const salvo = await invokeApp<ConfiguracoesApp>("salvar_configuracoes", { input: config });
       setConfig(salvo);
       setMensagem("Configurações salvas.");
+      onConfigSalva(salvo);
+      onDadosAlterados();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  // Equipe gestora: salva só esse campo (carimba atualizado_em p/ o sync do grupo).
+  async function salvarEquipe() {
+    setProcessando(true);
+    setMensagem("");
+    setErro("");
+    try {
+      const salvo = await invokeApp<ConfiguracoesApp>("salvar_equipe_gestora", { equipe: config.equipe_gestora });
+      setConfig(salvo);
+      setMensagem("Equipe gestora salva.");
       onConfigSalva(salvo);
       onDadosAlterados();
     } catch (err) {
@@ -1141,34 +1201,30 @@ export function Configuracoes({
             onIr={setSecaoConfig}
           />
         )}
+        {secaoConfig === "equipe-gestora" && (
+        <article className="settings-card">
+          <CabecalhoSecao
+            secao="equipe-gestora"
+            titulo="Equipe gestora"
+            descricao="Direção, vice-direções e coordenações com nome e gênero. É a fonte da verdade para quem assina documentos e aparece no grupo de trabalho."
+            acao={<button type="button" className="primary-action" onClick={salvarEquipe} disabled={processando}>Salvar alterações</button>}
+          />
+          <EquipeGestoraSecao
+            equipe={config.equipe_gestora}
+            onChange={(equipe) => setConfig((atual) => ({ ...atual, equipe_gestora: equipe }))}
+            perfilSync={perfilSync}
+          />
+        </article>
+        )}
+
         {secaoConfig === "instituicao" && (
         <article className="settings-card">
           <CabecalhoSecao
             secao="instituicao"
             titulo="Instituição"
-            descricao="Identificação da direção e cabeçalho usado na ATA, nos relatórios e nos documentos impressos."
+            descricao="Calendário letivo e cabeçalho usado na ATA, nos relatórios e nos documentos impressos."
             acao={<button type="button" className="primary-action" onClick={salvar} disabled={processando}>Salvar alterações</button>}
           />
-
-          <div className="cfg-artigo" id="cfg-instituicao-identificacao">
-            <div className="cfg-artigo-titulo">
-              <strong>Identificação</strong>
-              <span>aparece no topo de todo documento gerado</span>
-            </div>
-            <div className="cfg-campos-2col">
-              <label>
-                Nome da direção
-                <input value={config.direcao_nome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_nome: event.target.value }))} />
-              </label>
-              <label>
-                Pronome
-                <select value={config.direcao_pronome} onChange={(event) => setConfig((atual) => ({ ...atual, direcao_pronome: event.target.value }))}>
-                  <option value="F">Feminino: Diretora Sra.</option>
-                  <option value="M">Masculino: Diretor Sr.</option>
-                </select>
-              </label>
-            </div>
-          </div>
 
           <div className="cfg-artigo" id="cfg-instituicao-ciclo">
             <div className="cfg-artigo-titulo">

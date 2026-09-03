@@ -56,12 +56,55 @@ pub(crate) struct MensagemTemplate {
     pub(crate) tags: Vec<String>,
 }
 
+/// Uma pessoa da equipe gestora (direção, vice-direção ou coordenação).
+/// `genero`: "F" | "M" | "" (não informado → formas neutras nos textos).
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct MembroEquipe {
+    #[serde(default)]
+    pub(crate) id: String,
+    #[serde(default)]
+    pub(crate) nome: String,
+    #[serde(default)]
+    pub(crate) genero: String,
+}
+
+/// Escolha MANUAL de com quem casar um membro do grupo de trabalho.
+/// O casamento automático (por nome compatível) não é gravado — é resolvido
+/// ao vivo no frontend. `membro_id` vazio = "não vincular".
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct VinculoMembroEquipe {
+    #[serde(default)]
+    pub(crate) nome_curto: String,
+    #[serde(default)]
+    pub(crate) membro_id: String,
+}
+
+/// Equipe gestora da escola. Fonte da verdade para nome + gênero das pessoas
+/// que assinam documentos e aparecem no grupo de trabalho.
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub(crate) struct EquipeGestora {
+    #[serde(default)]
+    pub(crate) direcao: MembroEquipe,
+    #[serde(default)]
+    pub(crate) vices: Vec<MembroEquipe>,
+    #[serde(default)]
+    pub(crate) coordenacoes: Vec<MembroEquipe>,
+    #[serde(default)]
+    pub(crate) vinculos: Vec<VinculoMembroEquipe>,
+    /// RFC3339 — usado para "mais novo vence" na sincronização de grupo.
+    #[serde(default)]
+    pub(crate) atualizado_em: String,
+}
+
 #[derive(Serialize)]
 pub(crate) struct ConfiguracoesApp {
     pub(crate) direcao_nome: String,
     pub(crate) direcao_pronome: String,
     // Nomes dos vice-diretores — assinam o PEI quando indicados por turma.
+    // Derivado de `equipe_gestora.vices` na gravação (compat com leitores antigos).
     pub(crate) vice_direcao: Vec<String>,
+    // Equipe gestora completa (direção + vices + coordenações + vínculos).
+    pub(crate) equipe_gestora: EquipeGestora,
     pub(crate) nota_minima: f64,
     pub(crate) cabecalho_ata: Option<String>,
     pub(crate) lider_ativo: bool,
@@ -107,6 +150,10 @@ pub(crate) struct ConfiguracoesInput {
     pub(crate) direcao_pronome: String,
     #[serde(default)]
     pub(crate) vice_direcao: Vec<String>,
+    // Quando presente, é a fonte da verdade: os campos planos acima são
+    // derivados dela na gravação.
+    #[serde(default)]
+    pub(crate) equipe_gestora: Option<EquipeGestora>,
     pub(crate) nota_minima: f64,
     pub(crate) lider_ativo: bool,
     pub(crate) lider_rotulo: String,
