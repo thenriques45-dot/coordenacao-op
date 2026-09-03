@@ -179,7 +179,13 @@ function salvarTombstones(tombstones: SyncTombstones) {
 }
 
 function normalizarNome(valor: string): string[] {
-  return valor.trim().toLocaleLowerCase("pt-BR").split(/\s+/).filter(Boolean);
+  return valor
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // tira acento: "José" == "Jose"
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .split(/\s+/)
+    .filter(Boolean);
 }
 
 // Compara dois nomes de exibição por prefixo de palavras (não por igualdade
