@@ -5,6 +5,13 @@
 
 export type CanalAtendimento = "manual" | "wa_me" | "api";
 
+export type ResponsavelAluno = {
+  nome: string;
+  parentesco: string;
+  parentesco_desc?: string | null;
+  telefone: string;
+};
+
 // Subconjunto de TurmaResumo (App.tsx / tipos.rs::TurmaResumo) que a Tela de
 // Atendimentos usa — seletor de turma, subtítulo e pílula da sidebar.
 export type TurmaResumoAtendimentos = {
@@ -27,7 +34,7 @@ export type AlunoAtendimentos = {
   numero_chamada: number | null;
   frequencia_percentual: number | null;
   atendimentos: AtendimentoAluno[];
-  responsaveis: { nome: string; parentesco: string; parentesco_desc?: string | null; telefone: string }[];
+  responsaveis: ResponsavelAluno[];
 };
 
 export type TurmaDetalheAtendimentos = {

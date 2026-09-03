@@ -3,8 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { montarLinhas, seloCanal } from "./atendimentos/dados";
 import { dataCurta, iniciais, tempoRelativo, useMediaQuery } from "./atendimentos/formato";
+import { CompositorMensagem } from "./atendimentos/CompositorMensagem";
 import { ModalAtendimento, type ModoModalAtendimento } from "./atendimentos/ModalAtendimento";
 import { PainelThread } from "./atendimentos/PainelThread";
+import type { MensagemTemplate } from "./SettingsPage";
 import type {
   AtendimentoAlunoInput,
   AtendimentoAnexo,
@@ -38,6 +40,7 @@ type Props = {
   turmas: TurmaResumoAtendimentos[];
   bimestre: string;
   tiposAtendimento?: string[];
+  mensagemTemplates?: MensagemTemplate[];
   turmaCodigoInicial?: string | null;
   onAbrirFichaAluno: (turmaCodigo: string, alunoNome: string) => void;
 };
@@ -46,6 +49,7 @@ export function TelaAtendimentos({
   turmas,
   bimestre,
   tiposAtendimento,
+  mensagemTemplates,
   turmaCodigoInicial,
   onAbrirFichaAluno,
 }: Props) {
@@ -74,10 +78,12 @@ export function TelaAtendimentos({
   const [pagina, setPagina] = useState(1);
 
   const [modalModo, setModalModo] = useState<ModoModalAtendimento | null>(null);
+  const [compositorMatricula, setCompositorMatricula] = useState<string | null>(null);
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [varsPainel, setVarsPainel] = useState<{ freq: number | null; tarefas: string | null }>({ freq: null, tarefas: null });
 
   const tiposConfig = tiposAtendimento?.length ? tiposAtendimento : TIPOS_ATENDIMENTO_PADRAO;
+  const templatesConfig = mensagemTemplates ?? [];
 
   const carregar = useCallback(() => {
     if (!turma) {
@@ -239,6 +245,11 @@ export function TelaAtendimentos({
   const larguraPainel = useMediaQuery("(min-width: 1280px)");
   const painelLado = densidade === "cartoes" && Boolean(linhaAberta) && larguraPainel;
 
+  const compositorAluno = useMemo(
+    () => (compositorMatricula ? detalhe?.alunos.find((a) => a.matricula === compositorMatricula) ?? null : null),
+    [compositorMatricula, detalhe],
+  );
+
   return (
     <div className="atd-tela">
       <header className="atd-header">
@@ -344,7 +355,7 @@ export function TelaAtendimentos({
                   onFollowup={() => setModalModo({ tipo: "followup", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
                   onDesfecho={() => setModalModo({ tipo: "desfecho", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
                   onEditar={() => setModalModo({ tipo: "editar", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
-                  onNovaMensagem={() => {}}
+                  onNovaMensagem={() => setCompositorMatricula(linhaAberta.matricula)}
                   onDefinirCombinado={(p) => definirCombinado(linhaAberta.matricula, linhaAberta.atendimento.id, p)}
                   onAbrirAnexo={abrirAnexo}
                   onAbrirFicha={() => linhaAberta && onAbrirFichaAluno(linhaAberta.turmaCodigo, linhaAberta.alunoNome)}
@@ -401,7 +412,7 @@ export function TelaAtendimentos({
           onFollowup={() => setModalModo({ tipo: "followup", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
           onDesfecho={() => setModalModo({ tipo: "desfecho", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
           onEditar={() => setModalModo({ tipo: "editar", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
-          onNovaMensagem={() => {}}
+          onNovaMensagem={() => setCompositorMatricula(linhaAberta.matricula)}
           onDefinirCombinado={(p) => definirCombinado(linhaAberta.matricula, linhaAberta.atendimento.id, p)}
           onAbrirAnexo={abrirAnexo}
           onAbrirFicha={() => linhaAberta && onAbrirFichaAluno(linhaAberta.turmaCodigo, linhaAberta.alunoNome)}
@@ -417,6 +428,24 @@ export function TelaAtendimentos({
           tipos={tiposConfig}
           onFechar={() => setModalModo(null)}
           onSalvar={salvarAtendimento}
+        />
+      )}
+
+      {compositorAluno && turma && (
+        <CompositorMensagem
+          aluno={{
+            matricula: compositorAluno.matricula,
+            nome: compositorAluno.nome,
+            turmaCodigo: turma.codigo,
+            frequencia: compositorAluno.frequencia_percentual,
+          }}
+          responsaveis={compositorAluno.responsaveis ?? []}
+          caminhoTurma={turma.caminho}
+          bimestre={bimestre}
+          templates={templatesConfig}
+          onFechar={() => setCompositorMatricula(null)}
+          onSalvar={salvarAtendimento}
+          onCadastrarResponsavel={() => onAbrirFichaAluno(turma.codigo, compositorAluno.nome)}
         />
       )}
     </div>

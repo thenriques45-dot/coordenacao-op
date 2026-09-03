@@ -16,6 +16,16 @@ import type {
   AtendimentoAnexo,
   AtendimentoFollowUp,
 } from "./atendimentos/tipos";
+import {
+  apenasDigitos,
+  formatarTelefoneBR,
+  montarSegmentosMensagem,
+  PARENTESCO_OPCOES,
+  rotuloParentesco,
+  rotuloVariavel,
+  telefoneParaWhatsapp,
+  type SegmentoMensagem,
+} from "./atendimentos/mensagemFamilia";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
 import {
@@ -840,10 +850,6 @@ export function GestaoTurma({
   );
 }
 
-function apenasDigitos(valor: string) {
-  return valor.replace(/\D/g, "");
-}
-
 // Campo de tags: cada texto vira um "chip" ao digitar vírgula / Enter / sair
 // do campo. Guarda e devolve o valor como string separada por vírgula (para
 // encaixar sem mudança nos formulários que já usavam um <input> de texto).
@@ -975,70 +981,6 @@ function TagsInput({
   );
 }
 
-function formatarTelefoneBR(valor: string) {
-  const d = apenasDigitos(valor).replace(/^55/, "");
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return valor;
-}
-
-function telefoneParaWhatsapp(valor: string) {
-  const d = apenasDigitos(valor);
-  if (!d) return "";
-  return d.startsWith("55") ? d : `55${d}`;
-}
-
-function rotuloParentesco(r: ResponsavelAluno) {
-  if (r.parentesco === "mae") return "mãe";
-  if (r.parentesco === "pai") return "pai";
-  return (r.parentesco_desc || "").trim() || "responsável";
-}
-
-function rotuloVariavel(chave: string) {
-  return VARIAVEIS_MENSAGEM.find((v) => v.chave === chave)?.rotulo ?? chave;
-}
-
-type SegmentoMensagem =
-  | { tipo: "texto"; texto: string; chave?: undefined }
-  | { tipo: "var"; chave: string; rotulo: string; valor?: string; resolvido: boolean; texto?: undefined };
-
-// Quebra o texto da mensagem em trechos literais + ocorrências de {variavel},
-// já resolvendo cada variável pelo valor real (ou marcando como pendente). A
-// prévia renderiza isso com destaque visual; `textoParaEnviar` reconstrói a
-// string final a partir dos mesmos segmentos.
-function montarSegmentosMensagem(
-  corpo: string,
-  variaveis: VariavelMensagem[],
-  extras: Record<string, string>,
-): SegmentoMensagem[] {
-  const mapa = new Map(variaveis.map((v) => [v.chave, v]));
-  const segmentos: SegmentoMensagem[] = [];
-  const regex = /\{([a-z_]+)\}/g;
-  let ultimo = 0;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(corpo)) !== null) {
-    if (m.index > ultimo) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo, m.index) });
-    const chave = m[1];
-    const extra = extras[chave];
-    const variavel = mapa.get(chave);
-    if (extra != null && extra !== "") {
-      segmentos.push({ tipo: "var", chave, rotulo: rotuloVariavel(chave), valor: extra, resolvido: true });
-    } else if (variavel && variavel.disponivel) {
-      segmentos.push({ tipo: "var", chave, rotulo: variavel.rotulo, valor: variavel.valor, resolvido: true });
-    } else {
-      segmentos.push({ tipo: "var", chave, rotulo: variavel?.rotulo ?? rotuloVariavel(chave), resolvido: false });
-    }
-    ultimo = regex.lastIndex;
-  }
-  if (ultimo < corpo.length) segmentos.push({ tipo: "texto", texto: corpo.slice(ultimo) });
-  return segmentos;
-}
-
-const PARENTESCO_OPCOES: { valor: string; rotulo: string }[] = [
-  { valor: "mae", rotulo: "Mãe" },
-  { valor: "pai", rotulo: "Pai" },
-  { valor: "outro", rotulo: "Outro" },
-];
 
 function escaparHtml(texto: string) {
   return texto

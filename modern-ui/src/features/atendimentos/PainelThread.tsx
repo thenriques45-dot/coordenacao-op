@@ -96,7 +96,7 @@ export function PainelThread({
 
       <div className="atd-thread-acoes">
         <button type="button" onClick={onFollowup}><Plus size={14} aria-hidden /> Follow-up</button>
-        <button type="button" onClick={onNovaMensagem} disabled title="Compositor entra na Fase 3">
+        <button type="button" onClick={onNovaMensagem}>
           <MessageCircle size={14} aria-hidden /> Nova mensagem
         </button>
         <div className="atd-thread-menu" ref={menuRef}>

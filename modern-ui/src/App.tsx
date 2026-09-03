@@ -1622,6 +1622,7 @@ export function App() {
             turmas={turmas}
             bimestre={bimestreSelecionado}
             tiposAtendimento={turmaConfig.atendimento_tipos}
+            mensagemTemplates={turmaConfig.mensagem_familia_templates}
             onAbrirFichaAluno={(turmaCodigo, alunoNome) => {
               const alvo = turmas.find((t) => t.codigo === turmaCodigo);
               if (!alvo) return;
