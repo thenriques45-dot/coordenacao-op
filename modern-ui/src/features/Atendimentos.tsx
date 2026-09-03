@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { montarLinhas, seloCanal } from "./atendimentos/dados";
 import { dataCurta, iniciais, tempoRelativo, useMediaQuery } from "./atendimentos/formato";
+import { AbaPorAluno } from "./atendimentos/AbaPorAluno";
 import { CompositorMensagem } from "./atendimentos/CompositorMensagem";
 import { ModalAtendimento, type ModoModalAtendimento } from "./atendimentos/ModalAtendimento";
 import { PainelThread } from "./atendimentos/PainelThread";
@@ -129,6 +130,11 @@ export function TelaAtendimentos({
   useEffect(() => {
     if (abertoId && detalhe && !alunoDoAberto) setAbertoId(null);
   }, [abertoId, detalhe, alunoDoAberto]);
+
+  // Ao trocar de aba, fecha o painel/drawer da thread (que é só da aba "lista").
+  useEffect(() => {
+    if (aba !== "lista") setAbertoId(null);
+  }, [aba]);
 
   // Resolve frequência / tarefas pendentes para o cabeçalho do painel.
   useEffect(() => {
@@ -280,7 +286,7 @@ export function TelaAtendimentos({
         <button role="tab" aria-selected={aba === "lista"} className={aba === "lista" ? "ativo" : ""} onClick={() => setAba("lista")}>
           Atendimentos
         </button>
-        <button role="tab" aria-selected={aba === "por-aluno"} className={aba === "por-aluno" ? "ativo" : ""} onClick={() => setAba("por-aluno")} disabled>
+        <button role="tab" aria-selected={aba === "por-aluno"} className={aba === "por-aluno" ? "ativo" : ""} onClick={() => setAba("por-aluno")}>
           Por aluno
         </button>
         <button role="tab" aria-selected={aba === "lote"} className={aba === "lote" ? "ativo" : ""} onClick={() => setAba("lote")} disabled>
@@ -398,8 +404,24 @@ export function TelaAtendimentos({
         </>
       )}
 
-      {aba !== "lista" && (
-        <div className="atd-carregando">Esta aba entra em uma próxima etapa da implantação.</div>
+      {aba === "por-aluno" && turma && (
+        carregando ? (
+          <div className="atd-carregando">Carregando…</div>
+        ) : detalhe ? (
+          <AbaPorAluno
+            alunos={detalhe.alunos}
+            turmaCodigo={turma.codigo}
+            caminhoTurma={turma.caminho}
+            bimestre={bimestre}
+            templates={templatesConfig}
+            onNovaMensagem={(m) => setCompositorMatricula(m)}
+            onAbrirFicha={(nome) => onAbrirFichaAluno(turma.codigo, nome)}
+          />
+        ) : null
+      )}
+
+      {aba === "lote" && (
+        <div className="atd-carregando">Os disparos em lote entram em uma próxima etapa da implantação.</div>
       )}
 
       {/* Drawer: tabela sempre; cartões abaixo de 1280px (painelLado = false). */}

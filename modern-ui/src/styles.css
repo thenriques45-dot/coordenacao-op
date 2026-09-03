@@ -11447,6 +11447,311 @@ th:nth-child(3) {
   }
 }
 
+/* ── Aba "Por aluno" / modo família (artboard 1f) ── */
+.atd-familia {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+}
+
+.atd-familia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  align-self: start;
+}
+
+.atd-familia-alunos {
+  display: flex;
+  flex-direction: column;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.atd-familia-aluno {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.atd-familia-aluno:hover {
+  background: var(--surface-subtle);
+}
+
+.atd-familia-aluno.sel {
+  background: var(--accent-soft);
+}
+
+.atd-familia-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.atd-familia-aluno.sel .atd-familia-avatar {
+  background: var(--surface);
+  color: var(--accent-dark);
+}
+
+.atd-familia-aluno-info {
+  min-width: 0;
+}
+
+.atd-familia-aluno-info strong {
+  display: block;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.atd-familia-aluno-info small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-familia-aluno-info small.alerta {
+  color: var(--atd-atencao-texto);
+  font-weight: 600;
+}
+
+.atd-familia-painel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.atd-familia-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.atd-familia-cabecalho > div:first-child > strong {
+  font-size: 17px;
+}
+
+.atd-familia-sub {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+
+.atd-familia-responsaveis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.atd-familia-resp-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-inner);
+  border-radius: 8px;
+}
+
+.atd-familia-resp-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.atd-familia-resp-card strong {
+  display: block;
+  font-size: 13px;
+}
+
+.atd-familia-resp-card small {
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+}
+
+.atd-familia-sem-resp {
+  font-size: 12.5px;
+  color: var(--atd-atencao-texto);
+  font-weight: 600;
+}
+
+.atd-familia-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.atd-familia-acoes .atd-btn-primario,
+.atd-familia-acoes .atd-btn-secundario {
+  height: 38px;
+  font-size: 13.5px;
+  justify-content: center;
+}
+
+.atd-familia-historico {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-y: auto;
+}
+
+.atd-familia-hist-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.atd-familia-hist-topo > strong {
+  font-size: 13.5px;
+}
+
+.atd-familia-filtros {
+  display: flex;
+  gap: 6px;
+}
+
+.atd-familia-filtros button {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-familia-filtros button.ativo {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--surface);
+}
+
+.atd-familia-vazio {
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.atd-familia-timeline {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.atd-familia-evento {
+  display: grid;
+  grid-template-columns: 74px 26px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.atd-familia-data {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  padding-top: 4px;
+}
+
+.atd-familia-marcador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--text-secondary);
+}
+
+.atd-familia-marcador.whatsapp {
+  background: var(--atd-sucesso-bg);
+  color: var(--atd-sucesso-texto);
+}
+
+.atd-familia-evento:not(:last-child) .atd-familia-marcador {
+  position: relative;
+}
+
+.atd-familia-evento:not(:last-child) .atd-familia-marcador::after {
+  content: "";
+  position: absolute;
+  top: 28px;
+  bottom: -14px;
+  width: 2px;
+  background: var(--border);
+}
+
+.atd-familia-conteudo {
+  min-width: 0;
+  padding-bottom: 16px;
+}
+
+.atd-familia-evento-titulo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.atd-familia-evento-titulo strong {
+  font-size: 13.5px;
+}
+
+.atd-familia-alvo {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-familia-conteudo p {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  color: var(--text-nav);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 980px) {
   .atd-compositor-corpo {
     grid-template-columns: minmax(0, 1fr);
@@ -11455,5 +11760,8 @@ th:nth-child(3) {
   .atd-compositor-passos {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+  }
+  .atd-familia {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
