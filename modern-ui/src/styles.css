@@ -2652,21 +2652,10 @@ h3 {
   gap: 12px;
 }
 
-.student-performance-grid {
-  margin-top: 26px;
-}
-
-.student-performance-grid h3,
 .student-subjects-section h3,
 .student-council-note h3 {
   font-size: 16px;
   margin: 0 0 14px;
-}
-
-.student-subject-evolution {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 14px 18px 14px;
 }
 
 .student-chart-heading {
@@ -2680,113 +2669,6 @@ h3 {
   color: #6b6670;
   font-size: 13px;
   font-weight: 700;
-}
-
-.student-chart-scroll {
-  margin-top: 6px;
-  max-width: 920px;
-  overflow-x: auto;
-}
-
-.student-multi-line-chart {
-  display: block;
-  flex: 0 0 auto;
-  max-width: none;
-}
-
-.student-multi-line-chart line {
-  stroke: #e5e7eb;
-  stroke-dasharray: 3 3;
-}
-
-.student-multi-line-chart .student-chart-axis {
-  stroke: #98a2b3;
-  stroke-dasharray: none;
-}
-
-.student-multi-line-chart polyline {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.6;
-}
-
-.student-multi-line-chart text {
-  fill: #6b6670;
-  font-size: 11px;
-  font-weight: 700;
-  text-anchor: middle;
-}
-
-.student-multi-line-chart .student-subject-row-line {
-  stroke: #edf1f4;
-  stroke-dasharray: none;
-}
-
-.student-multi-line-chart .student-subject-axis-label {
-  fill: #344054;
-  font-size: 11px;
-  font-weight: 800;
-  text-anchor: start;
-}
-
-.student-grade-dot {
-  stroke: #ffffff;
-  stroke-width: 1.5;
-}
-
-.student-grade-dot.adequada,
-.student-chart-legend i.adequada {
-  fill: #276749;
-  background: #276749;
-}
-
-.student-grade-dot.cuidado,
-.student-chart-legend i.cuidado {
-  fill: #a0400e;
-  background: #a0400e;
-}
-
-.student-grade-dot.abaixo,
-.student-chart-legend i.abaixo {
-  fill: #a81c1c;
-  background: #a81c1c;
-}
-
-.student-grade-dot.sem-nota,
-.student-chart-legend i.sem-nota {
-  fill: #52616a;
-  background: #52616a;
-}
-
-.student-multi-line-chart .student-grade-dot-label {
-  fill: #344054;
-  font-size: 11px;
-  font-weight: 800;
-  text-anchor: start;
-}
-
-.student-chart-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin-top: 10px;
-}
-
-.student-chart-legend span {
-  align-items: center;
-  color: #344054;
-  display: inline-flex;
-  font-size: 12px;
-  font-weight: 800;
-  gap: 6px;
-}
-
-.student-chart-legend i {
-  border-radius: 999px;
-  display: inline-block;
-  height: 9px;
-  width: 9px;
 }
 
 .student-subjects-section {

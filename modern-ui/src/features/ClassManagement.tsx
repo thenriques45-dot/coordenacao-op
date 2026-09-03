@@ -206,24 +206,6 @@ function calcularFrequenciaDisciplina(disciplina: Disciplina) {
   return Math.max(0, Math.min(100, ((totalAulas - faltas) / totalAulas) * 100));
 }
 
-function abreviarDisciplina(nome: string) {
-  const abreviacoes: Record<string, string> = {
-    "EDUCACAO FINANCEIRA": "ED. FINANC.",
-    "LINGUA PORTUGUESA": "PORTUGUESA",
-    "LINGUA INGLESA": "INGLES",
-    "PROJETO DE VIDA": "PROJ. VIDA",
-    "REDACAO E LEITURA": "REDACAO",
-    "MATEMATICA": "MATEMAT.",
-    "GEOGRAFIA": "GEOGRAF.",
-    "BIOLOGIA": "BIOLOGIA",
-    "FILOSOFIA": "FILOSOF.",
-    "HISTORIA": "HISTORIA",
-    "QUIMICA": "QUIMICA",
-    "FISICA": "FISICA",
-  };
-  return abreviacoes[nome] ?? (nome.length > 10 ? `${nome.slice(0, 9)}.` : nome);
-}
-
 function notasBimestresDisciplina(disciplina: Disciplina, bimestreAtual: number): Array<number | null> {
   const notaAtual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
   const notas = [null, null, null, null] as Array<number | null>;
@@ -1611,26 +1593,6 @@ function AlunoDetalheGestao({
   const bimestreAtual = bimestreParaNumero(bimestre);
   const status = classificarAluno(aluno, bimestreAtual);
   const mediaAluno = calcularMediaAluno(aluno, bimestreAtual);
-  const alturaLinhaGrafico = 22;
-  const larguraGraficoAluno = 760;
-  const alturaGraficoAluno = Math.max(180, 66 + aluno.disciplinas.length * alturaLinhaGrafico);
-  const escalaGraficoAluno = 1.1;
-  const graficoDisciplinas = aluno.disciplinas.map((disciplina, indice) => {
-    const notas = notasBimestresDisciplina(disciplina, bimestreAtual);
-    const pontos = notas
-      .map((nota, bimestreIndice) => {
-        if (nota === null) return null;
-        const x = 220 + bimestreIndice * 150;
-        const y = 46 + indice * alturaLinhaGrafico;
-        return { x, y, nota, bimestre: bimestreIndice + 1 };
-      })
-      .filter((ponto): ponto is { x: number; y: number; nota: number; bimestre: number } => ponto !== null);
-
-    return {
-      nome: disciplina.nome,
-      pontos,
-    };
-  });
   const opcoesDeficiencia = useMemo(() => {
     const itens = new Set([...catalogoDeficiencias, ...deficienciasSelecionadas].map((item) => item.trim()).filter(Boolean));
     return Array.from(itens).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
@@ -2006,57 +1968,6 @@ function AlunoDetalheGestao({
           </div>
         </section>
       )}
-      <section className="student-performance-grid">
-        <article className="student-subject-evolution">
-          <div className="student-chart-heading">
-            <h3>Evolução por Disciplina</h3>
-          </div>
-          <div className="student-chart-scroll">
-          <svg
-            className="student-multi-line-chart"
-            width={larguraGraficoAluno * escalaGraficoAluno}
-            height={alturaGraficoAluno * escalaGraficoAluno}
-            viewBox={`0 0 ${larguraGraficoAluno} ${alturaGraficoAluno}`}
-            role="img"
-            aria-label="Evolução das notas por disciplina"
-          >
-            {[1, 2, 3, 4].map((bim, indice) => {
-              const x = 220 + indice * 150;
-              return (
-                <g key={bim}>
-                  <line x1={x} x2={x} y1="40" y2={alturaGraficoAluno - 34} />
-                  <text x={x} y="24">{bim}º bim</text>
-                </g>
-              );
-            })}
-            {graficoDisciplinas.map((disciplina, indice) => {
-              const y = 46 + indice * alturaLinhaGrafico;
-              return (
-              <g key={disciplina.nome}>
-                  <line className="student-subject-row-line" x1="160" x2="690" y1={y} y2={y} />
-                  <text className="student-subject-axis-label" x="24" y={y + 4}>{abreviarDisciplina(disciplina.nome)}</text>
-                {disciplina.pontos.map((ponto) => (
-                  <g key={`${disciplina.nome}-${ponto.bimestre}`}>
-                    <circle className={`student-grade-dot ${classeNota(ponto.nota)}`} cx={ponto.x} cy={ponto.y} r="3.8">
-                    <title>{`${disciplina.nome} - ${ponto.bimestre}º bimestre: ${formatarNota(ponto.nota)}`}</title>
-                  </circle>
-                    <text className="student-grade-dot-label" x={ponto.x + 10} y={ponto.y + 4}>{formatarNota(ponto.nota)}</text>
-                  </g>
-                ))}
-              </g>
-              );
-            })}
-          </svg>
-          </div>
-          <div className="student-chart-legend">
-            <span><i className="adequada" />Acima da média</span>
-            <span><i className="cuidado" />Exatamente 5</span>
-            <span><i className="abaixo" />Abaixo</span>
-            <span><i className="sem-nota" />Sem nota</span>
-          </div>
-        </article>
-      </section>
-
       <div className="printable-student-report">
       <div className="print-only print-report-header">
         <h2>{aluno.nome}</h2>
