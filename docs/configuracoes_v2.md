@@ -41,6 +41,8 @@ conselho, ficha do aluno, importador do Diagnóstico SARESP, NOVIDADES). O parse
 - `tsc` + `vite build` limpos; 134 testes Rust passam.
 - Conferido no dev server (tema claro e escuro): nav, busca + dropdown, Visão geral, cabeçalho
   de seção, Instituição 1d, modal "Gerenciar modelos".
-- **Não** foi possível testar no app nativo (tela do Windows estava bloqueada). O fluxo
-  end-to-end de salvar um modelo pela tela de Atendimentos não foi exercido ao vivo — só
-  compila e a lógica espelha `salvar_configuracoes`.
+- Conferido no app nativo com dados reais (claro e escuro): Visão geral com o estado real de
+  cada seção, busca que casa campo + Enter que navega e rola até o ponto, Instituição no
+  padrão 1d com a miniatura da ATA, Sincronização fundida, e o modal "Gerenciar modelos" —
+  editar um título, Salvar e reabrir confirmou que `salvar_modelos_mensagem` persiste
+  (fluxo end-to-end OK).
