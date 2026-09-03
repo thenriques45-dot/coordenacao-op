@@ -1648,13 +1648,33 @@ pub(crate) fn escrever_docx(caminho: &Path, corpo: &str, rodape: Option<&str>) -
     Ok(())
 }
 
+/// Entre as variantes `cabecalho_ata.{png,jpg,jpeg}` que existirem em `dir`,
+/// devolve a modificada mais recentemente. Se o usuário troca a imagem e a
+/// variante antiga não é apagada (arquivo travado pelo OneDrive/antivírus no
+/// momento do salvamento), a mais nova ainda vence — em vez de a ordem fixa
+/// png→jpg→jpeg fazer o relatório sair com o cabeçalho antigo.
+fn cabecalho_ata_mais_recente(dir: &Path) -> Option<PathBuf> {
+    ["png", "jpg", "jpeg"]
+        .into_iter()
+        .map(|ext| dir.join(format!("cabecalho_ata.{ext}")))
+        .filter_map(|path| {
+            let modificado = fs::metadata(&path).ok()?.modified().ok()?;
+            Some((path, modificado))
+        })
+        .max_by_key(|(_, modificado)| *modificado)
+        .map(|(path, _)| path)
+}
+
 pub(crate) fn localizar_imagem_cabecalho() -> Option<PathBuf> {
+    if let Ok(base) = data_dir() {
+        if let Some(path) = cabecalho_ata_mais_recente(&base.join("imagens")) {
+            return Some(path);
+        }
+    }
+    // Legado: instalações antigas guardavam o cabeçalho como `cabecalho.jpg`.
+    // Só entra em cena quando não há nenhum `cabecalho_ata.*` configurado.
     let mut candidatos = Vec::new();
     if let Ok(base) = data_dir() {
-        candidatos.extend(
-            ["png", "jpg", "jpeg"]
-                .map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}"))),
-        );
         candidatos.push(base.join("imagens").join("cabecalho.jpg"));
     }
     if let Ok(base) = app_base_dir() {
@@ -1675,12 +1695,9 @@ pub(crate) fn localizar_imagem_cabecalho() -> Option<PathBuf> {
 }
 
 pub(crate) fn caminho_cabecalho_ata() -> Option<PathBuf> {
-    data_dir().ok().and_then(|base| {
-        ["png", "jpg", "jpeg"]
-            .into_iter()
-            .map(|ext| base.join("imagens").join(format!("cabecalho_ata.{ext}")))
-            .find(|path| path.exists())
-    })
+    data_dir()
+        .ok()
+        .and_then(|base| cabecalho_ata_mais_recente(&base.join("imagens")))
 }
 
 pub(crate) fn extensao_imagem_cabecalho(nome: &str) -> Option<&'static str> {

@@ -243,11 +243,25 @@ pub(crate) fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<Config
     }
     let pasta = data_dir().map_err(|err| err.to_string())?.join("imagens");
     fs::create_dir_all(&pasta).map_err(|err| err.to_string())?;
-    for ext in ["jpg", "jpeg", "png"] {
-        let _ = fs::remove_file(pasta.join(format!("cabecalho_ata.{ext}")));
-    }
     let destino = pasta.join(format!("cabecalho_ata.{extensao}"));
-    fs::write(&destino, input.bytes).map_err(|err| err.to_string())?;
+    // Grava a nova imagem antes de mexer nas antigas: escreve num temporário e
+    // renomeia por cima, pra nenhum relatório pegar um arquivo pela metade.
+    let temp = pasta.join(format!(".cabecalho_ata.{extensao}.tmp"));
+    fs::write(&temp, &input.bytes).map_err(|err| err.to_string())?;
+    fs::rename(&temp, &destino).map_err(|err| {
+        let _ = fs::remove_file(&temp);
+        err.to_string()
+    })?;
+    // Remove as outras variantes (extensão diferente) e o nome legado, pra não
+    // sobrar um `cabecalho_ata.*` antigo. É best-effort: se a remoção falhar
+    // (arquivo travado), `localizar_imagem_cabecalho` ainda escolhe o mais
+    // recente pela data de modificação.
+    for nome in ["cabecalho_ata.jpg", "cabecalho_ata.jpeg", "cabecalho_ata.png", "cabecalho.jpg"] {
+        let antigo = pasta.join(nome);
+        if antigo != destino {
+            let _ = fs::remove_file(&antigo);
+        }
+    }
     let config = ler_configuracoes();
     salvar_configuracoes_arquivo(&config)?;
     Ok(config)

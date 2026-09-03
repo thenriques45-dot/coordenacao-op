@@ -4219,9 +4219,21 @@ th:nth-child(3) {
 }
 
 .settings-nav-visaogeral.active {
-  background: #fdeceb;
-  color: #e8202a;
+  background: #faf0ef;
+  color: #c11c25;
   font-weight: 700;
+  position: relative;
+}
+
+.settings-nav-visaogeral.active::before {
+  background: #e8202a;
+  border-radius: 3px;
+  bottom: 8px;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 8px;
+  width: 3px;
 }
 
 .settings-nav-v2 .settings-nav-group {
@@ -7460,8 +7472,8 @@ th:nth-child(3) {
 }
 
 .theme-dark .settings-nav-visaogeral.active {
-  background: #3a1d20;
-  color: #ff8a8f;
+  background: #2c2023;
+  color: #ff9ea2;
 }
 
 .theme-dark .settings-nav-v2 .settings-nav-group-title {
