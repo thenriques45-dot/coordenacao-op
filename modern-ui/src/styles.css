@@ -11953,6 +11953,752 @@ th:nth-child(3) {
   gap: 9px;
 }
 
+/* ── Assistente "Contatar famílias" (artboards 1e/3a) ── */
+.atd-lote {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.atd-lote-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.atd-lote-header h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.atd-lote-header p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.atd-lote-trilho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atd-lote-passo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.atd-lote-passo span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.atd-lote-passo.atual {
+  background: var(--accent-soft);
+  border-color: var(--atd-accent-borda);
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.atd-lote-passo.atual span {
+  background: var(--accent);
+  color: #fff;
+}
+
+.atd-lote-passo.feito span {
+  background: #10a04c;
+  color: #fff;
+}
+
+.atd-lote-passo:not(:last-child)::after {
+  content: "";
+  width: 16px;
+  height: 1px;
+  background: var(--border);
+}
+
+/* passo Modelo */
+.atd-lote-modelo {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.atd-lote-modelo h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.atd-lote-modelo > p {
+  margin: 5px 0 16px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.atd-lote-modelo-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atd-lote-modelo-card {
+  display: flex;
+  gap: 11px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.atd-lote-modelo-card.sel {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.atd-lote-modelo-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  color: #fff;
+}
+
+.atd-lote-modelo-card.sel .atd-lote-modelo-radio {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.atd-lote-modelo-card strong {
+  display: block;
+  font-size: 14px;
+}
+
+.atd-lote-modelo-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.atd-lote-modelo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+/* passo Destinatários (3a) */
+.atd-lote-3a {
+  display: grid;
+  grid-template-columns: 396px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.atd-lote-cond {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.atd-lote-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.atd-lote-card-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.atd-lote-card-topo strong {
+  font-size: 13.5px;
+}
+
+.atd-lote-card-topo small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-lote-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.atd-lote-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-lote-preset.ativo {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.atd-lote-preset span {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.atd-lote-preset.ativo span {
+  color: var(--accent-dark);
+}
+
+.atd-lote-cond-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.atd-segmentado-mini {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--surface-elevated);
+}
+
+.atd-segmentado-mini button {
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.atd-segmentado-mini button.ativo {
+  background: var(--surface);
+  color: var(--text-primary);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.atd-lote-frase {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.atd-lote-condicoes {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.atd-lote-condicao {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-inner);
+  border-radius: 10px;
+}
+
+.atd-lote-cond-junc {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 20px;
+}
+
+.atd-lote-condicao select {
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-body);
+}
+
+.atd-lote-condicao select:first-of-type {
+  flex: 1;
+}
+
+.atd-lote-cond-valor {
+  width: 52px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.atd-lote-cond-valor:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.atd-lote-cond-e {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.atd-lote-cond-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.atd-lote-cond-x:hover {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.atd-lote-add-cond {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-lote-add-cond:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.atd-lote-cond-rodape {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--atd-divisor);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.atd-lote-contador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--atd-accent-borda);
+  flex: 1;
+}
+
+.atd-lote-contador span {
+  font-size: 12.5px;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+.atd-lote-contador strong {
+  margin-left: auto;
+  font-size: 17px;
+  color: var(--accent-dark);
+}
+
+/* fila */
+.atd-lote-fila {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.atd-lote-fila-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.atd-lote-fila-topo > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.atd-lote-fila-topo strong {
+  font-size: 13.5px;
+}
+
+.atd-lote-fila-conta {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--surface-elevated);
+  color: var(--text-nav);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.atd-lote-fila-mao {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.atd-lote-fila-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.atd-lote-ordem {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12.5px;
+  position: relative;
+}
+
+.atd-lote-ordem > span {
+  color: var(--text-secondary);
+}
+
+.atd-lote-ordem select {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding-right: 14px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.atd-lote-ordem svg {
+  position: absolute;
+  right: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.atd-lote-add-aluno {
+  position: relative;
+}
+
+.atd-lote-add-aluno > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-nav);
+  cursor: pointer;
+}
+
+.atd-lote-add-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  width: 260px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 3;
+}
+
+.atd-lote-add-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-nav);
+  text-align: left;
+  cursor: pointer;
+}
+
+.atd-lote-add-menu button:hover {
+  background: var(--surface-subtle);
+}
+
+.atd-lote-fila-dica {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-lote-fila-grade {
+  display: grid;
+  grid-template-columns: 22px 22px minmax(0, 1.3fr) 108px 120px 140px 30px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 16px;
+}
+
+.atd-lote-fila-cabecalho {
+  height: 38px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.atd-lote-fila-corpo {
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.atd-lote-fila-linha {
+  height: 52px;
+  border-bottom: 1px solid var(--atd-divisor);
+  font-size: 13px;
+}
+
+.atd-lote-fila-linha.sem-tel {
+  opacity: 0.62;
+}
+
+.atd-lote-alca {
+  color: var(--text-tertiary);
+  cursor: grab;
+}
+
+.atd-lote-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+}
+
+.atd-lote-fila-linha.sem-tel .atd-lote-check {
+  background: transparent;
+  border: 1.5px solid var(--border);
+}
+
+.atd-lote-fila-aluno {
+  min-width: 0;
+}
+
+.atd-lote-fila-aluno strong {
+  display: block;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.atd-lote-fila-aluno small {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-lote-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-nav);
+}
+
+.atd-lote-bolinha {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.atd-lote-val.tom-critico {
+  color: #c01620;
+  font-weight: 700;
+}
+
+.atd-lote-val.tom-atencao {
+  color: var(--atd-atencao-texto);
+  font-weight: 700;
+}
+
+.atd-lote-val.tom-ok {
+  color: var(--atd-sucesso-texto);
+}
+
+.atd-lote-fila-menu {
+  position: relative;
+}
+
+.atd-lote-fila-menu > button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.atd-lote-fila-menu-lista {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 2px);
+  width: 170px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 3;
+}
+
+.atd-lote-fila-menu-lista button {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-nav);
+  text-align: left;
+  cursor: pointer;
+}
+
+.atd-lote-fila-menu-lista button:hover {
+  background: var(--surface-subtle);
+}
+
+.atd-lote-fila-vazia {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+}
+
+.atd-lote-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 6px;
+}
+
+.atd-lote-rodape > div:last-child {
+  display: flex;
+  gap: 10px;
+}
+
+.atd-lote-rodape-resumo {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1280px) {
+  .atd-lote-3a {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 980px) {
   .atd-compositor-corpo {
     grid-template-columns: minmax(0, 1fr);

@@ -4,6 +4,7 @@ import { invokeApp } from "./appBridge";
 import { montarLinhas, seloCanal } from "./atendimentos/dados";
 import { dataCurta, iniciais, tempoRelativo, useMediaQuery } from "./atendimentos/formato";
 import { AbaPorAluno } from "./atendimentos/AbaPorAluno";
+import { AssistenteLote } from "./atendimentos/AssistenteLote";
 import { CompositorMensagem } from "./atendimentos/CompositorMensagem";
 import { ModalAtendimento, type ModoModalAtendimento } from "./atendimentos/ModalAtendimento";
 import { PainelThread } from "./atendimentos/PainelThread";
@@ -82,6 +83,7 @@ export function TelaAtendimentos({
 
   const [modalModo, setModalModo] = useState<ModoModalAtendimento | null>(null);
   const [compositorMatricula, setCompositorMatricula] = useState<string | null>(null);
+  const [assistenteLote, setAssistenteLote] = useState(false);
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [varsPainel, setVarsPainel] = useState<{ freq: number | null; tarefas: string | null }>({ freq: null, tarefas: null });
 
@@ -258,6 +260,17 @@ export function TelaAtendimentos({
     [compositorMatricula, detalhe],
   );
 
+  if (assistenteLote && turma) {
+    return (
+      <AssistenteLote
+        turma={{ codigo: turma.codigo, caminho: turma.caminho }}
+        bimestre={bimestre}
+        templates={templatesConfig}
+        onSair={() => { setAssistenteLote(false); carregar(); }}
+      />
+    );
+  }
+
   return (
     <div className="atd-tela">
       <header className="atd-header">
@@ -275,7 +288,7 @@ export function TelaAtendimentos({
             </select>
             <ChevronDown size={15} aria-hidden />
           </label>
-          <button type="button" className="atd-btn-secundario" disabled title="Disponível em breve">
+          <button type="button" className="atd-btn-secundario" onClick={() => setAssistenteLote(true)} disabled={!turma}>
             <MessageCircle size={16} /> Contatar famílias
           </button>
           <button type="button" className="atd-btn-primario" onClick={() => setModalModo({ tipo: "novo" })} disabled={!turma}>
@@ -346,7 +359,7 @@ export function TelaAtendimentos({
           {carregando ? (
             <div className="atd-carregando">Carregando atendimentos…</div>
           ) : linhas.length === 0 ? (
-            <EstadoVazioTurma turma={turma?.codigo ?? null} temTurma={Boolean(turma)} onNovo={() => setModalModo({ tipo: "novo" })} />
+            <EstadoVazioTurma turma={turma?.codigo ?? null} temTurma={Boolean(turma)} onNovo={() => setModalModo({ tipo: "novo" })} onContatar={() => setAssistenteLote(true)} />
           ) : densidade === "cartoes" ? (
             <div className={`atd-master-detail ${painelLado ? "com-painel" : ""}`}>
               <div className="atd-cards">
@@ -548,7 +561,7 @@ function CardAtendimento({ linha, selecionado, onClick }: { linha: LinhaAtendime
   );
 }
 
-function EstadoVazioTurma({ turma, temTurma, onNovo }: { turma: string | null; temTurma: boolean; onNovo: () => void }) {
+function EstadoVazioTurma({ turma, temTurma, onNovo, onContatar }: { turma: string | null; temTurma: boolean; onNovo: () => void; onContatar: () => void }) {
   return (
     <div className="atd-vazio">
       <span className="atd-vazio-icone"><MessageCircle size={26} aria-hidden /></span>
@@ -561,7 +574,7 @@ function EstadoVazioTurma({ turma, temTurma, onNovo }: { turma: string | null; t
       {temTurma && (
         <div className="atd-vazio-acoes">
           <button type="button" className="atd-btn-primario" onClick={onNovo}>Novo atendimento</button>
-          <button type="button" className="atd-btn-secundario" disabled title="Disponível em breve">Contatar famílias</button>
+          <button type="button" className="atd-btn-secundario" onClick={onContatar}>Contatar famílias</button>
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 mod apps_script_api;
+mod atendimentos_lote;
 mod apps_script_webapp_conteudo;
 mod apps_script_webapp_pei_conteudo;
 mod backup;
@@ -34,7 +35,7 @@ mod whatsapp_api;
 // módulos autocontidos, cujos itens ninguém referencia pela raiz.
 #[allow(unused_imports)]
 pub(crate) use {
-    apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
+    apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
@@ -179,6 +180,7 @@ fn main() {
             turmas::salvar_atendimento_aluno,
             turmas::definir_followup_previsto,
             mensagem_familia::resolver_variaveis_mensagem,
+            atendimentos_lote::avaliar_condicoes_atendimento_lote,
             whatsapp_api::carregar_config_whatsapp_api,
             whatsapp_api::salvar_config_whatsapp_api,
             whatsapp_api::desativar_whatsapp_api,
