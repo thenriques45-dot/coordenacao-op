@@ -4,6 +4,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp, tauriDisponivel } from "./appBridge";
+import { ConfigEnvioAutomatico } from "./atendimentos/ConfigEnvioAutomatico";
 import {
   aplicarPadroesDoProvedor,
   carregarAiAssistantSettings,
@@ -196,7 +197,7 @@ type DiagnosticoIaLocal = {
   mensagem: string;
 };
 
-type SettingsSection =
+export type SettingsSection =
   | "instituicao"
   | "turmas"
   | "conselho-perfil"
@@ -210,7 +211,8 @@ type SettingsSection =
   | "assistente"
   | "backup"
   | "manutencao-dados"
-  | "atualizacao";
+  | "atualizacao"
+  | "envio-automatico";
 
 function rotuloCiclo(ciclo: string) {
   const rotulos: Record<string, string> = {
@@ -233,6 +235,7 @@ export function Configuracoes({
   onAbrirAssistenteSync,
   onDadosAlterados,
   onConfigSalva,
+  secaoInicial,
 }: {
   turmas: TurmaConfiguracoes[];
   perfilSync: WorkgroupSyncProfile;
@@ -240,6 +243,7 @@ export function Configuracoes({
   onAbrirAssistenteSync: () => void;
   onDadosAlterados: () => void;
   onConfigSalva: (config: ConfiguracoesApp) => void;
+  secaoInicial?: SettingsSection;
 }) {
   const [config, setConfig] = useState<ConfiguracoesApp>({
     direcao_nome: "",
@@ -276,7 +280,7 @@ export function Configuracoes({
   const [verificandoIa, setVerificandoIa] = useState(false);
   const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
-  const [secaoConfig, setSecaoConfig] = useState<SettingsSection>("instituicao");
+  const [secaoConfig, setSecaoConfig] = useState<SettingsSection>(secaoInicial ?? "instituicao");
   const [autostartAtivo, setAutostartAtivo] = useState(false);
   const [duplicatasDisciplinas, setDuplicatasDisciplinas] = useState<GrupoDisciplinaDuplicada[] | null>(null);
   const [processandoDuplicatas, setProcessandoDuplicatas] = useState(false);
@@ -930,6 +934,7 @@ export function Configuracoes({
       titulo: "Sistema",
       itens: [
         { id: "assistente", label: "Assistente pedagógico" },
+        { id: "envio-automatico", label: "Envio automático de mensagens" },
         { id: "backup", label: "Backup" },
         { id: "manutencao-dados", label: "Manutenção de dados" },
         { id: "atualizacao", label: "Atualização" },
@@ -1441,6 +1446,17 @@ export function Configuracoes({
           )}
           {perfilSync.lastInstitutionalPublishedAt && <span className="settings-version">Última publicação de turmas: {new Date(perfilSync.lastInstitutionalPublishedAt).toLocaleString("pt-BR")}</span>}
           {perfilSync.lastInstitutionalPulledAt && <span className="settings-version">Última atualização de turmas: {new Date(perfilSync.lastInstitutionalPulledAt).toLocaleString("pt-BR")}</span>}
+        </article>
+        )}
+
+        {secaoConfig === "envio-automatico" && (
+        <article className="settings-card">
+          <h2>Envio automático de mensagens</h2>
+          <p>
+            Para disparos em lote pela API oficial do WhatsApp. A fila assistida (abrir o WhatsApp
+            e apertar enviar em cada aluno) funciona sem nada disso.
+          </p>
+          <ConfigEnvioAutomatico />
         </article>
         )}
 

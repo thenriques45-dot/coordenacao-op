@@ -44,6 +44,7 @@ type Props = {
   mensagemTemplates?: MensagemTemplate[];
   turmaCodigoInicial?: string | null;
   onAbrirFichaAluno: (turmaCodigo: string, alunoNome: string) => void;
+  onAtivarEnvioAutomatico: () => void;
 };
 
 export function TelaAtendimentos({
@@ -53,6 +54,7 @@ export function TelaAtendimentos({
   mensagemTemplates,
   turmaCodigoInicial,
   onAbrirFichaAluno,
+  onAtivarEnvioAutomatico,
 }: Props) {
   const turmasOrdenadas = useMemo(
     () => [...turmas].sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR")),
@@ -468,6 +470,7 @@ export function TelaAtendimentos({
           onFechar={() => setCompositorMatricula(null)}
           onSalvar={salvarAtendimento}
           onCadastrarResponsavel={() => onAbrirFichaAluno(turma.codigo, compositorAluno.nome)}
+          onAtivarEnvioAutomatico={onAtivarEnvioAutomatico}
         />
       )}
     </div>

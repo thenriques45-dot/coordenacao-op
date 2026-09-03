@@ -35,6 +35,7 @@ export function CompositorMensagem({
   onFechar,
   onSalvar,
   onCadastrarResponsavel,
+  onAtivarEnvioAutomatico,
 }: {
   aluno: AlunoCompositor;
   responsaveis: ResponsavelAluno[];
@@ -44,6 +45,7 @@ export function CompositorMensagem({
   onFechar: () => void;
   onSalvar: (matricula: string, input: AtendimentoAlunoInput) => Promise<void>;
   onCadastrarResponsavel?: () => void;
+  onAtivarEnvioAutomatico?: () => void;
 }) {
   const comTelefone = responsaveis.filter((r) => apenasDigitos(r.telefone));
   const [destIndice, setDestIndice] = useState(() => {
@@ -319,7 +321,9 @@ export function CompositorMensagem({
               </button>
               <div className="atd-previa-auto">
                 <span>Envio automático desligado</span>
-                <span className="atd-thread-link" title="Configuração entra na Fase 5">Ativar envio automático</span>
+                {onAtivarEnvioAutomatico && (
+                  <button type="button" className="atd-thread-link" onClick={onAtivarEnvioAutomatico}>Ativar envio automático</button>
+                )}
               </div>
             </div>
           </div>

@@ -46,7 +46,7 @@ import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRel
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
 import { TelaPEI } from "./features/PEI";
 import { TelaPlanejamento } from "./features/Planejamento";
-import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate } from "./features/SettingsPage";
+import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate, type SettingsSection } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
 import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
@@ -803,6 +803,7 @@ export function App() {
   const [turmaSelecionada, setTurmaSelecionada] = useState<TurmaResumo | null>(null);
   const [bimestreSelecionado, setBimestreSelecionado] = useState("1");
   const [bimestreOrigem, setBimestreOrigem] = useState<"manual" | "datas" | "dados" | "padrao">("padrao");
+  const [configSecaoInicial, setConfigSecaoInicial] = useState<SettingsSection | undefined>(undefined);
   const [turmaDetalhe, setTurmaDetalhe] = useState<TurmaDetalhe | null>(null);
   const [turmaRefreshKey, setTurmaRefreshKey] = useState(0);
   const [erroTurmas, setErroTurmas] = useState("");
@@ -1623,6 +1624,10 @@ export function App() {
             bimestre={bimestreSelecionado}
             tiposAtendimento={turmaConfig.atendimento_tipos}
             mensagemTemplates={turmaConfig.mensagem_familia_templates}
+            onAtivarEnvioAutomatico={() => {
+              setConfigSecaoInicial("envio-automatico");
+              navegarPara("configuracoes");
+            }}
             onAbrirFichaAluno={(turmaCodigo, alunoNome) => {
               const alvo = turmas.find((t) => t.codigo === turmaCodigo);
               if (!alvo) return;
@@ -1703,7 +1708,7 @@ export function App() {
         )}
         {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
-        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} onDadosAlterados={() => {
+        {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
         }} />}
         {tela === "relatorios" && (

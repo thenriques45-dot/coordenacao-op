@@ -27,6 +27,7 @@ mod shell;
 mod sync;
 mod tipos;
 mod turmas;
+mod whatsapp_api;
 
 // Re-exporta tudo na raiz do crate: os módulos (e o mod tests) enxergam
 // os itens uns dos outros como antes da divisão do arquivo. O allow cobre os
@@ -36,7 +37,7 @@ pub(crate) use {
     apps_script_api::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
-    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*,
+    sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 
 use tauri::{
@@ -178,6 +179,11 @@ fn main() {
             turmas::salvar_atendimento_aluno,
             turmas::definir_followup_previsto,
             mensagem_familia::resolver_variaveis_mensagem,
+            whatsapp_api::carregar_config_whatsapp_api,
+            whatsapp_api::salvar_config_whatsapp_api,
+            whatsapp_api::desativar_whatsapp_api,
+            whatsapp_api::testar_conexao_whatsapp_api,
+            whatsapp_api::enviar_mensagem_whatsapp_api,
             turmas::salvar_finalizacao_conselho,
             conselho_pendrive::preparar_pendrive_conselho,
             conselho_pendrive::reintegrar_pendrive_conselho,

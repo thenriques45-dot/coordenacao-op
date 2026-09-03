@@ -11752,6 +11752,207 @@ th:nth-child(3) {
   white-space: pre-wrap;
 }
 
+/* ── Configurações › Envio automático (artboard 2d) ── */
+.atd-config-api {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.atd-config-api-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.atd-config-api-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  color: var(--text-nav);
+}
+
+.atd-config-api-topo > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.atd-config-api-topo strong {
+  font-size: 15px;
+}
+
+.atd-config-api-topo p {
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.atd-config-api-selo {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--tag-empty-bg);
+  color: var(--tag-empty-text);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.atd-config-api-selo.ativo {
+  background: var(--atd-sucesso-bg);
+  color: var(--atd-sucesso-texto);
+}
+
+.atd-config-api-alerta,
+.atd-config-api-ativo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+}
+
+.atd-config-api-alerta {
+  border-color: var(--atd-accent-borda);
+  background: var(--accent-soft);
+}
+
+.atd-config-api-alerta strong {
+  display: block;
+  font-size: 14px;
+  color: var(--accent-dark);
+}
+
+.atd-config-api-alerta p,
+.atd-config-api-ativo p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.atd-config-api-alerta > svg {
+  color: var(--accent-dark);
+  flex-shrink: 0;
+}
+
+.atd-config-api-alerta > div,
+.atd-config-api-ativo > div:not(.atd-config-api-ativo-acoes) {
+  flex: 1;
+  min-width: 0;
+}
+
+.atd-config-api-ativo {
+  border-color: var(--atd-sucesso-borda);
+}
+
+.atd-config-api-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--atd-sucesso-bg);
+  color: var(--atd-sucesso-texto);
+}
+
+.atd-config-api-ativo strong {
+  display: block;
+  font-size: 14px;
+}
+
+.atd-config-api-ativo-acoes {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.atd-config-api-form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding-top: 14px;
+  border-top: 1px solid var(--atd-divisor);
+}
+
+.atd-config-api-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-nav);
+}
+
+.atd-config-api-form input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--text-body);
+}
+
+.atd-config-api-form small {
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.atd-config-api-token {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.atd-config-api-token input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+}
+
+.atd-config-api-token button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 40px;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.atd-config-api-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.atd-config-api-acoes > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
 @media (max-width: 980px) {
   .atd-compositor-corpo {
     grid-template-columns: minmax(0, 1fr);
