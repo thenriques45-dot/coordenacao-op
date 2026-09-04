@@ -504,6 +504,18 @@ pub(crate) struct ResponsaveisAlunoInput {
     pub(crate) responsaveis: Vec<Responsavel>,
 }
 
+/// Entrada do preenchimento rápido de responsável (fila de contato em lote,
+/// ver `adicionar_responsavel_rapido`) — os mesmos campos de `Responsavel`,
+/// só que um de cada vez, para completar durante a triagem da fila.
+#[derive(Deserialize)]
+pub(crate) struct ResponsavelRapidoInput {
+    pub(crate) nome: String,
+    pub(crate) parentesco: String,
+    #[serde(default)]
+    pub(crate) parentesco_desc: Option<String>,
+    pub(crate) telefone: String,
+}
+
 #[derive(Serialize)]
 pub(crate) struct EncaminhamentosBimestre {
     pub(crate) bimestre: String,

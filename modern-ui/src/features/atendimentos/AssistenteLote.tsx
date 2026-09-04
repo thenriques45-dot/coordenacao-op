@@ -1,10 +1,11 @@
-import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, Pause, Plus, X } from "lucide-react";
+import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, Pause, Phone, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
 import { plural, useOnline } from "./formato";
 import { FilaAssistida } from "./FilaAssistida";
 import { LoteApi } from "./LoteApi";
+import { apenasDigitos, PARENTESCO_OPCOES } from "./mensagemFamilia";
 import { tomFrequencia, type DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
 import {
@@ -127,29 +128,25 @@ export function AssistenteLote({
 
   const porMatricula = useMemo(() => new Map(avaliacao.map((a) => [a.matricula, a])), [avaliacao]);
 
-  const selecionados = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of avaliacao) {
-      const incluir = (a.entra && !removidos.has(a.matricula)) || manuais.has(a.matricula);
-      if (incluir && !a.sem_telefone) set.add(a.matricula);
-    }
-    return set;
-  }, [avaliacao, removidos, manuais]);
-
+  // A fila inclui todo mundo que bate a condição (ou foi posto à mão), com ou
+  // sem telefone — quem não tem telefone entra como pendente, editável na
+  // própria linha (ver LinhaFila), em vez de ficar de fora sem chance de
+  // completar o cadastro ali mesmo.
   const fila = useMemo(() => {
-    const base = avaliacao.filter((a) => selecionados.has(a.matricula) || (manuais.has(a.matricula) && a.sem_telefone));
+    const base = avaliacao.filter((a) => (a.entra && !removidos.has(a.matricula)) || manuais.has(a.matricula));
     return ordenarFila(base, ordem, personalizada);
-  }, [avaliacao, selecionados, manuais, ordem, personalizada]);
+  }, [avaliacao, removidos, manuais, ordem, personalizada]);
+
+  const prontos = useMemo(() => fila.filter((a) => !a.sem_telefone), [fila]);
+  const pendentes = useMemo(() => fila.filter((a) => a.sem_telefone), [fila]);
+  const filaMatriculas = useMemo(() => new Set(fila.map((a) => a.matricula)), [fila]);
 
   const nPelasCondicoes = avaliacao.filter((a) => a.entra && !a.sem_telefone && !removidos.has(a.matricula)).length;
   const nNaMao = [...manuais].filter((m) => {
     const a = porMatricula.get(m);
     return a && !a.entra && !a.sem_telefone;
   }).length;
-  const nForaSemTelefone = avaliacao.filter(
-    (a) => a.sem_telefone && ((a.entra && !removidos.has(a.matricula)) || manuais.has(a.matricula)),
-  ).length;
-  const totalDestinatarios = selecionados.size;
+  const totalDestinatarios = prontos.length;
   const acimaDoTeto = totalDestinatarios > TETO_FILA_ASSISTIDA;
 
   const presetCount = (fn: (a: AlunoLote) => boolean) => avaliacao.filter(fn).length;
@@ -458,8 +455,13 @@ export function AssistenteLote({
           <div className="atd-lote-fila-topo">
             <div>
               <strong>Fila</strong>
-              <span className="atd-lote-fila-conta">{selecionados.size} selecionados</span>
+              <span className="atd-lote-fila-conta">{prontos.length} prontos para enviar</span>
               {nNaMao > 0 && <span className="atd-lote-fila-mao">+ {nNaMao} na mão</span>}
+              {pendentes.length > 0 && (
+                <span className="atd-lote-fila-pendente">
+                  <Phone size={11} aria-hidden /> {pendentes.length} aguardando telefone
+                </span>
+              )}
             </div>
             <div className="atd-lote-fila-acoes">
               <label className="atd-lote-ordem">
@@ -476,7 +478,7 @@ export function AssistenteLote({
                 {adicionarAberto && (
                   <div className="atd-lote-add-menu">
                     {avaliacao
-                      .filter((a) => !selecionados.has(a.matricula) && !manuais.has(a.matricula))
+                      .filter((a) => !filaMatriculas.has(a.matricula) && !manuais.has(a.matricula))
                       .map((a) => (
                         <button key={a.matricula} type="button" onClick={() => { setManuais((s) => new Set(s).add(a.matricula)); setAdicionarAberto(false); }}>
                           {a.numero_chamada ? `${a.numero_chamada}. ` : ""}{a.nome}{a.sem_telefone ? " · sem telefone" : ""}
@@ -500,12 +502,14 @@ export function AssistenteLote({
               <LinhaFila
                 key={a.matricula}
                 aluno={a}
+                turmaCaminho={turma.caminho}
                 onRemover={() => {
                   if (manuais.has(a.matricula)) setManuais((s) => { const n = new Set(s); n.delete(a.matricula); return n; });
                   else setRemovidos((s) => new Set(s).add(a.matricula));
                 }}
                 onSubir={() => moverFila(a.matricula, -1)}
                 onDescer={() => moverFila(a.matricula, 1)}
+                onResponsavelSalvo={avaliar}
               />
             ))}
             {fila.length === 0 && <p className="atd-lote-fila-vazia">Nenhum aluno na fila. Ative um filtro pronto ou adicione uma condição.</p>}
@@ -523,7 +527,7 @@ export function AssistenteLote({
       <div className="atd-lote-rodape">
         <div className="atd-lote-rodape-resumo">
           {nPelasCondicoes} pelas condições + {nNaMao} na mão
-          {nForaSemTelefone > 0 && ` · ${nForaSemTelefone} fora por falta de telefone`}
+          {pendentes.length > 0 && ` · ${pendentes.length} aguardando telefone na fila`}
         </div>
         <div>
           <button type="button" className="atd-btn-secundario" onClick={() => setPasso("modelo")}>Voltar ao modelo</button>
@@ -564,42 +568,137 @@ function TrilhoPassos({ atual, onSair, turma, modelo }: { atual: Passo; onSair: 
 
 function LinhaFila({
   aluno,
+  turmaCaminho,
   onRemover,
   onSubir,
   onDescer,
+  onResponsavelSalvo,
 }: {
   aluno: AlunoLote;
+  turmaCaminho: string;
   onRemover: () => void;
   onSubir: () => void;
   onDescer: () => void;
+  onResponsavelSalvo: () => void;
 }) {
   const [menu, setMenu] = useState(false);
+  const [editando, setEditando] = useState(false);
   const tom = tomFrequencia(aluno.frequencia);
   return (
-    <div className={`atd-lote-fila-grade atd-lote-fila-linha ${aluno.sem_telefone ? "sem-tel" : ""}`}>
-      <span className="atd-lote-alca" aria-hidden><GripVertical size={13} /></span>
-      <span className="atd-lote-check">{!aluno.sem_telefone ? <Check size={11} /> : null}</span>
-      <span className="atd-lote-fila-aluno">
-        <strong>{aluno.nome}</strong>
-        <small>{aluno.sem_telefone ? "sem telefone cadastrado" : aluno.responsavel_nome ? `→ ${aluno.responsavel_nome}` : "→ responsável"}</small>
-      </span>
-      <span className={`atd-lote-val tom-${tom}`}>
-        {aluno.frequencia != null ? <><span className="atd-lote-bolinha" aria-hidden />{Math.round(aluno.frequencia)}%</> : "—"}
-      </span>
-      <span className="atd-lote-val">{aluno.tarefas_pendentes != null ? `${aluno.tarefas_pendentes} pend.` : "—"}</span>
-      <span className="atd-lote-val">
-        {aluno.ultimo_contato_dias == null ? "nunca" : aluno.ultimo_contato_dias === 0 ? "hoje" : `há ${aluno.ultimo_contato_dias} dias`}
-      </span>
-      <span className="atd-lote-fila-menu">
-        <button type="button" onClick={() => setMenu((v) => !v)} aria-label="Ações da linha">⋯</button>
-        {menu && (
-          <div className="atd-lote-fila-menu-lista">
-            <button type="button" onClick={() => { setMenu(false); onSubir(); }}>Mover para cima</button>
-            <button type="button" onClick={() => { setMenu(false); onDescer(); }}>Mover para baixo</button>
-            <button type="button" onClick={() => { setMenu(false); onRemover(); }}>Tirar da fila</button>
-          </div>
-        )}
-      </span>
+    <div className={`atd-lote-fila-item ${aluno.sem_telefone ? "sem-tel" : ""}`}>
+      <div className="atd-lote-fila-grade atd-lote-fila-linha">
+        <span className="atd-lote-alca" aria-hidden><GripVertical size={13} /></span>
+        <span className="atd-lote-check">{!aluno.sem_telefone ? <Check size={11} /> : null}</span>
+        <span className="atd-lote-fila-aluno">
+          <strong>{aluno.nome}</strong>
+          {aluno.sem_telefone ? (
+            <button type="button" className="atd-lote-add-telefone" onClick={() => setEditando((v) => !v)}>
+              <Phone size={11} aria-hidden /> {editando ? "fechar" : "adicionar telefone"}
+            </button>
+          ) : (
+            <small>{aluno.responsavel_nome ? `→ ${aluno.responsavel_nome}` : "→ responsável"}</small>
+          )}
+        </span>
+        <span className={`atd-lote-val tom-${tom}`}>
+          {aluno.frequencia != null ? <><span className="atd-lote-bolinha" aria-hidden />{Math.round(aluno.frequencia)}%</> : "—"}
+        </span>
+        <span className="atd-lote-val">{aluno.tarefas_pendentes != null ? `${aluno.tarefas_pendentes} pend.` : "—"}</span>
+        <span className="atd-lote-val">
+          {aluno.ultimo_contato_dias == null ? "nunca" : aluno.ultimo_contato_dias === 0 ? "hoje" : `há ${aluno.ultimo_contato_dias} dias`}
+        </span>
+        <span className="atd-lote-fila-menu">
+          <button type="button" onClick={() => setMenu((v) => !v)} aria-label="Ações da linha">⋯</button>
+          {menu && (
+            <div className="atd-lote-fila-menu-lista">
+              <button type="button" onClick={() => { setMenu(false); onSubir(); }}>Mover para cima</button>
+              <button type="button" onClick={() => { setMenu(false); onDescer(); }}>Mover para baixo</button>
+              <button type="button" onClick={() => { setMenu(false); onRemover(); }}>Tirar da fila</button>
+            </div>
+          )}
+        </span>
+      </div>
+      {editando && (
+        <FormResponsavelRapido
+          turmaCaminho={turmaCaminho}
+          matricula={aluno.matricula}
+          onSalvo={() => {
+            setEditando(false);
+            onResponsavelSalvo();
+          }}
+          onCancelar={() => setEditando(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FormResponsavelRapido({
+  turmaCaminho,
+  matricula,
+  onSalvo,
+  onCancelar,
+}: {
+  turmaCaminho: string;
+  matricula: string;
+  onSalvo: () => void;
+  onCancelar: () => void;
+}) {
+  const [nome, setNome] = useState("");
+  const [parentesco, setParentesco] = useState("mae");
+  const [parentescoDesc, setParentescoDesc] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function salvar() {
+    if (!nome.trim() || apenasDigitos(telefone).length < 10) {
+      setErro("Informe o nome e um telefone com DDD.");
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    try {
+      await invokeApp("adicionar_responsavel_rapido", {
+        caminho: turmaCaminho,
+        matricula,
+        input: { nome: nome.trim(), parentesco, parentesco_desc: parentescoDesc.trim() || null, telefone: apenasDigitos(telefone) },
+      });
+      onSalvo();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="atd-lote-resp-form">
+      <input
+        className="atd-lote-resp-nome"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder="Nome do responsável"
+        autoFocus
+      />
+      <select value={parentesco} onChange={(e) => setParentesco(e.target.value)}>
+        {PARENTESCO_OPCOES.map((op) => <option key={op.valor} value={op.valor}>{op.rotulo}</option>)}
+      </select>
+      {parentesco === "outro" && (
+        <input value={parentescoDesc} onChange={(e) => setParentescoDesc(e.target.value)} placeholder="Qual? (ex.: avó, tio)" />
+      )}
+      <input
+        className="atd-lote-resp-tel"
+        value={telefone}
+        onChange={(e) => setTelefone(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") salvar(); }}
+        placeholder="Celular com DDD"
+        inputMode="numeric"
+      />
+      <button type="button" className="atd-btn-secundario" onClick={onCancelar} disabled={salvando}>Cancelar</button>
+      <button type="button" className="atd-btn-primario" onClick={salvar} disabled={salvando}>
+        {salvando ? "Salvando…" : "Salvar e incluir"}
+      </button>
+      {erro && <span className="atd-lote-resp-form-erro">{erro}</span>}
     </div>
   );
 }

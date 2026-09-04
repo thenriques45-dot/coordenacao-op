@@ -360,6 +360,36 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.1.0": {
+    paginas: [
+      {
+        area: "Atendimentos › Contatar famílias",
+        titulo: "Aluno sem telefone não fica mais de fora da fila",
+        corpo:
+          "Quem entra na fila sem telefone de responsável cadastrado aparece como pendente, com um link 'adicionar telefone' na própria linha — preenche nome e telefone sem sair da tela, e o aluno já entra como destinatário.",
+        destaques: [
+          { icone: "envio", titulo: "Preenchimento na linha", texto: "Nome, parentesco e telefone direto na fila, sem abrir a ficha do aluno." },
+          { icone: "lista", titulo: "Some da lista de 'fora'", texto: "Antes ficava só num contador — agora vira destinatário assim que salva." },
+          { icone: "filtro", titulo: "Filtro de Expansões", texto: "Nova condição 'Progresso nas Expansões (%)' — antes só dava pra filtrar por último acesso." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+      {
+        area: "Construtor de Relatórios",
+        titulo: "Liste quem falta cadastrar responsável ou telefone",
+        corpo:
+          "Dois campos novos — 'Nome do Responsável' e 'Telefone do Responsável' — ficam vazios quando falta o cadastro. Combine com o operador 'está vazio' que o construtor já tem pra gerar a lista de pendências.",
+        destaques: [
+          { icone: "documento", titulo: "Dois campos novos", texto: "Nome e Telefone do Responsável, na categoria Aluno." },
+          { icone: "filtro", titulo: "Sem UI nova", texto: "Usa o operador 'está vazio' que já existia no construtor." },
+        ],
+        irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
+      },
+    ],
+    outrasMudancas: [
+      "Corrigido: uma tarefa do Kanban vinculada a um aluno podia aparecer na aba \"Tarefas\" de outro aluno sem relação nenhuma com o card — o casamento por nome era fuzzy demais para textos longos.",
+    ],
+  },
   "4.0.3": [
     "Corrigido: o item 'Visão geral' das Configurações ainda podia aparecer com o ícone empilhado em cima do texto em vez de lado a lado (o ajuste da versão anterior não tinha especificidade suficiente para vencer o estilo antigo).",
   ],

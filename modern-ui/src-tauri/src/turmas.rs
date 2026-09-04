@@ -595,6 +595,57 @@ pub(crate) fn salvar_responsaveis_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
+/// Preenchimento rápido de um responsável, usado na fila de contato em lote
+/// de Atendimentos: em vez do formulário completo da ficha do aluno, cadastra
+/// nome+telefone de um alunos sem telefone direto na linha da fila. Se já
+/// existir um responsável sem telefone (o caso comum de quem está
+/// "sem_telefone"), completa esse; senão adiciona um novo (até o limite de 2
+/// de `normalizar_responsaveis`).
+#[tauri::command]
+pub(crate) fn adicionar_responsavel_rapido(
+    caminho: String,
+    matricula: String,
+    input: ResponsavelRapidoInput,
+) -> Result<(), String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+
+    let mut atuais = dados
+        .get("alunos")
+        .and_then(|alunos| alunos.get(matricula.trim()))
+        .map(extrair_responsaveis_aluno)
+        .unwrap_or_default();
+
+    let novo = Responsavel {
+        nome: input.nome,
+        parentesco: input.parentesco,
+        parentesco_desc: input.parentesco_desc,
+        telefone: input.telefone,
+    };
+    match atuais.iter_mut().find(|r| r.telefone.trim().is_empty()) {
+        Some(existente) => *existente = novo,
+        None => atuais.push(novo),
+    }
+    let responsaveis = normalizar_responsaveis(&atuais);
+
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+    aluno.insert(
+        "responsaveis".to_string(),
+        serde_json::to_value(&responsaveis).map_err(|err| err.to_string())?,
+    );
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
 // Resolve o `followup_previsto` que o input pede a partir do enum de 3 estados
 // (`Option<Option<_>>`): ausente = não mexe no combinado atual; `null` = limpar
 // (registrar desfecho); objeto = definir/reagendar. Data vazia também limpa.

@@ -173,6 +173,7 @@ fn main() {
             turmas::salvar_lideranca_aluno,
             turmas::salvar_educacao_especial_aluno,
             turmas::salvar_responsaveis_aluno,
+            turmas::adicionar_responsavel_rapido,
             shell::definir_fullscreen,
             docx::abrir_ata,
             docx::abrir_relatorio_professores,
