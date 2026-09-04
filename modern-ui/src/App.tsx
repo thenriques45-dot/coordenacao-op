@@ -360,6 +360,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.1.1": [
+    "Corrigido: uma fila assistida de WhatsApp interrompida sem clicar em \"Pausar\" (app fechado no meio, por exemplo) podia ficar marcada como \"Concluída\" em Atendimentos › Disparos em lote assim que tivesse ao menos um pulado — mesmo com a maioria dos destinatários ainda sem receber nada — e sem nenhum botão pra retomar. Agora aparece como \"Em progresso\" com \"Retomar fila\", igual a uma pausada de propósito.",
+  ],
   "4.1.0": {
     paginas: [
       {

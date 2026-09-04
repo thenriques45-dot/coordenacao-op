@@ -163,6 +163,17 @@ export type DisparoLote = {
   atualizado_em: string;
 };
 
+// Uma fila wa.me ainda tem gente a processar tanto quando foi pausada de
+// propósito (botão "Pausar"/"Sair e retomar depois") quanto quando o app
+// fechou/travou no meio dela — nesse caso a situação salva continua
+// "em_progresso" (nunca chega a virar "pausada", que só é gravada por um
+// clique explícito). As duas contam como retomável; sem isso, uma fila
+// interrompida sem pausar fica presa: a lista de disparos a rotula
+// "Concluída" (por já ter algum pulado) e não sobra nenhum jeito de voltar.
+export function disparoRetomavel(d: DisparoLote): boolean {
+  return d.canal === "wa_me" && (d.situacao === "pausada" || d.situacao === "em_progresso");
+}
+
 export type OrdemFila =
   | "urgente"
   | "alfabetica"

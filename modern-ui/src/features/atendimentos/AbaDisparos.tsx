@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { tempoRelativo } from "./formato";
-import type { DisparoLote } from "./lote";
+import { disparoRetomavel, type DisparoLote } from "./lote";
 
 export type DisparoLoteRegistro = DisparoLote;
 
@@ -23,11 +23,16 @@ function dataHora(iso: string): string {
 }
 
 function situacaoInfo(d: DisparoLoteRegistro): { rotulo: string; tom: "ok" | "atencao" | "acento"; acao?: "retomar" | "relatorio" } {
+  // Checa retomável ANTES de "concluída": uma fila interrompida sem pausar
+  // (app fechado no meio) fica salva com situacao "em_progresso" — se
+  // ela já tiver pelo menos um pulado, a checagem antiga de "concluída"
+  // batia primeiro e escondia pra sempre o botão de retomar.
+  if (disparoRetomavel(d)) {
+    return { rotulo: d.situacao === "pausada" ? "Pausada" : "Em progresso", tom: "acento", acao: "retomar" };
+  }
   const pendencias = d.falhas.length;
-  if (d.situacao === "pausada") return { rotulo: "Pausada", tom: "acento", acao: "retomar" };
   if (pendencias > 0 || d.situacao === "pendencias") return { rotulo: `${pendencias} pendências`, tom: "atencao", acao: "relatorio" };
-  if (d.situacao === "concluida_pulados" || d.pulados.length > 0) return { rotulo: `Concluída · ${d.pulados.length} pulados`, tom: "ok" };
-  if (d.situacao === "em_progresso") return { rotulo: "Em progresso", tom: "acento" };
+  if (d.situacao === "concluida_pulados") return { rotulo: `Concluída · ${d.pulados.length} pulados`, tom: "ok" };
   return { rotulo: "Concluída", tom: "ok" };
 }
 

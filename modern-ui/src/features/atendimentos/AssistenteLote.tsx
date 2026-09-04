@@ -6,7 +6,7 @@ import { plural, useOnline } from "./formato";
 import { FilaAssistida } from "./FilaAssistida";
 import { LoteApi } from "./LoteApi";
 import { apenasDigitos, PARENTESCO_OPCOES } from "./mensagemFamilia";
-import { tomFrequencia, type DisparoLote } from "./lote";
+import { disparoRetomavel, tomFrequencia, type DisparoLote } from "./lote";
 import type { AtendimentoAlunoInput } from "./tipos";
 import {
   CAMPOS,
@@ -92,7 +92,7 @@ export function AssistenteLote({
   useEffect(() => {
     invokeApp<ApiStatus>("carregar_config_whatsapp_api").then(setApiStatus).catch(() => setApiStatus(null));
     invokeApp<DisparoLote[]>("carregar_disparos_lote", { caminho: turma.caminho })
-      .then((lista) => setPausada(lista.find((d) => d.situacao === "pausada" && d.canal === "wa_me") ?? null))
+      .then((lista) => setPausada(lista.find(disparoRetomavel) ?? null))
       .catch(() => {});
   }, [turma.caminho]);
 
@@ -202,7 +202,7 @@ export function AssistenteLote({
           <div className="atd-lote-retomar">
             <Pause size={16} aria-hidden />
             <div>
-              <strong>{pausada.modelo_titulo || "Fila"} · pausada</strong>
+              <strong>{pausada.modelo_titulo || "Fila"} · {pausada.situacao === "pausada" ? "pausada" : "interrompida"}</strong>
               <p>{pausada.enviados.length} de {pausada.destinatarios.length} enviados. Quem já recebeu não recebe de novo.</p>
             </div>
             <button type="button" className="atd-btn-primario" onClick={() => { setDisparoAtivo(pausada); setPasso("fila-assistida"); }}>Retomar fila</button>
