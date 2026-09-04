@@ -6,6 +6,10 @@ name: Store (MSIX)
 
 on:
   workflow_dispatch:
+  # Temporario: enquanto valida o empacotamento MSIX na branch store-msix.
+  # Remover antes de mesclar em main (la vale so o workflow_dispatch).
+  push:
+    branches: [store-msix]
 
 permissions:
   contents: read
