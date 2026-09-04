@@ -360,6 +360,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.0.3": [
+    "Corrigido: o item 'Visão geral' das Configurações ainda podia aparecer com o ícone empilhado em cima do texto em vez de lado a lado (o ajuste da versão anterior não tinha especificidade suficiente para vencer o estilo antigo).",
+  ],
   "4.0.2": [
     "Corrigido: os itens do menu de Configurações (Instituição, Turmas, Backup...) podiam aparecer com o texto colado no topo da caixa em vez de centralizado, e rótulos mais longos quebravam linha.",
   ],
