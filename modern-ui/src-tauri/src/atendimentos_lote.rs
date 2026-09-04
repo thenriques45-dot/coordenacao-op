@@ -39,6 +39,7 @@ pub(crate) struct AlunoLote {
     media_global: Option<f64>,
     media_disciplina_min: Option<f64>,
     faltas_periodo: Option<f64>,
+    expansao_progresso: Option<f64>,
     entra: bool,
     condicoes_atendidas: usize,
     sem_telefone: bool,
@@ -52,6 +53,7 @@ struct Metricas {
     faltas_periodo: Option<f64>,
     ultimo_contato_dias: Option<i64>,
     dias_sem_acesso: Option<i64>,
+    expansao_progresso: Option<f64>,
     tipos_anteriores: BTreeSet<String>,
     tags: BTreeSet<String>,
 }
@@ -115,9 +117,12 @@ fn metricas_aluno(info: &Value, bimestre: &str) -> Metricas {
     }
     let ultimo_contato_dias = ultimo_contato.map(|d| (hoje - d).num_days().max(0));
 
-    let dias_sem_acesso = snapshot_expansao_atual(info, bimestre)
+    let snapshot_expansao = snapshot_expansao_atual(info, bimestre);
+    let dias_sem_acesso = snapshot_expansao
+        .as_ref()
         .and_then(|s| s.ultimo_acesso)
         .map(|d| (hoje - d).num_days().max(0));
+    let expansao_progresso = snapshot_expansao.and_then(|s| s.progresso);
 
     Metricas {
         frequencia,
@@ -127,6 +132,7 @@ fn metricas_aluno(info: &Value, bimestre: &str) -> Metricas {
         faltas_periodo,
         ultimo_contato_dias,
         dias_sem_acesso,
+        expansao_progresso,
         tipos_anteriores,
         tags,
     }
@@ -141,6 +147,7 @@ fn num_do_campo(m: &Metricas, campo: &str) -> Option<f64> {
         "faltas_periodo" => m.faltas_periodo,
         "dias_sem_acesso" => m.dias_sem_acesso.map(|d| d as f64),
         "ultimo_contato_familia" => m.ultimo_contato_dias.map(|d| d as f64),
+        "expansao_progresso" => m.expansao_progresso,
         _ => None,
     }
 }
@@ -252,6 +259,7 @@ pub(crate) fn avaliar_condicoes_atendimento_lote(
             media_global: m.media_global,
             media_disciplina_min: m.media_disciplina_min,
             faltas_periodo: m.faltas_periodo,
+            expansao_progresso: m.expansao_progresso,
             entra,
             condicoes_atendidas: atendidas,
             sem_telefone: telefone.is_none(),
@@ -432,6 +440,18 @@ mod tests {
         let m = metricas_de(&json!({}));
         assert!(condicao_atendida(&m, &CondicaoLote { campo: "ultimo_contato_familia".into(), operador: "ha_mais_de".into(), valor: "15".into(), valor2: None }));
         assert!(!condicao_atendida(&m, &CondicaoLote { campo: "ultimo_contato_familia".into(), operador: "ha_menos_de".into(), valor: "15".into(), valor2: None }));
+    }
+
+    #[test]
+    fn condicao_expansao_progresso_le_o_snapshot_do_bimestre() {
+        let m = metricas_de(&json!({
+            "expansao_online": { "snapshots": {
+                "2026-05-01": { "bimestre": "1", "progresso": 90.0 },
+                "2026-07-01": { "bimestre": "2", "progresso": 40.0 }
+            } }
+        }));
+        assert!(condicao_atendida(&m, &CondicaoLote { campo: "expansao_progresso".into(), operador: "menor_que".into(), valor: "50".into(), valor2: None }));
+        assert!(!condicao_atendida(&m, &CondicaoLote { campo: "expansao_progresso".into(), operador: "maior_que".into(), valor: "50".into(), valor2: None }));
     }
 
     #[test]

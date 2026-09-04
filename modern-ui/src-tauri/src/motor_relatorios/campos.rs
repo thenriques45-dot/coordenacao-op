@@ -101,6 +101,27 @@ pub(crate) const CAMPOS: &[CampoRelatorio] = &[
         requer_parametro: false,
         extrator: campo_aluno_matricula,
     },
+    // Vazio quando o aluno não tem nenhum responsável cadastrado — filtro
+    // "Nome do Responsável" + operador "está vazio" no construtor.
+    CampoRelatorio {
+        id: "responsavel_nome",
+        rotulo: "Nome do Responsável",
+        categoria: CategoriaCampo::Aluno,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_responsavel_nome,
+    },
+    // Vazio quando NENHUM responsável cadastrado tem telefone com dígitos —
+    // mesma regra de "sem_telefone" usada na fila de contato em lote
+    // (atendimentos_lote.rs), pra ficar consistente entre as duas telas.
+    CampoRelatorio {
+        id: "responsavel_telefone",
+        rotulo: "Telefone do Responsável",
+        categoria: CategoriaCampo::Aluno,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_responsavel_telefone,
+    },
     CampoRelatorio {
         id: "turma_codigo",
         rotulo: "Código da Turma",
@@ -464,6 +485,22 @@ fn campo_aluno_numero_chamada(ctx: &ContextoLinha, _parametro: Option<&str>) -> 
 
 fn campo_aluno_matricula(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
     ctx.matricula.map(|m| ValorExpressao::Texto(m.to_string())).unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_responsavel_nome(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    match extrair_responsaveis_aluno(aluno).into_iter().find(|r| !r.nome.trim().is_empty()) {
+        Some(responsavel) => ValorExpressao::Texto(responsavel.nome),
+        None => ValorExpressao::Nulo,
+    }
+}
+
+fn campo_responsavel_telefone(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    match extrair_responsaveis_aluno(aluno).into_iter().find(|r| !r.telefone.trim().is_empty()) {
+        Some(responsavel) => ValorExpressao::Texto(responsavel.telefone),
+        None => ValorExpressao::Nulo,
+    }
 }
 
 fn campo_turma_codigo(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
@@ -1179,6 +1216,45 @@ mod testes {
         assert_eq!(campo_expansao_nota_atual(&ctx, None), ValorExpressao::Nulo);
         assert_eq!(campo_expansao_dias_sem_acesso(&ctx, None), ValorExpressao::Nulo);
         assert_eq!(campo_expansao_qtd_importacoes_bimestre(&ctx, None), ValorExpressao::Numero(0.0));
+    }
+
+    #[test]
+    fn responsavel_nome_e_telefone_nulos_sem_nenhum_responsavel() {
+        let turma = turma_fixture();
+        let aluno = json!({ "nome": "SEM RESPONSAVEL" });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_responsavel_nome(&ctx, None), ValorExpressao::Nulo);
+        assert_eq!(campo_responsavel_telefone(&ctx, None), ValorExpressao::Nulo);
+        assert!(campo_responsavel_nome(&ctx, None).eh_nulo_ou_vazio());
+        assert!(campo_responsavel_telefone(&ctx, None).eh_nulo_ou_vazio());
+    }
+
+    /// Responsável cadastrado só com nome (sem telefone) — "sem telefone"
+    /// continua vazio mesmo já havendo um responsável com nome, igual à
+    /// regra de `sem_telefone` em atendimentos_lote.rs.
+    #[test]
+    fn responsavel_com_nome_mas_sem_telefone_so_telefone_fica_vazio() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "responsaveis": [{ "nome": "Maria Silva", "parentesco": "mae", "telefone": "" }]
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_responsavel_nome(&ctx, None), ValorExpressao::Texto("Maria Silva".to_string()));
+        assert!(campo_responsavel_telefone(&ctx, None).eh_nulo_ou_vazio());
+    }
+
+    #[test]
+    fn responsavel_com_telefone_preenche_os_dois_campos() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "responsaveis": [{ "nome": "João Souza", "parentesco": "pai", "telefone": "11999998888" }]
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert_eq!(campo_responsavel_nome(&ctx, None), ValorExpressao::Texto("João Souza".to_string()));
+        assert_eq!(campo_responsavel_telefone(&ctx, None), ValorExpressao::Texto("11999998888".to_string()));
     }
 
     /// Prova que os 11 ids de expansão realmente entraram no catálogo — o

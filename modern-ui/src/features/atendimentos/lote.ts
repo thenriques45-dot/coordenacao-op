@@ -9,6 +9,7 @@ export type CampoCondicao =
   | "faltas_periodo"
   | "ultimo_contato_familia"
   | "dias_sem_acesso"
+  | "expansao_progresso"
   | "tipo_atendimento_anterior"
   | "tag";
 
@@ -42,6 +43,7 @@ export type AlunoLote = {
   tarefas_pendentes: number | null;
   ultimo_contato_dias: number | null;
   dias_sem_acesso: number | null;
+  expansao_progresso: number | null;
   media_global: number | null;
   media_disciplina_min: number | null;
   faltas_periodo: number | null;
@@ -58,6 +60,7 @@ export const CAMPOS: { valor: CampoCondicao; rotulo: string; tipo: TipoCampo }[]
   { valor: "faltas_periodo", rotulo: "Faltas no período", tipo: "numero" },
   { valor: "ultimo_contato_familia", rotulo: "Último contato com a família", tipo: "data" },
   { valor: "dias_sem_acesso", rotulo: "Dias sem acesso à plataforma", tipo: "numero" },
+  { valor: "expansao_progresso", rotulo: "Progresso nas Expansões (%)", tipo: "numero" },
   { valor: "tipo_atendimento_anterior", rotulo: "Tipo de atendimento anterior", tipo: "texto" },
   { valor: "tag", rotulo: "Tag", tipo: "texto" },
 ];
@@ -112,6 +115,12 @@ export const PRESETS: {
     rotulo: "Sem acesso há 7 dias",
     condicao: { campo: "dias_sem_acesso", operador: "maior_que", valor: "7" },
     conta: (a) => a.dias_sem_acesso != null && a.dias_sem_acesso > 7,
+  },
+  {
+    id: "expansao-atrasada",
+    rotulo: "Expansões abaixo de 50%",
+    condicao: { campo: "expansao_progresso", operador: "menor_que", valor: "50" },
+    conta: (a) => a.expansao_progresso != null && a.expansao_progresso < 50,
   },
   {
     id: "disciplina-baixa",
