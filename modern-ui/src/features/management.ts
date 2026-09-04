@@ -425,10 +425,6 @@ function pontuarBuscaFuzzy(opcao: string, busca: string) {
   return 420 - lacunas - Math.max(0, alvo.length - termo.length) * 0.5;
 }
 
-export function correspondeBuscaFuzzy(opcao: string, busca: string) {
-  return pontuarBuscaFuzzy(opcao, busca) >= 0;
-}
-
 export function filtrarSugestoesFuzzy(opcoes: string[], busca: string, limite = 5) {
   const termo = normalizarTextoGestao(busca);
   if (!termo) return [];
@@ -438,6 +434,22 @@ export function filtrarSugestoesFuzzy(opcoes: string[], busca: string, limite = 
     .sort((a, b) => b.score - a.score || a.opcao.localeCompare(b.opcao, "pt-BR"))
     .slice(0, limite)
     .map((item) => item.opcao);
+}
+
+// Só substring completa ou todas as palavras do termo presentes — ao
+// contrário de pontuarBuscaFuzzy (usada em filtrarSugestoesFuzzy pro
+// autocomplete de uma lista curta, onde tolerar letras soltas fora de ordem
+// ajuda), aqui o texto é um parágrafo inteiro (título+descrição+vínculos da
+// tarefa). O fallback de subsequência de caracteres, aplicado a um texto tão
+// longo, quase sempre encontra as letras do nome de QUALQUER aluno em algum
+// lugar com lacunas — foi assim que uma tarefa vinculada só a "Polyana
+// David" aparecia na aba "Tarefas" de "Luan Cirino de Sousa".
+function correspondeMencao(textoNormalizado: string, termoBruto: string): boolean {
+  const termo = normalizarTextoGestao(termoBruto);
+  if (!termo || !textoNormalizado) return false;
+  if (textoNormalizado.includes(termo)) return true;
+  const partes = termo.split(/\s+/).filter(Boolean);
+  return partes.length > 1 && partes.every((parte) => textoNormalizado.includes(parte));
 }
 
 export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarEvent[], termos: string[]) {
@@ -451,7 +463,7 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
     evento?.titulo ?? "",
     ...(evento ? obterVinculosEvento(evento) : []),
   ].map(normalizarTextoGestao).join(" ");
-  return termos.map(normalizarTextoGestao).filter(Boolean).some((termo) => correspondeBuscaFuzzy(texto, termo));
+  return termos.some((termo) => correspondeMencao(texto, termo));
 }
 
 export function tarefasPorVinculo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], termos: string[]) {
