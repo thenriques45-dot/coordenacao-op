@@ -24,6 +24,7 @@ pub(crate) fn app_info() -> AppInfo {
         stage: "modern-ui-prototype",
         version: env!("CARGO_PKG_VERSION"),
         data_dir,
+        loja: cfg!(feature = "store"),
     }
 }
 

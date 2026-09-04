@@ -212,6 +212,7 @@ type AppInfo = {
   stage: string;
   version: string;
   data_dir: string;
+  loja?: boolean;
 };
 
 type SyncStateResultado = {
@@ -1909,27 +1910,43 @@ export function Configuracoes({
 
         {secaoConfig === "atualizacao" && (
         <article className="settings-card">
-          <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="A verificação consulta a última versão publicada no GitHub." />
-          <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
-          <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
-          {onVerNovidades && (
-            <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
+          {appInfo?.loja ? (
+            <>
+              <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="Nesta versão da Microsoft Store, a própria Store instala as atualizações." />
+              <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
+              {onVerNovidades && (
+                <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
+              )}
+              <p style={{ marginTop: "1rem" }}>
+                Verifique atualizações pela Microsoft Store (Biblioteca → Obter atualizações). O início automático com o Windows
+                é controlado em Configurações do Windows → Aplicativos → Inicialização.
+              </p>
+            </>
+          ) : (
+            <>
+              <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="A verificação consulta a última versão publicada no GitHub." />
+              <button onClick={verificarAtualizacao} disabled={processando}>Verificar atualização</button>
+              <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
+              {onVerNovidades && (
+                <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
+              )}
+              {atualizacao && (
+                <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
+              )}
+              {atualizacao && <span className="settings-version">Disponível: {atualizacao.version}</span>}
+              <p style={{ marginTop: "1rem" }}>Inicialização e bandeja do sistema.</p>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={autostartAtivo}
+                  onChange={alternarAutostart}
+                  disabled={!tauriDisponivel}
+                />
+                Iniciar com o Windows e minimizar para a bandeja ao fechar
+              </label>
+              <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo na bandeja para continuar enviando notificações.</span>
+            </>
           )}
-          {atualizacao && (
-            <button className="primary-action" onClick={instalarAtualizacao}>Atualizar e reiniciar</button>
-          )}
-          {atualizacao && <span className="settings-version">Disponível: {atualizacao.version}</span>}
-          <p style={{ marginTop: "1rem" }}>Inicialização e bandeja do sistema.</p>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={autostartAtivo}
-              onChange={alternarAutostart}
-              disabled={!tauriDisponivel}
-            />
-            Iniciar com o Windows e minimizar para a bandeja ao fechar
-          </label>
-          <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo na bandeja para continuar enviando notificações.</span>
         </article>
         )}
         </div>

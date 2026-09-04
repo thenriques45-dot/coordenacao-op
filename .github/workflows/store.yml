@@ -1,0 +1,48 @@
+name: Store (MSIX)
+
+# Gera o .msix da feature `store` para enviar a Microsoft Store.
+# A Store assina o pacote na submissao -- este workflow NAO assina nada.
+# Disparo manual: Actions > Store (MSIX) > Run workflow.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-msix:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      - name: Build store variant
+        working-directory: modern-ui
+        run: npm run tauri build -- --config src-tauri/tauri.store.conf.json --features store
+
+      - name: Pack MSIX
+        working-directory: modern-ui
+        shell: pwsh
+        run: ./scripts/build-msix.ps1
+
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v6
+        with:
+          name: coordenacaoop-msix
+          path: modern-ui/src-tauri/target/release/msix/*.msix
+          if-no-files-found: error

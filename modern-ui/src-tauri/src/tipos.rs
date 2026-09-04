@@ -15,6 +15,9 @@ pub(crate) struct AppInfo {
     pub(crate) stage: &'static str,
     pub(crate) version: &'static str,
     pub(crate) data_dir: String,
+    /// `true` no build da Microsoft Store (feature `store`): o front esconde
+    /// o auto-updater e o "iniciar com o Windows".
+    pub(crate) loja: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

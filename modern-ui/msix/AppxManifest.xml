@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifesto do pacote MSIX para a Microsoft Store.
+
+  A Store ASSINA o pacote na submissao; nao assinamos nada aqui. Os valores de
+  Identity vem de Partner Center > Coordenacao OP > Identidade do produto e NAO
+  podem ser mudados sem quebrar a submissao.
+
+  O campo Version e um placeholder: scripts/build-msix.ps1 substitui
+  0.0.0.0 pela versao do package.json com revisao .0 (ex.: 4.0.1.0).
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="ThiagoHenriqueSantos.CoordenaoOP"
+    Publisher="CN=7AB270BA-472E-4161-9899-910EEEC69DA9"
+    Version="0.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Coordenação OP</DisplayName>
+    <PublisherDisplayName>Thiago Henrique Santos</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="pt-BR" />
+  </Resources>
+
+  <Applications>
+    <Application Id="CoordenacaoOP" Executable="CoordenacaoOP.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Coordenação OP"
+        Description="Apoio à coordenação pedagógica: conselhos de classe, PEI, planejamento e documentos oficiais. Funciona offline, com os dados no seu computador."
+        BackgroundColor="#FFFFFF"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile
+          Square71x71Logo="Assets\Square71x71Logo.png"
+          Square310x310Logo="Assets\Square310x310Logo.png"
+          Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

@@ -345,6 +345,7 @@ type AppInfo = {
   stage: string;
   version: string;
   data_dir: string;
+  loja?: boolean;
 };
 
 type SyncStateResultado = {
@@ -1024,23 +1025,21 @@ export function App() {
   }
 
   useEffect(() => {
-    if (!tauriDisponivel) return;
-    check()
-      .then((update) => {
-        if (update) {
-          setAtualizacao(update);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     invokeApp<AppInfo>("app_info")
       .then((info) => {
         setAppInfo(info);
         const chave = `coordenacaoop:novidades-lidas:${info.version}`;
         if (normalizarNovidades(NOVIDADES_POR_VERSAO[info.version]) && localStorage.getItem(chave) !== "sim") {
           setMostrarNovidades(true);
+        }
+        // No build da Store a Microsoft cuida das atualizações; o updater do
+        // Tauri não roda dentro do container do MSIX.
+        if (tauriDisponivel && !info.loja) {
+          check()
+            .then((update) => {
+              if (update) setAtualizacao(update);
+            })
+            .catch(() => {});
         }
       })
       .catch(() => {});
