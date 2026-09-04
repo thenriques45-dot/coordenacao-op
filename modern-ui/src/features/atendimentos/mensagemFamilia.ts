@@ -36,6 +36,14 @@ export function telefoneParaWhatsapp(valor: string): string {
   return d.startsWith("55") ? d : `55${d}`;
 }
 
+// "Dá pra mandar mensagem por esse número" — tem telefone E ninguém marcou
+// como "não é WhatsApp" (botão na fila assistida, quando o envio mostra que
+// o número não é válido). Fonte única pra habilitar botão/opção de enviar,
+// em vez de cada tela repetir só o apenasDigitos(telefone).
+export function temWhatsapp(r: { telefone: string; nao_whatsapp?: boolean }): boolean {
+  return Boolean(apenasDigitos(r.telefone)) && !r.nao_whatsapp;
+}
+
 export function rotuloParentesco(r: ParentescoLike): string {
   if (r.parentesco === "mae") return "mãe";
   if (r.parentesco === "pai") return "pai";

@@ -11975,6 +11975,18 @@ th:nth-child(3) {
   background: var(--surface-subtle);
 }
 
+.atd-thread-menu-lista .atd-thread-menu-perigo {
+  color: #b42318;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 7px 7px;
+  margin-top: 4px;
+  padding-top: 10px;
+}
+
+.atd-thread-menu-lista .atd-thread-menu-perigo:hover {
+  background: #fdeceb;
+}
+
 .atd-thread-timeline {
   padding: 16px 18px;
   display: flex;
@@ -14275,6 +14287,16 @@ th:nth-child(3) {
   background: var(--surface);
   color: var(--text-nav);
   font-weight: 600;
+}
+
+.atd-fa-nao-whatsapp {
+  margin-left: auto;
+  color: #b42318;
+}
+
+.atd-fa-nao-whatsapp:hover:not(:disabled) {
+  background: #fdeceb;
+  border-color: #f6c9c7;
 }
 
 .atd-fa-enviei kbd,

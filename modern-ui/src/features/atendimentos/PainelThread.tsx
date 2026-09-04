@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ExternalLink, MessageCircle, MoreVertical, Paperclip, Pencil, Plus, X } from "lucide-react";
+import { CalendarClock, Check, ExternalLink, MessageCircle, MoreVertical, Paperclip, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { rotuloAtendido, separarAssinaturaRastreio, seloCanal } from "./dados";
 import { dataPorExtensoCurta } from "./formato";
@@ -46,6 +46,7 @@ export function PainelThread({
   onEditar,
   onNovaMensagem,
   onDefinirCombinado,
+  onExcluir,
   onAbrirAnexo,
   onAbrirFicha,
   onFechar,
@@ -59,6 +60,7 @@ export function PainelThread({
   onEditar: () => void;
   onNovaMensagem: () => void;
   onDefinirCombinado: (previsto: FollowupPrevisto | null) => Promise<void>;
+  onExcluir: () => Promise<void>;
   onAbrirAnexo: (a: AtendimentoAnexo) => void;
   onAbrirFicha: () => void;
   onFechar: () => void;
@@ -70,7 +72,23 @@ export function PainelThread({
   );
   const [menuAberto, setMenuAberto] = useState(false);
   const [combinando, setCombinando] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExcluir, setErroExcluir] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+
+  async function confirmarExclusao() {
+    if (!window.confirm("Excluir este registro de atendimento? Os follow-ups dele também somem. Não dá pra desfazer.")) {
+      return;
+    }
+    setExcluindo(true);
+    setErroExcluir("");
+    try {
+      await onExcluir();
+    } catch (err) {
+      setErroExcluir(err instanceof Error ? err.message : String(err));
+      setExcluindo(false);
+    }
+  }
 
   useEffect(() => {
     function fora(e: MouseEvent) {
@@ -114,10 +132,15 @@ export function PainelThread({
               <button type="button" onClick={() => { setMenuAberto(false); onAbrirFicha(); }}>
                 <ExternalLink size={13} aria-hidden /> Abrir ficha do aluno
               </button>
+              <button type="button" className="atd-thread-menu-perigo" onClick={() => { setMenuAberto(false); confirmarExclusao(); }} disabled={excluindo}>
+                <Trash2 size={13} aria-hidden /> {excluindo ? "Excluindo…" : "Excluir registro"}
+              </button>
             </div>
           )}
         </div>
       </div>
+
+      {erroExcluir && <div className="notice error">{erroExcluir}</div>}
 
       <div className="atd-thread-timeline">
         <ItemTimeline

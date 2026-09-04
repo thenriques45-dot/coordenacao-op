@@ -229,9 +229,7 @@ pub(crate) fn avaliar_condicoes_atendimento_lote(
         let numero_chamada = info.get("numero_chamada").and_then(Value::as_i64);
         let m = metricas_aluno(info, &bimestre);
 
-        let responsavel = extrair_responsaveis_aluno(info)
-            .into_iter()
-            .find(|r| !r.telefone.chars().filter(|c| c.is_ascii_digit()).collect::<String>().is_empty());
+        let responsavel = extrair_responsavel_com_whatsapp(info);
         let (responsavel_nome, telefone) = match &responsavel {
             Some(r) => (Some(r.nome.clone()), Some(r.telefone.clone())),
             None => (None, None),

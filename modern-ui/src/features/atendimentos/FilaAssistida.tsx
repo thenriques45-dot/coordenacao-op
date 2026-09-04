@@ -1,5 +1,5 @@
-import { ArrowRight, Check, MessageCircle, Pause, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowRight, Check, MessageCircle, Pause, PhoneOff, TriangleAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
 import {
@@ -44,6 +44,13 @@ export function FilaAssistida({
   const [vars, setVars] = useState<VariavelMensagem[]>([]);
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  // `ocupado` (estado) só reflete no próximo render — se o Enter do atalho de
+  // teclado e a ativação nativa do botão focado (o navegador também dispara
+  // "click" ao apertar Enter num <button> com foco) chegam no mesmo tick, os
+  // dois liam ocupado=false antes de qualquer render acontecer e registravam
+  // o mesmo atendimento duas vezes. Uma ref é síncrona — trava na primeira
+  // chamada e sobra pra segunda descartar.
+  const ocupadoRef = useRef(false);
 
   const total = disparo.destinatarios.length;
   const atual = disparo.destinatarios[pos];
@@ -122,7 +129,8 @@ export function FilaAssistida({
   }
 
   async function marcarEnviei() {
-    if (!atual || ocupado) return;
+    if (!atual || ocupadoRef.current) return;
+    ocupadoRef.current = true;
     setOcupado(true);
     setErro("");
     const assinatura = assinaturaRastreio(atual.responsavel_nome ?? "", "responsável", atual.telefone ?? "");
@@ -145,15 +153,46 @@ export function FilaAssistida({
     } catch (e) {
       setErro(`Não deu para registrar: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
+      ocupadoRef.current = false;
       setOcupado(false);
     }
   }
 
   async function pular() {
-    if (!atual || ocupado) return;
+    if (!atual || ocupadoRef.current) return;
+    ocupadoRef.current = true;
     const np = new Set(pulados).add(atual.matricula);
     setPulados(np);
-    await avancar(enviados, np);
+    try {
+      await avancar(enviados, np);
+    } finally {
+      ocupadoRef.current = false;
+    }
+  }
+
+  // Marca o número como "não é WhatsApp" (aparece assim que se descobre, ex.:
+  // o WhatsApp Web mostra "número não existe" ao abrir a conversa) e segue
+  // como um pulo — ninguém tenta esse número de novo em filas futuras até
+  // alguém cadastrar um telefone novo pro responsável.
+  async function marcarNaoWhatsapp() {
+    if (!atual || ocupadoRef.current) return;
+    ocupadoRef.current = true;
+    setErro("");
+    try {
+      await invokeApp("marcar_telefone_nao_whatsapp", {
+        caminho: turma.caminho,
+        matricula: atual.matricula,
+        telefone: atual.telefone,
+        naoWhatsapp: true,
+      });
+      const np = new Set(pulados).add(atual.matricula);
+      setPulados(np);
+      await avancar(enviados, np);
+    } catch (e) {
+      setErro(`Não deu para marcar: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      ocupadoRef.current = false;
+    }
   }
 
   async function pausar() {
@@ -226,6 +265,15 @@ export function FilaAssistida({
                 </button>
                 <button type="button" className="atd-fa-pular" onClick={pular} disabled={ocupado} aria-keyshortcuts="ArrowRight">
                   Pular <kbd>→</kbd>
+                </button>
+                <button
+                  type="button"
+                  className="atd-fa-pular atd-fa-nao-whatsapp"
+                  onClick={marcarNaoWhatsapp}
+                  disabled={ocupado || !atual.telefone}
+                  title="Marca esse número como não sendo WhatsApp — não entra em filas futuras até alguém cadastrar um telefone novo."
+                >
+                  <PhoneOff size={14} aria-hidden /> Nº não é WhatsApp
                 </button>
               </div>
             </div>

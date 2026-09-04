@@ -11,6 +11,7 @@ import {
   rotuloParentesco,
   rotuloVariavel,
   telefoneParaWhatsapp,
+  temWhatsapp,
   textoDeSegmentos,
   variaveisNaoResolvidas,
   type VariavelMensagem,
@@ -49,7 +50,7 @@ export function CompositorMensagem({
 }) {
   const comTelefone = responsaveis.filter((r) => apenasDigitos(r.telefone));
   const [destIndice, setDestIndice] = useState(() => {
-    const i = responsaveis.findIndex((r) => apenasDigitos(r.telefone));
+    const i = responsaveis.findIndex(temWhatsapp);
     return i >= 0 ? i : 0;
   });
   const destinatario = responsaveis[destIndice];
@@ -128,8 +129,12 @@ export function CompositorMensagem({
 
   async function abrirERegistrar() {
     setErro("");
-    if (!destinatario || !apenasDigitos(destinatario.telefone)) {
-      setErro("O responsável selecionado não tem telefone cadastrado.");
+    if (!destinatario || !temWhatsapp(destinatario)) {
+      setErro(
+        destinatario?.nao_whatsapp
+          ? "Esse número está marcado como não sendo WhatsApp."
+          : "O responsável selecionado não tem telefone cadastrado.",
+      );
       return;
     }
     if (!texto.trim()) {
@@ -208,7 +213,8 @@ export function CompositorMensagem({
                   </div>
                 )}
                 {responsaveis.map((r, i) => {
-                  const temTel = Boolean(apenasDigitos(r.telefone));
+                  const temTel = temWhatsapp(r);
+                  const semTelefoneNenhum = !apenasDigitos(r.telefone);
                   return (
                     <button
                       key={i}
@@ -224,7 +230,11 @@ export function CompositorMensagem({
                         <strong>{r.nome || "(sem nome)"}</strong>
                         <small>
                           {rotuloParentesco(r).replace(/^./, (c) => c.toUpperCase())}
-                          {temTel ? ` · ${formatarTelefoneBR(r.telefone)}` : " · sem telefone cadastrado"}
+                          {temTel
+                            ? ` · ${formatarTelefoneBR(r.telefone)}`
+                            : semTelefoneNenhum
+                              ? " · sem telefone cadastrado"
+                              : ` · ${formatarTelefoneBR(r.telefone)} não é WhatsApp`}
                         </small>
                       </span>
                       {temTel ? (

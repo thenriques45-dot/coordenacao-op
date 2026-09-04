@@ -497,6 +497,12 @@ pub(crate) struct Responsavel {
     #[serde(default)]
     pub(crate) parentesco_desc: Option<String>,
     pub(crate) telefone: String,
+    /// Marcado quando o número foi tentado no WhatsApp e não é (ex.: fixo,
+    /// número trocado). O telefone continua salvo — só deixa de contar como
+    /// "tem WhatsApp" nas filas de contato e nos relatórios, pra não tentar
+    /// mandar mensagem pra um número que já se sabe que não funciona.
+    #[serde(default)]
+    pub(crate) nao_whatsapp: bool,
 }
 
 #[derive(Deserialize)]

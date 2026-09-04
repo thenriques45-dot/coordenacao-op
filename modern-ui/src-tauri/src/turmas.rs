@@ -624,11 +624,60 @@ pub(crate) fn adicionar_responsavel_rapido(
         parentesco: input.parentesco,
         parentesco_desc: input.parentesco_desc,
         telefone: input.telefone,
+        nao_whatsapp: false,
     };
     match atuais.iter_mut().find(|r| r.telefone.trim().is_empty()) {
         Some(existente) => *existente = novo,
         None => atuais.push(novo),
     }
+    let responsaveis = normalizar_responsaveis(&atuais);
+
+    let aluno = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+    aluno.insert(
+        "responsaveis".to_string(),
+        serde_json::to_value(&responsaveis).map_err(|err| err.to_string())?,
+    );
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
+/// Marca (ou desmarca) um telefone de responsável como "não é WhatsApp" —
+/// usado no botão de mesmo nome na fila assistida, quando o envio mostra que
+/// o número não é válido pro WhatsApp. Casa pelo telefone (só dígitos) porque
+/// é o dado que a fila tem em mãos, não um índice na lista. Um número
+/// marcado deixa de contar como "tem WhatsApp" nas filas de contato e nos
+/// relatórios (ver `extrair_responsavel_com_whatsapp`), mas continua salvo —
+/// desmarcar é só editar o responsável na ficha do aluno.
+#[tauri::command]
+pub(crate) fn marcar_telefone_nao_whatsapp(
+    caminho: String,
+    matricula: String,
+    telefone: String,
+    nao_whatsapp: bool,
+) -> Result<(), String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+
+    let alvo: String = telefone.chars().filter(char::is_ascii_digit).collect();
+    let mut atuais = dados
+        .get("alunos")
+        .and_then(|alunos| alunos.get(matricula.trim()))
+        .map(extrair_responsaveis_aluno)
+        .unwrap_or_default();
+    let encontrado = atuais.iter_mut().find(|r| r.telefone == alvo);
+    let Some(responsavel) = encontrado else {
+        return Err("Não encontrei esse telefone nos responsáveis do aluno.".to_string());
+    };
+    responsavel.nao_whatsapp = nao_whatsapp;
     let responsaveis = normalizar_responsaveis(&atuais);
 
     let aluno = dados
@@ -915,6 +964,43 @@ pub(crate) fn definir_followup_previsto(
         }
     }
     atendimento.insert("atualizado_em".to_string(), Value::String(agora));
+
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_value(dados).map_err(|err| err.to_string())?;
+    Ok(detalhar_turma(turma, &bimestre))
+}
+
+/// Apaga um registro de atendimento (com seus follow-ups, que ficam
+/// aninhados nele) — usado pelo "Excluir registro" do menu da conversa, em
+/// especial pra limpar duplicatas (ex.: o mesmo envio da fila registrado
+/// duas vezes por uma corrida entre o atalho Enter e o clique do botão).
+#[tauri::command]
+pub(crate) fn excluir_atendimento_aluno(
+    caminho: String,
+    matricula: String,
+    atendimento_id: String,
+    bimestre: String,
+) -> Result<TurmaDetalhe, String> {
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let atendimentos = dados
+        .get_mut("alunos")
+        .and_then(Value::as_object_mut)
+        .and_then(|alunos| alunos.get_mut(matricula.trim()))
+        .and_then(Value::as_object_mut)
+        .and_then(|aluno| aluno.get_mut("atendimentos"))
+        .and_then(Value::as_array_mut)
+        .ok_or_else(|| "Aluno nao encontrado na turma selecionada.".to_string())?;
+
+    let posicao = atendimentos
+        .iter()
+        .position(|item| item.get("id").and_then(Value::as_str) == Some(atendimento_id.trim()))
+        .ok_or_else(|| "Atendimento nao encontrado.".to_string())?;
+    atendimentos.remove(posicao);
 
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())?;
@@ -1966,6 +2052,17 @@ pub(crate) fn extrair_responsaveis_aluno(info: &Value) -> Vec<Responsavel> {
         .unwrap_or_default()
 }
 
+/// O responsável "usável para WhatsApp" de um aluno: o primeiro com telefone
+/// preenchido e NÃO marcado como `nao_whatsapp`. Fonte única de "esse aluno
+/// tem WhatsApp" — usada na fila de contato (atendimentos_lote.rs) e no
+/// construtor de relatórios (motor_relatorios/campos.rs), pra não tratar
+/// como contactável um número que já foi tentado e não é WhatsApp.
+pub(crate) fn extrair_responsavel_com_whatsapp(info: &Value) -> Option<Responsavel> {
+    extrair_responsaveis_aluno(info)
+        .into_iter()
+        .find(|r| !r.telefone.trim().is_empty() && !r.nao_whatsapp)
+}
+
 /// Limpa a lista vinda da UI: apara os campos, guarda o telefone só com
 /// dígitos, força `parentesco` para um dos três valores conhecidos, descarta
 /// entradas totalmente vazias e mantém no máximo dois responsáveis.
@@ -1995,6 +2092,7 @@ pub(crate) fn normalizar_responsaveis(lista: &[Responsavel]) -> Vec<Responsavel>
                 parentesco,
                 parentesco_desc,
                 telefone,
+                nao_whatsapp: responsavel.nao_whatsapp,
             }
         })
         .filter(|responsavel| !responsavel.nome.is_empty() || !responsavel.telefone.is_empty())

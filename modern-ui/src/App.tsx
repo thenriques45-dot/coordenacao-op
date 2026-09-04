@@ -360,6 +360,26 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.1.2": {
+    paginas: [
+      {
+        area: "Atendimentos › Contatar famílias",
+        titulo: "Marque um número como \"não é WhatsApp\"",
+        corpo:
+          "Quando o envio mostra que o número da família não é WhatsApp, marque ali mesmo na fila assistida — o número some das próximas filas até alguém cadastrar um telefone novo, mas continua salvo na ficha do aluno.",
+        destaques: [
+          { icone: "envio", titulo: "Botão na fila", texto: "\"Nº não é WhatsApp\" ao lado de Enviei/Pular, na fila assistida." },
+          { icone: "aluno", titulo: "Aparece na ficha", texto: "O número marcado fica sinalizado nos responsáveis do aluno, editável a qualquer momento." },
+          { icone: "documento", titulo: "Relatório de pendência", texto: "Campo \"Telefone do Responsável Marcado como Inválido\" no construtor — filtre com \"não está vazio\" pra listar quem precisa vir atualizar o número." },
+        ],
+        irPara: { rotulo: "Abrir Atendimentos", tela: "atendimentos" },
+      },
+    ],
+    outrasMudancas: [
+      "Corrigido: apertar Enter na fila assistida podia registrar o mesmo atendimento duas vezes (o atalho de teclado e o clique nativo do botão focado disputavam o mesmo envio). Agora só um vale.",
+      "Novo: \"Excluir registro\" no menu (⋮) de um atendimento, para apagar um registro feito por engano ou duplicado.",
+    ],
+  },
   "4.1.1": [
     "Corrigido: uma fila assistida de WhatsApp interrompida sem clicar em \"Pausar\" (app fechado no meio, por exemplo) podia ficar marcada como \"Concluída\" em Atendimentos › Disparos em lote assim que tivesse ao menos um pulado — mesmo com a maioria dos destinatários ainda sem receber nada — e sem nenhum botão pra retomar. Agora aparece como \"Em progresso\" com \"Retomar fila\", igual a uma pausada de propósito.",
   ],

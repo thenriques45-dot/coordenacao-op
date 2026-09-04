@@ -24,6 +24,7 @@ import {
   rotuloParentesco,
   rotuloVariavel,
   telefoneParaWhatsapp,
+  temWhatsapp,
   type SegmentoMensagem,
 } from "./atendimentos/mensagemFamilia";
 import { invokeApp, tauriDisponivel } from "./appBridge";
@@ -105,6 +106,7 @@ type ResponsavelAluno = {
   parentesco: string;
   parentesco_desc?: string | null;
   telefone: string;
+  nao_whatsapp?: boolean;
 };
 
 type VariavelMensagem = {
@@ -1244,7 +1246,8 @@ function PainelResponsaveisEMensagem({
   function abrirComposer() {
     setComposerAberto(true);
     setErroComposer("");
-    setDestinatarioIndice(0);
+    const indicePronto = responsaveis.findIndex(temWhatsapp);
+    setDestinatarioIndice(indicePronto >= 0 ? indicePronto : 0);
     const primeiro = mensagemTemplates[0];
     setTemplateId(primeiro?.id ?? "");
     setCorpo(primeiro?.corpo ?? "");
@@ -1275,8 +1278,12 @@ function PainelResponsaveisEMensagem({
   );
 
   async function enviarPeloWhatsapp() {
-    if (!destinatario || !apenasDigitos(destinatario.telefone)) {
-      setErroComposer("O responsável selecionado não tem telefone cadastrado.");
+    if (!destinatario || !temWhatsapp(destinatario)) {
+      setErroComposer(
+        destinatario?.nao_whatsapp
+          ? "Esse número está marcado como não sendo WhatsApp."
+          : "O responsável selecionado não tem telefone cadastrado.",
+      );
       return;
     }
     if (!textoParaEnviar.trim()) {
@@ -1347,8 +1354,8 @@ function PainelResponsaveisEMensagem({
             type="button"
             className="primary-action"
             onClick={abrirComposer}
-            disabled={!responsaveis.some((r) => apenasDigitos(r.telefone))}
-            title={responsaveis.some((r) => apenasDigitos(r.telefone)) ? undefined : "Cadastre um telefone primeiro"}
+            disabled={!responsaveis.some(temWhatsapp)}
+            title={responsaveis.some(temWhatsapp) ? undefined : "Cadastre um telefone de WhatsApp primeiro"}
           >
             Mensagem ao responsável
           </button>
@@ -1365,7 +1372,13 @@ function PainelResponsaveisEMensagem({
               <li key={i} style={{ fontSize: "0.9rem" }}>
                 <strong>{r.nome || "(sem nome)"}</strong>
                 <span style={{ color: "#667085" }}> — {rotuloParentesco(r)}</span>
-                {apenasDigitos(r.telefone) ? <span> · {formatarTelefoneBR(r.telefone)}</span> : <span style={{ color: "#b42318" }}> · sem telefone</span>}
+                {!apenasDigitos(r.telefone) ? (
+                  <span style={{ color: "#b42318" }}> · sem telefone</span>
+                ) : r.nao_whatsapp ? (
+                  <span style={{ color: "#b42318" }}> · {formatarTelefoneBR(r.telefone)} · não é WhatsApp</span>
+                ) : (
+                  <span> · {formatarTelefoneBR(r.telefone)}</span>
+                )}
               </li>
             ))}
           </ul>
@@ -1410,6 +1423,16 @@ function PainelResponsaveisEMensagem({
                   style={{ flex: 1, minWidth: "9rem" }}
                 />
               </div>
+              {apenasDigitos(r.telefone) && (
+                <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem", color: "#667085" }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(r.nao_whatsapp)}
+                    onChange={(e) => atualizarResponsavel(i, { nao_whatsapp: e.target.checked })}
+                  />
+                  Esse número não é WhatsApp
+                </label>
+              )}
             </div>
           ))}
           {responsaveis.length < 2 && (
@@ -1446,14 +1469,15 @@ function PainelResponsaveisEMensagem({
                 {responsaveis.length > 1 ? (
                   <select value={destinatarioIndice} onChange={(e) => setDestinatarioIndice(Number(e.target.value))}>
                     {responsaveis.map((r, i) => (
-                      <option key={i} value={i} disabled={!apenasDigitos(r.telefone)}>
-                        {r.nome || "(sem nome)"} — {rotuloParentesco(r)} {apenasDigitos(r.telefone) ? `· ${formatarTelefoneBR(r.telefone)}` : "· sem telefone"}
+                      <option key={i} value={i} disabled={!temWhatsapp(r)}>
+                        {r.nome || "(sem nome)"} — {rotuloParentesco(r)}{" "}
+                        {!apenasDigitos(r.telefone) ? "· sem telefone" : r.nao_whatsapp ? "· não é WhatsApp" : `· ${formatarTelefoneBR(r.telefone)}`}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <span style={{ fontSize: "0.9rem" }}>
-                    {destinatario ? `${destinatario.nome || "(sem nome)"} — ${rotuloParentesco(destinatario)} · ${formatarTelefoneBR(destinatario.telefone)}` : "Nenhum responsável"}
+                    {destinatario ? `${destinatario.nome || "(sem nome)"} — ${rotuloParentesco(destinatario)} · ${formatarTelefoneBR(destinatario.telefone)}${destinatario.nao_whatsapp ? " · não é WhatsApp" : ""}` : "Nenhum responsável"}
                   </span>
                 )}
               </label>

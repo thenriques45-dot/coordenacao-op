@@ -10,6 +10,7 @@ export type ResponsavelAluno = {
   parentesco: string;
   parentesco_desc?: string | null;
   telefone: string;
+  nao_whatsapp?: boolean;
 };
 
 // Subconjunto de TurmaResumo (App.tsx / tipos.rs::TurmaResumo) que a Tela de

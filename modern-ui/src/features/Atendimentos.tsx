@@ -270,6 +270,18 @@ export function TelaAtendimentos({
     setDetalhe(resp);
   }
 
+  async function excluirAtendimento(matricula: string, atendimentoId: string) {
+    if (!turma) throw new Error("Selecione uma turma.");
+    const resp = await invokeApp<TurmaDetalheAtendimentos>("excluir_atendimento_aluno", {
+      caminho: turma.caminho,
+      matricula,
+      atendimentoId,
+      bimestre,
+    });
+    setDetalhe(resp);
+    setAbertoId(null);
+  }
+
   async function abrirAnexo(a: AtendimentoAnexo) {
     if (!a.caminho) return;
     try {
@@ -420,6 +432,7 @@ export function TelaAtendimentos({
                   onEditar={() => setModalModo({ tipo: "editar", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
                   onNovaMensagem={() => setCompositorMatricula(linhaAberta.matricula)}
                   onDefinirCombinado={(p) => definirCombinado(linhaAberta.matricula, linhaAberta.atendimento.id, p)}
+                  onExcluir={() => excluirAtendimento(linhaAberta.matricula, linhaAberta.atendimento.id)}
                   onAbrirAnexo={abrirAnexo}
                   onAbrirFicha={() => linhaAberta && onAbrirFichaAluno(linhaAberta.turmaCodigo, linhaAberta.alunoNome)}
                   onFechar={() => setAbertoId(null)}
@@ -498,6 +511,7 @@ export function TelaAtendimentos({
           onEditar={() => setModalModo({ tipo: "editar", atendimento: linhaAberta.atendimento, matricula: linhaAberta.matricula, alunoNome: linhaAberta.alunoNome })}
           onNovaMensagem={() => setCompositorMatricula(linhaAberta.matricula)}
           onDefinirCombinado={(p) => definirCombinado(linhaAberta.matricula, linhaAberta.atendimento.id, p)}
+          onExcluir={() => excluirAtendimento(linhaAberta.matricula, linhaAberta.atendimento.id)}
           onAbrirAnexo={abrirAnexo}
           onAbrirFicha={() => linhaAberta && onAbrirFichaAluno(linhaAberta.turmaCodigo, linhaAberta.alunoNome)}
           onFechar={() => setAbertoId(null)}

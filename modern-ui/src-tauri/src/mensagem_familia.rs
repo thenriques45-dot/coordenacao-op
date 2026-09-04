@@ -284,24 +284,28 @@ mod testes {
                 parentesco: "MÃE".to_string(),
                 parentesco_desc: Some("ignorar".to_string()),
                 telefone: "(11) 98765-4321".to_string(),
+                nao_whatsapp: false,
             },
             Responsavel {
                 nome: "Avó Joana".to_string(),
                 parentesco: "avó".to_string(),
                 parentesco_desc: Some("  avó  ".to_string()),
                 telefone: "11 3333 2222".to_string(),
+                nao_whatsapp: false,
             },
             Responsavel {
                 nome: "".to_string(),
                 parentesco: "pai".to_string(),
                 parentesco_desc: None,
                 telefone: "".to_string(),
+                nao_whatsapp: false,
             },
             Responsavel {
                 nome: "Excedente".to_string(),
                 parentesco: "pai".to_string(),
                 parentesco_desc: None,
                 telefone: "119999".to_string(),
+                nao_whatsapp: false,
             },
         ];
         let saida = normalizar_responsaveis(&entrada);

@@ -122,6 +122,18 @@ pub(crate) const CAMPOS: &[CampoRelatorio] = &[
         requer_parametro: false,
         extrator: campo_responsavel_telefone,
     },
+    // Só preenchido quando algum responsável foi marcado "não é WhatsApp"
+    // (botão da fila assistida) — filtro "não está vazio" pra listar quem
+    // precisa vir atualizar o número, separado de quem não tem telefone
+    // nenhum (esse é o campo acima, "Telefone do Responsável", vazio).
+    CampoRelatorio {
+        id: "responsavel_telefone_invalido",
+        rotulo: "Telefone do Responsável Marcado como Inválido",
+        categoria: CategoriaCampo::Aluno,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_responsavel_telefone_invalido,
+    },
     CampoRelatorio {
         id: "turma_codigo",
         rotulo: "Código da Turma",
@@ -495,9 +507,21 @@ fn campo_responsavel_nome(ctx: &ContextoLinha, _parametro: Option<&str>) -> Valo
     }
 }
 
+// Um telefone marcado `nao_whatsapp` não conta aqui — o campo é sobre "dá
+// pra mandar mensagem", não só "tem número anotado". Quem só tem número
+// marcado como inválido aparece vazio aqui (mesma lista de "sem telefone")
+// e aparece em campo_responsavel_telefone_invalido (abaixo).
 fn campo_responsavel_telefone(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
     let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
-    match extrair_responsaveis_aluno(aluno).into_iter().find(|r| !r.telefone.trim().is_empty()) {
+    match extrair_responsavel_com_whatsapp(aluno) {
+        Some(responsavel) => ValorExpressao::Texto(responsavel.telefone),
+        None => ValorExpressao::Nulo,
+    }
+}
+
+fn campo_responsavel_telefone_invalido(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    let Some(aluno) = ctx.aluno else { return ValorExpressao::Nulo };
+    match extrair_responsaveis_aluno(aluno).into_iter().find(|r| r.nao_whatsapp && !r.telefone.trim().is_empty()) {
         Some(responsavel) => ValorExpressao::Texto(responsavel.telefone),
         None => ValorExpressao::Nulo,
     }
@@ -1255,6 +1279,24 @@ mod testes {
         let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
         assert_eq!(campo_responsavel_nome(&ctx, None), ValorExpressao::Texto("João Souza".to_string()));
         assert_eq!(campo_responsavel_telefone(&ctx, None), ValorExpressao::Texto("11999998888".to_string()));
+    }
+
+    /// Telefone marcado nao_whatsapp: some de "Telefone do Responsável"
+    /// (mesma regra de "sem_telefone" da fila) e aparece só no campo de
+    /// "marcado como inválido" — as duas listas de pendência não se
+    /// misturam.
+    #[test]
+    fn telefone_marcado_nao_whatsapp_muda_de_campo() {
+        let turma = turma_fixture();
+        let aluno = json!({
+            "responsaveis": [{ "nome": "Regiane", "parentesco": "mae", "telefone": "11988887777", "nao_whatsapp": true }]
+        });
+        let parametros = BTreeMap::new();
+        let ctx = ctx_fixture(&turma, &aluno, "3", &parametros);
+        assert!(campo_responsavel_telefone(&ctx, None).eh_nulo_ou_vazio());
+        assert_eq!(campo_responsavel_telefone_invalido(&ctx, None), ValorExpressao::Texto("11988887777".to_string()));
+        // O nome continua contando -- o aluno TEM responsável, só o número que não presta.
+        assert_eq!(campo_responsavel_nome(&ctx, None), ValorExpressao::Texto("Regiane".to_string()));
     }
 
     /// Prova que os 11 ids de expansão realmente entraram no catálogo — o
