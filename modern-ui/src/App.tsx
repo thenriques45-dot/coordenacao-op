@@ -360,6 +360,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.0.2": [
+    "Corrigido: os itens do menu de Configurações (Instituição, Turmas, Backup...) podiam aparecer com o texto colado no topo da caixa em vez de centralizado, e rótulos mais longos quebravam linha.",
+  ],
   "4.0.1": [
     "Corrigido: ao trocar a imagem de cabeçalho em Configurações › Institucional, a ATA e os relatórios podiam continuar saindo com a imagem antiga. Agora o app sempre usa a imagem enviada mais recentemente, mesmo que o arquivo anterior não tenha sido apagado na hora (lock do OneDrive ou antivírus).",
     "Ajuste visual: o item 'Visão geral' das Configurações, quando aberto, tinha um preenchimento vermelho forte que parecia um alerta — agora usa o mesmo destaque discreto (barra vermelha à esquerda) dos outros itens do menu.",
