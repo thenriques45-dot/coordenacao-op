@@ -1804,11 +1804,15 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
             }
         }
 
+        // Só conta elegível ativo, mesmo critério de `alunos_ativos`. Aluno
+        // transferido deixa uma cópia inativa na turma de origem, e contá-la
+        // inflava o total com alguém que nenhuma tela mostra — a lista da
+        // turma esconde inativos até marcarem "Mostrar inativos".
         let elegivel = info
             .get("elegivel_manual")
             .and_then(Value::as_bool)
             .unwrap_or_else(|| aluno_tem_deficiencias(info));
-        if elegivel {
+        if ativo && elegivel {
             alunos_elegiveis += 1;
         }
 
@@ -1870,6 +1874,68 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         // Preenchido em listar_turmas, que cruza com o registro de check-outs.
         em_conselho_externo: Vec::new(),
         caminho: caminho.to_string_lossy().to_string(),
+    }
+}
+
+#[cfg(test)]
+mod testes_resumo {
+    use super::*;
+    use serde_json::json;
+
+    fn turma_com(alunos: Value) -> TurmaArquivo {
+        serde_json::from_value(json!({ "codigo": "7A", "ano": 2026, "alunos": alunos }))
+            .expect("fixture de turma")
+    }
+
+    #[test]
+    fn copia_inativa_de_transferido_nao_entra_na_contagem_de_elegiveis() {
+        // Transferir um aluno entre turmas deixa uma cópia inativa na turma
+        // de origem. Ele segue elegível na turma nova; contá-lo aqui também
+        // somava o mesmo aluno duas vezes no total do Dashboard, sem que
+        // nenhuma tela mostrasse onde estava a segunda ocorrência.
+        let resumo = resumir_turma(
+            turma_com(json!({
+                "0001000000018": { "nome": "ATIVO", "ativo": true, "deficiencias": ["AUTISTA INFANTIL"] },
+                "0001000000026": { "nome": "TRANSFERIDO", "ativo": false, "deficiencias": ["INTELECTUAL"] },
+            })),
+            PathBuf::from("turma_7A.json"),
+        );
+
+        assert_eq!(resumo.total_alunos, 2);
+        assert_eq!(resumo.alunos_ativos, 1);
+        assert_eq!(resumo.alunos_elegiveis, 1);
+    }
+
+    #[test]
+    fn elegivel_manual_falso_anula_a_deficiencia_cadastrada() {
+        let resumo = resumir_turma(
+            turma_com(json!({
+                "0001000000018": {
+                    "nome": "DESMARCADO",
+                    "ativo": true,
+                    "deficiencias": ["INTELECTUAL"],
+                    "elegivel_manual": false
+                },
+            })),
+            PathBuf::from("turma_7A.json"),
+        );
+
+        assert_eq!(
+            resumo.alunos_elegiveis, 0,
+            "a marcação manual manda sobre a deficiência importada"
+        );
+    }
+
+    #[test]
+    fn elegivel_manual_verdadeiro_conta_mesmo_sem_deficiencia_listada() {
+        let resumo = resumir_turma(
+            turma_com(json!({
+                "0001000000018": { "nome": "MARCADO A MAO", "ativo": true, "elegivel_manual": true },
+            })),
+            PathBuf::from("turma_7A.json"),
+        );
+
+        assert_eq!(resumo.alunos_elegiveis, 1);
     }
 }
 

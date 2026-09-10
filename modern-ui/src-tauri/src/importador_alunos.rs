@@ -574,6 +574,13 @@ pub(crate) fn importar_alunos_elegiveis_interno(
         let mut alterou_turma = false;
 
         for (matricula_aluno, info) in alunos.iter_mut() {
+            // Cópia inativa de aluno transferido: marcar elegibilidade nela
+            // criaria um elegível fantasma na turma de origem. O aluno é
+            // marcado na turma onde está ativo; se não estiver ativo em
+            // nenhuma, entra em `nao_encontrados` para a coordenação revisar.
+            if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
+                continue;
+            }
             let mut candidatos = buscar_por_matricula(matricula_aluno, &por_matricula);
             let mut modo = "matricula";
             if candidatos.len() != 1 {
@@ -952,4 +959,78 @@ pub(crate) fn extrair_nome_social_backend(nome: &str) -> String {
         }
     }
     resultado.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+#[cfg(test)]
+mod testes_elegiveis {
+    use super::*;
+
+    // Forma do CSV "Dados" que o SED exporta: linha de título, linha em
+    // branco, cabeçalho e campos separados por ";". Nomes e RAs aqui são
+    // fictícios de propósito — este repositório é público e a lista real é
+    // de estudantes da educação especial. O que o teste precisa preservar é
+    // a estrutura: RA de 12 dígitos (sem o dígito verificador que o app
+    // guarda), deficiências separadas por vírgula dentro de um único campo,
+    // e o mesmo aluno em duas linhas quando cursa a série regular e também
+    // a turma de expansão não seriada.
+    const CSV_SED: &str = concat!(
+        "Dados;10/09/2026 16:39\n",
+        "\n",
+        "Nome do Aluno;RA;Nome Escola;Tipo de Ensino;Série/Ano;Deficiência\n",
+        "ALUNO UM;000100000001;ESCOLA MODELO;ENSINO FUNDAMENTAL DE 9 ANOS;7° ANO A TARDE ANUAL;AUTISTA INFANTIL\n",
+        "ALUNA DOIS;000100000002;ESCOLA MODELO;ENSINO FUNDAMENTAL DE 9 ANOS;6º ANO C TARDE ANUAL;INTELECTUAL, AUTISTA INFANTIL\n",
+        "ALUNO TRES;000100000003;ESCOLA MODELO;NOVO ENSINO MÉDIO;2ª SERIE A NOITE ANUAL;SURDEZ LEVE OU MODERADA\n",
+        "ALUNO TRES;000100000003;ESCOLA MODELO;EXPANSÃO NOVO EM;NÃO SERIADO A TARDE ANUAL;SURDEZ LEVE OU MODERADA\n",
+    );
+
+    #[test]
+    fn aluno_repetido_na_turma_de_expansao_vira_um_registro_so() {
+        let registros = ler_csv_alunos_elegiveis(CSV_SED).expect("CSV do SED");
+
+        assert_eq!(
+            registros.len(),
+            3,
+            "quatro linhas de dados, mas a de expansão é o mesmo aluno da 2ª série"
+        );
+        assert_eq!(
+            registros.iter().filter(|r| r.matricula == "000100000003").count(),
+            1
+        );
+    }
+
+    #[test]
+    fn cabecalho_e_procurado_depois_do_titulo_e_da_linha_em_branco() {
+        let registros = ler_csv_alunos_elegiveis(CSV_SED).expect("CSV do SED");
+
+        assert_eq!(
+            registros.first().map(|r| r.nome.as_str()),
+            Some("ALUNO UM"),
+            "o primeiro registro tem que ser a primeira linha de dados, não o título"
+        );
+    }
+
+    #[test]
+    fn deficiencias_separadas_por_virgula_viram_itens_distintos() {
+        let registros = ler_csv_alunos_elegiveis(CSV_SED).expect("CSV do SED");
+        let aluna = registros
+            .iter()
+            .find(|r| r.matricula == "000100000002")
+            .expect("registro da segunda linha de dados");
+
+        assert_eq!(
+            aluna.deficiencias,
+            vec!["INTELECTUAL".to_string(), "AUTISTA INFANTIL".to_string()]
+        );
+    }
+
+    #[test]
+    fn ra_do_csv_sem_digito_verificador_casa_com_o_ra_guardado_pelo_app() {
+        let mut indice: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        for variante in variantes_matricula("000100000001") {
+            indice.entry(variante).or_default().push(0);
+        }
+
+        // O app guarda o RA com o dígito verificador (13); o SED exporta sem (12).
+        assert_eq!(buscar_por_matricula("0001000000018", &indice), vec![0]);
+    }
 }

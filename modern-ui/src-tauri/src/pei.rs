@@ -641,16 +641,15 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
             if !info.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
                 continue;
             }
-            let elegivel_manual = info
+            // Mesma regra de turmas::resumir_turma: `elegivel_manual` é
+            // override, não um "ou" com as deficiências. Desmarcar à mão um
+            // aluno que tem deficiência cadastrada precisa tirá-lo do PEI
+            // também, senão o contador da turma e esta listagem divergem.
+            let elegivel = info
                 .get("elegivel_manual")
                 .and_then(Value::as_bool)
-                .unwrap_or(false);
-            let tem_deficiencia = info
-                .get("deficiencias")
-                .and_then(Value::as_array)
-                .map(|d| !d.is_empty())
-                .unwrap_or(false);
-            if !elegivel_manual && !tem_deficiencia {
+                .unwrap_or_else(|| aluno_tem_deficiencias(info));
+            if !elegivel {
                 continue;
             }
 
