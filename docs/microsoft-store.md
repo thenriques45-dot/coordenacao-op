@@ -142,9 +142,14 @@ certificação. A certificação continua levando de horas a alguns dias.
 
 ### Cuidados
 
-- **Não deixe rascunho aberto no Partner Center ao criar uma tag.** O
-  `msstore publish` descarta o rascunho pendente e cria outro a partir do último
-  envio publicado — edições de listagem não publicadas se perdem.
+- **Não deixe envio pendente criado pela interface do Partner Center.** A API
+  da Store só apaga, edita e conclui envios que ela mesma criou. Com um rascunho
+  ou envio em andamento aberto pela interface, o `publish-store` falha com
+  "Ingestion API can only update, delete, and commit submissions that are
+  created through the API". Nesse caso, apague o envio no Partner Center e use
+  **Re-run failed jobs** na execução do release — não precisa de tag nova. Já
+  um rascunho criado pela própria API é descartado sozinho pelo
+  `msstore publish`, junto com edições de listagem não publicadas.
 - **Não edite pelo Partner Center um envio criado pelo GitHub** enquanto ele
   estiver em andamento: a Microsoft avisa que isso impede a automação de
   concluí-lo e pode travar o envio, que então precisa ser apagado.
