@@ -2,14 +2,11 @@ name: Store (MSIX)
 
 # Gera o .msix da feature `store` para enviar a Microsoft Store.
 # A Store assina o pacote na submissao -- este workflow NAO assina nada.
-# Disparo manual: Actions > Store (MSIX) > Run workflow.
+# Disparo manual: Actions > Store (MSIX) > Run workflow. Cada tag v* ja gera
+# o mesmo .msix pelo release.yml; este serve para gerar sem criar tag.
 
 on:
   workflow_dispatch:
-  # Temporario: enquanto valida o empacotamento MSIX na branch store-msix.
-  # Remover antes de mesclar em main (la vale so o workflow_dispatch).
-  push:
-    branches: [store-msix]
 
 permissions:
   contents: read

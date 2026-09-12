@@ -44,6 +44,12 @@ jobs:
         working-directory: modern-ui/src-tauri
         run: cargo check
 
+      # O MSIX só é gerado em tag; sem isto, uma quebra na feature `store`
+      # só apareceria na hora do release.
+      - name: Check Rust backend (Microsoft Store build)
+        working-directory: modern-ui/src-tauri
+        run: cargo check --features store
+
       - name: Run Rust tests
         working-directory: modern-ui/src-tauri
         run: cargo test

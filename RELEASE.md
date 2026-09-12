@@ -63,6 +63,8 @@ git push origin v2.0.1
    - `latest.json`;
    - release no GitHub.
 
+4. A mesma tag gera o pacote da Microsoft Store (`.msix`) como artifact da execução, em jobs separados que não bloqueiam a release do GitHub. Se os secrets do Partner Center estiverem configurados, o pacote já vai para certificação; senão, o envio é manual. Veja `docs/microsoft-store.md`.
+
 ## Arquivos necessarios na release
 
 Para o auto update funcionar no Windows, a release precisa conter:

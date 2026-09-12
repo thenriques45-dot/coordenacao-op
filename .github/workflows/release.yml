@@ -167,3 +167,96 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.zip
           generate_release_notes: true
+
+  # Os jobs da Store ficam fora do `needs` do publish: se o MSIX falhar, a
+  # release do GitHub (e o auto-update de quem instalou por lá) sai igual.
+  build-store:
+    name: build-store-msix
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      - name: Build store variant
+        working-directory: modern-ui
+        run: npm run tauri build -- --config src-tauri/tauri.store.conf.json --features store
+
+      - name: Pack MSIX
+        working-directory: modern-ui
+        shell: pwsh
+        run: ./scripts/build-msix.ps1
+
+      # Só artifact da execução, nunca anexo da release: o .msix sai sem
+      # assinatura (a Store assina na submissão) e não instala fora dela.
+      - name: Upload MSIX
+        uses: actions/upload-artifact@v6
+        with:
+          name: coordenacaoop-msix
+          path: modern-ui/src-tauri/target/release/msix/*.msix
+          if-no-files-found: error
+
+  publish-store:
+    needs: [build-store]
+    runs-on: windows-latest
+    env:
+      STORE_PRODUCT_ID: 9NB56ZCKQT6H
+      AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+      SELLER_ID: ${{ secrets.SELLER_ID }}
+      AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+      AZURE_AD_APPLICATION_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+    steps:
+      # Desligado até os quatro secrets existirem (ver docs/microsoft-store.md).
+      # Configuração pela metade falha de propósito, em vez de pular calada.
+      - name: Check Partner Center credentials
+        id: credenciais
+        shell: pwsh
+        run: |
+          $nomes = @('AZURE_AD_TENANT_ID', 'SELLER_ID', 'AZURE_AD_APPLICATION_CLIENT_ID', 'AZURE_AD_APPLICATION_SECRET')
+          $faltando = @($nomes | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($faltando.Count -eq $nomes.Count) {
+            Write-Host "::notice::Envio automatico a Microsoft Store desligado (secrets do Partner Center nao configurados). Baixe o artifact coordenacaoop-msix e envie pelo Partner Center."
+            "habilitado=false" >> $env:GITHUB_OUTPUT
+          } elseif ($faltando.Count -gt 0) {
+            throw "Secrets do Partner Center incompletos. Faltando: $($faltando -join ', ')"
+          } else {
+            "habilitado=true" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Download MSIX
+        if: steps.credenciais.outputs.habilitado == 'true'
+        uses: actions/download-artifact@v5
+        with:
+          name: coordenacaoop-msix
+          path: msix
+
+      - name: Set up Microsoft Store Developer CLI
+        if: steps.credenciais.outputs.habilitado == 'true'
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      - name: Configure Partner Center credentials
+        if: steps.credenciais.outputs.habilitado == 'true'
+        shell: pwsh
+        run: msstore reconfigure --tenantId $env:AZURE_AD_TENANT_ID --sellerId $env:SELLER_ID --clientId $env:AZURE_AD_APPLICATION_CLIENT_ID --clientSecret $env:AZURE_AD_APPLICATION_SECRET
+
+      - name: Submit MSIX to Microsoft Store
+        if: steps.credenciais.outputs.habilitado == 'true'
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem msix -Recurse -Filter *.msix | Select-Object -First 1
+          if (-not $msix) { throw "Nenhum .msix no artifact coordenacaoop-msix." }
+          msstore publish $msix.FullName -id $env:STORE_PRODUCT_ID
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish falhou ($LASTEXITCODE)" }

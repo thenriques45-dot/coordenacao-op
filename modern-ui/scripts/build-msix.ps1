@@ -29,11 +29,28 @@ $ErrorActionPreference = "Stop"
 
 $modernUi   = Split-Path -Parent $PSScriptRoot            # .../modern-ui
 $repoRoot   = Split-Path -Parent $modernUi
-$release    = Join-Path $modernUi "src-tauri\target\release"
 $msixSrc    = Join-Path $modernUi "msix"
 $icons      = Join-Path $modernUi "src-tauri\icons"
 $staging    = Join-Path $modernUi "src-tauri\target\msix-staging"
 $outDir     = Join-Path $modernUi "src-tauri\target\release\msix"
+
+# O exe sai no target-dir do Cargo, que um .cargo/config.toml local (ignorado
+# pelo git) pode mover para fora de src-tauri\target. $outDir continua fixo:
+# e o caminho que os workflows sobem como artifact.
+$targetDir = Join-Path $modernUi "src-tauri\target"
+if (Get-Command cargo -ErrorAction SilentlyContinue) {
+  Push-Location (Join-Path $modernUi "src-tauri")
+  try {
+    $ErrorActionPreference = "Continue"
+    $meta = (cargo metadata --no-deps --format-version 1 2>$null) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $meta) { $targetDir = ($meta | ConvertFrom-Json).target_directory }
+  } catch {
+  } finally {
+    $ErrorActionPreference = "Stop"
+    Pop-Location
+  }
+}
+$release    = Join-Path $targetDir "release"
 
 if (-not $Version) {
   $Version = (Get-Content (Join-Path $modernUi "package.json") | ConvertFrom-Json).version
