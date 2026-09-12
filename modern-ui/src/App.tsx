@@ -361,6 +361,10 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.1.3": [
+    "Corrigido: o total de alunos elegíveis (painel, lista de turmas e conselho) somava também as cópias inativas de quem mudou de turma durante o ano — o aluno transferido continuava contando na turma de origem, onde a lista nem o mostra, porque inativos ficam escondidos até marcar \"Mostrar inativos\". O número ficava maior que o de elegíveis realmente visíveis, e cada transferência aumentava a diferença. Agora só contam alunos ativos, e a importação da lista de elegíveis também deixa de marcar as cópias inativas — se um aluno da lista não estiver ativo em turma nenhuma, ele aparece entre os não encontrados para a coordenação revisar.",
+    "Corrigido: desmarcar um aluno como elegível na tela da turma não o tirava da listagem do PEI quando ele tinha alguma deficiência cadastrada pela importação. A marcação manual agora vale nos dois lugares.",
+  ],
   "4.1.2": {
     paginas: [
       {
@@ -379,8 +383,6 @@ const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
     outrasMudancas: [
       "Corrigido: apertar Enter na fila assistida podia registrar o mesmo atendimento duas vezes (o atalho de teclado e o clique nativo do botão focado disputavam o mesmo envio). Agora só um vale.",
       "Novo: \"Excluir registro\" no menu (⋮) de um atendimento, para apagar um registro feito por engano ou duplicado.",
-      "Corrigido: o total de alunos elegíveis (painel, lista de turmas e conselho) somava também as cópias inativas de quem mudou de turma durante o ano — o aluno transferido continuava contando na turma de origem, onde a lista nem o mostra, porque inativos ficam escondidos até marcar \"Mostrar inativos\". O número ficava maior que o de elegíveis realmente visíveis, e cada transferência aumentava a diferença. Agora só contam alunos ativos, e a importação da lista de elegíveis também deixa de marcar as cópias inativas — se um aluno da lista não estiver ativo em turma nenhuma, ele aparece entre os não encontrados para a coordenação revisar.",
-      "Corrigido: desmarcar um aluno como elegível na tela da turma não o tirava da listagem do PEI quando ele tinha alguma deficiência cadastrada pela importação. A marcação manual agora vale nos dois lugares.",
     ],
   },
   "4.1.1": [
