@@ -6,6 +6,12 @@ authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
 edition = "2021"
 
+[features]
+# Build para a Microsoft Store (MSIX). A Store cuida das atualizações e o
+# container do MSIX não deixa rodar o instalador do updater nem gravar a
+# chave de autostart no registro — então a UI dessas duas coisas some.
+store = []
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
