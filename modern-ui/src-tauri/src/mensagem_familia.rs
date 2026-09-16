@@ -21,7 +21,7 @@ pub(crate) struct VariavelMensagem {
     pub(crate) disponivel: bool,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn resolver_variaveis_mensagem(
     caminho: String,
     matricula: String,

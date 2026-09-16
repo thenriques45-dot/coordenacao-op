@@ -67,6 +67,14 @@ fn main() {
             None,
         ))
         .setup(|app| {
+            // Resíduos de sincronizações passadas ocupavam centenas de MB e
+            // entravam na assinatura/backup de cada ciclo. Em thread separada
+            // porque varre diretórios grandes e não pode atrasar a abertura da
+            // janela; falhas são silenciosas (é só faxina).
+            std::thread::spawn(|| {
+                let _ = limpar_residuos_sincronizacao();
+            });
+
             let abrir = MenuItem::with_id(app, "abrir", "Abrir", true, None::<&str>)?;
             let sair = MenuItem::with_id(app, "sair", "Sair", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&abrir, &sair])?;
@@ -122,6 +130,7 @@ fn main() {
             config::salvar_modelos_mensagem,
             config::salvar_equipe_gestora,
             infra::salvar_estado_ui,
+            infra::salvar_estado_ui_lote,
             infra::carregar_estado_ui,
             config::salvar_cabecalho_ata,
             config::carregar_perfil_turma,
@@ -1129,5 +1138,174 @@ mod tests {
         assert!(caminho.exists());
 
         fs::remove_dir_all(&pasta).unwrap();
+    }
+
+    fn pasta_temporaria(rotulo: &str) -> std::path::PathBuf {
+        let pasta = env::temp_dir().join(format!(
+            "coordenacaoop_{rotulo}_{}_{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        if pasta.exists() {
+            fs::remove_dir_all(&pasta).unwrap();
+        }
+        fs::create_dir_all(&pasta).unwrap();
+        pasta
+    }
+
+    // Regressão do travamento: o espelho do localStorage muda a cada ciclo de
+    // sincronização (~45 s). Enquanto ele entrava na assinatura, ela nunca
+    // coincidia com a publicada e o app recopiava `dados/` inteiro a cada 15
+    // minutos — cada recópia disparando um backup de segurança de centenas de
+    // MB em todos os peers.
+    #[test]
+    fn assinatura_ignora_espelho_da_interface_que_muda_a_cada_ciclo() {
+        let pasta = pasta_temporaria("assinatura");
+        fs::write(pasta.join("estado_ui.json"), "{\"kanban\":\"antes\"}").unwrap();
+        fs::create_dir_all(pasta.join("persistidos")).unwrap();
+        fs::write(pasta.join("persistidos").join("turma_2A.json"), "{}").unwrap();
+
+        let antes = assinatura_diretorio(&pasta).unwrap();
+        fs::write(pasta.join("estado_ui.json"), "{\"kanban\":\"depois\"}").unwrap();
+        let depois = assinatura_diretorio(&pasta).unwrap();
+        assert_eq!(antes, depois, "espelho da interface não pode mover a assinatura");
+
+        // Um dado institucional de verdade continua movendo.
+        fs::write(pasta.join("persistidos").join("turma_2A.json"), "{\"alunos\":1}").unwrap();
+        assert_ne!(antes, assinatura_diretorio(&pasta).unwrap());
+
+        fs::remove_dir_all(&pasta).unwrap();
+    }
+
+    #[test]
+    fn copia_institucional_deixa_o_espelho_local_de_fora_mas_leva_o_resto() {
+        let origem = pasta_temporaria("copia_origem");
+        let destino = pasta_temporaria("copia_destino");
+        fs::write(origem.join("estado_ui.json"), "espelho").unwrap();
+        fs::write(origem.join("estado_ui-NOMEPC.json"), "conflito do onedrive").unwrap();
+        fs::create_dir_all(origem.join("fotos")).unwrap();
+        fs::write(origem.join("fotos").join("0001.jpg"), "foto").unwrap();
+        // Só a raiz é filtrada: um arquivo de mesmo nome numa subpasta vai.
+        fs::write(origem.join("fotos").join("estado_ui.json"), "nao e o espelho").unwrap();
+
+        let mut total = 0;
+        copiar_dados_institucionais(&origem, &destino, &mut total).unwrap();
+
+        assert!(!destino.join("estado_ui.json").exists());
+        assert!(!destino.join("estado_ui-NOMEPC.json").exists());
+        assert!(destino.join("fotos").join("0001.jpg").exists());
+        assert!(destino.join("fotos").join("estado_ui.json").exists());
+        assert_eq!(total, 2);
+
+        fs::remove_dir_all(&origem).unwrap();
+        fs::remove_dir_all(&destino).unwrap();
+    }
+
+    #[test]
+    fn poda_mantem_os_mais_recentes_e_preserva_exportacoes_do_coordenador() {
+        let pasta = pasta_temporaria("poda");
+        for dia in ["10", "11", "12", "13", "14"] {
+            fs::write(
+                pasta.join(format!("coordenacaoop_backup_2026-09-{dia}_10-00-00.zip")),
+                "zip",
+            )
+            .unwrap();
+        }
+        // Exportação seletiva pedida pelo coordenador e arquivo alheio: intocáveis.
+        let seletivo = pasta.join("coordenacaoop_backup_3a-serie_2026-09-01_10-00-00.zip");
+        let alheio = pasta.join("anotacoes.zip");
+        fs::write(&seletivo, "zip").unwrap();
+        fs::write(&alheio, "zip").unwrap();
+
+        assert_eq!(podar_backups_na_pasta(&pasta, 2).unwrap(), 3);
+        assert!(!pasta.join("coordenacaoop_backup_2026-09-10_10-00-00.zip").exists());
+        assert!(!pasta.join("coordenacaoop_backup_2026-09-12_10-00-00.zip").exists());
+        assert!(pasta.join("coordenacaoop_backup_2026-09-13_10-00-00.zip").exists());
+        assert!(pasta.join("coordenacaoop_backup_2026-09-14_10-00-00.zip").exists());
+        assert!(seletivo.exists());
+        assert!(alheio.exists());
+
+        // Abaixo do limite não apaga nada.
+        assert_eq!(podar_backups_na_pasta(&pasta, 10).unwrap(), 0);
+
+        fs::remove_dir_all(&pasta).unwrap();
+    }
+
+    // A trava tem que atender por ordem de chegada: o Conselho dispara
+    // `salvar_perfil_turma` a cada tecla sem `await`, mandando o objeto
+    // inteiro. Se duas gravações represadas atrás de uma sincronização
+    // demorada fossem liberadas fora de ordem, a mais antiga venceria e a
+    // edição do coordenador sumiria sem aviso.
+    #[test]
+    fn trava_de_dados_atende_por_ordem_de_chegada() {
+        use std::sync::{Arc, Mutex as MutexStd};
+        use std::time::Duration;
+
+        let trava = Arc::new(TravaDados::nova());
+        let ordem = Arc::new(MutexStd::new(Vec::new()));
+
+        // Segura a trava para todos os outros se enfileirarem atrás, como
+        // acontece durante um pull institucional demorado.
+        let bloqueio = trava.travar();
+
+        let mut threads = Vec::new();
+        for i in 0..8 {
+            let trava = Arc::clone(&trava);
+            let ordem = Arc::clone(&ordem);
+            threads.push(std::thread::spawn(move || {
+                let _guarda = trava.travar();
+                ordem.lock().unwrap().push(i);
+            }));
+            // Garante que a thread `i` chega na fila antes da `i + 1`; sem
+            // isso o teste mediria a ordem de agendamento do SO, não a da
+            // trava.
+            std::thread::sleep(Duration::from_millis(30));
+        }
+
+        drop(bloqueio);
+        for t in threads {
+            t.join().unwrap();
+        }
+
+        assert_eq!(
+            *ordem.lock().unwrap(),
+            (0..8).collect::<Vec<_>>(),
+            "a trava precisa liberar na ordem de chegada"
+        );
+    }
+
+    // Um panic segurando a trava não pode deixar a fila parada — seria o app
+    // inteiro travado até reiniciar.
+    #[test]
+    fn panic_com_a_trava_presa_nao_para_a_fila() {
+        let trava = std::sync::Arc::new(TravaDados::nova());
+
+        let t = std::sync::Arc::clone(&trava);
+        let _ = std::thread::spawn(move || {
+            let _guarda = t.travar();
+            panic!("falha no meio de uma gravação");
+        })
+        .join();
+
+        let t = std::sync::Arc::clone(&trava);
+        let seguinte = std::thread::spawn(move || {
+            let _guarda = t.travar();
+            "conseguiu entrar"
+        });
+        assert_eq!(seguinte.join().unwrap(), "conseguiu entrar");
+    }
+
+    #[test]
+    fn copia_de_conflito_do_onedrive_nao_entra_como_peer() {
+        let peers = pasta_temporaria("peers");
+        let original = peers.join("f00ce5b1-1b7e-45f1-8b36-125ea9cddf3f.json");
+        let conflito = peers.join("f00ce5b1-1b7e-45f1-8b36-125ea9cddf3f-MININT-KTHHLSG.json");
+        fs::write(&original, "{}").unwrap();
+        fs::write(&conflito, "{}").unwrap();
+
+        assert!(eh_copia_de_conflito_sync(&conflito));
+        assert!(!eh_copia_de_conflito_sync(&original));
+
+        fs::remove_dir_all(&peers).unwrap();
     }
 }

@@ -33,7 +33,7 @@ pub(crate) fn carregar_configuracoes() -> Result<ConfiguracoesApp, String> {
     Ok(ler_configuracoes())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<ConfiguracoesApp, String> {
     let _dados = travar_dados();
     if input.nota_minima < 0.0 || input.nota_minima > 10.0 {
@@ -124,7 +124,7 @@ pub(crate) fn salvar_configuracoes(input: ConfiguracoesInput) -> Result<Configur
 /// Salva apenas os modelos de mensagem à família, sem tocar no resto da
 /// configuração. Usado pela tela de Atendimentos ("Gerenciar modelos"), que
 /// não carrega o objeto de configuração inteiro.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_modelos_mensagem(
     modelos: Vec<MensagemTemplate>,
 ) -> Result<ConfiguracoesApp, String> {
@@ -177,7 +177,7 @@ pub(crate) fn carregar_perfil_turma(caminho: String, bimestre: String) -> Result
     Ok(apontamentos)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_perfil_turma(caminho: String, bimestre: String, apontamentos: Value) -> Result<(), String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -212,7 +212,7 @@ pub(crate) fn carregar_alunos_destaque(caminho: String, bimestre: String) -> Res
     Ok(nomes)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_alunos_destaque(caminho: String, bimestre: String, nomes: Value) -> Result<(), String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -233,7 +233,7 @@ pub(crate) fn salvar_alunos_destaque(caminho: String, bimestre: String, nomes: V
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<ConfiguracoesApp, String> {
     let _dados = travar_dados();
     let extensao = extensao_imagem_cabecalho(&input.nome).ok_or_else(|| {
@@ -733,7 +733,7 @@ fn agora_rfc3339_equipe() -> String {
 /// Salva só a equipe gestora, sem tocar no resto da configuração. Regrava os
 /// campos planos derivados e carimba `atualizado_em`. Usado pela seção "Equipe
 /// gestora" e pela adoção via sincronização de grupo.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_equipe_gestora(equipe: EquipeGestora) -> Result<ConfiguracoesApp, String> {
     let _dados = travar_dados();
     let mut config = ler_configuracoes();
@@ -813,7 +813,7 @@ pub(crate) fn resolver_bimestre_atual() -> BimestreAtualResposta {
 
 /// Grava só o pin do bimestre em `configuracoes.json`, preservando o resto.
 /// "" (ou valor inválido) volta para o modo automático.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn fixar_bimestre_pin(valor: String) -> Result<BimestreAtualResposta, String> {
     let _dados = travar_dados();
     let mut config = ler_configuracoes();

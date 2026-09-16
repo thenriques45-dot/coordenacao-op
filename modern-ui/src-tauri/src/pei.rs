@@ -41,7 +41,7 @@ pub(crate) fn buscar_pei_planilha(url: String) -> Result<Vec<RegistroPei>, Strin
     parsear_csv_pei(&texto)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_url_pei(url: String) -> Result<(), String> {
     let _dados = travar_dados();
     let pasta = data_dir().map_err(|e| e.to_string())?.join("pei");
@@ -61,7 +61,7 @@ pub(crate) fn carregar_url_pei() -> Result<String, String> {
     fs::read_to_string(caminho).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_config_pei(config: ConfigPei) -> Result<(), String> {
     let _dados = travar_dados();
     let pasta = data_dir().map_err(|e| e.to_string())?.join("pei");

@@ -460,7 +460,7 @@ pub(crate) fn listar_conselhos_externos() -> Vec<ConselhoExterno> {
 }
 
 // Desfaz um check-out sem reintegrar (ex.: pendrive perdido ou conselho adiado).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn cancelar_conselho_externo(
     caminho_relativo: String,
     bimestre: String,

@@ -80,6 +80,13 @@ pub(crate) fn carregar_estados_sincronizacao(
             .filter(|p| {
                 p.extension().and_then(|e| e.to_str()) == Some("json")
                     && p.file_name().and_then(|n| n.to_str()) != Some(proprio.as_str())
+                    // Cópias de conflito do OneDrive ("<device-id>-NOMEPC.json")
+                    // são fotografias velhas do estado de alguém: aplicá-las
+                    // ressuscitava dispositivos aposentados no roster e fazia o
+                    // ciclo processar ~1 MB a mais por arquivo. Aqui só
+                    // ignoramos — apagar é decisão de quem é dono da pasta, que
+                    // é compartilhada com o grupo todo.
+                    && !eh_copia_de_conflito_sync(p)
             })
             .collect();
         entradas.sort();
@@ -156,7 +163,7 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
 
     let mut total = 0;
     if origem.exists() {
-        copiar_recursivamente_contando(&origem, &temporario.join("dados"), &mut total)
+        copiar_dados_institucionais(&origem, &temporario.join("dados"), &mut total)
             .map_err(|err| err.to_string())?;
     } else {
         fs::create_dir_all(temporario.join("dados")).map_err(|err| err.to_string())?;
@@ -241,8 +248,18 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
 
     // Copia dados do peer para o temporário
     let mut total = 0;
-    copiar_recursivamente_contando(&origem_dados, &temporario, &mut total)
+    copiar_dados_institucionais(&origem_dados, &temporario, &mut total)
         .map_err(|err| err.to_string())?;
+
+    // `dados/` é substituído inteiro pelo temporário logo abaixo, então o
+    // espelho desta máquina precisa ser levado junto — senão o app volta com o
+    // quadro kanban e o calendário vazios depois de cada pull. Peers em versão
+    // antiga ainda publicam o espelho DELES; copiar o local por cima garante
+    // que o de fora nunca vença. Ver eh_estado_ui_da_maquina.
+    let estado_ui_local = destino.join("estado_ui.json");
+    if estado_ui_local.is_file() {
+        fs::copy(&estado_ui_local, temporario.join("estado_ui.json")).map_err(|err| err.to_string())?;
+    }
 
     // Remove cópias de conflito criadas pelo OneDrive dentro do estado recebido
     // (ex.: "turma_X-NomePC.json"), que viravam turmas duplicadas na listagem.
@@ -390,6 +407,49 @@ pub(crate) fn copiar_recursivamente(origem: &Path, destino: &Path) -> io::Result
             fs::create_dir_all(parent)?;
         }
         fs::copy(origem, destino)?;
+    }
+    Ok(())
+}
+
+/// `dados/estado_ui.json` é o espelho do localStorage DESTA máquina (quadro
+/// kanban, calendário, caches de PEI/Planejamento, roster com avatares) e não
+/// tem nada a fazer na sincronização institucional:
+///
+/// 1. Ele muda a cada ciclo de sincronização (~45 s). Como entrava na
+///    `assinatura_diretorio`, a assinatura NUNCA coincidia com a publicada, e
+///    o app republicava os 570 MB de `dados/` a cada 15 minutos para sempre —
+///    o que, do outro lado, disparava um pull completo com backup de 570 MB
+///    em cada peer. Foi assim que a pasta de backups chegou a 24 GB.
+/// 2. No pull, `dados/` é substituído inteiro pelo diretório temporário, então
+///    o espelho do colega sobrescrevia o desta máquina.
+/// 3. As cópias de conflito do OneDrive (`estado_ui-NOMEPC.json`) nasciam
+///    justamente da disputa de (1) e (2) e iam junto na carona, engordando
+///    cada ciclo.
+///
+/// O kanban e o calendário continuam sincronizando normalmente — isso é feito
+/// pelo estado de grupo (`publicar_estado_sincronizacao`), não daqui.
+pub(crate) fn eh_estado_ui_da_maquina(nome: &str) -> bool {
+    nome == "estado_ui.json"
+        || (nome.starts_with("estado_ui-") && nome.ends_with(".json"))
+}
+
+/// Copia `dados/` para a sincronização institucional pulando, na raiz, os
+/// arquivos que são locais da máquina (ver `eh_estado_ui_da_maquina`).
+/// Só a raiz é filtrada: subpastas (fotos, persistidos, relatórios) vão
+/// inteiras.
+pub(crate) fn copiar_dados_institucionais(
+    origem: &Path,
+    destino: &Path,
+    total: &mut usize,
+) -> io::Result<()> {
+    fs::create_dir_all(destino)?;
+    for entrada in fs::read_dir(origem)? {
+        let entrada = entrada?;
+        let nome = entrada.file_name();
+        if eh_estado_ui_da_maquina(&nome.to_string_lossy()) {
+            continue;
+        }
+        copiar_recursivamente_contando(&entrada.path(), &destino.join(&nome), total)?;
     }
     Ok(())
 }
@@ -810,6 +870,69 @@ pub(crate) fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
     false
 }
 
+/// Faxina de resíduos deixados por sincronizações anteriores, rodada uma vez
+/// na abertura do app. Tudo aqui é local (dentro de app_base_dir) — nada é
+/// apagado da pasta compartilhada, que é de todo o grupo.
+///
+/// Remove duas coisas:
+///
+/// 1. `dados_sync_tmp_*` / `dados_sync_old_*` — cópias inteiras de `dados/`
+///    que `carregar_dados_institucionais_sincronizacao` cria e que ficam para
+///    trás quando o app é fechado no meio do pull. Numa instalação real havia
+///    uma de 382 MB parada desde a semana anterior.
+/// 2. As cópias de conflito do OneDrive na raiz de `dados/`
+///    (`estado_ui-NOMEPC.json`), que nasciam do espelho local ir e voltar pela
+///    sincronização institucional. Com `eh_estado_ui_da_maquina` fora do
+///    ciclo, não surgem mais — isto limpa as que já existem.
+///
+/// A trava é obrigatória: mexe em `dados/` e nos diretórios que o pull usa.
+pub(crate) fn limpar_residuos_sincronizacao() -> io::Result<()> {
+    let _dados = travar_dados();
+    let base = app_base_dir()?;
+
+    for entrada in fs::read_dir(&base)? {
+        let caminho = entrada?.path();
+        if !caminho.is_dir() {
+            continue;
+        }
+        let Some(nome) = caminho.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if nome.starts_with("dados_sync_tmp_") || nome.starts_with("dados_sync_old_") {
+            let _ = fs::remove_dir_all(&caminho);
+        }
+    }
+
+    let dados = data_dir()?;
+    if dados.is_dir() {
+        for entrada in fs::read_dir(&dados)? {
+            let caminho = entrada?.path();
+            if !caminho.is_file() {
+                continue;
+            }
+            let Some(nome) = caminho.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            // `nome != "estado_ui.json"` protege o espelho em uso; o resto do
+            // padrão só casa com cópia de conflito.
+            if nome != "estado_ui.json"
+                && eh_estado_ui_da_maquina(nome)
+                && eh_copia_de_conflito_sync(&caminho)
+            {
+                let _ = fs::remove_file(&caminho);
+            }
+        }
+    }
+
+    // A poda roda depois de cada backup novo, mas quem já acumulou dezenas de
+    // GB pode passar muito tempo sem gerar outro (agora que o pull
+    // institucional deixou de disparar a cada 15 min). Na abertura, o espaço
+    // volta já na primeira execução da versão corrigida.
+    let _ = podar_backups_antigos(MAX_BACKUPS_MANTIDOS);
+
+    Ok(())
+}
+
 pub(crate) fn remover_copias_de_conflito_sync(pasta: &Path) -> io::Result<()> {
     if !pasta.is_dir() {
         return Ok(());
@@ -1076,6 +1199,12 @@ pub(crate) fn assinatura_diretorio(pasta: &Path) -> io::Result<String> {
             .unwrap_or(caminho)
             .to_string_lossy()
             .replace('\\', "/");
+        // Arquivo local da máquina na raiz: fora da assinatura, senão ela muda
+        // a cada 45 s e a publicação nunca converge (ver
+        // eh_estado_ui_da_maquina). O `!contains('/')` restringe à raiz.
+        if !relativo.contains('/') && eh_estado_ui_da_maquina(&relativo) {
+            return Ok(());
+        }
         let bytes = fs::read(caminho)?;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         relativo.hash(&mut hasher);

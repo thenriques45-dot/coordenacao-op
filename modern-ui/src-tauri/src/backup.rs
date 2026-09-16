@@ -85,6 +85,9 @@ pub(crate) fn exportar_backup_interno() -> io::Result<BackupResultado> {
     zip.write_all(serde_json::to_string_pretty(&manifesto)?.as_bytes())?;
     zip.finish()?;
 
+    // Falha na poda não invalida o backup que acabou de ser criado.
+    let _ = podar_backups_antigos(MAX_BACKUPS_MANTIDOS);
+
     Ok(BackupResultado {
         caminho: Some(destino.to_string_lossy().to_string()),
         arquivos: total,
@@ -92,6 +95,79 @@ pub(crate) fn exportar_backup_interno() -> io::Result<BackupResultado> {
         conflitos: Vec::new(),
         backup_seguranca: None,
     })
+}
+
+/// Quantos backups automáticos ficam em disco. Cada um é um zip de `dados/` +
+/// `config/` inteiros — ~570 MB numa escola com fotos de todos os alunos.
+pub(crate) const MAX_BACKUPS_MANTIDOS: usize = 10;
+
+/// Reconhece o nome dos backups COMPLETOS gerados automaticamente:
+/// `coordenacaoop_backup_2026-09-15_21-26-56.zip`.
+///
+/// Exige o carimbo de data exato de propósito: os backups seletivos por ciclo
+/// (`coordenacaoop_backup_<ciclos>_<data>.zip`) são exportações que o
+/// coordenador pediu e não podem ser podadas junto.
+pub(crate) fn eh_backup_automatico(nome: &str) -> bool {
+    let Some(carimbo) = nome
+        .strip_prefix("coordenacaoop_backup_")
+        .and_then(|resto| resto.strip_suffix(".zip"))
+    else {
+        return false;
+    };
+    // %Y-%m-%d_%H-%M-%S
+    carimbo.len() == 19
+        && carimbo
+            .chars()
+            .enumerate()
+            .all(|(i, c)| match i {
+                4 | 7 | 13 | 16 => c == '-',
+                10 => c == '_',
+                _ => c.is_ascii_digit(),
+            })
+}
+
+/// Apaga os backups automáticos mais antigos, mantendo os `manter` mais
+/// recentes. Devolve quantos foram apagados.
+///
+/// Até aqui nada limpava essa pasta. Como cada pull institucional gera um
+/// backup de segurança — e o pull disparava a cada 15 minutos por causa da
+/// assinatura instável (ver `eh_estado_ui_da_maquina` em sync.rs) — a pasta
+/// tinha chegado a 46 arquivos e 24 GB numa instalação real.
+pub(crate) fn podar_backups_antigos(manter: usize) -> io::Result<usize> {
+    podar_backups_na_pasta(&backups_dir()?, manter)
+}
+
+/// Corpo de `podar_backups_antigos`, separado da descoberta da pasta para
+/// poder ser testado sem depender de COORDENACAOOP_HOME.
+pub(crate) fn podar_backups_na_pasta(pasta: &Path, manter: usize) -> io::Result<usize> {
+    let mut automaticos: Vec<_> = fs::read_dir(pasta)?
+        .filter_map(|entrada| entrada.ok())
+        .map(|entrada| entrada.path())
+        .filter(|caminho| {
+            caminho.is_file()
+                && caminho
+                    .file_name()
+                    .and_then(|nome| nome.to_str())
+                    .is_some_and(eh_backup_automatico)
+        })
+        .collect();
+
+    if automaticos.len() <= manter {
+        return Ok(0);
+    }
+
+    // O carimbo no nome (%Y-%m-%d_%H-%M-%S) ordena lexicograficamente na mesma
+    // ordem cronológica — mais confiável que o mtime, que a sincronização de
+    // arquivos pode reescrever.
+    automaticos.sort();
+    let remover = automaticos.len() - manter;
+    let mut apagados = 0;
+    for caminho in automaticos.into_iter().take(remover) {
+        if fs::remove_file(&caminho).is_ok() {
+            apagados += 1;
+        }
+    }
+    Ok(apagados)
 }
 
 pub(crate) fn exportar_backup_ciclos_interno(ciclos: &[String]) -> io::Result<BackupResultado> {

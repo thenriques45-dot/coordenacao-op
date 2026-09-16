@@ -137,7 +137,7 @@ pub(crate) fn abrir_pasta(caminho: String) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn preparar_anexo_kanban(caminho: String) -> Result<KanbanAnexoResultado, String> {
     let _dados = travar_dados();
     let origem = PathBuf::from(&caminho)
@@ -208,7 +208,7 @@ pub(crate) fn abrir_anexo_kanban(caminho: String) -> Result<(), String> {
     abrir_arquivo(&arquivo)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn preparar_anexo_atendimento(caminho: String) -> Result<KanbanAnexoResultado, String> {
     let _dados = travar_dados();
     let origem = PathBuf::from(&caminho)

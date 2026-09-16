@@ -467,7 +467,7 @@ pub(crate) fn ler_posicao_foto(matricula: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_posicao_foto(matricula: String, posicao: String) -> Result<(), String> {
     let _dados = travar_dados();
     let mut mapa = ler_posicoes_foto();
@@ -482,7 +482,7 @@ pub(crate) struct DefinirFotoInput {
     pub(crate) caminho: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn definir_foto_aluno(input: DefinirFotoInput) -> Result<bool, String> {
     let _dados = travar_dados();
     if input.matricula.trim().is_empty() {
@@ -519,7 +519,7 @@ pub(crate) fn definir_foto_aluno(input: DefinirFotoInput) -> Result<bool, String
     Ok(true)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn remover_foto_aluno(matricula: String) -> Result<(), String> {
     let _dados = travar_dados();
     let pasta = pasta_fotos()?;

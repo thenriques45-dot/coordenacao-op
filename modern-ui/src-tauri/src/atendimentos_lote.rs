@@ -200,7 +200,7 @@ fn condicao_atendida(m: &Metricas, c: &CondicaoLote) -> bool {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn avaliar_condicoes_atendimento_lote(
     caminho: String,
     bimestre: String,
@@ -310,7 +310,7 @@ fn gravar_turma(caminho: &std::path::Path, dados: &Value) -> Result<(), String> 
     escrever_json_atomicamente(caminho, &texto).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn carregar_disparos_lote(caminho: String) -> Result<Vec<Value>, String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -328,7 +328,7 @@ pub(crate) fn carregar_disparos_lote(caminho: String) -> Result<Vec<Value>, Stri
     Ok(lista)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn iniciar_disparo_lote(caminho: String, input: IniciarDisparoInput) -> Result<Value, String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -377,7 +377,7 @@ pub(crate) fn iniciar_disparo_lote(caminho: String, input: IniciarDisparoInput) 
 
 /// Substitui um disparo por id pelo `disparo` recebido (progresso da fila,
 /// falhas do lote…). O frontend manda o registro inteiro, já com a situacao.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn atualizar_disparo_lote(caminho: String, disparo: Value) -> Result<Value, String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);

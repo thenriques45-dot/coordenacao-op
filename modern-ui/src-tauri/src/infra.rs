@@ -12,7 +12,7 @@ use std::{
     collections::BTreeMap,
     env, fs, io,
     path::{Path, PathBuf},
-    sync::{Mutex, MutexGuard, PoisonError},
+    sync::{Condvar, Mutex, PoisonError},
 };
 
 
@@ -20,16 +20,91 @@ use std::{
 // async e os da thread principal. Antes de existirem comandos async, essa
 // serialização era garantida pela própria thread principal; a trava preserva a
 // mesma semântica sem congelar a interface durante operações demoradas.
-// Regras: todo comando async que toca dados/ segura a trava; todo comando
-// síncrono que GRAVA em dados/ também. Leituras síncronas de arquivo único
-// ficam sem trava (as gravações são atômicas via rename). Comandos não podem
-// chamar outros comandos que travam — a trava não é reentrante.
-pub(crate) static DADOS_LOCK: Mutex<()> = Mutex::new(());
+// Regras: todo comando async que toca dados/ segura a trava. Comandos não
+// podem chamar outros comandos que travam — a trava não é reentrante.
+//
+// REGRA CRÍTICA: um comando que segura esta trava PRECISA ser
+// `#[tauri::command(async)]`. Comando sem `(async)` roda na thread principal,
+// a mesma que processa a janela; se ele esperar aqui enquanto a
+// sincronização institucional segura a trava, a interface inteira congela
+// pelo tempo todo da espera. Se um comando síncrono precisar gravar em
+// dados/, marque-o `(async)` antes de dar `travar_dados()`.
+// A trava é JUSTA (atende por ordem de chegada) de propósito, e não um
+// Mutex comum. Enquanto os comandos rodavam na thread principal, eles eram
+// atendidos na ordem em que chegavam pelo IPC — e o frontend depende disso:
+// o Conselho dispara `salvar_perfil_turma`/`salvar_alunos_destaque` a cada
+// tecla, sem `await`, mandando o objeto INTEIRO a cada vez. Com um Mutex
+// comum, duas gravações represadas atrás de uma sincronização demorada
+// seriam liberadas em ordem arbitrária, e a versão mais antiga venceria — o
+// coordenador perderia a edição sem nenhum aviso. Por senha, a ordem de
+// chegada é preservada e a janela de inversão volta a ser o tempo de
+// despacho da thread (microssegundos), como era antes.
+pub(crate) static DADOS_LOCK: TravaDados = TravaDados::nova();
 
-pub(crate) fn travar_dados() -> MutexGuard<'static, ()> {
-    // Um panic com a trava presa não pode inutilizar o app: como cada gravação
-    // de arquivo é atômica, herdar a trava envenenada é seguro.
-    DADOS_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
+pub(crate) struct TravaDados {
+    fila: Mutex<FilaTrava>,
+    vez: Condvar,
+}
+
+struct FilaTrava {
+    proxima_senha: u64,
+    senha_da_vez: u64,
+    ocupada: bool,
+}
+
+/// Solta a trava e acorda o próximo da fila ao sair de escopo. Como cada
+/// gravação de arquivo é atômica, um panic segurando a trava é seguro: o
+/// desenrolar da pilha executa este Drop e a fila anda.
+pub(crate) struct GuardaDados<'a> {
+    trava: &'a TravaDados,
+}
+
+impl TravaDados {
+    pub(crate) const fn nova() -> Self {
+        Self {
+            fila: Mutex::new(FilaTrava {
+                proxima_senha: 0,
+                senha_da_vez: 0,
+                ocupada: false,
+            }),
+            vez: Condvar::new(),
+        }
+    }
+
+    pub(crate) fn travar(&self) -> GuardaDados<'_> {
+        // Envenenamento é ignorado (ver GuardaDados): a fila em si é só três
+        // inteiros, sempre num estado coerente.
+        let mut fila = self.fila.lock().unwrap_or_else(PoisonError::into_inner);
+        let minha_senha = fila.proxima_senha;
+        fila.proxima_senha += 1;
+        while fila.ocupada || fila.senha_da_vez != minha_senha {
+            fila = self
+                .vez
+                .wait(fila)
+                .unwrap_or_else(PoisonError::into_inner);
+        }
+        fila.ocupada = true;
+        GuardaDados { trava: self }
+    }
+}
+
+impl Drop for GuardaDados<'_> {
+    fn drop(&mut self) {
+        let mut fila = self
+            .trava
+            .fila
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        fila.ocupada = false;
+        fila.senha_da_vez += 1;
+        // notify_all e não notify_one: quem acorda pode não ser o dono da
+        // senha da vez, e voltaria a dormir deixando a fila parada.
+        self.trava.vez.notify_all();
+    }
+}
+
+pub(crate) fn travar_dados() -> GuardaDados<'static> {
+    DADOS_LOCK.travar()
 }
 
 pub(crate) fn escrever_json_atomicamente(caminho: &Path, conteudo: &str) -> io::Result<()> {
@@ -200,14 +275,37 @@ pub(crate) fn ler_estado_ui() -> serde_json::Map<String, Value> {
         .unwrap_or_default()
 }
 
-#[tauri::command]
+// `(async)` é obrigatório aqui: sem ele o Tauri roda o comando na thread
+// principal, que é a mesma que processa a janela. Como este comando espera
+// DADOS_LOCK — presa por minutos durante a sincronização institucional numa
+// pasta do OneDrive lenta — a interface congelava inteira a cada gravação do
+// espelho (sintoma mais visível no Kanban, que grava a cada ação). Em thread
+// separada, a espera pela trava não bloqueia mais o desenho da janela.
+#[tauri::command(async)]
 pub(crate) fn salvar_estado_ui(chave: String, valor: String) -> Result<(), String> {
-    let _dados = travar_dados();
-    if chave.is_empty() || chave.len() > 120 {
-        return Err("Chave de estado inválida.".to_string());
+    salvar_estado_ui_lote(BTreeMap::from([(chave, valor)]))
+}
+
+/// Grava várias chaves do espelho num único ler-modificar-gravar.
+///
+/// O frontend acumula as gravações e chama este comando (ver o debounce em
+/// persistentState.ts): um ciclo de sincronização com 11 peers disparava ~154
+/// gravações do arquivo inteiro — que já passa de 2 MB por causa dos avatares
+/// em base64 do roster — para no fim persistir um punhado de chaves. Em lote,
+/// é uma leitura e uma escrita por ciclo.
+#[tauri::command(async)]
+pub(crate) fn salvar_estado_ui_lote(entradas: BTreeMap<String, String>) -> Result<(), String> {
+    if entradas.is_empty() {
+        return Ok(());
     }
+    let _dados = travar_dados();
     let mut estado = ler_estado_ui();
-    estado.insert(chave, Value::String(valor));
+    for (chave, valor) in entradas {
+        if chave.is_empty() || chave.len() > 120 {
+            return Err("Chave de estado inválida.".to_string());
+        }
+        estado.insert(chave, Value::String(valor));
+    }
     let caminho = estado_ui_path().map_err(|err| err.to_string())?;
     if let Some(pai) = caminho.parent() {
         fs::create_dir_all(pai).map_err(|err| err.to_string())?;

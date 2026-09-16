@@ -13,7 +13,7 @@ use std::{
 };
 
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     let _dados = travar_dados();
     let codigo = formatar_rotulo_turma_texto(input.codigo.trim());
@@ -104,7 +104,7 @@ pub(crate) fn criar_turma(input: NovaTurmaInput) -> Result<TurmaResumo, String> 
     Ok(resumir_turma(turma, caminho))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<TurmaResumo, String> {
     let _dados = travar_dados();
     let caminho_atual = PathBuf::from(caminho);
@@ -164,7 +164,7 @@ pub(crate) fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<Tur
     Ok(resumir_turma(turma, novo_caminho))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn excluir_turma(caminho: String) -> Result<(), String> {
     let _dados = travar_dados();
     let caminho = PathBuf::from(caminho);
@@ -257,7 +257,7 @@ pub(crate) fn carregar_turma(caminho: String, bimestre: String) -> Result<TurmaD
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_ajustes_media(
     caminho: String,
     matricula: String,
@@ -279,7 +279,7 @@ pub(crate) fn salvar_ajustes_media(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_encaminhamentos(
     caminho: String,
     matricula: String,
@@ -301,7 +301,7 @@ pub(crate) fn salvar_encaminhamentos(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_aluno_deliberado(
     caminho: String,
     matricula: String,
@@ -323,7 +323,7 @@ pub(crate) fn salvar_aluno_deliberado(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_tempo_conselho(
     caminho: String,
     bimestre: String,
@@ -344,7 +344,7 @@ pub(crate) fn salvar_tempo_conselho(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_coordenador_turma(
     caminho: String,
     input: CoordenadorTurmaInput,
@@ -383,7 +383,7 @@ fn ajustar_chave_texto(objeto: &mut serde_json::Map<String, Value>, chave: &str,
 // Grava os assinantes do PEI desta turma. Campos vazios são removidos do
 // arquivo — o fallback (coordenador de gestão / direcao_nome) é aplicado só
 // na hora de gerar o documento, em pei::resolver_assinantes_pei.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_pessoas_pei_turma(
     caminho: String,
     input: PessoasPeiTurmaInput,
@@ -408,7 +408,7 @@ pub(crate) fn salvar_pessoas_pei_turma(
 
 // Grava o responsável pelo estudante (impresso acima da linha de assinatura
 // do PEI). Vazio remove a chave.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_responsavel_pei_aluno(
     caminho: String,
     matricula: String,
@@ -431,7 +431,7 @@ pub(crate) fn salvar_responsavel_pei_aluno(
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_elegibilidade_aluno(
     caminho: String,
     matricula: String,
@@ -460,7 +460,7 @@ pub(crate) fn salvar_elegibilidade_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_lideranca_aluno(
     caminho: String,
     matricula: String,
@@ -517,7 +517,7 @@ pub(crate) fn salvar_lideranca_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_educacao_especial_aluno(
     caminho: String,
     matricula: String,
@@ -560,7 +560,7 @@ pub(crate) fn salvar_educacao_especial_aluno(
     Ok(detalhar_turma(turma, &bimestre))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_responsaveis_aluno(
     caminho: String,
     matricula: String,
@@ -601,7 +601,7 @@ pub(crate) fn salvar_responsaveis_aluno(
 /// existir um responsável sem telefone (o caso comum de quem está
 /// "sem_telefone"), completa esse; senão adiciona um novo (até o limite de 2
 /// de `normalizar_responsaveis`).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn adicionar_responsavel_rapido(
     caminho: String,
     matricula: String,
@@ -654,7 +654,7 @@ pub(crate) fn adicionar_responsavel_rapido(
 /// marcado deixa de contar como "tem WhatsApp" nas filas de contato e nos
 /// relatórios (ver `extrair_responsavel_com_whatsapp`), mas continua salvo —
 /// desmarcar é só editar o responsável na ficha do aluno.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn marcar_telefone_nao_whatsapp(
     caminho: String,
     matricula: String,
@@ -719,7 +719,7 @@ pub(crate) fn normalizar_followup_previsto_input(
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_atendimento_aluno(
     caminho: String,
     matricula: String,
@@ -918,7 +918,7 @@ pub(crate) fn salvar_atendimento_aluno(
 // Define ou limpa o follow-up combinado ("previsto") de um atendimento sem
 // reescrever os demais campos — usado por "Combinar retorno" e por
 // "Registrar desfecho" na thread. `previsto = None` limpa.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn definir_followup_previsto(
     caminho: String,
     matricula: String,
@@ -975,7 +975,7 @@ pub(crate) fn definir_followup_previsto(
 /// aninhados nele) — usado pelo "Excluir registro" do menu da conversa, em
 /// especial pra limpar duplicatas (ex.: o mesmo envio da fila registrado
 /// duas vezes por uma corrida entre o atalho Enter e o clique do botão).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn excluir_atendimento_aluno(
     caminho: String,
     matricula: String,
@@ -1165,7 +1165,7 @@ pub(crate) fn mes_relatorio_atendimento(data: &str) -> String {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_finalizacao_conselho(
     caminho: String,
     bimestre: String,

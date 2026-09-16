@@ -623,7 +623,7 @@ fn buscar_planejamentos_interno(
     Ok(todos)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn salvar_config_planejamento(config: ConfigPlanejamento) -> Result<(), String> {
     let _dados = travar_dados();
     let pasta = data_dir().map_err(|e| e.to_string())?.join("planejamento");
