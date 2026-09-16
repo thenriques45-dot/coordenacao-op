@@ -15,6 +15,7 @@ import {
   rotuloDiasAte,
   rotuloPrioridade,
   salvarTarefasKanban,
+  statusDeConclusao,
   type CalendarEvent,
   type KanbanTarefa,
   type TimelineItem,
@@ -121,7 +122,7 @@ export function Dashboard({
     if (item.tipo === "tarefa") {
       const tarefas = carregarTarefasKanban().map((t) =>
         t.id === item.origemId
-          ? { ...t, status: "concluido" as const, updatedAt: new Date().toISOString() }
+          ? { ...t, status: statusDeConclusao(), updatedAt: new Date().toISOString() }
           : t
       );
       salvarTarefasKanban(tarefas);

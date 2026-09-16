@@ -24,6 +24,7 @@ import {
   type KanbanTarefa,
   type RecurrenceFrequency,
   type TimelineItem,
+  statusPadrao,
 } from "./management";
 import { registrarExclusaoSincronizacao, WORKGROUP_SYNC_APPLIED_EVENT } from "./workgroupSync";
 import { VinculosPicker } from "./KanbanBoard";
@@ -133,7 +134,7 @@ export function CalendarioGestao({
     responsavel: "Coordenação",
     prazo: chaveData(new Date()),
     prioridade: "media" as KanbanPrioridade,
-    status: "fazer" as KanbanStatus,
+    status: statusPadrao() as KanbanStatus,
     vinculo: "",
     repetir: "none" as "none" | RecurrenceFrequency,
     intervalo: 1,
@@ -329,7 +330,7 @@ export function CalendarioGestao({
       responsavel: "Coordenação",
       prazo: evento.data,
       prioridade: evento.prioridade,
-      status: "fazer",
+      status: statusPadrao(),
       vinculo: formatarVinculosEvento(evento),
       repetir: "none",
       intervalo: 1,

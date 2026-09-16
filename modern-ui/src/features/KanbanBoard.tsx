@@ -1,69 +1,82 @@
-import {
-  CalendarClock,
-  CalendarDays,
-  Check,
-  Clock,
-  Download,
-  Filter,
-  MoreVertical,
-  Paperclip,
-  Pencil,
-  Plus,
-  Tag,
-  Trash2,
-  Upload,
-  UserRound,
-  X,
-} from "lucide-react";
-import { type FormEvent, type PointerEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { Clock, Download, Plus, Tag, Upload } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   KANBAN_COLUMNS_STORAGE_KEY,
-  KANBAN_STORAGE_KEY,
   arquivoParaAnexo,
+  carregarColunasKanban,
   carregarTarefasKanban,
   carregarEventosCalendario,
-  colunasKanbanPadrao,
-  coresKanban,
-  filtrarSugestoesFuzzy,
-  formatarDataCurta,
-  formatarResponsaveisTarefa,
-  formatarVinculosTarefa,
+  colunaDaTarefa,
+  idsDeConclusao,
   normalizarTextoGestao,
   obterResponsaveisTarefa,
   obterVinculosEvento,
   obterVinculosTarefa,
-  ordenarPorPrazoECriacao,
-  ordenarTarefasKanban,
-  reordenarColunaKanban,
-  rotuloRecorrencia,
   salvarTarefasKanban,
   separarVinculos,
+  statusPadrao,
   tarefaEstaAtiva,
-  tarefasKanbanIniciais,
   type CalendarEvent,
   type KanbanAnexo,
   type KanbanColuna,
-  type KanbanDragPreview,
-  type KanbanPrioridade,
   type KanbanStatus,
   type KanbanTarefa,
-  type RecurrenceFrequency,
+  type OrdenacaoColuna,
 } from "./management";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
-import { invokeApp, tauriDisponivel } from "./appBridge";
+import { invokeApp } from "./appBridge";
 import {
   agruparMembrosPorPessoa,
   carregarMembrosSincronizacao,
   iniciaisPerfil,
-  nomesCompativeis,
   registrarExclusaoSincronizacao,
   WORKGROUP_SYNC_APPLIED_EVENT,
   type WorkgroupSyncMember,
   type WorkgroupSyncProfile,
 } from "./workgroupSync";
 import { equipeGestoraVazia, type EquipeGestora } from "./SettingsPage";
-import { listarEquipe, nomeExibicao } from "./equipe";
+import { listarEquipe } from "./equipe";
+import { CompositorRapido, type PropsFormularioTarefa } from "./kanban/CompositorRapido";
+import { PainelCompleto } from "./kanban/PainelCompleto";
+import { CartaoTarefa } from "./kanban/CartaoTarefa";
+import { ColunaQuadro, CriacaoInline } from "./kanban/ColunaQuadro";
+import { AvisoDesfazer, BarraFerramentas, BarraSelecao } from "./kanban/BarrasQuadro";
+import { useArrasteQuadro } from "./kanban/useArrasteQuadro";
+import { type AcoesAnexos } from "./kanban/camposTarefa";
+import {
+  DESCRICAO_VAZIA,
+  formularioDaTarefa,
+  formularioVazio,
+  montarAlertasTarefa,
+  rotuloPrazo,
+  type FormularioTarefa,
+} from "./kanban/formularioTarefa";
+import {
+  algumFiltroAtivo,
+  alternarCartao,
+  alternarDensidade,
+  arquivadasDaColuna,
+  arquivarTarefas,
+  carregarExibicao,
+  cartaoAberto,
+  criarColuna,
+  deslocarNaColuna,
+  desfazerExclusaoColuna,
+  estiloCorColuna,
+  excluirColuna,
+  filtrosVazios,
+  moverParaPosicao,
+  moverTarefasPara,
+  restaurarTarefas,
+  salvarExibicao,
+  tarefaPassaNosFiltros,
+  tarefasDaColuna,
+  type FiltrosQuadro,
+} from "./kanban/quadro";
+
+// O VinculosPicker mudou para ./kanban; o re-export mantém o import do
+// Calendário funcionando.
+export { VinculosPicker } from "./kanban/VinculosPicker";
 
 type TurmaKanban = {
   codigo: string;
@@ -76,50 +89,16 @@ type KanbanAnexoDesktop = KanbanAnexo & {
   origem: "interno" | "externo";
 };
 
-const ALERTAS_TAREFA = [
-  { chave: "doisDias", diasAntes: 2, titulo: "Alerta 1", descricao: "2 dias antes" },
-  { chave: "umDia", diasAntes: 1, titulo: "Alerta 2", descricao: "1 dia antes" },
-  { chave: "noDia", diasAntes: 0, titulo: "Alerta 3", descricao: "No dia" },
-] as const;
-
-type AlertasFormulario = Record<(typeof ALERTAS_TAREFA)[number]["chave"], boolean>;
-type AbaFormularioTarefa = "detalhes" | "vinculos" | "etiquetas" | "anexos" | "recorrencia";
-
-const ABAS_FORMULARIO_TAREFA: { id: AbaFormularioTarefa; label: string }[] = [
-  { id: "detalhes", label: "Detalhes" },
-  { id: "vinculos", label: "Vínculos" },
-  { id: "etiquetas", label: "Etiquetas" },
-  { id: "anexos", label: "Anexos" },
-  { id: "recorrencia", label: "Recorrência" },
-];
-
-const alertasFormularioPadrao: AlertasFormulario = {
-  doisDias: false,
-  umDia: false,
-  noDia: false,
+type Aviso = {
+  id: number;
+  texto: string;
+  desfazer: () => void;
+  // Chamado quando o aviso some sem Desfazer (tempo esgotado, outro aviso
+  // tomou o lugar ou o quadro foi fechado). É onde a exclusão se consuma.
+  aoExpirar?: () => void;
 };
 
-function alertasParaFormulario(tarefa: KanbanTarefa | null): AlertasFormulario {
-  return ALERTAS_TAREFA.reduce<AlertasFormulario>((resultado, alerta) => {
-    resultado[alerta.chave] = Boolean(tarefa?.alertas?.some((item) => item.diasAntes === alerta.diasAntes && item.ativo));
-    return resultado;
-  }, { ...alertasFormularioPadrao });
-}
-
-function montarAlertasTarefa(alertas: AlertasFormulario, prazo: string, tarefaAnterior?: KanbanTarefa | null) {
-  return ALERTAS_TAREFA
-    .filter((alerta) => alertas[alerta.chave])
-    .map((alerta) => {
-      const anterior = tarefaAnterior?.prazo === prazo
-        ? tarefaAnterior.alertas?.find((item) => item.diasAntes === alerta.diasAntes)
-        : undefined;
-      return {
-        diasAntes: alerta.diasAntes,
-        ativo: true,
-        disparadoEm: anterior?.disparadoEm,
-      };
-    });
-}
+const DURACAO_AVISO_MS = 6000;
 
 function rotuloSerie(valor?: string | null) {
   if (!valor) return "";
@@ -143,152 +122,48 @@ function rotuloTurma(turma: TurmaKanban) {
   return rotuloSerie(codigo) || codigo;
 }
 
-function adicionarSugestaoEmLista(texto: string, sugestao: string) {
-  const vinculos = separarVinculos(texto);
-  const chave = normalizarTextoGestao(sugestao);
-  const semAtual = vinculos.filter((item) => normalizarTextoGestao(item) !== chave);
-  return [...semAtual, sugestao].join(", ");
-}
-
-function ultimoItemDigitado(valor: string) {
-  const partes = valor.split(/[,;\n]/);
-  return partes[partes.length - 1]?.trim() ?? "";
-}
-
-export function VinculosPicker({
-  valor,
-  sugestoes,
-  onChange,
-  placeholder = "Filtrar...",
-}: {
-  valor: string;
-  sugestoes: string[];
-  onChange: (novoValor: string) => void;
-  placeholder?: string;
-}) {
-  const [filtro, setFiltro] = useState("");
-  const [aberto, setAberto] = useState(false);
-  const selecionados = separarVinculos(valor);
-  // "@" só dispara a busca no grupo de trabalho — descartamos o prefixo antes
-  // de comparar. "@" sozinho lista todo mundo.
-  const termoBusca = filtro.startsWith("@") ? filtro.slice(1).trim() : filtro.trim();
-  const opcoesFiltradas = sugestoes
-    .filter((s) => !selecionados.some((sel) => normalizarTextoGestao(sel) === normalizarTextoGestao(s)))
-    .filter((s) => !termoBusca || normalizarTextoGestao(s).includes(normalizarTextoGestao(termoBusca)));
-
-  function adicionar(item: string) {
-    const limpo = item.trim().replace(/^@/, "").trim();
-    if (!limpo || selecionados.some((sel) => normalizarTextoGestao(sel) === normalizarTextoGestao(limpo))) {
-      setFiltro("");
-      return;
-    }
-    onChange([...selecionados, limpo].join(", "));
-    setFiltro("");
-  }
-
-  function remover(item: string) {
-    const chave = normalizarTextoGestao(item);
-    onChange(selecionados.filter((s) => normalizarTextoGestao(s) !== chave).join(", "));
-  }
-
-  return (
-    <div className="vinculos-picker">
-      <input
-        type="text"
-        value={filtro}
-        onChange={(e) => { setFiltro(e.target.value); setAberto(true); }}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === ",") && termoBusca) {
-            e.preventDefault();
-            adicionar(opcoesFiltradas[0] ?? termoBusca);
-          }
-        }}
-        onFocus={() => setAberto(true)}
-        onBlur={() => setTimeout(() => setAberto(false), 150)}
-        placeholder={placeholder}
-      />
-      {aberto && (opcoesFiltradas.length > 0 || filtro.startsWith("@")) && (
-        <div className="vinculos-picker-dropdown">
-          {opcoesFiltradas.map((item) => (
-            <button type="button" key={item} onMouseDown={(e) => { e.preventDefault(); adicionar(item); }}>
-              {item}
-            </button>
-          ))}
-          {termoBusca && !opcoesFiltradas.some((o) => normalizarTextoGestao(o) === normalizarTextoGestao(termoBusca)) && (
-            <button type="button" onMouseDown={(e) => { e.preventDefault(); adicionar(termoBusca); }}>
-              + adicionar "{termoBusca}"
-            </button>
-          )}
-        </div>
-      )}
-      {selecionados.length > 0 && (
-        <div className="vinculos-picker-tags">
-          {selecionados.map((item) => (
-            <span key={item} className="vinculos-picker-tag">
-              {item}
-              <button type="button" onClick={() => remover(item)} aria-label={`Remover ${item}`}>×</button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; perfil?: WorkgroupSyncProfile }) {
-  const [tarefas, setTarefas] = useState<KanbanTarefa[]>(() => {
-    try {
-      const salvas = localStorage.getItem(KANBAN_STORAGE_KEY);
-      return salvas ? JSON.parse(salvas) as KanbanTarefa[] : tarefasKanbanIniciais;
-    } catch {
-      return tarefasKanbanIniciais;
-    }
-  });
-  const [colunas, setColunas] = useState<KanbanColuna[]>(() => {
-    try {
-      const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
-      return salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao;
-    } catch {
-      return colunasKanbanPadrao;
-    }
-  });
-  const [filtroAltaPrioridade, setFiltroAltaPrioridade] = useState(false);
-  const [modalNovaTarefa, setModalNovaTarefa] = useState(false);
+  const [tarefas, setTarefas] = useState<KanbanTarefa[]>(carregarTarefasKanban);
+  const [colunas, setColunas] = useState<KanbanColuna[]>(carregarColunasKanban);
+  // Qual formulário está aberto. O estado do que foi digitado (novaTarefa)
+  // é um só para os dois: trocar de "rapido" para "completo" preserva tudo.
+  const [formulario, setFormulario] = useState<"rapido" | "completo" | null>(null);
   const [tarefaEditando, setTarefaEditando] = useState<KanbanTarefa | null>(null);
-  const [abaFormulario, setAbaFormulario] = useState<AbaFormularioTarefa>("detalhes");
-  const [menuTarefaAberto, setMenuTarefaAberto] = useState<string | null>(null);
-  const [etiquetasEditando, setEtiquetasEditando] = useState<string | null>(null);
-  const [colunaEditando, setColunaEditando] = useState<KanbanStatus | null>(null);
+  const [novaTarefa, setNovaTarefa] = useState<FormularioTarefa>(() => formularioVazio(statusPadrao()));
   const [destacarAnexos, setDestacarAnexos] = useState(false);
-  const [tarefaArrastada, setTarefaArrastada] = useState<string | null>(null);
-  const [previewArraste, setPreviewArraste] = useState<KanbanDragPreview | null>(null);
+  // Criação inline pelo "+" da coluna: id da coluna e título em digitação.
+  const [criandoNaColuna, setCriandoNaColuna] = useState<{ coluna: KanbanStatus; titulo: string } | null>(null);
+  const [menuTarefa, setMenuTarefa] = useState<string | null>(null);
+  const [menuColuna, setMenuColuna] = useState<string | null>(null);
+  const [colunaRecemCriada, setColunaRecemCriada] = useState<string | null>(null);
+  const [renomeandoTarefa, setRenomeandoTarefa] = useState<string | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosQuadro>(filtrosVazios);
+  const [exibicao, setExibicao] = useState(carregarExibicao);
+  const [modoSelecao, setModoSelecao] = useState(false);
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [aviso, setAviso] = useState<Aviso | null>(null);
   const [mensagemQuadro, setMensagemQuadro] = useState("");
   const [erroQuadro, setErroQuadro] = useState("");
   const [membrosSync, setMembrosSync] = useState<WorkgroupSyncMember[]>(() => carregarMembrosSincronizacao());
   const [equipeGestora, setEquipeGestora] = useState<EquipeGestora>(equipeGestoraVazia());
   const [eventosCalendario, setEventosCalendario] = useState<CalendarEvent[]>(() => carregarEventosCalendario());
-  const [novaTarefa, setNovaTarefa] = useState({
-    titulo: "",
-    descricao: "",
-    etiquetas: "",
-    responsavel: "",
-    dataInicio: "",
-    prazo: "",
-    prioridade: "media" as KanbanPrioridade,
-    status: "fazer" as KanbanStatus,
-    anexos: [] as KanbanAnexo[],
-    eventId: "",
-    vinculo: "",
-    repetir: "none" as "none" | RecurrenceFrequency,
-    intervalo: 1,
-    repetirAte: "",
-    compartilhada: false,
-    alertas: { ...alertasFormularioPadrao },
-  });
+
+  const avisoAtual = useRef<Aviso | null>(null);
+  // Tarefas excluídas cujo Desfazer ainda está no ar. Ficam fora do quadro,
+  // mas ainda SEM lápide de sincronização (ver excluirTarefas).
+  const exclusaoPendente = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     salvarTarefasKanban(tarefas);
   }, [tarefas]);
+
+  useEffect(() => {
+    localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));
+  }, [colunas]);
+
+  useEffect(() => {
+    salvarExibicao(exibicao);
+  }, [exibicao]);
 
   useEffect(() => {
     function carregarEquipe() {
@@ -302,20 +177,15 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));
-  }, [colunas]);
-
-  useEffect(() => {
     function recarregarEstadoCompartilhado() {
-      setTarefas(carregarTarefasKanban());
+      // A mescla da sincronização pode trazer de volta uma tarefa que acabou
+      // de ser excluída aqui: enquanto o Desfazer está no ar a lápide ainda
+      // não existe, e o colega continua tendo a tarefa. Sem este filtro ela
+      // reapareceria no quadro no meio da janela do Desfazer.
+      const pendentes = exclusaoPendente.current;
+      setTarefas(carregarTarefasKanban().filter((tarefa) => !pendentes.has(tarefa.id)));
       setEventosCalendario(carregarEventosCalendario());
       setMembrosSync(carregarMembrosSincronizacao());
-      try {
-        const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
-        setColunas(salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao);
-      } catch {
-        setColunas(colunasKanbanPadrao);
-      }
     }
     function recarregarMembros() {
       setMembrosSync(carregarMembrosSincronizacao());
@@ -328,6 +198,54 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     };
   }, []);
 
+  // ── Aviso com Desfazer ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!aviso) return;
+    const timer = window.setTimeout(() => {
+      if (avisoAtual.current?.id !== aviso.id) return;
+      const expirado = avisoAtual.current;
+      avisoAtual.current = null;
+      setAviso(null);
+      expirado.aoExpirar?.();
+    }, DURACAO_AVISO_MS);
+    return () => window.clearTimeout(timer);
+  }, [aviso]);
+
+  // Sair do quadro com um aviso no ar consuma a ação: a exclusão ganha a
+  // lápide em vez de ficar num limbo que nunca sincroniza.
+  useEffect(() => () => {
+    const pendente = avisoAtual.current;
+    avisoAtual.current = null;
+    pendente?.aoExpirar?.();
+  }, []);
+
+  function mostrarAviso(novo: Omit<Aviso, "id">) {
+    // Um aviso novo toma o lugar do anterior, que se consuma.
+    const anterior = avisoAtual.current;
+    const comId = { ...novo, id: Date.now() + Math.random() };
+    avisoAtual.current = comId;
+    setAviso(comId);
+    anterior?.aoExpirar?.();
+  }
+
+  function desfazerAviso() {
+    const atual = avisoAtual.current;
+    avisoAtual.current = null;
+    setAviso(null);
+    atual?.desfazer();
+  }
+
+  // ── Modo seleção: Esc sai ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!modoSelecao || formulario) return;
+    function aoTeclar(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented) sairDaSelecao();
+    }
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [modoSelecao, formulario]);
+
+  // ── Derivados ──────────────────────────────────────────────────────────
   const membrosParaCards = useMemo(() => {
     const membros = [...membrosSync];
     if (perfil?.displayName) {
@@ -348,43 +266,25 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     return membros;
   }, [membrosSync, perfil, equipeGestora]);
 
-  useEffect(() => {
-    if (!modalNovaTarefa) return;
+  const concluintes = useMemo(() => idsDeConclusao(colunas), [colunas]);
+  const tarefasNoQuadro = useMemo(() => tarefas.filter((tarefa) => !tarefa.arquivadaEm), [tarefas]);
 
-    function fecharComEsc(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      setModalNovaTarefa(false);
-      setTarefaEditando(null);
-      setDestacarAnexos(false);
-    }
-
-    window.addEventListener("keydown", fecharComEsc);
-    return () => window.removeEventListener("keydown", fecharComEsc);
-  }, [modalNovaTarefa]);
-
-  const tarefasVisiveis = useMemo(() => {
-    if (!filtroAltaPrioridade) return tarefas;
-    return tarefas.filter((tarefa) => tarefa.prioridade === "alta");
-  }, [tarefas, filtroAltaPrioridade]);
-
+  // Conta pela coluna de EXIBIÇÃO: uma tarefa compartilhada cujo status
+  // aponta para uma coluna que só existe no quadro do colega cai na primeira
+  // — se contasse pelo status cru, ela apareceria na tela sem entrar em
+  // contagem nenhuma. Ver `colunaDaTarefa`.
   const contagemPorStatus = useMemo(() => {
-    return colunas.reduce<Record<KanbanStatus, number>>((resultado, coluna) => {
-      resultado[coluna.id] = tarefas.filter((tarefa) => tarefa.status === coluna.id).length;
+    const zerado = Object.fromEntries(colunas.map((coluna) => [coluna.id, 0])) as Record<KanbanStatus, number>;
+    return tarefasNoQuadro.reduce((resultado, tarefa) => {
+      const coluna = colunaDaTarefa(tarefa, colunas);
+      if (coluna) resultado[coluna.id] = (resultado[coluna.id] ?? 0) + 1;
       return resultado;
-    }, { fazer: 0, progresso: 0, revisao: 0, concluido: 0 });
-  }, [tarefas, colunas]);
+    }, zerado);
+  }, [tarefasNoQuadro, colunas]);
 
   const sugestoesEtiquetas = useMemo(() => {
     return Array.from(new Set(tarefas.flatMap((tarefa) => tarefa.etiquetas))).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [tarefas]);
-
-  const termoEtiquetaAtual = ultimoItemDigitado(novaTarefa.etiquetas);
-  const etiquetasSelecionadas = separarVinculos(novaTarefa.etiquetas);
-  const sugestoesEtiquetaTarefa = filtrarSugestoesFuzzy(
-    sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
-    termoEtiquetaAtual,
-    6,
-  );
 
   const sugestoesResponsavel = useMemo(() => {
     // Agrupa por pessoa (não só por string exata) antes de sugerir — sem
@@ -412,130 +312,271 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     return Array.from(itens).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [turmas, eventosCalendario, tarefas]);
 
-  const totalAltaPrioridade = tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prioridade === "alta").length;
+  const totalAltaPrioridade = tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa, concluintes) && tarefa.prioridade === "alta").length;
+  const nomePerfil = perfil?.displayName ?? "";
+  const filtrando = algumFiltroAtivo(filtros);
 
-  function moverTarefa(id: string, status: KanbanStatus) {
-    setTarefas((atuais) => {
-      const tarefaMovida = atuais.find((tarefa) => tarefa.id === id);
-      if (!tarefaMovida) return atuais;
-      const colunaDestino = atuais
-        .filter((tarefa) => tarefa.id !== id && tarefa.status === status)
-        .sort(ordenarTarefasKanban);
-      return reordenarColunaKanban(atuais, [{ ...tarefaMovida, status, updatedAt: new Date().toISOString() }, ...colunaDestino], status);
+  // ── Arraste ────────────────────────────────────────────────────────────
+  const { arraste, alvo, propsDoPunho } = useArrasteQuadro((id, destino) => {
+    if (destino.antesDe === id) return;
+    setTarefas((atuais) => moverParaPosicao(atuais, colunas, id, destino.coluna, destino.antesDe));
+    // Arrastar devolve a coluna de destino para a ordem manual (seção 4).
+    marcarManual(destino.coluna);
+  });
+
+  // ── Colunas ────────────────────────────────────────────────────────────
+  function atualizarColuna(id: KanbanStatus, mudanca: Partial<KanbanColuna>) {
+    setColunas((atuais) => atuais.map((coluna) => (coluna.id === id ? { ...coluna, ...mudanca } : coluna)));
+  }
+
+  function marcarManual(id: KanbanStatus) {
+    setColunas((atuais) =>
+      atuais.map((coluna) => (coluna.id === id && (coluna.ordenacao ?? "manual") !== "manual" ? { ...coluna, ordenacao: "manual" } : coluna)),
+    );
+  }
+
+  function adicionarColuna() {
+    const nova = criarColuna(colunas);
+    setColunas((atuais) => [...atuais, nova]);
+    setColunaRecemCriada(nova.id);
+  }
+
+  // Grava a flag EXPLÍCITA em todas as colunas, não só na clicada. Numa
+  // instalação antiga nenhuma coluna tem a flag e a conclusão vem do id
+  // "concluido" (ver idsDeConclusao); gravar só um false na clicada não
+  // desligaria esse fallback, e desmarcar não teria efeito.
+  function alternarConclusao(coluna: KanbanColuna) {
+    setColunas((atuais) =>
+      atuais.map((item) => ({ ...item, conclui: item.id === coluna.id ? !concluintes.has(item.id) : concluintes.has(item.id) })),
+    );
+  }
+
+  // Exclui a coluna com Desfazer. Os cartões dela passam a aparecer na
+  // primeira coluna sem ter o status reescrito (ver excluirColuna em quadro.ts).
+  function excluirColunaDoQuadro(coluna: KanbanColuna) {
+    const resultado = excluirColuna(colunas, tarefas, coluna.id);
+    if (!resultado) return;
+    const indice = colunas.findIndex((item) => item.id === coluna.id);
+    // Preserva a marcação de conclusão efetiva: a coluna "concluido" das
+    // instalações antigas conclui pelo id, não pela flag, e perderia isso ao
+    // voltar pelo Desfazer se a flag não for gravada nela agora.
+    const colunaParaDesfazer = concluintes.has(coluna.id) ? { ...coluna, conclui: true } : coluna;
+    setColunas(resultado.colunas);
+    setTarefas(resultado.tarefas);
+    if (criandoNaColuna?.coluna === coluna.id) setCriandoNaColuna(null);
+    const movidas = resultado.movidas
+      ? ` · ${resultado.movidas} ${resultado.movidas === 1 ? "tarefa movida" : "tarefas movidas"} para ${resultado.destino.titulo}`
+      : "";
+    mostrarAviso({
+      texto: `Coluna “${coluna.titulo}” excluída${movidas}`,
+      // Desfaz sobre o estado ATUAL: o que mudou no quadro durante a janela
+      // do aviso não se perde.
+      desfazer: () => {
+        setTarefas((atuais) => desfazerExclusaoColuna([], atuais, colunaParaDesfazer, indice, resultado.ordemAnterior).tarefas);
+        setColunas((atuais) => desfazerExclusaoColuna(atuais, [], colunaParaDesfazer, indice, new Map()).colunas);
+      },
     });
   }
 
-  function aoIniciarArrastePorPonteiro(event: PointerEvent<HTMLElement>, id: string) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    if (deveIgnorarArrasteKanban(event.target)) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    setTarefaArrastada(id);
-    const rect = event.currentTarget.getBoundingClientRect();
-    const tarefa = tarefas.find((item) => item.id === id);
-    if (tarefa) {
-      setPreviewArraste({
-        tarefa,
-        x: event.clientX,
-        y: event.clientY,
-        width: rect.width,
-        height: rect.height,
-      });
-    }
-  }
-
-  function aoMoverArrastePorPonteiro(event: PointerEvent<HTMLElement>) {
-    if (!tarefaArrastada) return;
-    setPreviewArraste((atual) => atual ? { ...atual, x: event.clientX, y: event.clientY } : atual);
-  }
-
-  function aoSoltarArrastePorPonteiro(event: PointerEvent<HTMLElement>, id: string) {
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-
-    const elemento = document.elementFromPoint(event.clientX, event.clientY);
-    const coluna = elemento?.closest<HTMLElement>("[data-kanban-column]");
-    const statusDestino = coluna?.dataset.kanbanColumn as KanbanStatus | undefined;
-    const statusAtual = tarefas.find((tarefa) => tarefa.id === id)?.status;
-    if (statusDestino && statusDestino !== statusAtual) {
-      moverTarefa(id, statusDestino);
-    }
-    setTarefaArrastada(null);
-    setPreviewArraste(null);
-  }
-
-  function cancelarArrastePorPonteiro() {
-    setTarefaArrastada(null);
-    setPreviewArraste(null);
-  }
-
-  function ordenarAutomaticamente() {
-    setTarefas((atuais) => atuais.map((tarefa) => ({ ...tarefa, ordem: undefined })).sort(ordenarPorPrazoECriacao));
-  }
-
-  function abrirNovaTarefa(status: KanbanStatus = "fazer") {
+  // ── Formulários ────────────────────────────────────────────────────────
+  function abrirNovaTarefa(status: KanbanStatus = statusPadrao(colunas), modo: "rapido" | "completo" = "rapido", titulo = "") {
     setEventosCalendario(carregarEventosCalendario());
     setTarefaEditando(null);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: perfil?.displayName?.trim() || "Coordenação", dataInicio: "", prazo: "", prioridade: "media", status, anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
-    setAbaFormulario("detalhes");
-    setModalNovaTarefa(true);
+    setDestacarAnexos(false);
+    setCriandoNaColuna(null);
+    setNovaTarefa({ ...formularioVazio(status, perfil?.displayName?.trim() || "Coordenação"), titulo });
+    setFormulario(modo);
   }
 
-  function abrirEdicaoTarefa(tarefa: KanbanTarefa, anexar = false) {
+  // Clique no corpo do cartão abre o compositor; o painel completo só por
+  // escolha explícita ("Abrir detalhes" no menu, ou escalando do compositor).
+  function abrirEdicaoTarefa(tarefa: KanbanTarefa, modo: "rapido" | "completo" = "rapido") {
     setEventosCalendario(carregarEventosCalendario());
-    setMenuTarefaAberto(null);
-    setDestacarAnexos(anexar);
+    setMenuTarefa(null);
+    setRenomeandoTarefa(null);
+    setDestacarAnexos(false);
     setTarefaEditando(tarefa);
-    setAbaFormulario(anexar ? "anexos" : "detalhes");
-    setNovaTarefa({
-      titulo: tarefa.titulo,
-      descricao: tarefa.descricao,
-      etiquetas: tarefa.etiquetas.join(", "),
-      responsavel: formatarResponsaveisTarefa(tarefa),
-      dataInicio: tarefa.dataInicio ?? "",
-      prazo: tarefa.prazo,
-      prioridade: tarefa.prioridade,
-      status: tarefa.status,
-      anexos: tarefa.anexos ?? [],
-      eventId: tarefa.eventId ?? "",
-      vinculo: formatarVinculosTarefa(tarefa),
-      repetir: tarefa.recorrencia?.frequency ?? "none",
-      intervalo: tarefa.recorrencia?.interval ?? 1,
-      repetirAte: tarefa.recorrencia?.until ?? "",
-      compartilhada: tarefa.compartilhada === true,
-      alertas: alertasParaFormulario(tarefa),
-    });
-    setModalNovaTarefa(true);
+    setNovaTarefa(formularioDaTarefa(tarefa));
+    setFormulario(modo);
   }
 
-  function apagarTarefa(id: string) {
-    setMenuTarefaAberto(null);
-    if (window.confirm("Apagar esta tarefa do quadro?")) {
-      const tarefa = tarefas.find((item) => item.id === id);
-      if (tarefa?.compartilhada === true) {
-        registrarExclusaoSincronizacao("kanbanTask", id);
-      }
-      setTarefas((atuais) => atuais.filter((tarefa) => tarefa.id !== id));
+  function fecharFormulario() {
+    setFormulario(null);
+    setTarefaEditando(null);
+    setDestacarAnexos(false);
+  }
+
+  // Monta a tarefa a partir do formulário. Com `anterior`, preserva o que o
+  // formulário não edita (id, criação, ordem) e o carimbo dos alertas.
+  function montarTarefa(form: FormularioTarefa, anterior: KanbanTarefa | null, agora: string): KanbanTarefa {
+    const etiquetas = separarVinculos(form.etiquetas);
+    const vinculos = separarVinculos(form.vinculo);
+    const responsaveis = separarVinculos(form.responsavel);
+    const prazo = form.prazo || new Date().toISOString().slice(0, 10);
+    // Só guarda dataInicio se for anterior ao prazo.
+    const dataInicio = form.dataInicio && form.dataInicio < prazo ? form.dataInicio : undefined;
+    const recorrencia = form.repetir === "none" ? undefined : {
+      frequency: form.repetir,
+      interval: Math.max(1, Number(form.intervalo) || 1),
+      until: form.repetirAte || undefined,
+    };
+    return {
+      ...(anterior ?? {}),
+      id: anterior?.id ?? `kanban-${Date.now()}`,
+      titulo: form.titulo.trim(),
+      descricao: form.descricao.trim() || DESCRICAO_VAZIA,
+      etiquetas,
+      responsavel: responsaveis[0] || "Coordenação",
+      responsaveis: responsaveis.length ? responsaveis : undefined,
+      dataInicio,
+      prazo,
+      prioridade: form.prioridade,
+      status: form.status,
+      anexos: form.anexos,
+      eventId: form.eventId || undefined,
+      vinculo: vinculos[0],
+      vinculos: vinculos.length ? vinculos : undefined,
+      recorrencia,
+      compartilhada: form.compartilhada,
+      alertas: montarAlertasTarefa(form.alertas, prazo, anterior),
+      createdAt: anterior?.createdAt ?? agora,
+      updatedAt: agora,
+    };
+  }
+
+  function salvarFormulario() {
+    if (!novaTarefa.titulo.trim()) return;
+    const agora = new Date().toISOString();
+    if (tarefaEditando) {
+      setTarefas((atuais) => atuais.map((tarefa) => (tarefa.id === tarefaEditando.id ? montarTarefa(novaTarefa, tarefa, agora) : tarefa)));
+    } else {
+      setTarefas((atuais) => [montarTarefa(novaTarefa, null, agora), ...atuais]);
     }
+    fecharFormulario();
   }
 
-  function salvarEtiquetas(id: string, etiquetas: string) {
-    setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === id ? {
-      ...tarefa,
-      etiquetas: etiquetas.split(",").map((item) => item.trim()).filter(Boolean),
-      updatedAt: new Date().toISOString(),
-    } : tarefa));
-    setEtiquetasEditando(null);
+  // Criação rápida pelo "+" da coluna: só o título, direto naquela coluna.
+  function criarNaColuna() {
+    if (!criandoNaColuna) return;
+    const titulo = criandoNaColuna.titulo.trim();
+    if (!titulo) {
+      setCriandoNaColuna(null);
+      return;
+    }
+    const agora = new Date().toISOString();
+    const base = formularioVazio(criandoNaColuna.coluna, perfil?.displayName?.trim() || "Coordenação");
+    setTarefas((atuais) => [montarTarefa({ ...base, titulo }, null, agora), ...atuais]);
+    // Continua aberto para emendar a próxima tarefa na mesma coluna.
+    setCriandoNaColuna({ coluna: criandoNaColuna.coluna, titulo: "" });
   }
 
-  function atualizarColuna(id: KanbanStatus, titulo: string, cor: string) {
-    setColunas((atuais) => atuais.map((coluna) => coluna.id === id ? { ...coluna, titulo: titulo.trim() || coluna.titulo, cor } : coluna));
-    setColunaEditando(null);
+  function abrirCriacaoNaColuna(coluna: KanbanColuna) {
+    if (coluna.recolhida) atualizarColuna(coluna.id, { recolhida: false });
+    setCriandoNaColuna({ coluna: coluna.id, titulo: "" });
   }
 
+  // ── Ações sobre tarefas ────────────────────────────────────────────────
+  function renomearTarefa(id: string, titulo: string) {
+    setRenomeandoTarefa(null);
+    const limpo = titulo.trim();
+    if (!limpo) return;
+    const agora = new Date().toISOString();
+    setTarefas((atuais) => atuais.map((tarefa) => (tarefa.id === id && tarefa.titulo !== limpo ? { ...tarefa, titulo: limpo, updatedAt: agora } : tarefa)));
+  }
+
+  function deslocar(tarefa: KanbanTarefa, direcao: -1 | 1) {
+    setMenuTarefa(null);
+    const coluna = colunaDaTarefa(tarefa, colunas);
+    setTarefas((atuais) => deslocarNaColuna(atuais, colunas, tarefa.id, direcao));
+    if (coluna) marcarManual(coluna.id);
+  }
+
+  function tirarDaSelecao(ids: string[]) {
+    const alvo = new Set(ids);
+    setSelecionadas((atuais) => atuais.filter((id) => !alvo.has(id)));
+  }
+
+  function arquivar(ids: string[]) {
+    const alvo = ids.filter((id) => tarefas.some((tarefa) => tarefa.id === id && !tarefa.arquivadaEm));
+    if (!alvo.length) return;
+    setMenuTarefa(null);
+    setTarefas((atuais) => arquivarTarefas(atuais, alvo));
+    tirarDaSelecao(alvo);
+    mostrarAviso({
+      texto: alvo.length === 1 ? "Tarefa arquivada" : `${alvo.length} tarefas arquivadas`,
+      // Desfazer RESTAURA com carimbo novo em vez de devolver o objeto antigo:
+      // se a sincronização já levou o arquivamento aos colegas dentro da
+      // janela do aviso, só uma versão mais nova vence a mescla — a antiga
+      // seria sobrescrita e a tarefa voltaria a ficar arquivada.
+      desfazer: () => setTarefas((atuais) => restaurarTarefas(atuais, alvo)),
+    });
+  }
+
+  // Exclusão com Desfazer e lápide ADIADA: a tarefa some na hora, mas a
+  // lápide de sincronização só é gravada quando o aviso expira. Gravar na
+  // hora faria o Desfazer inútil numa tarefa compartilhada — a sincronização
+  // re-apagaria a tarefa restaurada em até 45 s.
+  function excluirTarefas(ids: string[]) {
+    const alvo = new Set(ids);
+    const removidas = tarefas.filter((tarefa) => alvo.has(tarefa.id));
+    if (!removidas.length) return;
+    setMenuTarefa(null);
+    setTarefas((atuais) => atuais.filter((tarefa) => !alvo.has(tarefa.id)));
+    tirarDaSelecao(ids);
+
+    let resolvida = false;
+    const liberar = () => removidas.forEach((tarefa) => exclusaoPendente.current.delete(tarefa.id));
+    mostrarAviso({
+      texto: removidas.length === 1 ? "Tarefa excluída" : `${removidas.length} tarefas excluídas`,
+      desfazer: () => {
+        if (resolvida) return;
+        resolvida = true;
+        liberar();
+        setTarefas((atuais) => [...removidas.filter((tarefa) => !atuais.some((atual) => atual.id === tarefa.id)), ...atuais]);
+      },
+      aoExpirar: () => {
+        if (resolvida) return;
+        resolvida = true;
+        liberar();
+        removidas
+          .filter((tarefa) => tarefa.compartilhada === true)
+          .forEach((tarefa) => registrarExclusaoSincronizacao("kanbanTask", tarefa.id));
+      },
+    });
+    removidas.forEach((tarefa) => exclusaoPendente.current.add(tarefa.id));
+  }
+
+  function alternarSelecionada(id: string) {
+    setSelecionadas((atuais) => (atuais.includes(id) ? atuais.filter((item) => item !== id) : [...atuais, id]));
+  }
+
+  function sairDaSelecao() {
+    setModoSelecao(false);
+    setSelecionadas([]);
+  }
+
+  function moverSelecionadas(destino: KanbanStatus) {
+    setTarefas((atuais) => moverTarefasPara(atuais, selecionadas, destino));
+    setSelecionadas([]);
+  }
+
+  // ── Anexos ─────────────────────────────────────────────────────────────
   async function anexarArquivos(arquivos: FileList | null) {
     if (!arquivos?.length) return;
     const anexos = await Promise.all(Array.from(arquivos).map(arquivoParaAnexo));
     setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+  }
+
+  async function adicionarAnexosPorCaminho(caminhos: string[]) {
+    setErroQuadro("");
+    try {
+      const anexos = await Promise.all(
+        caminhos.map((caminho) => invokeApp<KanbanAnexoDesktop>("preparar_anexo_kanban", { caminho })),
+      );
+      setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+    } catch (error) {
+      setErroQuadro(error instanceof Error ? error.message : String(error));
+    }
   }
 
   async function selecionarAnexosDesktop() {
@@ -546,11 +587,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
         title: "Selecionar anexos da tarefa",
       });
       const caminhos = Array.isArray(selecionados) ? selecionados : selecionados ? [selecionados] : [];
-      if (!caminhos.length) return;
-      const anexos = await Promise.all(
-        caminhos.map((caminho) => invokeApp<KanbanAnexoDesktop>("preparar_anexo_kanban", { caminho })),
-      );
-      setNovaTarefa((atual) => ({ ...atual, anexos: [...atual.anexos, ...anexos] }));
+      if (caminhos.length) await adicionarAnexosPorCaminho(caminhos);
     } catch (error) {
       setErroQuadro(error instanceof Error ? error.message : String(error));
     }
@@ -569,6 +606,7 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     setNovaTarefa((atual) => ({ ...atual, anexos: atual.anexos.filter((anexo) => anexo.id !== id) }));
   }
 
+  // ── Backup do quadro ───────────────────────────────────────────────────
   function exportarQuadro() {
     setMensagemQuadro("");
     setErroQuadro("");
@@ -610,78 +648,29 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     }
   }
 
-  function criarTarefa(event: FormEvent) {
-    event.preventDefault();
-    const titulo = novaTarefa.titulo.trim();
-    if (!titulo) return;
+  const acoesAnexos: AcoesAnexos = {
+    selecionar: selecionarAnexosDesktop,
+    adicionarArquivos: anexarArquivos,
+    adicionarCaminhos: adicionarAnexosPorCaminho,
+    remover: removerAnexo,
+  };
 
-    const etiquetas = novaTarefa.etiquetas.split(",").map((item) => item.trim()).filter(Boolean);
-    const vinculos = separarVinculos(novaTarefa.vinculo);
-    const responsaveis = separarVinculos(novaTarefa.responsavel);
-    const prazo = novaTarefa.prazo || new Date().toISOString().slice(0, 10);
-    // Só guarda dataInicio se for anterior ao prazo.
-    const dataInicio = novaTarefa.dataInicio && novaTarefa.dataInicio < prazo ? novaTarefa.dataInicio : undefined;
-    const agora = new Date().toISOString();
-    const recorrencia = novaTarefa.repetir === "none" ? undefined : {
-      frequency: novaTarefa.repetir,
-      interval: Math.max(1, Number(novaTarefa.intervalo) || 1),
-      until: novaTarefa.repetirAte || undefined,
-    };
+  const propsFormulario: PropsFormularioTarefa = {
+    form: novaTarefa,
+    setForm: setNovaTarefa,
+    editando: Boolean(tarefaEditando),
+    colunas,
+    eventos: eventosCalendario,
+    sugestoesResponsavel,
+    sugestoesVinculo,
+    sugestoesEtiquetas,
+    acoesAnexos,
+    destacarAnexos,
+    onSalvar: salvarFormulario,
+    onFechar: fecharFormulario,
+  };
 
-    if (tarefaEditando) {
-      setTarefas((atuais) => atuais.map((tarefa) => tarefa.id === tarefaEditando.id ? {
-        ...tarefa,
-        titulo,
-        descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
-        etiquetas,
-        responsavel: responsaveis[0] || "Coordenação",
-        responsaveis: responsaveis.length ? responsaveis : undefined,
-        dataInicio,
-        prazo,
-        prioridade: novaTarefa.prioridade,
-        status: novaTarefa.status,
-        anexos: novaTarefa.anexos,
-        eventId: novaTarefa.eventId || undefined,
-        vinculo: vinculos[0],
-        vinculos: vinculos.length ? vinculos : undefined,
-        recorrencia,
-        compartilhada: novaTarefa.compartilhada,
-        alertas: montarAlertasTarefa(novaTarefa.alertas, prazo, tarefa),
-        updatedAt: agora,
-      } : tarefa));
-      setTarefaEditando(null);
-      setDestacarAnexos(false);
-      setModalNovaTarefa(false);
-      return;
-    }
-
-    const tarefa: KanbanTarefa = {
-      id: `kanban-${Date.now()}`,
-      titulo,
-      descricao: novaTarefa.descricao.trim() || "Sem descrição informada",
-      etiquetas,
-      responsavel: responsaveis[0] || "Coordenação",
-      responsaveis: responsaveis.length ? responsaveis : undefined,
-      dataInicio,
-      prazo,
-      prioridade: novaTarefa.prioridade,
-      status: novaTarefa.status,
-      anexos: novaTarefa.anexos,
-      eventId: novaTarefa.eventId || undefined,
-      vinculo: vinculos[0],
-      vinculos: vinculos.length ? vinculos : undefined,
-      recorrencia,
-      compartilhada: novaTarefa.compartilhada,
-      alertas: montarAlertasTarefa(novaTarefa.alertas, prazo),
-      createdAt: agora,
-      updatedAt: agora,
-    };
-
-    setTarefas((atuais) => [tarefa, ...atuais]);
-    setNovaTarefa({ titulo: "", descricao: "", etiquetas: "", responsavel: "", dataInicio: "", prazo: "", prioridade: "media", status: "fazer", anexos: [], eventId: "", vinculo: "", repetir: "none", intervalo: 1, repetirAte: "", compartilhada: false, alertas: { ...alertasFormularioPadrao } });
-    setDestacarAnexos(false);
-    setModalNovaTarefa(false);
-  }
+  const tarefaArrastada = arraste ? tarefas.find((tarefa) => tarefa.id === arraste.id) : undefined;
 
   return (
     <section className="kanban-page">
@@ -695,34 +684,18 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
             <Download size={18} />
             Exportar Quadro
           </button>
-          <button type="button" className="secondary-action" onClick={ordenarAutomaticamente}>
-            <CalendarClock size={18} />
-            Ordenar
-          </button>
           <label className="secondary-action kanban-import-action">
             <Upload size={18} />
             Importar Quadro
             <input type="file" accept=".json,application/json" onChange={(event) => importarQuadro(event.target.files?.[0] ?? null)} />
           </label>
-          <button
-            type="button"
-            className={`secondary-action ${filtroAltaPrioridade ? "selected" : ""}`}
-            onClick={() => setFiltroAltaPrioridade((ativo) => !ativo)}
-          >
-            <Filter size={18} />
-            Filtros
-          </button>
-          <button type="button" className="primary-action kanban-new-task" onClick={() => abrirNovaTarefa()}>
-            <Plus size={18} />
-            Nova Tarefa
-          </button>
         </div>
       </div>
 
       <section className="kanban-metrics" aria-label="Resumo do quadro Kanban">
-        <KanbanMetric label="Total de Tarefas" value={tarefas.length} icon={<Clock size={18} />} />
+        <KanbanMetric label="Total de Tarefas" value={tarefasNoQuadro.length} icon={<Clock size={18} />} />
         {colunas.map((coluna) => (
-          <KanbanMetric key={coluna.id} label={coluna.titulo} value={contagemPorStatus[coluna.id]} color={coluna.cor} />
+          <KanbanMetric key={coluna.id} label={coluna.titulo} value={contagemPorStatus[coluna.id] ?? 0} color={coluna.cor} />
         ))}
       </section>
 
@@ -735,334 +708,160 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
       {mensagemQuadro && <div className="notice success kanban-notice">{mensagemQuadro}</div>}
       {erroQuadro && <div className="notice error kanban-notice">{erroQuadro}</div>}
 
-      <section className="kanban-board" aria-label="Quadro de tarefas">
-        {colunas.map((coluna) => {
-          const tarefasColuna = tarefasVisiveis.filter((tarefa) => tarefa.status === coluna.id).sort(ordenarTarefasKanban);
-          return (
-            <article
-              key={coluna.id}
-              data-kanban-column={coluna.id}
-              className={`kanban-column ${tarefaArrastada ? "drag-active" : ""}`}
-            >
-              <header className="kanban-column-header">
-                <div className="kanban-column-title-wrap">
-                  <span className="kanban-dot" style={{ background: coluna.cor }} />
-                  <h2>{coluna.titulo}</h2>
-                  <strong>{tarefasColuna.length}</strong>
-                  <button className="kanban-column-edit" type="button" aria-label={`Editar ${coluna.titulo}`} onClick={() => setColunaEditando((atual) => atual === coluna.id ? null : coluna.id)}>
-                    <Pencil size={14} />
-                  </button>
-                  {colunaEditando === coluna.id && (
-                    <ColumnEditor coluna={coluna} onSalvar={atualizarColuna} onFechar={() => setColunaEditando(null)} />
-                  )}
-                </div>
-                <button type="button" aria-label={`Adicionar tarefa em ${coluna.titulo}`} onClick={() => abrirNovaTarefa(coluna.id)}>
-                  <Plus size={18} />
-                </button>
-              </header>
+      <BarraFerramentas
+        filtros={filtros}
+        onFiltros={setFiltros}
+        nomePerfil={nomePerfil}
+        densidade={exibicao.densidade}
+        onDensidade={(densidade) => setExibicao(alternarDensidade(densidade))}
+        modoSelecao={modoSelecao}
+        onAlternarSelecao={() => (modoSelecao ? sairDaSelecao() : setModoSelecao(true))}
+        onNovaTarefa={() => abrirNovaTarefa()}
+      />
 
-              <div className="kanban-column-body">
-                {tarefasColuna.map((tarefa) => (
-                  <KanbanTaskCard
+      <section className={`kb-quadro ${arraste ? "arrastando" : ""}`} aria-label="Quadro de tarefas">
+        {colunas.map((coluna) => {
+          const todas = tarefasDaColuna(tarefas, coluna, colunas);
+          const visiveis = filtrando
+            ? todas.filter((tarefa) => tarefaPassaNosFiltros(tarefa, filtros, { nomePerfil, concluintes }))
+            : todas;
+          const ehConclusao = concluintes.has(coluna.id);
+          return (
+            <ColunaQuadro
+              key={coluna.id}
+              coluna={coluna}
+              quantidade={visiveis.length}
+              ocultasPorFiltro={todas.length - visiveis.length}
+              quantidadeArquivadas={arquivadasDaColuna(tarefas, coluna, colunas).length}
+              concluintesArquivaveis={todas.length}
+              ehConclusao={ehConclusao}
+              unicaConclusao={ehConclusao && concluintes.size === 1}
+              podeExcluir={colunas.length > 1}
+              iniciarRenomeando={colunaRecemCriada === coluna.id}
+              onAlternarConclusao={() => alternarConclusao(coluna)}
+              onExcluir={() => excluirColunaDoQuadro(coluna)}
+              onFimRenomear={() => setColunaRecemCriada((atual) => (atual === coluna.id ? null : atual))}
+              sobArraste={Boolean(arraste) && alvo?.coluna === coluna.id}
+              menuAberto={menuColuna === coluna.id}
+              onAlternarMenu={() => setMenuColuna((atual) => (atual === coluna.id ? null : coluna.id))}
+              onFecharMenu={() => setMenuColuna(null)}
+              onAlternarRecolhida={() => atualizarColuna(coluna.id, { recolhida: !coluna.recolhida })}
+              onAdicionar={() => abrirCriacaoNaColuna(coluna)}
+              onOrdenar={(ordenacao: OrdenacaoColuna) => atualizarColuna(coluna.id, { ordenacao })}
+              onRenomear={(titulo) => atualizarColuna(coluna.id, { titulo })}
+              onCor={(cor) => atualizarColuna(coluna.id, { cor })}
+              onArquivarConcluidas={() => arquivar(todas.map((tarefa) => tarefa.id))}
+              onRestaurarArquivadas={() =>
+                setTarefas((atuais) => restaurarTarefas(atuais, arquivadasDaColuna(atuais, coluna, colunas).map((tarefa) => tarefa.id)))
+              }
+              criacaoInline={
+                criandoNaColuna?.coluna === coluna.id ? (
+                  <CriacaoInline
+                    titulo={criandoNaColuna.titulo}
+                    onChange={(titulo) => setCriandoNaColuna({ coluna: coluna.id, titulo })}
+                    onCriar={criarNaColuna}
+                    onCancelar={() => setCriandoNaColuna(null)}
+                    onDetalhes={() => abrirNovaTarefa(coluna.id, "completo", criandoNaColuna.titulo)}
+                  />
+                ) : null
+              }
+            >
+              {visiveis.map((tarefa) => {
+                const indice = todas.indexOf(tarefa);
+                return (
+                  <CartaoTarefa
                     key={tarefa.id}
                     tarefa={tarefa}
                     evento={eventosCalendario.find((evento) => evento.id === tarefa.eventId)}
                     membros={membrosParaCards}
                     equipeGestora={equipeGestora}
-                    sugestoesEtiquetas={sugestoesEtiquetas}
-                    menuAberto={menuTarefaAberto === tarefa.id}
-                    editandoEtiquetas={etiquetasEditando === tarefa.id}
-                    onToggleMenu={() => setMenuTarefaAberto((atual) => atual === tarefa.id ? null : tarefa.id)}
-                    onEditar={() => abrirEdicaoTarefa(tarefa)}
-                    onAnexar={() => abrirEdicaoTarefa(tarefa, true)}
-                    onApagar={() => apagarTarefa(tarefa.id)}
-                    onEditarEtiquetas={() => {
-                      setMenuTarefaAberto(null);
-                      setEtiquetasEditando(tarefa.id);
+                    concluida={ehConclusao}
+                    aberto={cartaoAberto(tarefa.id, exibicao)}
+                    modoSelecao={modoSelecao}
+                    selecionada={selecionadas.includes(tarefa.id)}
+                    menuAberto={menuTarefa === tarefa.id}
+                    renomeando={renomeandoTarefa === tarefa.id}
+                    arrastando={arraste?.id === tarefa.id}
+                    alvoDeQueda={Boolean(arraste) && arraste?.id !== tarefa.id && alvo?.antesDe === tarefa.id}
+                    podeSubir={indice > 0}
+                    podeDescer={indice >= 0 && indice < todas.length - 1}
+                    punho={propsDoPunho(tarefa.id)}
+                    onAbrir={() => abrirEdicaoTarefa(tarefa, "rapido")}
+                    onAbrirDetalhes={() => abrirEdicaoTarefa(tarefa, "completo")}
+                    onAbrirDetalhesComTitulo={(titulo) => {
+                      setRenomeandoTarefa(null);
+                      abrirEdicaoTarefa(tarefa, "completo");
+                      setNovaTarefa((atual) => ({ ...atual, titulo }));
                     }}
-                    onSalvarEtiquetas={(etiquetas) => salvarEtiquetas(tarefa.id, etiquetas)}
-                    onCancelarEtiquetas={() => setEtiquetasEditando(null)}
+                    onAlternarAberto={() => setExibicao((atual) => alternarCartao(tarefa.id, atual))}
+                    onAlternarSelecao={() => alternarSelecionada(tarefa.id)}
+                    onAlternarMenu={() => setMenuTarefa((atual) => (atual === tarefa.id ? null : tarefa.id))}
+                    onFecharMenu={() => setMenuTarefa(null)}
+                    onIniciarRenomear={() => {
+                      setMenuTarefa(null);
+                      setRenomeandoTarefa(tarefa.id);
+                    }}
+                    onRenomear={(titulo) => renomearTarefa(tarefa.id, titulo)}
+                    onCancelarRenomear={() => setRenomeandoTarefa(null)}
+                    onSubir={() => deslocar(tarefa, -1)}
+                    onDescer={() => deslocar(tarefa, 1)}
+                    onArquivar={() => arquivar([tarefa.id])}
+                    onExcluir={() => excluirTarefas([tarefa.id])}
                     onAbrirAnexo={abrirAnexo}
-                    onPointerDown={(event) => aoIniciarArrastePorPonteiro(event, tarefa.id)}
-                    onPointerMove={aoMoverArrastePorPonteiro}
-                    onPointerUp={(event) => aoSoltarArrastePorPonteiro(event, tarefa.id)}
-                    onPointerCancel={cancelarArrastePorPonteiro}
-                    arrastando={tarefaArrastada === tarefa.id}
                   />
-                ))}
-              </div>
-            </article>
+                );
+              })}
+            </ColunaQuadro>
           );
         })}
+        <button type="button" className="kb-nova-coluna" onClick={adicionarColuna}>
+          <Plus size={18} />
+          Nova coluna
+        </button>
       </section>
 
-      {previewArraste && (
+      {arraste && tarefaArrastada && (
         <div
-          className="kanban-drag-preview"
-          style={{
-            left: previewArraste.x,
-            top: previewArraste.y,
-            width: previewArraste.width,
-            minHeight: Math.min(previewArraste.height, 180),
-          }}
+          className="kb-previa-arraste"
+          style={{ left: arraste.x - arraste.deslocX, top: arraste.y - arraste.deslocY, width: arraste.largura }}
+          aria-hidden="true"
         >
-          <strong>{previewArraste.tarefa.titulo}</strong>
-          <span>{formatarResponsaveisTarefa(previewArraste.tarefa) || "Coordenação"}</span>
-          <small>{formatarDataCurta(previewArraste.tarefa.prazo)}</small>
+          <strong>{tarefaArrastada.titulo}</strong>
+          <span>
+            {[rotuloPrazo(tarefaArrastada.dataInicio ?? "", tarefaArrastada.prazo), iniciaisPerfil(obterResponsaveisTarefa(tarefaArrastada)[0] ?? "")]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </div>
       )}
 
-      {modalNovaTarefa && (
-        <div className="modal-backdrop">
-          <form className="kanban-task-modal" onSubmit={criarTarefa}>
-            <div className="modal-title-row">
-              <div>
-                <h2>{tarefaEditando ? "Editar tarefa" : "Nova tarefa"}</h2>
-                <p>{tarefaEditando ? "Atualize os dados da pendência." : "Inclua uma pendência no quadro de gestão."}</p>
-              </div>
-              <button type="button" onClick={() => {
-                setModalNovaTarefa(false);
-                setTarefaEditando(null);
-                setDestacarAnexos(false);
-              }} aria-label="Fechar">
-                <X size={18} />
-              </button>
-            </div>
-            <label className="kanban-task-title-field">
-              Título
-              <input value={novaTarefa.titulo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, titulo: event.target.value }))} autoFocus />
-            </label>
-            <div className="kanban-task-tabs" role="tablist" aria-label="Seções da tarefa">
-              {ABAS_FORMULARIO_TAREFA.map((aba) => (
-                <button
-                  key={aba.id}
-                  type="button"
-                  className={abaFormulario === aba.id ? "active" : ""}
-                  onClick={() => setAbaFormulario(aba.id)}
-                  role="tab"
-                  aria-selected={abaFormulario === aba.id}
-                >
-                  {aba.label}
-                </button>
-              ))}
-            </div>
-            <div className="kanban-task-modal-body">
-              {abaFormulario === "detalhes" && (
-                <div className="kanban-task-tab-panel">
-                  <label>
-                    Descrição
-                    <textarea value={novaTarefa.descricao} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, descricao: event.target.value }))} />
-                  </label>
-                  <div className="kanban-form-grid">
-                    <label>
-                      Data de início (opcional)
-                      <input
-                        type="date"
-                        value={novaTarefa.dataInicio}
-                        max={novaTarefa.prazo || undefined}
-                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, dataInicio: event.target.value }))}
-                      />
-                    </label>
-                    <label>
-                      Prazo (conclusão)
-                      <input
-                        type="date"
-                        value={novaTarefa.prazo}
-                        min={novaTarefa.dataInicio || undefined}
-                        onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prazo: event.target.value }))}
-                      />
-                    </label>
-                  </div>
-                  {novaTarefa.dataInicio && novaTarefa.prazo && novaTarefa.dataInicio < novaTarefa.prazo && (
-                    <p className="kanban-form-hint">A tarefa aparecerá no calendário em todos os dias entre o início e o prazo.</p>
-                  )}
-                  <div className="kanban-form-grid">
-                    <label>
-                      Status
-                      <select value={novaTarefa.status} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, status: event.target.value as KanbanStatus }))}>
-                        {colunas.map((coluna) => (
-                          <option key={coluna.id} value={coluna.id}>{coluna.titulo}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Prioridade
-                      <select value={novaTarefa.prioridade} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, prioridade: event.target.value as KanbanPrioridade }))}>
-                        <option value="alta">Alta</option>
-                        <option value="media">Média</option>
-                        <option value="baixa">Baixa</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="kanban-alert-options">
-                    <span>Alertas do prazo</span>
-                    <div>
-                      {ALERTAS_TAREFA.map((alerta) => (
-                        <button
-                          key={alerta.chave}
-                          type="button"
-                          className={novaTarefa.alertas[alerta.chave] ? "selected" : ""}
-                          onClick={() => setNovaTarefa((atual) => ({
-                            ...atual,
-                            alertas: {
-                              ...atual.alertas,
-                              [alerta.chave]: !atual.alertas[alerta.chave],
-                            },
-                          }))}
-                        >
-                          <strong>{alerta.titulo}</strong>
-                          <small>{alerta.descricao}</small>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className={`kanban-share-toggle ${novaTarefa.compartilhada ? "selected" : ""}`}
-                    onClick={() => setNovaTarefa((atual) => ({ ...atual, compartilhada: !atual.compartilhada }))}
-                  >
-                    <strong>{novaTarefa.compartilhada ? "✓ Compartilhada com o grupo de trabalho" : "Compartilhar com o grupo de trabalho"}</strong>
-                    <small>Quando desativado, a tarefa fica somente nesta instalação.</small>
-                  </button>
-                </div>
-              )}
+      {modoSelecao && (
+        <BarraSelecao
+          quantidade={selecionadas.length}
+          colunas={colunas}
+          onMover={moverSelecionadas}
+          onArquivar={() => arquivar(selecionadas)}
+          onExcluir={() => excluirTarefas(selecionadas)}
+          onSair={sairDaSelecao}
+        />
+      )}
+      {aviso && <AvisoDesfazer texto={aviso.texto} acimaDaBarra={modoSelecao} onDesfazer={desfazerAviso} />}
 
-              {abaFormulario === "vinculos" && (
-                <div className="kanban-task-tab-panel">
-                  <label>
-                    Responsável
-                    <VinculosPicker
-                      valor={novaTarefa.responsavel}
-                      sugestoes={sugestoesResponsavel}
-                      onChange={(v) => setNovaTarefa((atual) => ({ ...atual, responsavel: v }))}
-                      placeholder="Nome ou @ para o grupo de trabalho"
-                    />
-                  </label>
-                  <div className="kanban-form-grid">
-                    <label>
-                      Evento associado
-                      <select value={novaTarefa.eventId} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, eventId: event.target.value }))}>
-                        <option value="">Nenhum evento</option>
-                        {eventosCalendario.map((evento) => (
-                          <option key={evento.id} value={evento.id}>{evento.titulo}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Vínculos
-                      <VinculosPicker
-                        valor={novaTarefa.vinculo}
-                        sugestoes={sugestoesVinculo}
-                        onChange={(v) => setNovaTarefa((atual) => ({ ...atual, vinculo: v }))}
-                        placeholder="Aluno, turma ou geral"
-                      />
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {abaFormulario === "etiquetas" && (
-                <div className="kanban-task-tab-panel">
-                  <label>
-                    Etiquetas
-                    <input list="kanban-etiquetas-sugeridas" placeholder="Conselho, Urgente" value={novaTarefa.etiquetas} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, etiquetas: event.target.value }))} />
-                    {sugestoesEtiquetaTarefa.length > 0 && (
-                      <span className="calendar-link-suggestions">
-                        {sugestoesEtiquetaTarefa.map((item) => (
-                          <button
-                            type="button"
-                            key={item}
-                            onClick={() => setNovaTarefa((atual) => ({ ...atual, etiquetas: adicionarSugestaoEmLista(atual.etiquetas, item) }))}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                      </span>
-                    )}
-                  </label>
-                </div>
-              )}
-
-              {abaFormulario === "anexos" && (
-                <div className="kanban-task-tab-panel">
-                  <label>
-                    Anexos
-                    {tauriDisponivel ? (
-                      <button type="button" className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`} onClick={selecionarAnexosDesktop}>
-                        <Paperclip size={16} />
-                        <strong>Selecionar arquivos</strong>
-                        <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
-                      </button>
-                    ) : (
-                      <span className={`kanban-file-picker ${destacarAnexos ? "highlight" : ""}`}>
-                        <Paperclip size={16} />
-                        <strong>Selecionar arquivos</strong>
-                        <small>{novaTarefa.anexos.length ? `${novaTarefa.anexos.length} arquivo(s) anexado(s)` : "Nenhum arquivo anexado"}</small>
-                        <input type="file" multiple onChange={(event) => anexarArquivos(event.target.files)} />
-                      </span>
-                    )}
-                  </label>
-                  {novaTarefa.anexos.length > 0 && (
-                    <div className="kanban-attachment-list">
-                      {novaTarefa.anexos.map((anexo) => (
-                        <span key={anexo.id}>
-                          <Paperclip size={14} />
-                          {anexo.nome}
-                          <button type="button" onClick={() => removerAnexo(anexo.id)} aria-label={`Remover ${anexo.nome}`}>
-                            <X size={13} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {abaFormulario === "recorrencia" && (
-                <div className="kanban-task-tab-panel">
-                  <div className="kanban-form-grid">
-                    <label>
-                      Recorrência
-                      <select value={novaTarefa.repetir} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetir: event.target.value as "none" | RecurrenceFrequency }))}>
-                        <option value="none">Não repetir</option>
-                        <option value="daily">Diariamente</option>
-                        <option value="weekly">Semanalmente</option>
-                        <option value="monthly">Mensalmente</option>
-                        <option value="yearly">Anualmente</option>
-                      </select>
-                    </label>
-                  </div>
-                  {novaTarefa.repetir !== "none" && (
-                    <div className="kanban-form-grid">
-                      <label>
-                        Repetir a cada
-                        <input type="number" min={1} value={novaTarefa.intervalo} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, intervalo: Number(event.target.value) }))} />
-                      </label>
-                      <label>
-                        Repetir até
-                        <input type="date" value={novaTarefa.repetirAte} onChange={(event) => setNovaTarefa((atual) => ({ ...atual, repetirAte: event.target.value }))} />
-                      </label>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <datalist id="kanban-etiquetas-sugeridas">
-              {sugestoesEtiquetas.map((etiqueta) => (
-                <option key={etiqueta} value={etiqueta} />
-              ))}
-            </datalist>
-
-            <div className="modal-actions">
-              <button type="button" onClick={() => {
-                setModalNovaTarefa(false);
-                setTarefaEditando(null);
-                setDestacarAnexos(false);
-              }}>Cancelar</button>
-              <button type="submit" className="primary-action">{tarefaEditando ? "Salvar tarefa" : "Criar tarefa"}</button>
-            </div>
-          </form>
-        </div>
+      {formulario === "rapido" && (
+        <CompositorRapido {...propsFormulario} onAbrirCompleto={() => setFormulario("completo")} />
+      )}
+      {formulario === "completo" && (
+        <PainelCompleto
+          {...propsFormulario}
+          onArquivar={tarefaEditando && !tarefaEditando.arquivadaEm ? () => {
+            arquivar([tarefaEditando.id]);
+            fecharFormulario();
+          } : undefined}
+          onExcluir={tarefaEditando ? () => {
+            excluirTarefas([tarefaEditando.id]);
+            fecharFormulario();
+          } : undefined}
+        />
       )}
     </section>
   );
@@ -1075,277 +874,7 @@ function KanbanMetric({ label, value, color, icon }: { label: string; value: num
         <span>{label}</span>
         <strong>{value}</strong>
       </div>
-      {icon ?? <span className="kanban-metric-dot" style={{ background: color }} />}
-    </article>
-  );
-}
-
-function deveIgnorarArrasteKanban(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false;
-  return Boolean(target.closest("button, input, textarea, select, a, label, [contenteditable='true']"));
-}
-
-function ColumnEditor({
-  coluna,
-  onSalvar,
-  onFechar,
-}: {
-  coluna: KanbanColuna;
-  onSalvar: (id: KanbanStatus, titulo: string, cor: string) => void;
-  onFechar: () => void;
-}) {
-  const [titulo, setTitulo] = useState(coluna.titulo);
-  const [cor, setCor] = useState(coluna.cor);
-
-  return (
-    <div className="kanban-column-editor">
-      <label>
-        Nome da coluna
-        <input value={titulo} onChange={(event) => setTitulo(event.target.value)} />
-      </label>
-      <div className="kanban-color-options" aria-label="Cores da coluna">
-        {coresKanban.map((opcao) => (
-          <button
-            key={opcao}
-            type="button"
-            className={cor === opcao ? "selected" : ""}
-            style={{ background: opcao }}
-            onClick={() => setCor(opcao)}
-            aria-label={`Usar cor ${opcao}`}
-          />
-        ))}
-      </div>
-      <div className="kanban-editor-actions">
-        <button type="button" onClick={onFechar}>Cancelar</button>
-        <button type="button" onClick={() => onSalvar(coluna.id, titulo, cor)}>Salvar</button>
-      </div>
-    </div>
-  );
-}
-
-function origemImagemAnexo(anexo: KanbanAnexo) {
-  if (anexo.dados) return anexo.dados;
-  if (anexo.caminho && tauriDisponivel) return convertFileSrc(anexo.caminho);
-  return "";
-}
-
-function KanbanTaskCard({
-  tarefa,
-  evento,
-  membros,
-  equipeGestora,
-  sugestoesEtiquetas,
-  menuAberto,
-  editandoEtiquetas,
-  onToggleMenu,
-  onEditar,
-  onAnexar,
-  onApagar,
-  onEditarEtiquetas,
-  onSalvarEtiquetas,
-  onCancelarEtiquetas,
-  onAbrirAnexo,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  arrastando,
-}: {
-  tarefa: KanbanTarefa;
-  evento?: CalendarEvent;
-  membros: WorkgroupSyncMember[];
-  equipeGestora: EquipeGestora;
-  sugestoesEtiquetas: string[];
-  menuAberto: boolean;
-  editandoEtiquetas: boolean;
-  onToggleMenu: () => void;
-  onEditar: () => void;
-  onAnexar: () => void;
-  onApagar: () => void;
-  onEditarEtiquetas: () => void;
-  onSalvarEtiquetas: (etiquetas: string) => void;
-  onCancelarEtiquetas: () => void;
-  onAbrirAnexo: (anexo: KanbanAnexo) => void;
-  onPointerDown: (event: PointerEvent<HTMLElement>) => void;
-  onPointerMove: (event: PointerEvent<HTMLElement>) => void;
-  onPointerUp: (event: PointerEvent<HTMLElement>) => void;
-  onPointerCancel: () => void;
-  arrastando: boolean;
-}) {
-  const prioridadeClasse = tarefa.prioridade === "alta" ? "high" : tarefa.prioridade === "media" ? "medium" : "low";
-  const anexos = tarefa.anexos ?? [];
-  const imagens = anexos.filter((anexo) => anexo.tipo.startsWith("image/"));
-  const documentos = anexos.filter((anexo) => !anexo.tipo.startsWith("image/"));
-  const alertasAtivos = (tarefa.alertas ?? []).filter((alerta) => alerta.ativo).sort((a, b) => b.diasAntes - a.diasAntes);
-  const responsaveis = obterResponsaveisTarefa(tarefa);
-  // Nome compatível (não só igualdade exata) pra achar o avatar mesmo quando
-  // o responsável foi digitado com um nome ligeiramente diferente do que
-  // está no roster (ex.: "Thiago" no cartão, "Thiago Henrique Santos" no
-  // registro mais recente do mesmo coordenador).
-  const membroResponsavel = membros.find((membro) => responsaveis.some((nome) => nomesCompativeis(nome, membro.displayName)));
-  const usarAvatarPerfil = Boolean(membroResponsavel?.avatarDataUrl);
-  const vinculos = obterVinculosTarefa(tarefa);
-  const [textoEtiquetas, setTextoEtiquetas] = useState(tarefa.etiquetas.join(", "));
-  const termoEtiquetaAtual = ultimoItemDigitado(textoEtiquetas);
-  const etiquetasSelecionadas = separarVinculos(textoEtiquetas);
-  const sugestoesEtiquetasFiltradas = filtrarSugestoesFuzzy(
-    sugestoesEtiquetas.filter((item) => !etiquetasSelecionadas.some((etiqueta) => normalizarTextoGestao(etiqueta) === normalizarTextoGestao(item))),
-    termoEtiquetaAtual,
-    5,
-  );
-
-  useEffect(() => {
-    setTextoEtiquetas(tarefa.etiquetas.join(", "));
-  }, [tarefa.etiquetas]);
-
-  return (
-    <article
-      className={`kanban-task-card ${tarefa.prioridade} ${arrastando ? "is-dragging" : ""}`}
-      draggable={false}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-    >
-      <div className="kanban-card-title-row">
-        <h3>{tarefa.titulo}</h3>
-        <button type="button" aria-label="Mais opções" onClick={onToggleMenu}>
-          <MoreVertical size={17} />
-        </button>
-        {menuAberto && (
-          <div className="kanban-card-menu">
-            <button type="button" onClick={onEditar}>
-              <Pencil size={14} />
-              Editar
-            </button>
-            <button type="button" onClick={onAnexar}>
-              <Paperclip size={14} />
-              Anexar
-            </button>
-            <button type="button" onClick={onApagar}>
-              <Trash2 size={14} />
-              Apagar
-            </button>
-          </div>
-        )}
-      </div>
-      {imagens.length > 0 && (
-        <div className="kanban-image-attachments">
-          {imagens.map((anexo) => (
-            <img key={anexo.id} src={origemImagemAnexo(anexo)} alt={anexo.nome} draggable={false} />
-          ))}
-        </div>
-      )}
-      <p>{tarefa.descricao}</p>
-      {(evento || tarefa.recorrencia || vinculos.length > 0) && (
-        <div className="kanban-linked-meta">
-          {evento && (
-            <span>
-              <CalendarDays size={13} />
-              Parte de: {evento.titulo}
-            </span>
-          )}
-          {vinculos.map((vinculo) => (
-            <span key={vinculo}>
-              <Tag size={13} />
-              {vinculo}
-            </span>
-          ))}
-          {tarefa.recorrencia && (
-            <span>
-              <Clock size={13} />
-              {rotuloRecorrencia(tarefa.recorrencia)}
-            </span>
-          )}
-        </div>
-      )}
-      {editandoEtiquetas ? (
-        <div className="kanban-tags-editor">
-          <input
-            list={`kanban-tags-${tarefa.id}`}
-            value={textoEtiquetas}
-            onChange={(event) => setTextoEtiquetas(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onSalvarEtiquetas(textoEtiquetas);
-              }
-              if (event.key === "Escape") {
-                onCancelarEtiquetas();
-              }
-            }}
-            autoFocus
-          />
-          <datalist id={`kanban-tags-${tarefa.id}`}>
-            {sugestoesEtiquetas.map((etiqueta) => (
-              <option key={etiqueta} value={etiqueta} />
-            ))}
-          </datalist>
-          {sugestoesEtiquetasFiltradas.length > 0 && (
-            <span className="calendar-link-suggestions">
-              {sugestoesEtiquetasFiltradas.map((etiqueta) => (
-                <button type="button" key={etiqueta} onClick={() => setTextoEtiquetas((atual) => adicionarSugestaoEmLista(atual, etiqueta))}>
-                  {etiqueta}
-                </button>
-              ))}
-            </span>
-          )}
-          <button type="button" onClick={() => onSalvarEtiquetas(textoEtiquetas)} aria-label="Salvar etiquetas">
-            <Check size={14} />
-          </button>
-        </div>
-      ) : (
-        <div className="kanban-tags">
-          {tarefa.etiquetas.map((etiqueta) => (
-            <span key={etiqueta}>{etiqueta}</span>
-          ))}
-          <button type="button" onClick={onEditarEtiquetas} aria-label="Editar etiquetas">
-            <Pencil size={13} />
-          </button>
-        </div>
-      )}
-      {documentos.length > 0 && (
-        <div className="kanban-doc-attachments">
-          {documentos.map((anexo) => anexo.caminho ? (
-            <button key={anexo.id} type="button" onClick={() => onAbrirAnexo(anexo)}>
-              <Paperclip size={13} />
-              {anexo.nome}
-            </button>
-          ) : (
-            <a key={anexo.id} href={anexo.dados} download={anexo.nome}>
-              <Paperclip size={13} />
-              {anexo.nome}
-            </a>
-          ))}
-        </div>
-      )}
-      {alertasAtivos.length > 0 && (
-        <div className="kanban-reminder-tags">
-          {alertasAtivos.map((alerta) => (
-            <span key={alerta.diasAntes}>
-              <CalendarClock size={13} />
-              {alerta.diasAntes === 0 ? "No dia" : `${alerta.diasAntes} dia(s) antes`}
-            </span>
-          ))}
-        </div>
-      )}
-      <footer>
-        <span>
-          {usarAvatarPerfil ? (
-            <img className="kanban-assignee-avatar" src={membroResponsavel?.avatarDataUrl} alt="" />
-          ) : (
-            membroResponsavel
-              ? <span className="kanban-assignee-initials">{iniciaisPerfil(membroResponsavel.displayName)}</span>
-              : <UserRound size={14} />
-          )}
-          {responsaveis.map((nome) => nomeExibicao(nome, equipeGestora)).join(", ")}
-        </span>
-        <span>
-          <CalendarDays size={14} />
-          {formatarDataCurta(tarefa.prazo)}
-        </span>
-        <i className={prioridadeClasse} title={`Prioridade ${tarefa.prioridade}`} />
-      </footer>
+      {icon ?? <span className="kanban-metric-dot kb-cor-coluna" style={color ? estiloCorColuna(color) : undefined} />}
     </article>
   );
 }

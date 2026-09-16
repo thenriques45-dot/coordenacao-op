@@ -1,4 +1,9 @@
-export type KanbanStatus = "fazer" | "progresso" | "revisao" | "concluido";
+// Id de uma coluna do quadro. Era um union fechado com as 4 colunas fixas;
+// virou string porque as colunas passaram a ser dados da instalação (o
+// coordenador renomeia, cria e exclui). Nada no app pode voltar a comparar
+// este valor com um literal — quem precisa saber se a tarefa está concluída
+// pergunta para a coluna, via `tarefaEstaConcluida`/`idsDeConclusao`.
+export type KanbanStatus = string;
 export type KanbanPrioridade = "alta" | "media" | "baixa";
 
 export type KanbanAnexo = {
@@ -14,7 +19,20 @@ export type KanbanColuna = {
   id: KanbanStatus;
   titulo: string;
   cor: string;
+  // Marca a coluna de conclusão: título riscado, ícone de check, "arquivar
+  // concluídas" e o silenciamento dos alertas de prazo dependem dela, e não
+  // mais do id "concluido". Opcional porque instalações que salvaram as
+  // colunas antes desta flag existir não a têm — ver `idsDeConclusao`.
+  conclui?: boolean;
+  // Como a coluna exibe as tarefas. Arrastar ou usar Subir/Descer devolve a
+  // coluna para "manual". Ausente = manual.
+  ordenacao?: OrdenacaoColuna;
+  // Coluna recolhida numa faixa vertical estreita. Estado da instalação,
+  // como tudo nas colunas (elas não sincronizam).
+  recolhida?: boolean;
 };
+
+export type OrdenacaoColuna = "manual" | "prazo" | "prioridade";
 
 export type RecurrenceFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
@@ -50,17 +68,15 @@ export type KanbanTarefa = {
   recorrencia?: RecurrenceRule;
   alertas?: KanbanAlerta[];
   compartilhada?: boolean;
+  // Quando foi arquivada. Arquivada some do quadro, do calendário, da
+  // dashboard, da tela da turma e dos alertas de prazo — mas continua nos
+  // dados e pode ser restaurada. Arquivar muda o updatedAt, então numa tarefa
+  // compartilhada o arquivamento chega aos colegas pela sincronização.
+  arquivadaEm?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
-export type KanbanDragPreview = {
-  tarefa: KanbanTarefa;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
 
 export type CalendarEvent = {
   id: string;
@@ -104,10 +120,74 @@ export const colunasKanbanPadrao: KanbanColuna[] = [
   { id: "fazer", titulo: "A Fazer", cor: "#2f78ff" },
   { id: "progresso", titulo: "Em Progresso", cor: "#f2aa00" },
   { id: "revisao", titulo: "Em Revisão", cor: "#a844f5" },
-  { id: "concluido", titulo: "Concluído", cor: "#13c65c" },
+  { id: "concluido", titulo: "Concluído", cor: "#13c65c", conclui: true },
 ];
 
-export const coresKanban = ["#2f78ff", "#f2aa00", "#a844f5", "#13c65c", "#f04438", "#14b8a6", "#64748b"];
+// Fonte única das colunas da instalação. As colunas são LOCAIS: saíram da
+// sincronização de grupo de propósito, porque o payload trazia o conjunto
+// inteiro e o último a sincronizar sobrescrevia o dos outros — com colunas
+// configuráveis isso reverteria renomeações alheias a cada ciclo de 45 s.
+export function carregarColunasKanban(): KanbanColuna[] {
+  try {
+    const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
+    const colunas = salvas ? JSON.parse(salvas) as KanbanColuna[] : null;
+    return colunas?.length ? colunas : colunasKanbanPadrao;
+  } catch {
+    return colunasKanbanPadrao;
+  }
+}
+
+// Ids das colunas que contam como "concluído".
+//
+// Instalações que salvaram as colunas antes da flag `conclui` existir não a
+// têm em nenhuma coluna. Nesse caso cai no id "concluido", que era o nome
+// fixo da coluna de conclusão — sem isso, atualizar o app faria toda tarefa
+// concluída voltar a ser tratada como pendente (alerta de prazo tocando de
+// novo, contagem de alta prioridade inflada).
+//
+// O fallback vale só quando NENHUMA coluna tem a flag definida. Basta uma
+// coluna com `conclui` gravado (true ou false) para a flag passar a mandar —
+// é o que permite ao coordenador desmarcar "Coluna de conclusão" numa
+// instalação antiga, onde o id "concluido" concluiria para sempre.
+export function idsDeConclusao(colunas: KanbanColuna[] = carregarColunasKanban()): Set<KanbanStatus> {
+  if (colunas.some((coluna) => coluna.conclui !== undefined)) {
+    return new Set(colunas.filter((coluna) => coluna.conclui).map((coluna) => coluna.id));
+  }
+  return new Set(colunas.filter((coluna) => coluna.id === "concluido").map((coluna) => coluna.id));
+}
+
+export function tarefaEstaConcluida(tarefa: KanbanTarefa, concluintes: Set<KanbanStatus> = idsDeConclusao()) {
+  return concluintes.has(tarefa.status);
+}
+
+// Coluna onde nasce uma tarefa nova. Era o literal "fazer" espalhado pelo
+// app; com colunas configuráveis, esse id pode simplesmente não existir mais
+// e a tarefa nasceria órfã — visível só pelo desempate de `colunaDaTarefa`,
+// mas com um status que nenhuma coluna reconhece.
+export function statusPadrao(colunas: KanbanColuna[] = carregarColunasKanban()): KanbanStatus {
+  return colunas[0]?.id ?? colunasKanbanPadrao[0].id;
+}
+
+// Para onde vai uma tarefa marcada como concluída fora do quadro (ex.: o
+// botão da Dashboard). Cai na última coluna se nenhuma estiver marcada — num
+// quadro, a última posição é o fim do fluxo, e é melhor que não fazer nada.
+export function statusDeConclusao(colunas: KanbanColuna[] = carregarColunasKanban()): KanbanStatus {
+  const [primeiraConcluinte] = Array.from(idsDeConclusao(colunas));
+  return primeiraConcluinte ?? colunas[colunas.length - 1]?.id ?? "concluido";
+}
+
+// Coluna onde a tarefa deve APARECER.
+//
+// Uma tarefa compartilhada pode chegar com o id de uma coluna que só existe
+// no quadro de quem a criou. Ela cai na primeira coluna para não sumir da
+// tela — mas o `status` dela NÃO é reescrito: reescrever propagaria a
+// mudança de volta e moveria o cartão no quadro do colega que tem a coluna.
+// A correção só vale para exibição; arrastar o cartão (aí sim uma ação do
+// usuário) é o que grava um status local.
+export function colunaDaTarefa(tarefa: KanbanTarefa, colunas: KanbanColuna[]) {
+  return colunas.find((coluna) => coluna.id === tarefa.status) ?? colunas[0];
+}
+
 export const coresCalendario = ["#3794ff", "#13c65c", "#f2aa00", "#a844f5", "#f04438", "#14b8a6", "#64748b"];
 
 export const tarefasKanbanIniciais: KanbanTarefa[] = [];
@@ -150,8 +230,11 @@ export function carregarTarefasKanbanDashboard() {
   }
 }
 
-export function tarefaEstaAtiva(tarefa: KanbanTarefa) {
-  return tarefa.status !== "concluido";
+// Ponto único de "esta tarefa ainda pede atenção": Calendário, Dashboard,
+// tela da turma e a contagem de alta prioridade passam todos por aqui. Por
+// isso o arquivamento é checado AQUI, e não em cada tela.
+export function tarefaEstaAtiva(tarefa: KanbanTarefa, concluintes: Set<KanbanStatus> = idsDeConclusao()) {
+  return !tarefa.arquivadaEm && !concluintes.has(tarefa.status);
 }
 
 export function rotuloPrioridade(prioridade: KanbanPrioridade) {
@@ -293,6 +376,8 @@ function diasDoIntervalo(inicio: string, duracaoDias: number) {
 }
 
 export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], limite = 8) {
+  const colunas = carregarColunasKanban();
+  const concluintes = idsDeConclusao(colunas);
   const itens: TimelineItem[] = [
     ...eventos.flatMap((evento) => {
       const duracao = duracaoEventoDias(evento);
@@ -311,7 +396,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
         })),
       );
     }),
-    ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa) && tarefa.prazo).flatMap((tarefa) => {
+    ...tarefas.filter((tarefa) => tarefaEstaAtiva(tarefa, concluintes) && tarefa.prazo).flatMap((tarefa) => {
       const duracao = duracaoTarefaDias(tarefa);
       // Cada ocorrência é ancorada no prazo (fim); o período cobre os dias
       // de (prazo - duração) até o prazo.
@@ -325,7 +410,7 @@ export function montarLinhaDoTempo(tarefas: KanbanTarefa[], eventos: CalendarEve
           titulo: tarefa.titulo,
           descricao: formatarResponsaveisTarefa(tarefa),
           data,
-          cor: colunasKanbanPadrao.find((c) => c.id === tarefa.status)?.cor ?? "#2f78ff",
+          cor: colunaDaTarefa(tarefa, colunas)?.cor ?? "#2f78ff",
           prioridade: tarefa.prioridade,
           status: tarefa.status,
           eventId: tarefa.eventId,
@@ -467,8 +552,11 @@ export function tarefaCombinaComVinculo(tarefa: KanbanTarefa, eventos: CalendarE
 }
 
 export function tarefasPorVinculo(tarefas: KanbanTarefa[], eventos: CalendarEvent[], termos: string[]) {
+  // Resolve as colunas uma vez, não uma por tarefa: o padrão de
+  // `tarefaEstaAtiva` lê o localStorage a cada chamada.
+  const concluintes = idsDeConclusao();
   return tarefas
-    .filter(tarefaEstaAtiva)
+    .filter((tarefa) => tarefaEstaAtiva(tarefa, concluintes))
     .filter((tarefa) => tarefaCombinaComVinculo(tarefa, eventos, termos))
     .sort(ordenarPorPrazoECriacao);
 }
@@ -494,17 +582,6 @@ export function ordenarTarefasKanban(a: KanbanTarefa, b: KanbanTarefa) {
     return aManual ? -1 : 1;
   }
   return ordenarPorPrazoECriacao(a, b);
-}
-
-export function reordenarColunaKanban(tarefas: KanbanTarefa[], colunaOrdenada: KanbanTarefa[], status: KanbanStatus) {
-  const ordemPorId = new Map(colunaOrdenada.map((tarefa, indice) => [tarefa.id, indice]));
-  return tarefas.map((tarefa) => {
-    const ordem = ordemPorId.get(tarefa.id);
-    if (ordem === undefined) {
-      return tarefa.status === status ? { ...tarefa, ordem: undefined } : tarefa;
-    }
-    return { ...tarefa, status, ordem };
-  });
 }
 
 export function formatarDataCurta(data: string) {

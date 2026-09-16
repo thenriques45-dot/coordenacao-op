@@ -1,10 +1,8 @@
 import {
   CALENDAR_STORAGE_KEY,
-  KANBAN_COLUMNS_STORAGE_KEY,
   KANBAN_STORAGE_KEY,
   carregarEventosCalendario,
   carregarTarefasKanban,
-  colunasKanbanPadrao,
   type CalendarEvent,
   type KanbanColuna,
   type KanbanTarefa,
@@ -279,14 +277,6 @@ export function registrarExclusaoSincronizacao(tipo: "kanbanTask" | "calendarEve
   salvarTombstones(tombstones);
 }
 
-function carregarColunasKanban() {
-  try {
-    const salvas = localStorage.getItem(KANBAN_COLUMNS_STORAGE_KEY);
-    return salvas ? JSON.parse(salvas) as KanbanColuna[] : colunasKanbanPadrao;
-  } catch {
-    return colunasKanbanPadrao;
-  }
-}
 
 // Busca a config de Planejamento/PEI para incluir no payload de
 // sincronização — só quando o Web App automático já estiver configurado de
@@ -375,7 +365,11 @@ export async function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): 
     profiles: carregarMembrosSincronizacao(),
     data: {
       kanbanTasks: carregarTarefasKanban().filter((tarefa) => tarefa.compartilhada === true),
-      kanbanColumns: carregarColunasKanban(),
+      // Sempre vazio: as colunas deixaram de ser sincronizadas (ver abaixo).
+      // O campo continua no payload porque instalações em versão anterior o
+      // esperam — e recebendo uma lista vazia elas mantêm as próprias
+      // colunas, em vez de adotarem as nossas.
+      kanbanColumns: [],
       calendarEvents: carregarEventosCalendario(),
       deletedKanbanTasks: tombstones.kanbanTasks,
       deletedCalendarEvents: tombstones.calendarEvents,
@@ -470,7 +464,6 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   ]);
   const tarefasAtuais = carregarTarefasKanban();
   const eventosAtuais = carregarEventosCalendario();
-  const colunasAtuais = carregarColunasKanban();
   const tombstonesAtuais = carregarTombstones();
   const tombstones: SyncTombstones = {
     kanbanTasks: { ...tombstonesAtuais.kanbanTasks, ...(payload.data.deletedKanbanTasks ?? {}) },
@@ -481,7 +474,19 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
     .filter((tarefa) => !tombstones.kanbanTasks[tarefa.id]);
   const eventos = mesclarPorAtualizacao(eventosAtuais, payload.data.calendarEvents ?? [])
     .filter((evento) => !tombstones.calendarEvents[evento.id]);
-  const colunas = payload.data.kanbanColumns?.length ? payload.data.kanbanColumns : colunasAtuais;
+  // As colunas do payload são IGNORADAS de propósito.
+  //
+  // Este merge era "o conjunto inteiro do último a sincronizar vence", sem
+  // comparar data. Enquanto as 4 colunas eram fixas no código, todo mundo
+  // mandava a mesma coisa e não fazia diferença. Com colunas configuráveis,
+  // o quadro de cada coordenador passaria a ser substituído pelo de um
+  // colega a cada ciclo de 45 s — renomeação revertida, coluna criada
+  // sumindo, e ping-pong entre duas instalações que discordam.
+  //
+  // As colunas agora são locais de cada instalação. As TAREFAS continuam
+  // compartilhadas; uma que chegue apontando para uma coluna que não existe
+  // aqui é exibida na primeira, sem ter o status reescrito (ver
+  // `colunaDaTarefa` em management.ts).
 
   registrarMembroSincronizacao({
     ...payload.profile,
@@ -490,7 +495,6 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   (payload.profiles ?? []).forEach(registrarMembroSincronizacao);
   localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
   localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
-  localStorage.setItem(KANBAN_COLUMNS_STORAGE_KEY, JSON.stringify(colunas));
   salvarTombstones(tombstones);
   window.dispatchEvent(new CustomEvent("coordenacaoop:kanban-updated"));
   window.dispatchEvent(new CustomEvent(WORKGROUP_SYNC_APPLIED_EVENT));
@@ -498,7 +502,6 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   return {
     tarefas: tarefas.length,
     eventos: eventos.length,
-    colunas: colunas.length,
     origem: payload.profile.displayName || payload.profile.deviceName || "grupo de trabalho",
     generatedAt: payload.generatedAt,
   };

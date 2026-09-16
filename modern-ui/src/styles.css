@@ -14790,3 +14790,2062 @@ th:nth-child(3) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   Kanban: compositor rápido (1b) e painel completo (1a)
+   Handoff design_handoff_kanban, seções 3, 7 e 8. Os tokens ficam em
+   variáveis --kb-* escopadas no quadro; o tema escuro só troca os valores,
+   nenhuma regra de layout muda (seção 8).
+   ========================================================================== */
+
+.kanban-page {
+  --kb-superficie: #ffffff;
+  --kb-painel-lateral: #faf9f7;
+  --kb-borda-controle: #e6e3dd;
+  --kb-borda-suave: #eae8e3;
+  --kb-divisor: #f0eee9;
+  --kb-pastilha: #f4f3f0;
+  --kb-pastilha-hover: #eae8e3;
+  --kb-tracejado: #d6d2ca;
+  --kb-texto: #101828;
+  --kb-texto-secundario: #6b6670;
+  --kb-rotulo: #475467;
+  --kb-primaria: #e8202a;
+  --kb-primaria-hover: #c91a22;
+  --kb-selecionado-fundo: #101828;
+  --kb-selecionado-borda: #101828;
+  --kb-selecionado-texto: #ffffff;
+  --kb-destrutivo: #c01620;
+  --kb-destrutivo-fundo: #fdeceb;
+  --kb-link: #e8202a;
+  --kb-prioridade-alta: #f04438;
+  --kb-prioridade-media: #eba400;
+  --kb-prioridade-baixa: #13c65c;
+  --kb-interruptor-ligado: #10a04c;
+  --kb-sombra-modal: 0 24px 60px rgba(16, 24, 40, 0.3);
+  --kb-sombra-popover: 0 10px 26px rgba(16, 24, 40, 0.12);
+}
+
+.theme-dark .kanban-page {
+  --kb-superficie: #1a1820;
+  --kb-painel-lateral: #17161d;
+  --kb-borda-controle: #34313d;
+  --kb-borda-suave: #2c2935;
+  --kb-divisor: #28252f;
+  --kb-pastilha: #2b2834;
+  --kb-pastilha-hover: #34313d;
+  --kb-tracejado: #413d4c;
+  --kb-texto: #ececf0;
+  --kb-texto-secundario: #9a96a4;
+  --kb-rotulo: #b4b0bd;
+  --kb-selecionado-fundo: #2f2b3f;
+  --kb-selecionado-borda: #565170;
+  --kb-selecionado-texto: #f1eff5;
+  --kb-destrutivo: #ff7a80;
+  --kb-destrutivo-fundo: #33191c;
+  --kb-link: #ff7a80;
+  --kb-prioridade-alta: #ff6b6f;
+  --kb-prioridade-media: #e3ad3e;
+  --kb-prioridade-baixa: #34d178;
+  --kb-sombra-modal: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --kb-sombra-popover: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* Campos nativos (data, select, textarea) seguem o tema: sem isso o
+   seletor de data abre claro sobre o painel escuro. */
+.theme-dark .kb-compositor,
+.theme-dark .kb-painel,
+.theme-dark .kb-criacao-inline {
+  color-scheme: dark;
+}
+
+/* Campos SEM borda ficam transparentes nos dois temas (handoff, seção 8).
+   Seletor com dois níveis de propósito: a regra global ".theme-dark input,
+   .theme-dark textarea" tem especificidade maior que uma classe só e
+   pintava o título e a descrição de cinza sobre o painel escuro. */
+.kb-compositor .kb-titulo,
+.kb-painel .kb-titulo,
+.kb-compositor .kb-descricao,
+.kb-etiquetas .kb-chip-input,
+.kanban-page .kb-criacao-inline input {
+  background: transparent;
+}
+
+.kb-backdrop {
+  align-items: flex-start;
+  padding-top: 8vh;
+}
+
+.kb-compositor,
+.kb-painel {
+  background: var(--kb-superficie);
+  border-radius: 16px;
+  box-shadow: var(--kb-sombra-modal);
+  color: var(--kb-texto);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 640px: o rodapé precisa de "Abrir formulário completo", o interruptor de
+   compartilhar, o atalho e o botão principal numa linha só. */
+.kb-compositor {
+  gap: 0;
+  width: min(640px, 100%);
+}
+
+.kb-painel {
+  max-height: calc(100vh - 16vh);
+  overflow: hidden;
+  width: min(880px, 100%);
+}
+
+/* ── Cabeçalho ────────────────────────────────────────────────────────── */
+
+.kb-cabecalho {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-height: 26px;
+}
+
+.kb-compositor > .kb-cabecalho {
+  padding: 18px 20px 0;
+}
+
+.kb-pastilha-coluna {
+  align-items: center;
+  background: var(--kb-pastilha);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  display: inline-flex;
+  font-size: 11.5px;
+  font-weight: 700;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+}
+
+.kb-pastilha-coluna i {
+  border-radius: 999px;
+  display: block;
+  height: 7px;
+  width: 7px;
+}
+
+.kb-contexto {
+  color: var(--kb-texto-secundario);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.kb-contexto-icone {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.kb-fechar {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  margin-left: auto;
+  width: 32px;
+}
+
+.kb-fechar:hover {
+  background: var(--kb-pastilha);
+  color: var(--kb-texto);
+}
+
+.kb-fechar-caixa {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-suave);
+}
+
+/* ── Título e descrição ───────────────────────────────────────────────── */
+
+.kb-titulo {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--kb-texto);
+  font-size: 20px;
+  font-weight: 700;
+  padding: 2px 0 6px;
+  width: 100%;
+}
+
+.kb-compositor .kb-titulo {
+  font-size: 22px;
+  margin: 10px 20px 0;
+  width: calc(100% - 40px);
+}
+
+.kb-titulo:focus {
+  border-bottom-color: var(--kb-primaria);
+  outline: none;
+}
+
+.kb-titulo::placeholder,
+.kb-descricao::placeholder {
+  color: var(--kb-texto-secundario);
+  opacity: 0.8;
+}
+
+.kb-descricao {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto-secundario);
+  font: inherit;
+  font-size: 14px;
+  margin: 4px 20px 0;
+  min-height: 44px;
+  padding: 0;
+  resize: none;
+}
+
+.kb-descricao:focus {
+  color: var(--kb-texto);
+  outline: none;
+}
+
+/* ── Pastilhas ────────────────────────────────────────────────────────── */
+
+.kb-pastilhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 20px 16px;
+}
+
+.kb-pastilha {
+  align-items: center;
+  background: var(--kb-pastilha);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 7px;
+  height: 32px;
+  max-width: 220px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.kb-pastilha:hover {
+  background: var(--kb-pastilha-hover);
+}
+
+.kb-pastilha.preenchida {
+  font-weight: 700;
+}
+
+.kb-pastilha.aberta {
+  background: var(--kb-selecionado-fundo);
+  border-color: var(--kb-selecionado-borda);
+  color: var(--kb-selecionado-texto);
+}
+
+.kb-pastilha-mais {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--kb-tracejado);
+  color: var(--kb-texto-secundario);
+}
+
+.kb-iniciais {
+  align-items: center;
+  background: var(--kb-destrutivo-fundo);
+  border-radius: 999px;
+  color: var(--kb-primaria);
+  display: inline-flex;
+  font-size: 9.5px;
+  font-weight: 700;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.kb-ponto-prioridade {
+  border-radius: 999px;
+  display: inline-block;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.kb-ponto-prioridade.alta { background: var(--kb-prioridade-alta); }
+.kb-ponto-prioridade.media { background: var(--kb-prioridade-media); }
+.kb-ponto-prioridade.baixa { background: var(--kb-prioridade-baixa); }
+
+/* ── Popover e "mais opções" ──────────────────────────────────────────── */
+
+.kb-popover,
+.kb-mais-opcoes {
+  border: 1px solid var(--kb-borda-suave);
+  border-radius: 12px;
+  box-shadow: var(--kb-sombra-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 20px 16px;
+  padding: 14px;
+}
+
+.kb-mais-opcoes {
+  box-shadow: none;
+}
+
+.kb-popover-topo {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.kb-popover-topo strong {
+  font-size: 13px;
+}
+
+.kb-link {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.kb-link:hover {
+  color: var(--kb-link);
+}
+
+.kb-atalhos,
+.kb-sugestoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.kb-atalhos button,
+.kb-sugestoes button {
+  background: var(--kb-pastilha);
+  border: 0;
+  border-radius: 999px;
+  color: var(--kb-texto);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  height: 30px;
+  padding: 0 11px;
+}
+
+.kb-sugestoes button {
+  font-size: 12px;
+  height: 26px;
+}
+
+.kb-atalhos button:hover,
+.kb-sugestoes button:hover {
+  background: var(--kb-pastilha-hover);
+}
+
+.kb-intervalo {
+  align-items: center;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: 1fr auto 1fr;
+}
+
+.kb-intervalo span {
+  color: var(--kb-texto-secundario);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kb-compositor input[type="date"],
+.kb-compositor input[type="number"],
+.kb-compositor select,
+.kb-painel input[type="date"],
+.kb-painel input[type="number"],
+.kb-painel select,
+.kb-painel textarea {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 9px;
+  color: var(--kb-texto);
+  font: inherit;
+  font-size: 13px;
+  padding: 9px 11px;
+}
+
+.kb-painel textarea {
+  font-size: 14px;
+  resize: vertical;
+}
+
+.kb-avisar {
+  align-items: center;
+  border-top: 1px solid var(--kb-divisor);
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.kb-avisar > span {
+  color: var(--kb-rotulo);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kb-avisos {
+  display: flex;
+  gap: 8px;
+}
+
+.kb-avisos button,
+.kb-segmentado button,
+.kb-colunas-escolha button {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 7px;
+  height: 30px;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.kb-avisos.longo button,
+.kb-segmentado-largo button {
+  border-radius: 9px;
+  flex: 1;
+  font-size: 13px;
+  height: 38px;
+}
+
+.kb-avisos button.selecionado,
+.kb-segmentado button.selecionado,
+.kb-colunas-escolha button.selecionado {
+  background: var(--kb-selecionado-fundo);
+  border-color: var(--kb-selecionado-borda);
+  color: var(--kb-selecionado-texto);
+}
+
+.kb-segmentado {
+  display: flex;
+  gap: 8px;
+}
+
+.kb-colunas-escolha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kb-colunas-escolha i {
+  border-radius: 999px;
+  display: block;
+  height: 7px;
+  width: 7px;
+}
+
+/* ── Campos rotulados ─────────────────────────────────────────────────── */
+
+.kb-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-campo > span,
+.kb-mais-opcoes label > span {
+  color: var(--kb-rotulo);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kb-mais-opcoes label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-dica {
+  color: var(--kb-texto-secundario);
+  font-size: 12px;
+}
+
+.kb-recorrencia {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.kb-recorrencia select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.kb-inline {
+  align-items: center;
+  color: var(--kb-texto-secundario);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.kb-inline input[type="number"] {
+  width: 64px;
+}
+
+.kb-divisor {
+  border: 0;
+  border-top: 1px solid var(--kb-divisor);
+  margin: 2px 0;
+}
+
+/* ── Chips (etiquetas) ────────────────────────────────────────────────── */
+
+.kb-etiquetas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kb-chip {
+  align-items: center;
+  background: var(--kb-pastilha);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 4px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+}
+
+.kb-chip button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+  padding: 0;
+  width: 18px;
+}
+
+.kb-chip button:hover {
+  color: var(--kb-texto);
+}
+
+.kb-chip-adicionar {
+  align-items: center;
+  background: transparent;
+  border: 1px dashed var(--kb-tracejado);
+  border-radius: 999px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+}
+
+.kb-chip-input {
+  background: transparent;
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  font-size: 12.5px;
+  height: 28px;
+  min-width: 120px;
+  padding: 0 10px;
+}
+
+.kb-usadas-antes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kb-usadas-antes > span {
+  color: var(--kb-texto-secundario);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Anexos ───────────────────────────────────────────────────────────── */
+
+.kb-anexos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kb-zona-anexos {
+  border: 1px dashed var(--kb-tracejado);
+  border-radius: 10px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.kb-zona-anexos > button,
+.kb-zona-anexos > label {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--kb-rotulo);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px;
+  position: relative;
+  width: 100%;
+}
+
+.kb-zona-anexos > label input {
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.kb-zona-anexos.sobre,
+.kb-zona-anexos.destacar {
+  background: var(--kb-destrutivo-fundo);
+  border-color: var(--kb-primaria);
+}
+
+.kb-lista-anexos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.kb-lista-anexos li {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 9px;
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 8px;
+  padding: 7px 8px 7px 10px;
+}
+
+.kb-lista-anexos li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-lista-anexos li button {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+}
+
+/* ── Painel completo: corpo em duas colunas ───────────────────────────── */
+
+.kb-painel-cabecalho {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--kb-divisor);
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px 14px;
+}
+
+.kb-painel-titulo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.kb-painel-corpo {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.kb-painel-fluxo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 24px;
+}
+
+.kb-painel-contexto {
+  background: var(--kb-painel-lateral);
+  border-left: 1px solid var(--kb-divisor);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+}
+
+.kb-destrutivas {
+  border-top: 1px solid var(--kb-divisor);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.kb-destrutivo {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--kb-destrutivo);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.kb-destrutivo:hover {
+  background: var(--kb-destrutivo-fundo);
+}
+
+/* ── Rodapé ───────────────────────────────────────────────────────────── */
+
+.kb-rodape {
+  align-items: center;
+  background: var(--kb-painel-lateral);
+  border-top: 1px solid var(--kb-divisor);
+  border-radius: 0 0 16px 16px;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px 18px;
+}
+
+.kb-rodape-esquerda,
+.kb-rodape-direita {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.kb-rodape button,
+.kb-rodape .kb-atalho,
+.kb-compartilhar-texto strong {
+  white-space: nowrap;
+}
+
+.kb-escalar {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 9px;
+  color: var(--kb-rotulo);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 7px;
+  height: 34px;
+  padding: 0 12px;
+}
+
+.kb-escalar:hover {
+  border-color: var(--kb-primaria);
+  color: var(--kb-primaria);
+}
+
+.kb-atalho {
+  color: var(--kb-texto-secundario);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.kb-primario,
+.kb-secundario {
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 36px;
+  padding: 0 18px;
+}
+
+.kb-primario {
+  background: var(--kb-primaria);
+  border: 0;
+  color: #ffffff;
+}
+
+.kb-primario:hover:not(:disabled) {
+  background: var(--kb-primaria-hover);
+}
+
+.kb-primario:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.kb-secundario {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  color: var(--kb-texto);
+}
+
+.kb-compartilhar {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 9px;
+  padding: 0;
+  text-align: left;
+}
+
+.kb-compartilhar-texto {
+  display: flex;
+  flex-direction: column;
+}
+
+.kb-compartilhar-texto strong {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.kb-compartilhar-texto small {
+  color: var(--kb-texto-secundario);
+  font-size: 11.5px;
+}
+
+.kb-interruptor {
+  background: var(--kb-tracejado);
+  border-radius: 999px;
+  display: block;
+  flex: none;
+  height: 20px;
+  position: relative;
+  transition: background 0.15s ease;
+  width: 36px;
+}
+
+.kb-interruptor i {
+  background: #ffffff;
+  border-radius: 999px;
+  height: 14px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: left 0.15s ease;
+  width: 14px;
+}
+
+.kb-interruptor.ligado {
+  background: var(--kb-interruptor-ligado);
+}
+
+.kb-interruptor.ligado i {
+  left: 19px;
+}
+
+/* ── Criação inline na coluna ─────────────────────────────────────────── */
+
+.kb-criacao-inline {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-suave);
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.kb-criacao-inline input {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.kb-criacao-inline input:focus {
+  outline: none;
+}
+
+.kb-criacao-inline-acoes {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.kb-criacao-inline-acoes > span {
+  display: flex;
+  gap: 6px;
+}
+
+.kb-criacao-inline .kb-primario,
+.kb-criacao-inline .kb-secundario {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+/* ── VinculosPicker dentro dos formulários novos ──────────────────────── */
+/* O picker é compartilhado com o Calendário, que mantém o visual antigo.
+   Aqui, e só aqui, ele vira o desenho do handoff: chips primeiro e o campo
+   de adicionar como pastilha tracejada no fim da fileira. */
+
+.kb-compositor .vinculos-picker,
+.kb-painel .vinculos-picker {
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kb-compositor .vinculos-picker-tags,
+.kb-painel .vinculos-picker-tags {
+  display: contents;
+}
+
+.kb-compositor .vinculos-picker-tag,
+.kb-painel .vinculos-picker-tag {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  color: var(--kb-texto);
+  font-size: 12.5px;
+  font-weight: 600;
+  height: 28px;
+  order: -1;
+  padding: 0 6px 0 10px;
+}
+
+.kb-compositor .vinculos-picker-tag button,
+.kb-painel .vinculos-picker-tag button {
+  color: var(--kb-texto-secundario);
+}
+
+.kb-compositor .vinculos-picker > input,
+.kb-painel .vinculos-picker > input {
+  background: transparent;
+  border: 1px dashed var(--kb-tracejado);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  flex: 1 1 120px;
+  font-size: 12.5px;
+  height: 28px;
+  max-width: 240px;
+  padding: 0 11px;
+}
+
+.kb-compositor .vinculos-picker > input:focus,
+.kb-painel .vinculos-picker > input:focus {
+  border-color: var(--kb-primaria);
+  border-style: solid;
+  outline: none;
+}
+
+.kb-compositor .vinculos-picker-dropdown,
+.kb-painel .vinculos-picker-dropdown {
+  flex-basis: 100%;
+  order: 1;
+}
+
+/* ── Cartão: título e texto abrem o compositor ────────────────────────── */
+
+.kanban-card-abrir {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.kanban-card-abrir:hover {
+  color: var(--kb-primaria);
+}
+
+.kanban-card-abrir:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--kb-primaria);
+  outline-offset: 2px;
+}
+
+.kanban-card-texto {
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .kb-painel-corpo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kb-painel-contexto {
+    border-left: 0;
+    border-top: 1px solid var(--kb-divisor);
+  }
+
+  .kb-rodape {
+    flex-wrap: wrap;
+  }
+}
+
+/* ==========================================================================
+   Kanban: quadro (2a) — colunas, cartões, arraste, seleção e avisos
+   Handoff design_handoff_kanban, seções 4, 6, 7 e 8. Mesmo esquema dos
+   formulários: tokens --kb-* no .kanban-page, trocados no tema escuro.
+   ========================================================================== */
+
+.kanban-page {
+  --kb-coluna: #f1f0ec;
+  --kb-coluna-borda: #e7e5df;
+  --kb-coluna-arraste: #eceae4;
+  --kb-cartao-borda: #eae8e3;
+  --kb-punho: #98948e;
+  --kb-lote: #101828;
+  --kb-lote-borda: #101828;
+  --kb-selo-alta: #b42318;
+  --kb-selo-alta-fundo: #fee4e2;
+  --kb-selo-media: #b54708;
+  --kb-selo-media-fundo: #fef0c7;
+  --kb-selo-baixa: #067647;
+  --kb-selo-baixa-fundo: #dcfae6;
+  --kb-densidade-fundo: #eceae4;
+}
+
+.theme-dark .kanban-page {
+  --kb-coluna: #26232f;
+  --kb-coluna-borda: #211e28;
+  --kb-coluna-arraste: #312d3d;
+  --kb-cartao-borda: #2c2935;
+  --kb-punho: #7c7889;
+  --kb-lote: #2f2b3f;
+  --kb-lote-borda: #565170;
+  --kb-selo-alta: #ff7a80;
+  --kb-selo-alta-fundo: #33191c;
+  --kb-selo-media: #e0883e;
+  --kb-selo-media-fundo: #3a3017;
+  --kb-selo-baixa: #56d98a;
+  --kb-selo-baixa-fundo: #15301f;
+  --kb-densidade-fundo: #2b2834;
+}
+
+/* ── Barra de ferramentas ─────────────────────────────────────────────── */
+
+.kb-ferramentas {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.kb-espaco {
+  flex: 1;
+}
+
+.kb-busca {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 9px;
+  color: var(--kb-texto-secundario);
+  display: flex;
+  gap: 8px;
+  height: 38px;
+  min-width: 260px;
+  padding: 0 11px;
+}
+
+.kb-busca:focus-within {
+  border-color: var(--kb-primaria);
+}
+
+.kb-busca input {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto);
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+  outline: none;
+}
+
+.kb-busca button {
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+}
+
+.kb-filtro,
+.kb-botao {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-controle);
+  border-radius: 9px;
+  color: var(--kb-rotulo);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 7px;
+  height: 38px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.kb-filtro:hover:not(:disabled),
+.kb-botao:hover {
+  border-color: var(--kb-tracejado);
+  color: var(--kb-texto);
+}
+
+.kb-filtro.ativo,
+.kb-botao.ativo {
+  background: var(--kb-selecionado-fundo);
+  border-color: var(--kb-selecionado-borda);
+  color: var(--kb-selecionado-texto);
+}
+
+.kb-filtro:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.kb-densidade {
+  background: var(--kb-densidade-fundo);
+  border-radius: 9px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.kb-densidade button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--kb-rotulo);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+}
+
+.kb-densidade button.ativo {
+  background: var(--kb-superficie);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  color: var(--kb-texto);
+}
+
+.kb-nova-tarefa {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+/* ── Quadro e colunas ─────────────────────────────────────────────────── */
+
+.kb-quadro {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  /* Espaço para a barra de seleção e o aviso, que flutuam no rodapé. */
+  padding-bottom: 96px;
+}
+
+.kb-quadro.arrastando {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Barra de rolagem nativa escura: com mais colunas do que cabem, o quadro rola
+   na horizontal, e sem isto o navegador desenhava a barra clara sobre o fundo
+   escuro. */
+.theme-dark .kb-quadro {
+  color-scheme: dark;
+}
+
+.kb-coluna {
+  background: var(--kb-coluna);
+  border: 1px solid var(--kb-coluna-borda);
+  border-radius: 14px;
+  color: var(--kb-texto);
+  display: flex;
+  /* Divide a largura disponível e só rola na horizontal quando nem 240px por
+     coluna cabem — largura fixa cortava a última coluna em telas de notebook. */
+  flex: 1 0 240px;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 340px;
+  min-height: 150px;
+  padding: 10px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+/* Seção 6: coluna sob o cursor. */
+.kb-coluna.sob-arraste {
+  background: var(--kb-coluna-arraste);
+  border: 1px dashed var(--kb-cor-coluna);
+}
+
+.theme-dark .kb-coluna.sob-arraste {
+  border-color: var(--kb-cor-coluna-escura, var(--kb-cor-coluna));
+}
+
+/* Cor de coluna nos dois temas (ver estiloCorColuna). O .kanban-page no
+   seletor dá especificidade para vencer ".kb-menu button { background:
+   transparent }" nas amostras de cor; o :hover do menu não pode apagá-las. */
+.kanban-page .kb-cor-coluna,
+.kanban-page .kb-menu .kb-menu-cores button.kb-cor-coluna,
+.kanban-page .kb-menu .kb-menu-cores button.kb-cor-coluna:hover {
+  background: var(--kb-cor-coluna);
+}
+
+.theme-dark .kanban-page .kb-cor-coluna,
+.theme-dark .kanban-page .kb-menu .kb-menu-cores button.kb-cor-coluna,
+.theme-dark .kanban-page .kb-menu .kb-menu-cores button.kb-cor-coluna:hover {
+  background: var(--kb-cor-coluna-escura, var(--kb-cor-coluna));
+}
+
+.kb-coluna.recolhida {
+  flex: 0 0 58px;
+  min-height: 220px;
+  padding: 8px 0;
+}
+
+.kb-coluna-faixa {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--kb-texto);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  padding: 4px 0;
+  width: 100%;
+}
+
+.kb-coluna-faixa i,
+.kb-coluna-ponto {
+  border-radius: 999px;
+  display: block;
+  flex: none;
+  height: 8px;
+  width: 8px;
+}
+
+.kb-coluna-faixa-nome {
+  font-size: 12.5px;
+  font-weight: 700;
+  writing-mode: vertical-rl;
+}
+
+.kb-coluna-faixa strong {
+  font-size: 11.5px;
+}
+
+.kb-coluna-cabecalho {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  min-height: 28px;
+}
+
+.kb-coluna-nome {
+  cursor: default;
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-coluna-nome-campo {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-primaria);
+  border-radius: 7px;
+  color: var(--kb-texto);
+  font-size: 13.5px;
+  font-weight: 700;
+  min-width: 0;
+  padding: 2px 6px;
+  width: 140px;
+}
+
+.kb-contagem {
+  background: var(--kb-superficie);
+  border-radius: 999px;
+  color: var(--kb-texto);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 1px 8px;
+}
+
+.kb-coluna-corpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.kb-coluna-vazia {
+  background: transparent;
+  border: 1px dashed var(--kb-tracejado);
+  border-radius: 11px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 14px;
+}
+
+.kb-coluna-vazia:hover {
+  border-color: var(--kb-primaria);
+  color: var(--kb-primaria);
+}
+
+.kb-ocultas {
+  color: var(--kb-texto-secundario);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.kb-faixa-arquivadas {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--kb-coluna-borda);
+  border-radius: 9px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 600;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.kb-faixa-arquivadas:hover {
+  border-color: var(--kb-tracejado);
+}
+
+.kb-link-texto {
+  color: var(--kb-link);
+}
+
+/* ── Botões de ícone e menus ──────────────────────────────────────────── */
+
+.kb-icone {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+}
+
+.kb-icone:hover {
+  background: var(--kb-pastilha);
+  color: var(--kb-texto);
+}
+
+.kb-chevron svg {
+  transition: transform 0.15s ease;
+}
+
+.kb-chevron.fechado svg {
+  transform: rotate(-90deg);
+}
+
+.kb-menu-ancora {
+  position: relative;
+}
+
+.kb-menu {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-borda-suave);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(16, 24, 40, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 190px;
+  padding: 5px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+}
+
+.theme-dark .kb-menu {
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+}
+
+.kb-menu-coluna {
+  min-width: 220px;
+}
+
+/* Item de menu com uma nota abaixo do rótulo (ex.: excluir a coluna de
+   conclusão). */
+.kb-menu button.kb-menu-duas-linhas {
+  align-items: flex-start;
+  white-space: normal;
+}
+
+.kb-menu-duas-linhas > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kb-menu-duas-linhas small {
+  color: var(--kb-texto-secundario);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Bloco tracejado "Nova coluna" no fim da faixa (seção 5). */
+.kb-nova-coluna {
+  align-items: center;
+  align-self: stretch;
+  background: transparent;
+  border: 1px dashed var(--kb-tracejado);
+  border-radius: 14px;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 96px;
+  flex-direction: column;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  justify-content: center;
+  min-height: 150px;
+}
+
+.kb-nova-coluna:hover {
+  border-color: var(--kb-primaria);
+  color: var(--kb-primaria);
+}
+
+/* A posição final do menu (fixed, fora do corte do quadro) vem de
+   usePosicaoMenu; o absolute acima só vale no instante da medição. */
+
+.kb-menu button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--kb-texto);
+  cursor: pointer;
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.kb-menu button:hover:not(:disabled) {
+  background: var(--kb-pastilha);
+}
+
+.kb-menu button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.kb-menu button.destrutivo {
+  color: var(--kb-destrutivo);
+}
+
+.kb-menu button.destrutivo:hover {
+  background: var(--kb-destrutivo-fundo);
+}
+
+.kb-menu hr {
+  border: 0;
+  border-top: 1px solid var(--kb-divisor);
+  margin: 4px;
+}
+
+.kb-menu-linha {
+  display: flex;
+  gap: 2px;
+}
+
+.kb-menu-rotulo {
+  color: var(--kb-texto-secundario);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 9px 2px;
+}
+
+.kb-menu-marca {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 14px;
+}
+
+.kb-menu-cores {
+  align-items: center;
+  display: flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  padding: 6px 9px;
+}
+
+.kb-menu-cores > span:nth-child(2) {
+  margin-right: 4px;
+}
+
+.kb-menu .kb-menu-cores button {
+  border: 1px solid rgba(16, 24, 40, 0.15);
+  border-radius: 999px;
+  height: 18px;
+  padding: 0;
+  width: 18px;
+}
+
+.kb-menu .kb-menu-cores button.atual {
+  border: 2.5px solid var(--kb-texto);
+}
+
+/* ── Cartão ───────────────────────────────────────────────────────────── */
+
+.kb-cartao {
+  --kb-cor-prioridade: var(--kb-prioridade-media);
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-cartao-borda);
+  border-left: 3px solid var(--kb-cor-prioridade);
+  border-radius: 11px;
+  color: var(--kb-texto);
+  padding: 9px 8px 9px 6px;
+  position: relative;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+.kb-cartao.prioridade-alta { --kb-cor-prioridade: var(--kb-prioridade-alta); }
+.kb-cartao.prioridade-baixa { --kb-cor-prioridade: var(--kb-prioridade-baixa); }
+
+/* Seção 6: cartão em movimento. */
+.kb-cartao.arrastando {
+  box-shadow: none;
+  opacity: 0.4;
+  transform: scale(0.98);
+}
+
+/* Seção 6: posição de queda — linha vermelha acima do alvo, que desce 3px. */
+.kb-cartao.alvo-queda {
+  box-shadow: 0 -4px 0 -1px #e8202a, 0 8px 20px rgba(16, 24, 40, 0.14);
+  transform: translateY(3px);
+}
+
+.kb-cartao.selecionada {
+  box-shadow: 0 0 0 2px var(--kb-lote-borda);
+}
+
+.kb-cartao-topo {
+  align-items: flex-start;
+  display: flex;
+  gap: 3px;
+}
+
+/* Seção 6: punho. touch-action evita que o toque role a página em vez de arrastar. */
+.kb-punho {
+  color: var(--kb-punho);
+  cursor: grab;
+  display: flex;
+  flex: none;
+  padding: 3px 1px;
+  touch-action: none;
+}
+
+.kb-punho:hover {
+  color: var(--kb-texto);
+}
+
+.kb-cartao.arrastando .kb-punho {
+  color: #e8202a;
+  cursor: grabbing;
+}
+
+.kb-marcar {
+  align-items: center;
+  background: var(--kb-superficie);
+  border: 1.5px solid var(--kb-tracejado);
+  border-radius: 5px;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  flex: none;
+  height: 18px;
+  justify-content: center;
+  margin: 2px 3px 0 0;
+  padding: 0;
+  width: 18px;
+}
+
+.kb-marcar.marcada {
+  background: var(--kb-lote);
+  border-color: var(--kb-lote-borda);
+}
+
+.kb-cartao-titulo {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  flex: 1;
+  font: inherit;
+  min-width: 0;
+  padding: 1px 2px;
+  text-align: left;
+}
+
+.kb-cartao-titulo strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.kb-cartao-titulo:hover strong {
+  color: var(--kb-primaria);
+}
+
+.kb-cartao-titulo:focus-visible {
+  border-radius: 5px;
+  outline: 2px solid var(--kb-primaria);
+  outline-offset: 1px;
+}
+
+.kb-cartao.concluida .kb-cartao-titulo strong {
+  color: var(--kb-texto-secundario);
+  text-decoration: line-through;
+}
+
+.kb-cartao-resumo {
+  color: var(--kb-texto-secundario);
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.kb-cartao-resumo > span {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.kb-cartao-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 4px 0 21px;
+}
+
+.kb-cartao-descricao {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  color: var(--kb-texto-secundario);
+  cursor: pointer;
+  display: -webkit-box;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin: 0;
+  overflow: hidden;
+}
+
+.kb-cartao-imagens {
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+}
+
+.kb-cartao-imagens img {
+  border-radius: 7px;
+  height: 64px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.kb-cartao-vinculos,
+.kb-cartao-etiquetas,
+.kb-cartao-documentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.kb-cartao-vinculos span {
+  align-items: center;
+  color: var(--kb-texto-secundario);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.kb-cartao-etiquetas {
+  gap: 5px;
+}
+
+.kb-cartao-etiquetas span {
+  background: var(--kb-pastilha);
+  border-radius: 6px;
+  color: var(--kb-rotulo);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+}
+
+.kb-cartao-documentos button,
+.kb-cartao-documentos a {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--kb-rotulo);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11.5px;
+  gap: 4px;
+  padding: 0;
+  text-decoration: none;
+}
+
+.kb-cartao-documentos button:hover,
+.kb-cartao-documentos a:hover {
+  color: var(--kb-primaria);
+}
+
+.kb-cartao-rodape {
+  align-items: center;
+  border-top: 1px solid var(--kb-divisor);
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.kb-cartao-pessoa {
+  align-items: center;
+  color: var(--kb-texto-secundario);
+  display: flex;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kb-cartao-alerta {
+  display: inline-flex;
+}
+
+.kb-avatar {
+  border-radius: 999px;
+  flex: none;
+  height: 22px;
+  object-fit: cover;
+  width: 22px;
+}
+
+.kb-avatar-iniciais {
+  align-items: center;
+  background: var(--kb-destrutivo-fundo);
+  color: var(--kb-primaria);
+  display: inline-flex;
+  font-size: 9.5px;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.kb-selo-prioridade {
+  border-radius: 6px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  padding: 2px 7px;
+}
+
+.kb-selo-prioridade.alta { background: var(--kb-selo-alta-fundo); color: var(--kb-selo-alta); }
+.kb-selo-prioridade.media { background: var(--kb-selo-media-fundo); color: var(--kb-selo-media); }
+.kb-selo-prioridade.baixa { background: var(--kb-selo-baixa-fundo); color: var(--kb-selo-baixa); }
+
+.kb-renomear {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kb-renomear input {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-primaria);
+  border-radius: 7px;
+  color: var(--kb-texto);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 4px 7px;
+}
+
+.kb-renomear-acoes {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.kb-renomear-acoes .kb-link {
+  align-items: center;
+  display: inline-flex;
+  font-size: 12px;
+  gap: 3px;
+}
+
+.kb-renomear-acoes .kb-primario {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 12px;
+}
+
+/* ── Prévia que acompanha o cursor ────────────────────────────────────── */
+
+.kb-previa-arraste {
+  background: var(--kb-superficie);
+  border: 1px solid var(--kb-cartao-borda);
+  border-left: 3px solid #e8202a;
+  border-radius: 11px;
+  box-shadow: 0 18px 40px rgba(16, 24, 40, 0.22);
+  color: var(--kb-texto);
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: fixed;
+  transform: rotate(1.5deg);
+  z-index: 1200;
+}
+
+.kb-previa-arraste strong {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.kb-previa-arraste span {
+  color: var(--kb-texto-secundario);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Barra de seleção e aviso ─────────────────────────────────────────── */
+
+.kb-barra-selecao,
+.kb-aviso {
+  align-items: center;
+  background: var(--kb-lote);
+  border: 1px solid var(--kb-lote-borda);
+  bottom: 22px;
+  box-shadow: 0 14px 40px rgba(16, 24, 40, 0.35);
+  color: #ffffff;
+  display: flex;
+  left: 50%;
+  position: fixed;
+  transform: translateX(-50%);
+}
+
+.kb-barra-selecao {
+  border-radius: 12px;
+  gap: 4px;
+  padding: 7px 9px 7px 16px;
+  z-index: 45;
+}
+
+.kb-barra-selecao strong {
+  font-size: 13px;
+  font-weight: 700;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.kb-barra-selecao button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+.kb-barra-selecao button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kb-barra-selecao button:disabled,
+.kb-barra-mover select:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.kb-barra-selecao button.destrutivo {
+  color: #ffb4b0;
+}
+
+.kb-barra-selecao button.destrutivo:hover:not(:disabled) {
+  background: rgba(240, 68, 56, 0.18);
+}
+
+.kb-barra-selecao .kb-barra-sair {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.kb-barra-divisor {
+  background: rgba(255, 255, 255, 0.18);
+  height: 20px;
+  margin: 0 4px;
+  width: 1px;
+}
+
+.kb-barra-mover {
+  align-items: center;
+  display: inline-flex;
+  font-size: 12.5px;
+  font-weight: 600;
+  gap: 6px;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.kb-barra-mover select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  color: #ffffff;
+  font-size: 12.5px;
+  height: 30px;
+  padding: 0 6px;
+}
+
+.kb-barra-mover option {
+  color: #101828;
+}
+
+.kb-aviso {
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 16px;
+  padding: 9px 10px 9px 16px;
+  z-index: 46;
+}
+
+/* Com a barra de seleção aberta, o aviso sobe para não cobri-la. */
+.kb-aviso.acima {
+  bottom: 78px;
+}
+
+.kb-aviso button {
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: #ff9a94;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.kb-aviso button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Painel: Arquivar é destrutivo "leve" — cor neutra, Excluir fica vermelho. */
+.kb-destrutivo-leve {
+  color: var(--kb-rotulo);
+}
+
+.kb-destrutivo-leve:hover {
+  background: var(--kb-pastilha);
+}

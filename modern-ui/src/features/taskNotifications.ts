@@ -1,5 +1,5 @@
 import { invokeApp, tauriDisponivel } from "./appBridge";
-import { carregarTarefasKanban, chaveData, KANBAN_UPDATED_EVENT, parseDataLocal, salvarTarefasKanban, type KanbanTarefa } from "./management";
+import { carregarTarefasKanban, chaveData, KANBAN_UPDATED_EVENT, parseDataLocal, salvarTarefasKanban, tarefaEstaConcluida, type KanbanTarefa } from "./management";
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -25,7 +25,7 @@ async function enviarNotificacao(titulo: string, corpo: string) {
 }
 
 function alertasPendentes(tarefa: KanbanTarefa, hoje: Date) {
-  if (!tarefa.prazo || tarefa.status === "concluido") return [];
+  if (!tarefa.prazo || tarefa.arquivadaEm || tarefaEstaConcluida(tarefa)) return [];
   const prazo = parseDataLocal(tarefa.prazo);
   if (Number.isNaN(prazo.getTime()) || prazo < hoje) return [];
 
