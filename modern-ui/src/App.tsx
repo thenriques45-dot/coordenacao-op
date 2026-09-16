@@ -361,6 +361,66 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.2.0": {
+    paginas: [
+      {
+        area: "Quadro Kanban",
+        titulo: "Criar e editar tarefas ficou mais rápido",
+        corpo:
+          "\"Nova tarefa\" abre um compositor enxuto: título, descrição e pastilhas só para o que a tarefa precisar. Clicar no título ou no texto de um cartão abre o mesmo compositor já preenchido. Quando a tarefa pede mais contexto, \"Abrir formulário completo\" mostra tudo numa tela só, sem abas — e leva junto o que você já digitou.",
+        destaques: [
+          { icone: "novidade", titulo: "Pastilhas", texto: "Prazo, Prioridade, Responsável, Vínculos, Etiqueta e Anexo — cada uma abre um seletor no lugar." },
+          { icone: "agenda", titulo: "Atalhos de prazo", texto: "Hoje, Amanhã, Sexta e Próxima semana, com os avisos de 2 dias, 1 dia e no dia." },
+          { icone: "documento", titulo: "Formulário completo sem abas", texto: "O que muda o fluxo à esquerda, o contexto (responsáveis, turmas, etiquetas, anexos) à direita." },
+        ],
+        irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
+      },
+      {
+        area: "Quadro Kanban",
+        titulo: "Organize o quadro do seu jeito",
+        corpo:
+          "Agora dá para mudar a ordem dos cartões dentro da coluna, não só entre colunas. O cartão passa a ser arrastado pelo punho de seis pontinhos à esquerda do título — clicar no resto do cartão abre a tarefa. Cada coluna pode ser ordenada por prazo ou prioridade, e cartões e colunas podem ser recolhidos.",
+        destaques: [
+          { icone: "grade", titulo: "Arraste pelo punho", texto: "Solte entre dois cartões para escolher a posição. Pelo menu ⋯ do cartão também há Subir e Descer." },
+          { icone: "lista", titulo: "Ordenar a coluna", texto: "No menu ⋯ da coluna: Manual, Prazo mais próximo ou Prioridade." },
+          { icone: "filtro", titulo: "Compacto ou Confortável", texto: "Recolha todos os cartões de uma vez, ou só um pelo chevron. A coluna inteira também recolhe numa faixa estreita." },
+        ],
+        irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
+      },
+      {
+        area: "Quadro Kanban",
+        titulo: "Arquive, exclua e aja em várias tarefas de uma vez",
+        corpo:
+          "Tarefa arquivada sai do quadro, do calendário, da dashboard, da tela da turma e dos alertas de prazo, mas continua guardada — a coluna mostra \"N tarefas arquivadas · restaurar\". Excluir deixou de pedir confirmação: aparece um aviso com Desfazer por alguns segundos.",
+        destaques: [
+          { icone: "lista", titulo: "Selecionar", texto: "Marque vários cartões e use a barra no rodapé para mover, arquivar ou excluir todos juntos." },
+          { icone: "documento", titulo: "Arquivar concluídas", texto: "No menu ⋯ da coluna de conclusão, limpa a coluna numa ação só." },
+          { icone: "busca", titulo: "Filtros rápidos", texto: "Busca por título, etiqueta ou turma, e os filtros Minhas, Alta e Vence esta semana (que inclui as atrasadas)." },
+        ],
+        irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
+      },
+      {
+        area: "Quadro Kanban",
+        titulo: "As colunas agora são suas",
+        corpo:
+          "Crie colunas em \"Nova coluna\", no fim do quadro, renomeie com dois cliques no nome e troque a cor pelo menu ⋯. Ao excluir uma coluna, as tarefas dela vão para a primeira, com Desfazer. Importante para quem usa a sincronização de grupo: as colunas passam a ser de cada computador e não sincronizam mais — antes, o quadro de um colega podia sobrescrever as suas colunas. As tarefas compartilhadas continuam sincronizando normalmente.",
+        destaques: [
+          { icone: "config", titulo: "Coluna de conclusão", texto: "Marque no menu ⋯ qual coluna conclui as tarefas: é ela que risca o título e silencia os alertas de prazo." },
+          { icone: "equipe", titulo: "Cada um com suas colunas", texto: "Tarefa de um colega numa coluna que você não tem aparece na sua primeira coluna, sem mudar nada no quadro dele." },
+        ],
+        irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
+      },
+    ],
+    outrasMudancas: [
+      "Corrigido: o programa podia travar por vários segundos, principalmente no Quadro Kanban e em dias de internet lenta. Salvar dados esperava a sincronização com a pasta do OneDrive terminar, e isso congelava a janela inteira. Agora os salvamentos rodam por trás, sem travar a tela, e continuam sendo gravados na ordem em que foram feitos.",
+      "Corrigido: a sincronização institucional recopiava toda a pasta de dados para o OneDrive a cada 15 minutos, mesmo sem mudança nenhuma, e cada colega que recebia a cópia gerava um backup completo. Ela agora só acontece quando algum dado institucional mudou de verdade.",
+      "Backups automáticos: o programa passa a guardar só os 10 mais recentes e apaga os mais antigos, inclusive na primeira abertura desta versão. Com as fotos dos alunos, cada backup pode passar de 500 MB, e a pasta chegava a dezenas de GB. As exportações seletivas por ciclo, feitas por você, não são apagadas.",
+      "Limpeza automática de restos de sincronizações interrompidas: cópias temporárias da pasta de dados e cópias de conflito criadas pelo OneDrive.",
+      "Corrigido: cópias de conflito do OneDrive na pasta compartilhada eram lidas como se fossem outro coordenador, fazendo reaparecer dispositivos antigos na lista do grupo.",
+      "Tema escuro: as cores das colunas do Kanban ganharam versões próprias para o fundo escuro, e a barra de rolagem do quadro deixou de aparecer branca.",
+      "Para quem usa sincronização de grupo: colegas que ainda não atualizaram veem as tarefas arquivadas como tarefas normais, até instalarem esta versão.",
+    ],
+  },
   "4.1.3": [
     "Corrigido: o total de alunos elegíveis (painel, lista de turmas e conselho) somava também as cópias inativas de quem mudou de turma durante o ano — o aluno transferido continuava contando na turma de origem, onde a lista nem o mostra, porque inativos ficam escondidos até marcar \"Mostrar inativos\". O número ficava maior que o de elegíveis realmente visíveis, e cada transferência aumentava a diferença. Agora só contam alunos ativos, e a importação da lista de elegíveis também deixa de marcar as cópias inativas — se um aluno da lista não estiver ativo em turma nenhuma, ele aparece entre os não encontrados para a coordenação revisar.",
     "Corrigido: desmarcar um aluno como elegível na tela da turma não o tirava da listagem do PEI quando ele tinha alguma deficiência cadastrada pela importação. A marcação manual agora vale nos dois lugares.",
