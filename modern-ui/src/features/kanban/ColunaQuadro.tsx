@@ -1,7 +1,8 @@
 import { Archive, Check, CheckCircle2, ChevronDown, ChevronRight, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { type KanbanColuna, type OrdenacaoColuna } from "../management";
 import { CORES_COLUNA, estiloCorColuna } from "./quadro";
+import { useAlturaAutomatica } from "./useAlturaAutomatica";
 import { useFecharFora, usePosicaoMenu } from "./useFecharFora";
 
 const ORDENACOES: { id: OrdenacaoColuna; rotulo: string }[] = [
@@ -313,45 +314,81 @@ export function ColunaQuadro({
 // digitado para o painel completo.
 export function CriacaoInline({
   titulo,
+  descricao,
   onChange,
   onCriar,
   onCancelar,
   onDetalhes,
 }: {
   titulo: string;
-  onChange: (titulo: string) => void;
+  descricao: string;
+  onChange: (mudanca: { titulo?: string; descricao?: string }) => void;
   onCriar: () => void;
   onCancelar: () => void;
   onDetalhes: () => void;
 }) {
+  const refTitulo = useRef<HTMLInputElement | null>(null);
+  const refDescricao = useAlturaAutomatica(descricao);
+  // Depois de criar, o foco volta ao título: a caixa continua aberta para
+  // emendar a próxima tarefa da coluna, mesmo quando o envio partiu dos
+  // detalhes ou do botão.
+  const criar = () => {
+    onCriar();
+    refTitulo.current?.focus();
+  };
+  const teclas = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCancelar();
+    }
+  };
+
   return (
     <div className="kb-criacao-inline">
       <input
+        ref={refTitulo}
         value={titulo}
         placeholder="Título da tarefa"
         aria-label="Título da nova tarefa"
         autoFocus
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange({ titulo: event.target.value })}
         onKeyDown={(event) => {
+          // Enter leva aos detalhes, como no compositor; Ctrl+Enter cria sem
+          // passar por eles.
           if (event.key === "Enter") {
             event.preventDefault();
-            onCriar();
+            if (event.ctrlKey || event.metaKey) criar();
+            else refDescricao.current?.focus();
           }
-          if (event.key === "Escape") {
+          teclas(event);
+        }}
+      />
+      <textarea
+        ref={refDescricao}
+        className="kb-criacao-inline-descricao"
+        value={descricao}
+        placeholder="Detalhes (opcional)"
+        aria-label="Detalhes da nova tarefa"
+        rows={2}
+        onChange={(event) => onChange({ descricao: event.target.value })}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
             event.preventDefault();
-            onCancelar();
+            criar();
+            return;
           }
+          teclas(event);
         }}
       />
       <div className="kb-criacao-inline-acoes">
         <button type="button" className="kb-link" onClick={onDetalhes}>
-          Detalhes
+          Mais campos
         </button>
         <span>
           <button type="button" className="kb-secundario" onClick={onCancelar}>
             Cancelar
           </button>
-          <button type="button" className="kb-primario" onClick={onCriar} disabled={!titulo.trim()}>
+          <button type="button" className="kb-primario" onClick={criar} disabled={!titulo.trim()}>
             Adicionar
           </button>
         </span>

@@ -131,8 +131,9 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   const [tarefaEditando, setTarefaEditando] = useState<KanbanTarefa | null>(null);
   const [novaTarefa, setNovaTarefa] = useState<FormularioTarefa>(() => formularioVazio(statusPadrao()));
   const [destacarAnexos, setDestacarAnexos] = useState(false);
-  // Criação inline pelo "+" da coluna: id da coluna e título em digitação.
-  const [criandoNaColuna, setCriandoNaColuna] = useState<{ coluna: KanbanStatus; titulo: string } | null>(null);
+  // Criação inline pelo "+" da coluna: id da coluna, título e detalhes em
+  // digitação.
+  const [criandoNaColuna, setCriandoNaColuna] = useState<{ coluna: KanbanStatus; titulo: string; descricao: string } | null>(null);
   const [menuTarefa, setMenuTarefa] = useState<string | null>(null);
   const [menuColuna, setMenuColuna] = useState<string | null>(null);
   const [colunaRecemCriada, setColunaRecemCriada] = useState<string | null>(null);
@@ -379,12 +380,17 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
   }
 
   // ── Formulários ────────────────────────────────────────────────────────
-  function abrirNovaTarefa(status: KanbanStatus = statusPadrao(colunas), modo: "rapido" | "completo" = "rapido", titulo = "") {
+  function abrirNovaTarefa(
+    status: KanbanStatus = statusPadrao(colunas),
+    modo: "rapido" | "completo" = "rapido",
+    titulo = "",
+    descricao = "",
+  ) {
     setEventosCalendario(carregarEventosCalendario());
     setTarefaEditando(null);
     setDestacarAnexos(false);
     setCriandoNaColuna(null);
-    setNovaTarefa({ ...formularioVazio(status, perfil?.displayName?.trim() || "Coordenação"), titulo });
+    setNovaTarefa({ ...formularioVazio(status, perfil?.displayName?.trim() || "Coordenação"), titulo, descricao });
     setFormulario(modo);
   }
 
@@ -455,24 +461,27 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     fecharFormulario();
   }
 
-  // Criação rápida pelo "+" da coluna: só o título, direto naquela coluna.
+  // Criação rápida pelo "+" da coluna: título e detalhes, direto naquela
+  // coluna.
   function criarNaColuna() {
     if (!criandoNaColuna) return;
     const titulo = criandoNaColuna.titulo.trim();
     if (!titulo) {
-      setCriandoNaColuna(null);
+      // Sem título não há tarefa, mas detalhes já digitados não podem sumir
+      // com um Ctrl+Enter distraído: só fecha se a caixa estiver vazia.
+      if (!criandoNaColuna.descricao.trim()) setCriandoNaColuna(null);
       return;
     }
     const agora = new Date().toISOString();
     const base = formularioVazio(criandoNaColuna.coluna, perfil?.displayName?.trim() || "Coordenação");
-    setTarefas((atuais) => [montarTarefa({ ...base, titulo }, null, agora), ...atuais]);
+    setTarefas((atuais) => [montarTarefa({ ...base, titulo, descricao: criandoNaColuna.descricao }, null, agora), ...atuais]);
     // Continua aberto para emendar a próxima tarefa na mesma coluna.
-    setCriandoNaColuna({ coluna: criandoNaColuna.coluna, titulo: "" });
+    setCriandoNaColuna({ coluna: criandoNaColuna.coluna, titulo: "", descricao: "" });
   }
 
   function abrirCriacaoNaColuna(coluna: KanbanColuna) {
     if (coluna.recolhida) atualizarColuna(coluna.id, { recolhida: false });
-    setCriandoNaColuna({ coluna: coluna.id, titulo: "" });
+    setCriandoNaColuna({ coluna: coluna.id, titulo: "", descricao: "" });
   }
 
   // ── Ações sobre tarefas ────────────────────────────────────────────────
@@ -758,10 +767,11 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
                 criandoNaColuna?.coluna === coluna.id ? (
                   <CriacaoInline
                     titulo={criandoNaColuna.titulo}
-                    onChange={(titulo) => setCriandoNaColuna({ coluna: coluna.id, titulo })}
+                    descricao={criandoNaColuna.descricao}
+                    onChange={(mudanca) => setCriandoNaColuna((atual) => (atual ? { ...atual, ...mudanca } : atual))}
                     onCriar={criarNaColuna}
                     onCancelar={() => setCriandoNaColuna(null)}
-                    onDetalhes={() => abrirNovaTarefa(coluna.id, "completo", criandoNaColuna.titulo)}
+                    onDetalhes={() => abrirNovaTarefa(coluna.id, "completo", criandoNaColuna.titulo, criandoNaColuna.descricao)}
                   />
                 ) : null
               }

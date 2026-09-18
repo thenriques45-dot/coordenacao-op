@@ -14867,7 +14867,8 @@ th:nth-child(3) {
 .kb-painel .kb-titulo,
 .kb-compositor .kb-descricao,
 .kb-etiquetas .kb-chip-input,
-.kanban-page .kb-criacao-inline input {
+.kanban-page .kb-criacao-inline input,
+.kanban-page .kb-criacao-inline textarea {
   background: transparent;
 }
 
@@ -14998,20 +14999,25 @@ th:nth-child(3) {
   opacity: 0.8;
 }
 
+/* A caixa cresce com o texto (useAlturaAutomatica) entre este piso e este
+   teto. O teto deixa o rodapé com "Salvar" visível mesmo numa descrição
+   longa; passando dele, a própria caixa rola. */
 .kb-descricao {
   background: transparent;
   border: 0;
-  color: var(--kb-texto-secundario);
+  color: var(--kb-texto);
   font: inherit;
-  font-size: 14px;
-  margin: 4px 20px 0;
-  min-height: 44px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  margin: 6px 20px 0;
+  max-height: 38vh;
+  min-height: 92px;
+  overflow-y: auto;
   padding: 0;
   resize: none;
 }
 
 .kb-descricao:focus {
-  color: var(--kb-texto);
   outline: none;
 }
 
@@ -15713,7 +15719,30 @@ th:nth-child(3) {
   padding: 2px 0;
 }
 
-.kb-criacao-inline input:focus {
+/* Detalhes: mesma lógica da descrição do compositor (cresce com o texto até o
+   teto e então rola), em escala de cartão. */
+.kb-criacao-inline textarea {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--kb-divisor);
+  color: var(--kb-texto);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 220px;
+  min-height: 58px;
+  overflow-y: auto;
+  padding: 8px 0 0;
+  resize: none;
+}
+
+.kb-criacao-inline textarea::placeholder {
+  color: var(--kb-texto-secundario);
+  opacity: 0.8;
+}
+
+.kb-criacao-inline input:focus,
+.kb-criacao-inline textarea:focus {
   outline: none;
 }
 
@@ -15726,6 +15755,10 @@ th:nth-child(3) {
 .kb-criacao-inline-acoes > span {
   display: flex;
   gap: 6px;
+}
+
+.kb-criacao-inline-acoes .kb-link {
+  white-space: nowrap;
 }
 
 .kb-criacao-inline .kb-primario,

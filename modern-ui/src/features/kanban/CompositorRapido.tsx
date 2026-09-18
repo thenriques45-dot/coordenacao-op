@@ -21,6 +21,7 @@ import {
   rotuloPrazo,
   type FormularioTarefa,
 } from "./formularioTarefa";
+import { useAlturaAutomatica } from "./useAlturaAutomatica";
 
 export type PropsFormularioTarefa = {
   form: FormularioTarefa;
@@ -89,6 +90,7 @@ export function CompositorRapido({
   onFechar,
   onAbrirCompleto,
 }: PropsFormularioTarefa & { onAbrirCompleto: () => void }) {
+  const refDescricao = useAlturaAutomatica(form.descricao);
   const [popover, setPopover] = useState<Popover | null>(destacarAnexos ? "anexo" : null);
   const [maisOpcoes, setMaisOpcoes] = useState(Boolean(form.eventId) || form.repetir !== "none");
   const atualizar = (mudanca: Partial<FormularioTarefa>) => setForm((atual) => ({ ...atual, ...mudanca }));
@@ -142,12 +144,13 @@ export function CompositorRapido({
           }}
         />
         <textarea
+          ref={refDescricao}
           className="kb-descricao"
           value={form.descricao}
           onChange={(event) => atualizar({ descricao: event.target.value })}
           placeholder="Adicionar detalhes (opcional)"
           aria-label="Descrição"
-          rows={2}
+          rows={4}
         />
 
         <div className="kb-pastilhas">
