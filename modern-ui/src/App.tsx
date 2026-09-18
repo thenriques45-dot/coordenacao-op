@@ -361,6 +361,10 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.2.1": [
+    "Quadro Kanban: ao criar uma tarefa pelo \"+\" da coluna, agora aparece também o campo de detalhes, logo abaixo do título. Enter no título leva aos detalhes; Ctrl+Enter ou \"Adicionar\" cria a tarefa. O antigo link \"Detalhes\", que abria o formulário completo, passou a se chamar \"Mais campos\" e leva junto o que já foi digitado.",
+    "Quadro Kanban: a descrição da tarefa ficou maior e mais legível ao abrir um cartão. A caixa cresce conforme o texto, até cerca de um terço da tela, e só então passa a rolar — antes mostrava pouco mais de duas linhas. O texto também aparece na cor normal, e não mais em cinza.",
+  ],
   "4.2.0": {
     paginas: [
       {
