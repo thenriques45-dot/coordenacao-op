@@ -1026,7 +1026,7 @@ pub(crate) fn desduplicar_turmas_por_codigo(pasta: &Path) -> io::Result<()> {
         }
         let Some(dados) = fs::read_to_string(&caminho)
             .ok()
-            .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+            .and_then(|texto| serde_json::from_str::<Value>(sem_lixo_no_fim(&texto)).ok())
         else {
             continue;
         };
@@ -1053,7 +1053,7 @@ pub(crate) fn desduplicar_turmas_por_codigo(pasta: &Path) -> io::Result<()> {
             .filter_map(|caminho| {
                 fs::read_to_string(&caminho)
                     .ok()
-                    .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+                    .and_then(|texto| serde_json::from_str::<Value>(sem_lixo_no_fim(&texto)).ok())
                     .map(|dados| (caminho, dados))
             })
             .collect();
@@ -1089,7 +1089,7 @@ pub(crate) fn desduplicar_turmas_por_codigo(pasta: &Path) -> io::Result<()> {
         }
 
         let texto = serde_json::to_string_pretty(&mesclado).map_err(|e| io::Error::other(e.to_string()))?;
-        fs::write(&caminho_base, texto)?;
+        gravar_com_flush(&caminho_base, texto.as_bytes())?;
         for (caminho_extra, _) in valores {
             fs::remove_file(caminho_extra)?;
         }
@@ -1116,19 +1116,30 @@ pub(crate) fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -
                 continue;
             }
             if temp_path.exists() {
-                // Arquivo em ambos: merge, mantendo o mais recente por campo
-                let texto_local = fs::read_to_string(&local_path)?;
-                let texto_temp = fs::read_to_string(&temp_path)?;
-                if let (Ok(val_local), Ok(val_temp)) = (
+                // Arquivo em ambos: merge, mantendo o mais recente por campo.
+                // Lido como bytes: um arquivo cortado no meio de um caractere
+                // acentuado não é UTF-8 válido e abortaria a sincronização toda.
+                let texto_local = String::from_utf8_lossy(&fs::read(&local_path)?).into_owned();
+                let texto_temp = String::from_utf8_lossy(&fs::read(&temp_path)?).into_owned();
+                match (
                     serde_json::from_str::<Value>(sem_lixo_no_fim(&texto_local)),
                     serde_json::from_str::<Value>(sem_lixo_no_fim(&texto_temp)),
                 ) {
-                    let merged = mesclar_arquivo_turma(&val_local, &val_temp);
-                    let texto_merged = serde_json::to_string_pretty(&merged)
-                        .map_err(|e| io::Error::other(e.to_string()))?;
-                    gravar_com_flush(&temp_path, texto_merged.as_bytes())?;
+                    (Ok(val_local), Ok(val_temp)) => {
+                        let merged = mesclar_arquivo_turma(&val_local, &val_temp);
+                        let texto_merged = serde_json::to_string_pretty(&merged)
+                            .map_err(|e| io::Error::other(e.to_string()))?;
+                        gravar_com_flush(&temp_path, texto_merged.as_bytes())?;
+                    }
+                    // Incoming ilegível e local bom: fica o local. Antes o
+                    // incoming vencia sempre, e um arquivo corrompido na pasta
+                    // compartilhada apagava a cópia boa desta máquina a cada pull.
+                    (Ok(_), Err(_)) => {
+                        gravar_com_flush(&temp_path, texto_local.as_bytes())?;
+                    }
+                    // Local ilegível (ou os dois): mantém o incoming, já em temp_path.
+                    _ => {}
                 }
-                // Se parse falhar, mantém o incoming (já está em temp_path)
             } else {
                 // Arquivo só no local (turma criada após último sync): preservar
                 fs::copy(&local_path, &temp_path)?;
@@ -1242,6 +1253,32 @@ pub(crate) fn salvar_marcador_sincronizacao_institucional(valor: &str) -> io::Re
 mod testes {
     use super::*;
     use serde_json::json;
+
+    /// Reproduz o bug da 4.2.2: a pasta compartilhada tinha uma turma cortada
+    /// no meio e o pull trocava a cópia local boa por ela.
+    #[test]
+    fn turma_corrompida_no_incoming_nao_substitui_a_local_boa() {
+        let base = std::env::temp_dir().join(format!(
+            "coordop_sync_{}",
+            Local::now().timestamp_nanos_opt().unwrap_or(0)
+        ));
+        let (local, temp) = (base.join("local"), base.join("temp"));
+        fs::create_dir_all(&local).unwrap();
+        fs::create_dir_all(&temp).unwrap();
+        let boa = r#"{"codigo": "6º Ano F", "ano": 2026, "alunos": {}}"#;
+        fs::write(local.join("turma_6o Ano F.json"), boa).unwrap();
+        // Cortado no meio do "º" (bytes 0xC2 0xBA): nem UTF-8 válido é.
+        let mut cortada = br#"{"codigo": "6"#.to_vec();
+        cortada.push(0xC2);
+        fs::write(temp.join("turma_6o Ano F.json"), cortada).unwrap();
+
+        mesclar_diretorio_persistidos(&local, &temp).unwrap();
+
+        let resultado: Value =
+            serde_json::from_str(&fs::read_to_string(temp.join("turma_6o Ano F.json")).unwrap()).unwrap();
+        assert_eq!(resultado["codigo"], "6º Ano F");
+        let _ = fs::remove_dir_all(&base);
+    }
 
     /// Reproduz o bug real: um atendimento feito só na máquina A nunca
     /// aparecia na máquina B depois de sincronizar, porque `mesclar_aluno`
