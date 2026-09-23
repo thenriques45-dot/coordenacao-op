@@ -361,6 +361,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.2.3": [
+    "Sincronização institucional: se a pasta compartilhada tiver um arquivo de turma danificado, o app agora mantém a cópia boa deste computador em vez de substituí-la. Antes, uma turma corrompida na pasta compartilhada voltava a aparecer a cada sincronização, com o erro \"Arquivo de turma ilegível\" no Dashboard.",
+  ],
   "4.2.2": [
     "Corrigido o erro \"trailing characters at line…\" que aparecia no Dashboard e escondia todas as turmas. Ele surgia quando o computador desligava ou hibernava logo depois de o app salvar uma turma: o arquivo ficava com sobras no fim. Agora cada gravação é confirmada no disco antes de ser concluída, e arquivos que já tinham essas sobras voltam a abrir normalmente.",
   ],
