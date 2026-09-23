@@ -1120,13 +1120,13 @@ pub(crate) fn mesclar_diretorio_persistidos(local_dir: &Path, temp_dir: &Path) -
                 let texto_local = fs::read_to_string(&local_path)?;
                 let texto_temp = fs::read_to_string(&temp_path)?;
                 if let (Ok(val_local), Ok(val_temp)) = (
-                    serde_json::from_str::<Value>(&texto_local),
-                    serde_json::from_str::<Value>(&texto_temp),
+                    serde_json::from_str::<Value>(sem_lixo_no_fim(&texto_local)),
+                    serde_json::from_str::<Value>(sem_lixo_no_fim(&texto_temp)),
                 ) {
                     let merged = mesclar_arquivo_turma(&val_local, &val_temp);
                     let texto_merged = serde_json::to_string_pretty(&merged)
                         .map_err(|e| io::Error::other(e.to_string()))?;
-                    fs::write(&temp_path, texto_merged)?;
+                    gravar_com_flush(&temp_path, texto_merged.as_bytes())?;
                 }
                 // Se parse falhar, mantém o incoming (já está em temp_path)
             } else {

@@ -110,7 +110,7 @@ pub(crate) fn editar_turma(caminho: String, input: NovaTurmaInput) -> Result<Tur
     let caminho_atual = PathBuf::from(caminho);
     validar_caminho_turma(&caminho_atual)?;
     let texto = fs::read_to_string(&caminho_atual).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     let codigo = formatar_rotulo_turma_texto(input.codigo.trim());
     let serie = formatar_rotulo_turma_texto(input.serie.trim());
@@ -208,7 +208,7 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|e| e.to_string())?;
-    let dados: Value = serde_json::from_str(&texto).map_err(|e| e.to_string())?;
+    let dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|e| e.to_string())?;
     let mut set: BTreeSet<String> = BTreeSet::new();
 
     if let Some(carga) = dados.get("carga_horaria").and_then(Value::as_object) {
@@ -253,7 +253,7 @@ pub(crate) fn carregar_turma(caminho: String, bimestre: String) -> Result<TurmaD
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let turma: TurmaArquivo = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let turma: TurmaArquivo = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     Ok(detalhar_turma(turma, &bimestre))
 }
 
@@ -268,7 +268,7 @@ pub(crate) fn salvar_ajustes_media(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     aplicar_ajustes_media(&mut dados, &matricula, &bimestre, ajustes)?;
 
@@ -290,7 +290,7 @@ pub(crate) fn salvar_encaminhamentos(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     aplicar_encaminhamentos(&mut dados, &matricula, &bimestre, encaminhamentos)?;
 
@@ -312,7 +312,7 @@ pub(crate) fn salvar_aluno_deliberado(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     aplicar_aluno_deliberado(&mut dados, &matricula, &bimestre, deliberado)?;
 
@@ -333,7 +333,7 @@ pub(crate) fn salvar_tempo_conselho(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     aplicar_tempo_conselho(&mut dados, &bimestre, tempo_segundos)?;
 
@@ -354,7 +354,7 @@ pub(crate) fn salvar_coordenador_turma(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let Some(objeto) = dados.as_object_mut() else {
         return Err("Arquivo da turma esta invalido.".to_string());
     };
@@ -392,7 +392,7 @@ pub(crate) fn salvar_pessoas_pei_turma(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let Some(objeto) = dados.as_object_mut() else {
         return Err("Arquivo da turma esta invalido.".to_string());
     };
@@ -418,7 +418,7 @@ pub(crate) fn salvar_responsavel_pei_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let aluno = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -442,7 +442,7 @@ pub(crate) fn salvar_elegibilidade_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let aluno = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -471,7 +471,7 @@ pub(crate) fn salvar_lideranca_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let lideranca = normalizar_lideranca_sala(input.lideranca.as_deref());
     let alunos = dados
         .get_mut("alunos")
@@ -528,7 +528,7 @@ pub(crate) fn salvar_educacao_especial_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let alunos = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -571,7 +571,7 @@ pub(crate) fn salvar_responsaveis_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let aluno = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -611,7 +611,7 @@ pub(crate) fn adicionar_responsavel_rapido(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     let mut atuais = dados
         .get("alunos")
@@ -665,7 +665,7 @@ pub(crate) fn marcar_telefone_nao_whatsapp(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     let alvo: String = telefone.chars().filter(char::is_ascii_digit).collect();
     let mut atuais = dados
@@ -784,7 +784,7 @@ pub(crate) fn salvar_atendimento_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let aluno = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -939,7 +939,7 @@ pub(crate) fn definir_followup_previsto(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let atendimento = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -986,7 +986,7 @@ pub(crate) fn excluir_atendimento_aluno(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
     let atendimentos = dados
         .get_mut("alunos")
         .and_then(Value::as_object_mut)
@@ -1175,7 +1175,7 @@ pub(crate) fn salvar_finalizacao_conselho(
     let caminho = PathBuf::from(caminho);
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|err| err.to_string())?;
 
     let ata = if finalizacao.gerar_ata {
         Some(gerar_documento_finalizacao(
@@ -1613,7 +1613,8 @@ pub(crate) fn visitar_jsons_turma_com_dados(
             continue;
         }
         let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-        let turma: TurmaArquivo = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+        let turma: TurmaArquivo = serde_json::from_str(sem_lixo_no_fim(&texto))
+            .map_err(|err| format!("Arquivo de turma ilegível ({nome}): {err}"))?;
         turmas.push((caminho, turma));
     }
     Ok(())
@@ -1742,7 +1743,8 @@ pub(crate) fn visitar_jsons_turma(pasta: &PathBuf, turmas: &mut Vec<TurmaResumo>
         }
 
         let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
-        let turma: TurmaArquivo = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+        let turma: TurmaArquivo = serde_json::from_str(sem_lixo_no_fim(&texto))
+            .map_err(|err| format!("Arquivo de turma ilegível ({nome}): {err}"))?;
         turmas.push(resumir_turma(turma, caminho));
     }
     Ok(())

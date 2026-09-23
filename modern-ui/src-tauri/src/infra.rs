@@ -117,10 +117,28 @@ pub(crate) fn escrever_json_atomicamente(caminho: &Path, conteudo: &str) -> io::
         .unwrap_or("arquivo");
     let tmp_nome = format!(".{}.{}.tmp", nome_base, Local::now().timestamp_millis());
     let temporario = dir.join(tmp_nome);
-    fs::write(&temporario, conteudo)?;
+    gravar_com_flush(&temporario, conteudo.as_bytes())?;
     fs::rename(&temporario, caminho).inspect_err(|_err| {
         let _ = fs::remove_file(&temporario);
     })
+}
+
+/// `fs::write` + `sync_all`. Sem o flush, um desligamento ou hibernação logo
+/// depois do rename deixava o NTFS com o tamanho novo gravado mas o conteúdo
+/// não: o arquivo de turma voltava com zeros no fim ("trailing characters")
+/// ou cortado no meio, e a listagem inteira de turmas parava de carregar.
+pub(crate) fn gravar_com_flush(caminho: &Path, conteudo: &[u8]) -> io::Result<()> {
+    use std::io::Write;
+    let mut arquivo = fs::File::create(caminho)?;
+    arquivo.write_all(conteudo)?;
+    arquivo.sync_all()
+}
+
+/// Descarta zeros e espaços depois do fim do JSON — o resto que um
+/// desligamento no meio da gravação deixava nos arquivos (ver
+/// gravar_com_flush). O conteúdo em si continua passando pelo parser normal.
+pub(crate) fn sem_lixo_no_fim(texto: &str) -> &str {
+    texto.trim_end_matches(|c: char| c == '\0' || c.is_whitespace())
 }
 
 const NOME_INDICE_LOCAL: &str = "_indice.json";
@@ -378,4 +396,32 @@ pub(crate) fn mesmos_caminhos(a: &Path, b: &Path) -> bool {
 
 pub(crate) fn caminhos_diferentes(a: &Path, b: &Path) -> bool {
     !mesmos_caminhos(a, b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_com_zeros_no_fim_volta_a_ser_lido() {
+        let texto = format!("{{\"codigo\": \"1ª Série A\"}}\n{}", "\0".repeat(64));
+        let valor: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).unwrap();
+        assert_eq!(valor["codigo"], "1ª Série A");
+    }
+
+    #[test]
+    fn json_cortado_continua_sendo_erro() {
+        assert!(serde_json::from_str::<Value>(sem_lixo_no_fim("{\"codigo\": \"1ª S")).is_err());
+    }
+
+    #[test]
+    fn gravacao_atomica_substitui_arquivo_maior_sem_sobras() {
+        let pasta = std::env::temp_dir().join(format!("coordop_teste_{}", Local::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&pasta).unwrap();
+        let caminho = pasta.join("turma_teste.json");
+        escrever_json_atomicamente(&caminho, &"x".repeat(4096)).unwrap();
+        escrever_json_atomicamente(&caminho, "{}").unwrap();
+        assert_eq!(fs::read_to_string(&caminho).unwrap(), "{}");
+        let _ = fs::remove_dir_all(&pasta);
+    }
 }
