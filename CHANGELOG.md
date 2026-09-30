@@ -7,6 +7,386 @@
 - **Fim das cópias de conflito de `workspace-state.json`:** todos os dispositivos regravavam esse arquivo legado a cada ciclo, e o OneDrive criava uma cópia de conflito (~1 MB) a cada colisão — 5.909 cópias (4,6 GB). Desde a v2.7.0 cada dispositivo publica o próprio arquivo em `state/peers/`, então o legado deixou de ser gravado (a leitura continua, por compatibilidade).
 - **Syncthing:** cópias de conflito no padrão do Syncthing (`arquivo.sync-conflict-AAAAMMDD-HHMMSS-ID.json`) passam a ser reconhecidas e ignoradas, como já acontecia com as do OneDrive e do Google Drive.
 
+## v4.2.3 - Sincronização não traz de volta turma corrompida
+
+- Sincronização institucional: se a pasta compartilhada tiver um arquivo de turma danificado, o app agora mantém a cópia boa deste computador em vez de substituí-la. Antes, uma turma corrompida na pasta compartilhada voltava a aparecer a cada sincronização, com o erro "Arquivo de turma ilegível" no Dashboard.
+
+## v4.2.2 - Corrige turmas sumindo por erro de arquivo corrompido
+
+- Corrigido o erro "trailing characters at line…" que aparecia no Dashboard e escondia todas as turmas. Ele surgia quando o computador desligava ou hibernava logo depois de o app salvar uma turma: o arquivo ficava com sobras no fim. Agora cada gravação é confirmada no disco antes de ser concluída, e arquivos que já tinham essas sobras voltam a abrir normalmente.
+
+## v4.2.1 - Detalhes ao criar tarefa e descrição mais legível no Kanban
+
+- Quadro Kanban: ao criar uma tarefa pelo "+" da coluna, agora aparece também o campo de detalhes, logo abaixo do título. Enter no título leva aos detalhes; Ctrl+Enter ou "Adicionar" cria a tarefa. O antigo link "Detalhes", que abria o formulário completo, passou a se chamar "Mais campos" e leva junto o que já foi digitado.
+- Quadro Kanban: a descrição da tarefa ficou maior e mais legível ao abrir um cartão. A caixa cresce conforme o texto, até cerca de um terço da tela, e só então passa a rolar — antes mostrava pouco mais de duas linhas. O texto também aparece na cor normal, e não mais em cinza.
+
+## v4.2.0 - Novo Quadro Kanban e fim dos travamentos
+
+- **Quadro Kanban — Criar e editar tarefas ficou mais rápido.** "Nova tarefa" abre um compositor enxuto: título, descrição e pastilhas só para o que a tarefa precisar. Clicar no título ou no texto de um cartão abre o mesmo compositor já preenchido. Quando a tarefa pede mais contexto, "Abrir formulário completo" mostra tudo numa tela só, sem abas — e leva junto o que você já digitou.
+  - Pastilhas: Prazo, Prioridade, Responsável, Vínculos, Etiqueta e Anexo — cada uma abre um seletor no lugar.
+  - Atalhos de prazo: Hoje, Amanhã, Sexta e Próxima semana, com os avisos de 2 dias, 1 dia e no dia.
+  - Formulário completo sem abas: O que muda o fluxo à esquerda, o contexto (responsáveis, turmas, etiquetas, anexos) à direita.
+- **Quadro Kanban — Organize o quadro do seu jeito.** Agora dá para mudar a ordem dos cartões dentro da coluna, não só entre colunas. O cartão passa a ser arrastado pelo punho de seis pontinhos à esquerda do título — clicar no resto do cartão abre a tarefa. Cada coluna pode ser ordenada por prazo ou prioridade, e cartões e colunas podem ser recolhidos.
+  - Arraste pelo punho: Solte entre dois cartões para escolher a posição. Pelo menu ⋯ do cartão também há Subir e Descer.
+  - Ordenar a coluna: No menu ⋯ da coluna: Manual, Prazo mais próximo ou Prioridade.
+  - Compacto ou Confortável: Recolha todos os cartões de uma vez, ou só um pelo chevron. A coluna inteira também recolhe numa faixa estreita.
+- **Quadro Kanban — Arquive, exclua e aja em várias tarefas de uma vez.** Tarefa arquivada sai do quadro, do calendário, da dashboard, da tela da turma e dos alertas de prazo, mas continua guardada — a coluna mostra "N tarefas arquivadas · restaurar". Excluir deixou de pedir confirmação: aparece um aviso com Desfazer por alguns segundos.
+  - Selecionar: Marque vários cartões e use a barra no rodapé para mover, arquivar ou excluir todos juntos.
+  - Arquivar concluídas: No menu ⋯ da coluna de conclusão, limpa a coluna numa ação só.
+  - Filtros rápidos: Busca por título, etiqueta ou turma, e os filtros Minhas, Alta e Vence esta semana (que inclui as atrasadas).
+- **Quadro Kanban — As colunas agora são suas.** Crie colunas em "Nova coluna", no fim do quadro, renomeie com dois cliques no nome e troque a cor pelo menu ⋯. Ao excluir uma coluna, as tarefas dela vão para a primeira, com Desfazer. Importante para quem usa a sincronização de grupo: as colunas passam a ser de cada computador e não sincronizam mais — antes, o quadro de um colega podia sobrescrever as suas colunas. As tarefas compartilhadas continuam sincronizando normalmente.
+  - Coluna de conclusão: Marque no menu ⋯ qual coluna conclui as tarefas: é ela que risca o título e silencia os alertas de prazo.
+  - Cada um com suas colunas: Tarefa de um colega numa coluna que você não tem aparece na sua primeira coluna, sem mudar nada no quadro dele.
+- Corrigido: o programa podia travar por vários segundos, principalmente no Quadro Kanban e em dias de internet lenta. Salvar dados esperava a sincronização com a pasta do OneDrive terminar, e isso congelava a janela inteira. Agora os salvamentos rodam por trás, sem travar a tela, e continuam sendo gravados na ordem em que foram feitos.
+- Corrigido: a sincronização institucional recopiava toda a pasta de dados para o OneDrive a cada 15 minutos, mesmo sem mudança nenhuma, e cada colega que recebia a cópia gerava um backup completo. Ela agora só acontece quando algum dado institucional mudou de verdade.
+- Backups automáticos: o programa passa a guardar só os 10 mais recentes e apaga os mais antigos, inclusive na primeira abertura desta versão. Com as fotos dos alunos, cada backup pode passar de 500 MB, e a pasta chegava a dezenas de GB. As exportações seletivas por ciclo, feitas por você, não são apagadas.
+- Limpeza automática de restos de sincronizações interrompidas: cópias temporárias da pasta de dados e cópias de conflito criadas pelo OneDrive.
+- Corrigido: cópias de conflito do OneDrive na pasta compartilhada eram lidas como se fossem outro coordenador, fazendo reaparecer dispositivos antigos na lista do grupo.
+- Tema escuro: as cores das colunas do Kanban ganharam versões próprias para o fundo escuro, e a barra de rolagem do quadro deixou de aparecer branca.
+- Para quem usa sincronização de grupo: colegas que ainda não atualizaram veem as tarefas arquivadas como tarefas normais, até instalarem esta versão.
+
+## v4.1.3 - Corrige contagem de elegíveis e passa a publicar na Microsoft Store
+
+- Corrigido: o total de alunos elegíveis (painel, lista de turmas e conselho) somava também as cópias inativas de quem mudou de turma durante o ano — o aluno transferido continuava contando na turma de origem, onde a lista nem o mostra, porque inativos ficam escondidos até marcar "Mostrar inativos". O número ficava maior que o de elegíveis realmente visíveis, e cada transferência aumentava a diferença. Agora só contam alunos ativos, e a importação da lista de elegíveis também deixa de marcar as cópias inativas — se um aluno da lista não estiver ativo em turma nenhuma, ele aparece entre os não encontrados para a coordenação revisar.
+- Corrigido: desmarcar um aluno como elegível na tela da turma não o tirava da listagem do PEI quando ele tinha alguma deficiência cadastrada pela importação. A marcação manual agora vale nos dois lugares.
+
+## v4.1.2 - Corrige atendimento duplicado, marca telefone sem WhatsApp, permite excluir registro
+
+- **Atendimentos › Contatar famílias — Marque um número como "não é WhatsApp".** Quando o envio mostra que o número da família não é WhatsApp, marque ali mesmo na fila assistida — o número some das próximas filas até alguém cadastrar um telefone novo, mas continua salvo na ficha do aluno.
+  - Botão na fila: "Nº não é WhatsApp" ao lado de Enviei/Pular, na fila assistida.
+  - Aparece na ficha: O número marcado fica sinalizado nos responsáveis do aluno, editável a qualquer momento.
+  - Relatório de pendência: Campo "Telefone do Responsável Marcado como Inválido" no construtor — filtre com "não está vazio" pra listar quem precisa vir atualizar o número.
+- Corrigido: apertar Enter na fila assistida podia registrar o mesmo atendimento duas vezes (o atalho de teclado e o clique nativo do botão focado disputavam o mesmo envio). Agora só um vale.
+- Novo: "Excluir registro" no menu (⋮) de um atendimento, para apagar um registro feito por engano ou duplicado.
+
+## v4.1.1 - Corrige fila de WhatsApp interrompida presa em "Concluída"
+
+- Corrigido: uma fila assistida de WhatsApp interrompida sem clicar em "Pausar" (app fechado no meio, por exemplo) podia ficar marcada como "Concluída" em Atendimentos › Disparos em lote assim que tivesse ao menos um pulado — mesmo com a maioria dos destinatários ainda sem receber nada — e sem nenhum botão pra retomar. Agora aparece como "Em progresso" com "Retomar fila", igual a uma pausada de propósito.
+
+## v4.1.0 - Fila de contato completa dados na hora, filtro de Expansões, relatório de pendência de cadastro
+
+- **Atendimentos › Contatar famílias — Aluno sem telefone não fica mais de fora da fila.** Quem entra na fila sem telefone de responsável cadastrado aparece como pendente, com um link 'adicionar telefone' na própria linha — preenche nome e telefone sem sair da tela, e o aluno já entra como destinatário.
+  - Preenchimento na linha: Nome, parentesco e telefone direto na fila, sem abrir a ficha do aluno.
+  - Some da lista de 'fora': Antes ficava só num contador — agora vira destinatário assim que salva.
+  - Filtro de Expansões: Nova condição 'Progresso nas Expansões (%)' — antes só dava pra filtrar por último acesso.
+- **Construtor de Relatórios — Liste quem falta cadastrar responsável ou telefone.** Dois campos novos — 'Nome do Responsável' e 'Telefone do Responsável' — ficam vazios quando falta o cadastro. Combine com o operador 'está vazio' que o construtor já tem pra gerar a lista de pendências.
+  - Dois campos novos: Nome e Telefone do Responsável, na categoria Aluno.
+  - Sem UI nova: Usa o operador 'está vazio' que já existia no construtor.
+- Corrigido: uma tarefa do Kanban vinculada a um aluno podia aparecer na aba "Tarefas" de outro aluno sem relação nenhuma com o card — o casamento por nome era fuzzy demais para textos longos.
+
+## v4.0.3 - Corrige de vez o ícone da "Visão geral"
+
+- Corrigido: o item 'Visão geral' das Configurações ainda podia aparecer com o ícone empilhado em cima do texto em vez de lado a lado (o ajuste da versão anterior não tinha especificidade suficiente para vencer o estilo antigo).
+
+## v4.0.2 - Corrige alinhamento do menu de Configurações
+
+- Corrigido: os itens do menu de Configurações (Instituição, Turmas, Backup...) podiam aparecer com o texto colado no topo da caixa em vez de centralizado, e rótulos mais longos quebravam linha.
+
+## v4.0.1 - Ajuste da imagem de cabeçalho e do destaque "Visão geral"
+
+- Corrigido: ao trocar a imagem de cabeçalho em Configurações › Institucional, a ATA e os relatórios podiam continuar saindo com a imagem antiga. Agora o app sempre usa a imagem enviada mais recentemente, mesmo que o arquivo anterior não tenha sido apagado na hora (lock do OneDrive ou antivírus).
+- Ajuste visual: o item 'Visão geral' das Configurações, quando aberto, tinha um preenchimento vermelho forte que parecia um alerta — agora usa o mesmo destaque discreto (barra vermelha à esquerda) dos outros itens do menu.
+
+## v4.0.0 - Tela de Atendimentos, Configurações v2 e Equipe gestora
+
+- **Novo no menu — Uma tela só para os atendimentos da turma.** Entre 'Turmas' e 'Importar Dados' agora tem 'Atendimentos', com um contador de follow-ups pendentes. Ela reúne todos os atendimentos da turma numa lista só.
+  - Filtros: Tipo, período, canal, tag e 'follow-up pendente' — combináveis.
+  - Selo de canal: Cada linha mostra como o contato saiu: Manual, wa.me, wa.me · lote ou API oficial.
+  - Tabela ou cartões: Alterna a visão conforme você prefere ler a lista.
+- **Atendimentos — Cada caso é uma conversa, com um combinado datado.** O atendimento abre em thread: o registro inicial, os follow-ups e o 'follow-up combinado' — um compromisso com data que substituiu o antigo campo de status. É ele que marca que um caso tem pendência.
+  - Thread do caso: Registro inicial e follow-ups na ordem em que aconteceram.
+  - Follow-up combinado: Um compromisso datado; enquanto está aberto, o caso conta como pendente.
+  - Registrar desfecho: Encerra o combinado quando o assunto se resolve.
+- **Atendimentos — Montar a mensagem para a família em três passos.** O compositor separa destinatário, modelo e variáveis, com prévia em bolha de WhatsApp. Os trechos sem dado do aluno ficam destacados para preencher na hora ou remover.
+  - Três passos: Destinatário, modelo e variáveis, um de cada vez.
+  - Prévia real: Vê o texto final na bolha antes de enviar.
+  - Aba 'Por aluno': Histórico de contato com a família de cada estudante, por mensagem e presencial.
+- **Atendimentos — Contatar várias famílias de uma vez.** Em 'Contatar famílias', monte a fila por filtros prontos (com tarefa pendente, frequência baixa, sem acesso à plataforma…) ou por condições no mesmo formato do construtor de relatórios (campo · operador · valor).
+  - Monte a fila: Filtros prontos ou condições combináveis.
+  - Fila assistida no WhatsApp: Grátis: você aperta enviar em cada um, com atalhos de teclado, teto de 40 por sessão, pausável e retomável.
+  - Envio automático: Opcional, pela API oficial da Meta.
+- **Configurações › Integrações — Envio automático pela API oficial (opcional).** Se quiser que o lote saia sozinho, configure em Configurações › Integrações › 'WhatsApp'. Sem isso, tudo continua funcionando pela fila assistida.
+  - Cobra por mensagem: É a API oficial da Meta, com custo por envio.
+  - Só nesta máquina: A configuração não sincroniza com o grupo.
+  - Histórico em 'Disparos em lote': Situação de cada fila (concluída, pausada, com pendências) e retomada das que pararam.
+- **Configurações — Configurações mais fáceis de percorrer.** A tela passou a ter 4 grupos que dizem a natureza do ajuste — Institucional, Conselho, Este computador, Integrações — com uma busca no topo e uma 'Visão geral' de entrada.
+  - Busca no topo: Acha tanto a seção quanto o campo — 'token', 'código do grupo'…
+  - Visão geral: Avisos de manutenção (backup vencido, atualização) e o estado de cada seção.
+  - Modelos de mensagem: Saíram daqui e agora se editam em Atendimentos → 'Gerenciar modelos', perto de onde são usados.
+- **Configurações › Institucional — Equipe gestora: nome e gênero de quem assina.** Uma seção nova para cadastrar a direção, as vice-direções e as coordenações (quantas houver), cada uma com nome e gênero. O gênero flexiona os títulos nos documentos; quem preferir pode deixar 'não informar'.
+  - Nome + gênero: 'Diretora' / 'Diretor', 'Coordenadora' / 'Coordenador' saem certos na ATA e no PEI.
+  - Casa com o grupo: Quem entrou como 'Wilton' é reconhecido como 'Wilton Bortolleto · Coordenação' — automático e revisável.
+  - Vale em todo lugar: Nome completo nas assinaturas do PEI, no Quadro de Gestão e nos documentos.
+- 'AvD1' e 'AvD2' agora aparecem como 'Diagnóstica 1' e 'Diagnóstica 2' nas telas de conselho, na ficha do aluno e no importador.
+
+## v3.5.1 - Boletim do aluno mostra sempre as notas já lançadas
+
+- Corrigido: o boletim da ficha do aluno (aba Desempenho) voltava a não mostrar nenhuma nota nem frequência quando o bimestre selecionado ainda não tinha lançamento — por exemplo, ao entrar no 3º bimestre antes de importar o mapão. Agora o boletim sempre lista as disciplinas do ano e as notas já lançadas (1º, 2º…), preservando a comparação da progressão ao longo do ano. A tabela de disciplinas do Conselho e as métricas da turma passam a seguir a mesma regra: mostram o rol de disciplinas do ano mesmo antes de o bimestre atual ter notas.
+
+## v3.5.0 - Bimestre atual global e compositor de mensagem com chips
+
+- Bimestre atual global: um seletor único no cabeçalho (Turmas, ficha do aluno, Conselho, Relatórios) define o bimestre de todas as telas, e a escolha fica salva. O app resolve sozinho (datas de início na configuração institucional → maior bimestre já importado → 1º) até você fixar um manualmente.
+- Compositor "Mensagem ao responsável": o texto e a prévia viraram um campo só, com as variáveis aparecendo como etiquetas coloridas (azul = com dado, amarelo = sem dado do aluno). As etiquetas embaixo inserem a variável na posição do cursor; apagar é como apagar um caractere.
+- Importar Tarefas: a chave de bimestre é normalizada ("1"…"4"), alinhando o dado com a leitura da mensagem à família e do motor de relatórios.
+
+## v3.4.0 - Contato com a família por WhatsApp, import de tarefas em lote e ajustes de UI
+
+- Novo: contato com a família por WhatsApp, na aba Atendimentos do perfil do aluno. Cadastre o responsável (nome, parentesco — mãe, pai ou outro — e celular; dá pra ter um segundo responsável), escolha um modelo de mensagem e o app abre o WhatsApp com o texto pronto, já preenchido com os dados do aluno (frequência, tarefas pendentes, progresso na plataforma de expansão, etc.). Cada mensagem enviada fica registrada como um atendimento do aluno, com as tags do modelo.
+- Novo: modelos de mensagem à família, editáveis em Configurações › Institucional › 'Mensagens à família'. Crie um modelo por situação (excesso de faltas, tarefas em atraso, convocação…) usando variáveis entre chaves — {aluno}, {frequencia}, {tarefas_pendentes}, {expansao_dias_sem_acesso}… — que são trocadas pelos dados reais do estudante na hora de enviar. Já vem com exemplos prontos.
+- Importar Tarefas: agora aceita várias planilhas de uma vez (ou ir adicionando uma a uma, com a lista à vista). O app junta todas antes de cruzar os alunos pelo nome, então dá pra importar todas as turmas num passo só.
+- As tags do formulário de atendimento viraram um campo de 'chips': digite e tecle vírgula ou Enter para criar a tag, e o campo sugere as tags já usadas neste aluno e as definidas nos modelos de mensagem.
+- Quadro Kanban: no campo 'Responsável' de uma tarefa, digite '@' para escolher um coordenador do grupo de trabalho; também dá pra adicionar um nome que não esteja no grupo.
+- O importador do Diagnóstico SARESP lê o novo relatório 'Aprendizagem Equivalente' das Devolutivas Pedagógicas, com as duas aplicações do ano (Diagnóstica 1 e Diagnóstica 2) e a evolução por componente. As telas de conselho passam a mostrar o resultado mais recente e um selo de evolução (Avançou / Manteve / Regrediu).
+- Disciplinas lançadas com grafias diferentes que são a mesma matéria (ex.: 'Língua Inglesa' e 'LINGUA INGLESA', vindas de mapões diferentes) passam a ser tratadas como uma só na tela do conselho — antes a versão de expansão aparecia como disciplina separada, sem plano nem PEI. Também há uma correção para isso em Configurações › Manutenção de dados.
+- Repositório de relatórios ganhou botão 'Atualizar' e passa a buscar sempre a versão mais recente da lista publicada no GitHub, sem cache preso.
+
+## v3.3.0 - Assinaturas nomeadas no PEI e correção do login persistente (GitHub/Google)
+
+- Novo: 'Assinaturas', na tela de PEI — define por turma quem assina cada PEI (coordenador de gestão pedagógica, professor especializado, direção), e o nome já sai impresso acima da linha de assinatura no documento. O professor regente vem automático de quem respondeu o PEI; o responsável pelo estudante é preenchido na ficha do aluno e fica em branco se não cadastrado. Digite '@nome' num campo para puxar alguém do grupo de trabalho.
+- Novo: ao exportar o PEI de um aluno em PDF, as assinaturas de todos os componentes passam para uma folha única no final — uma folha por aluno para assinar e digitalizar, em vez de um bloco repetido a cada disciplina.
+- Novo: botão 'Regerar todos' na tela de PEI, para reescrever os PEIs já gerados com os nomes de assinatura atuais.
+- Corrigido: 'Publicar no repositório' recusava o envio com erro de autenticação mesmo depois de fazer login com o GitHub, e pedia login a cada uso — a sessão nunca era realmente guardada no chaveiro do sistema. O mesmo afetava a autorização do Google (Planejamento/PEI). Agora a sessão fica salva de verdade entre usos.
+
+## v3.2.2 - Corrige falso "faça login de novo" ao publicar com rede instável
+
+- Corrigido: mesmo já logado, 'Publicar no repositório' podia recusar o envio pedindo login de novo — uma rede lenta ou instável na hora de confirmar a conta (comum em rede de escola) era tratada como sessão inválida. Agora tenta de novo automaticamente antes de desistir, e o aviso de erro (quando acontece) deixa claro que é a rede, não a sessão salva.
+
+## v3.2.1 - Corrige fechamento do construtor ao publicar no repositório
+
+- Corrigido: no 'Publicar no repositório' (novo na 3.2.0), confirmar o envio fechava o construtor de relatórios no meio do processo, antes da publicação terminar — o relatório não chegava a subir pro GitHub, e nenhum erro aparecia. O construtor agora fica aberto até o fim do envio, mostrando confirmação ou erro.
+
+## v3.2.0 - Título/cor/tamanho no construtor, espacador configurável e publicação no GitHub
+
+- Novo: 'Publicar no repositório', no construtor de relatórios — envia um relatório seu direto pro repositório público do GitHub sem precisar sair do app. Se for você, atualiza direto o relatório oficial; se for outro coordenador, abre um Pull Request pedindo entrada em 'comunidade', que só vale depois de revisado e aceito.
+- Novo: o nome do relatório virou um bloco próprio ('Título do relatório'), separado do 'Cabeçalho institucional' — permite colocar um Espaçador entre a imagem da escola e o título, e agora dá pra escolher o tamanho e a cor do título (algumas opções prontas ou qualquer código de cor).
+- Novo: nos blocos de texto do construtor, o tamanho da fonte do título e do corpo passa a ser editável (antes era fixo). O bloco 'Título e texto' foi renomeado só para 'Texto'.
+- Novo: o bloco 'Espaçador' deixa escolher quantas linhas em branco ele gera, em vez de sempre duas.
+- Novo: toda tabela de alunos nova já vem com as colunas 'Nº de Chamada' e 'Nome do Aluno' prontas, pra identificar o aluno de cara e mostrar que dá pra adicionar mais colunas ali.
+- O dropdown de campos do construtor só mostra 'Expansão' e 'Prova Paulista' quando a escola realmente tem esse tipo de dado importado — menos opções irrelevantes poluindo a lista.
+- Corrigido: 'Coordenação Pedagógica · Nº bimestre' ficava embutido no corpo do documento Word, colado no título — agora vira um rodapé que repete em toda página, e o espaçador finalmente separa a imagem institucional do título como esperado.
+- Corrigido: parâmetros desvinculados de um filtro (ou de 'quantidade de linhas editável') continuavam aparecendo na tela de gerar relatório mesmo sem afetar nada — e o botão 'usar parâmetro' num filtro podia acabar vinculando ao parâmetro errado sem avisar. As duas coisas causavam relatórios que pareciam configurados mas geravam valores sem sentido.
+
+## v3.1.1 - Correções e refinamentos no construtor de relatorios e diagnostico de turmas
+
+- Importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.
+- 'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.
+- Novo bloco 'Espaçador' no construtor de relatórios: acrescenta duas linhas em branco entre itens do documento (ex.: entre o cabeçalho e o título).
+- Nova seção 'Manutenção de dados', em Configurações: encontra e corrige disciplinas gravadas com grafias diferentes que são a mesma matéria (ex.: 'Orientação de Estudo - Matemática' e 'Orientação de Estudo Matemática') — sem essa correção, as notas ficavam divididas entre duas linhas em vez de uma só. Mostra a lista antes de corrigir; a correção mantém sempre a nota mais recente.
+- Correções e refinamentos: a Dashboard passa a avisar quando um aluno aparece ativo em duas turmas ao mesmo tempo (com opção de 'Dispensar' o aviso, que ainda assim continua sendo verificado por trás — se resolver sozinho depois, você é avisado); o bloco 'Parâmetros' do construtor de relatórios foi reorganizado pra mostrar direto onde cada parâmetro pode ser aplicado (filtro ou quantidade de linhas), permitindo criar e vincular tudo num clique só, sem precisar visitar filtros/colunas separadamente; no construtor, a seção 'Colunas' passa a vir antes de 'Condições' (mais lógico montar a planilha antes de filtrar) e o nome da coluna é preenchido automaticamente a partir do campo escolhido, podendo ser editado à mão.
+
+## v3.1.0 - Importador de Expansões, PEI em PDF e manutenção de dados
+
+- Novo: importador de Disciplinas de Expansão (período noturno) — carregue a planilha de progresso da plataforma online e o app guarda um histórico datado por aluno, não só o valor mais recente. O motor de relatórios ganha campos novos (progresso e nota atuais, quanto o aluno evoluiu desde a última importação e no bimestre, dias sem acessar a plataforma) pra você montar seus próprios relatórios de acompanhamento — quem mais evoluiu, quem está parado, quem precisa de atenção — sem esperar uma atualização do programa.
+- Novo: 'Exportar PEI (PDF)', na tela de PEI — junta todos os documentos de um aluno (todas as disciplinas e bimestres) num único PDF com o nome dele, em vez de vários .docx separados na pasta.
+- Novo bloco 'Espaçador' no construtor de relatórios: acrescenta duas linhas em branco entre itens do documento (ex.: entre o cabeçalho e o título).
+- Nova seção 'Manutenção de dados', em Configurações: encontra e corrige disciplinas gravadas com grafias diferentes que são a mesma matéria (ex.: 'Orientação de Estudo - Matemática' e 'Orientação de Estudo Matemática') — sem essa correção, as notas ficavam divididas entre duas linhas em vez de uma só. Mostra a lista antes de corrigir; a correção mantém sempre a nota mais recente.
+- Corrigido: no construtor de relatórios, 'Gerar agora' podia salvar um relatório com uma tabela sem nenhuma coluna configurada, mesmo o botão 'Salvar' recusando isso pelo mesmo motivo — agora as duas ações usam a mesma checagem.
+- Corrigido: em algumas distribuições Linux (ex.: Fedora), gerar relatórios em PDF falhava mesmo com a fonte certa instalada, porque o app só procurava fontes nos caminhos do Ubuntu/Debian.
+
+## v3.0.1 - Corrige perda de atendimentos na sincronização, duplicação de pessoas no grupo de trabalho e adiciona limite de linhas configurável no construtor
+
+- Novo: 'Criar relatório', na Central de Relatórios, ganhou um construtor visual em blocos — monte relatórios do zero escolhendo campos, filtros, ordenação, textos e o cabeçalho institucional, na ordem que quiser, sem precisar de uma atualização do programa. Um tutorial explica o construtor e o repositório no primeiro acesso à tela.
+- Novo: 'Repositório de relatórios' reúne modelos prontos pra baixar — os oficiais (Tarefas Realizadas, Prova Paulista e Educação Física, que deixaram de vir instalados por padrão) e os enviados pela comunidade de coordenadores. Cada relatório mostra quem montou.
+- O relatório 'Top 60' virou 'Top Alunos' e a quantidade de alunos listados por período passa a ser escolhida na hora de gerar, em vez de fixa em 60.
+- A imagem de cabeçalho institucional (configurada em Configurações › Instituição) agora também aparece nos relatórios exportados em Excel e PDF — já aparecia no Word.
+- Corrigido: depois de reformatar o computador e reinstalar o app, reentrar no grupo de trabalho com o mesmo nome não bastava pra recuperar a configuração automática de Planejamento/PEI feita antes da formatação — agora aparece um botão 'Essa configuração é minha' pra reivindicar a configuração de um perfil antigo com o mesmo nome de exibição.
+
+## v3.0.0 - Cabeçalho institucional em Excel/PDF, autoria no repositório, tutorial e reivindicação de config após reinstalação
+
+- Novo: 'Criar relatório', na Central de Relatórios, ganhou um construtor visual em blocos — monte relatórios do zero escolhendo campos, filtros, ordenação, textos e o cabeçalho institucional, na ordem que quiser, sem precisar de uma atualização do programa. Um tutorial explica o construtor e o repositório no primeiro acesso à tela.
+- Novo: 'Repositório de relatórios' reúne modelos prontos pra baixar — os oficiais (Tarefas Realizadas, Prova Paulista e Educação Física, que deixaram de vir instalados por padrão) e os enviados pela comunidade de coordenadores. Cada relatório mostra quem montou.
+- O relatório 'Top 60' virou 'Top Alunos' e a quantidade de alunos listados por período passa a ser escolhida na hora de gerar, em vez de fixa em 60.
+- A imagem de cabeçalho institucional (configurada em Configurações › Instituição) agora também aparece nos relatórios exportados em Excel e PDF — já aparecia no Word.
+- Corrigido: depois de reformatar o computador e reinstalar o app, reentrar no grupo de trabalho com o mesmo nome não bastava pra recuperar a configuração automática de Planejamento/PEI feita antes da formatação — agora aparece um botão 'Essa configuração é minha' pra reivindicar a configuração de um perfil antigo com o mesmo nome de exibição.
+
+## v2.24.1 - Corrige turmas duplicadas na sincronização
+
+- Corrigido: turmas podiam aparecer duplicadas na lista depois de sincronizar com um dispositivo em versão mais antiga do app — o merge casava as turmas pelo nome do arquivo, e um código gravado sem formatação (ex.: '2a SERIE A') virava um arquivo com nome diferente do já formatado ('2ª Série A'), então as duas nunca se uniam. A sincronização agora reconhece que são a mesma turma comparando o código sem acento/maiúsculas, une os dados dos dois lados e mantém só um registro.
+
+## v2.24.0 - Relatório Top 60 por Período e aviso de erro na sincronização automatica
+
+- Relatorio Top 60 por Periodo e aviso de erro na sincronizacao automatica.
+
+## v2.23.1 - Corrige relatório de Educação Física listando turma inteira
+
+- Corrigido: o relatório 'Educação Física — Ensino Médio' (novo na 2.23.0) listava a turma inteira em vez de só quem faz a disciplina — a carga horária de EF é um número por turma (mesmo valor pra sala toda), então bastava 1 aluno real de EF ter sido casado naquela sala pra todo mundo dela entrar no relatório com frequência 100% inventada. Agora só entra quem tem falta de EF lançada individualmente.
+
+## v2.23.0 - Relatório de Educação Física e correção de frequência no sync
+
+- Novo relatório 'Educação Física — Ensino Médio' na Central de Relatórios: exporta em planilha (.csv) nome, turma e frequência dos alunos do EM que têm Educação Física lançada — a disciplina chega por um mapão separado e nem todo aluno a faz, então só entram os alunos com carga horária de EF de fato lançada.
+- Corrigido: reimportar o mapão de um bimestre anterior depois de já ter importado um mais recente podia fazer a frequência exibida na ficha do aluno regredir — o app agora só atualiza esse número quando o mapão importado é do bimestre igual ou mais recente que o já registrado.
+- Corrigido: sincronizar entre dois dispositivos que tinham importado mapões de bimestres diferentes podia apagar as faltas por disciplina de um dos lados, distorcendo o total de faltas do ano — a sincronização agora combina os bimestres de cada lado em vez de substituir um pelo outro.
+
+## v2.22.3 - Corrige tela de novidades travada em monitores menores
+
+- Corrigido: a tela de novidades ('o que há de novidade') podia ficar travada em monitores menores, sem espaço para rolar até o botão 'Entendi' nem forma de fechar — agora ela sempre cabe na tela (com rolagem interna quando o texto é longo), e também fecha com Esc ou clicando fora.
+
+## v2.22.2 - Corrige exclusão de disciplinas de expansão no Planejamento/PEI e índice do PEI
+
+- Corrigido: a correção da versão anterior para disciplinas que aparecem tanto no mapão normal quanto no de expansão com grafias diferentes (ex.: 'Língua Inglesa' no normal e 'LINGUA INGLESA' no de expansão) não funcionava de fato — a comparação usava o texto exato e não reconhecia as duas grafias como a mesma disciplina, deixando a versão de expansão aparecer como se fosse uma disciplina própria, sem plano nem PEI. Agora a comparação ignora acento e caixa.
+- Ajustado: só 'Projeto de Vida' deixou de exigir Plano de Ensino e PEI (é um componente de tutoria sem professor de componente dedicado). Redação e Leitura e Orientação de Estudo continuam exigindo os dois documentos normalmente — a versão anterior desta correção tinha excluído essas duas por engano.
+- O PEI passa a esconder as disciplinas de mapão de expansão da cobrança de documento, do mesmo jeito que o Planejamento já fazia — antes só o Planejamento respeitava essa marcação.
+- Corrigido: PEIs já entregues por um Forms antigo (antes da migração para o Web App automático) ou gerados com uma versão anterior do app (antes da correção de acentos no nome do arquivo) ficavam invisíveis na tela de acompanhamento e no relatório de pendências, mesmo com o documento salvo na pasta do aluno. A tela agora reconcilia com os documentos já existentes na pasta de cada aluno elegível.
+- Planejamento: nomes de disciplina na matriz passam a ter caixa consistente (Título Case), mesmo quando vêm de um mapão que grava o nome todo em maiúsculas (comum em componentes de expansão/itinerário).
+
+## v2.22.1 - Corrige build Linux quebrado no 2.22.0 (import de env fora do cfg certo)
+
+- Corrigido: disciplinas de mapões de 'Tipo de Ensino: Expansão' (turmas não seriadas de itinerário/aprofundamento) apareciam na tela de Planejamento como se precisassem de Plano de Ensino, mesmo sem nenhum professor responsável por planejá-las. As notas continuam entrando normalmente nos alunos/conselho — só a cobrança de plano não se aplica mais a essas disciplinas. Quando a mesma disciplina existe nos dois mapões (ex.: Língua Inglesa no mapão normal e no de expansão), ela continua contando como disciplina normal.
+- Corrigido: a mesma disciplina podia aparecer duas vezes na lista de Planejamento (ex.: 'Orientação de Estudo em Matemática' e 'ORIENTACAO DE ESTUDO - MATEMATICA') quando o mapão do SED e o Web App usavam redações diferentes — hífen, a palavra 'em' ou um sufixo de série coladas ao nome. Essas variações passam a ser reconhecidas como a mesma disciplina.
+- Corrigido: trocar o coordenador responsável por uma turma podia sobrescrever o texto da ata e o tempo de reunião do conselho pelos dados do 1º bimestre, mesmo estando em outro bimestre no momento.
+- Corrigido: criar uma tarefa a partir de um evento do calendário não atualizava o Dashboard nem o Quadro de Gestão até recarregar o app.
+- Corrigido: salvar educação especial ou atendimento de um aluno sem matrícula cadastrada falhava em silêncio, sem avisar o coordenador.
+- Corrigido: a lista de eventos do calendário disponíveis para vincular a uma tarefa no Kanban podia ficar desatualizada depois de uma sincronização de grupo.
+
+## v2.21.6 - Corrige sync do Web App de Planejamento/PEI; acompanhamento agora vem dos arquivos locais
+
+- Corrigido: a sincronização (de grupo ou institucional) podia apagar da configuração de Planejamento/PEI o vínculo com a planilha e o projeto Apps Script já criados, mesmo em quem originalmente configurou — o sintoma era erro 'Acesso negado' ao ler respostas e, ao clicar em 'Atualizar turmas/republicar' nesse estado, uma planilha nova e vazia em vez de reaproveitar a existente.
+- Corrigido: uma resposta sem turma selecionada gerava um documento de planejamento numa pasta fantasma (só o nome do ano, sem a letra da turma) misturada às pastas das turmas reais — agora aparece marcada como 'SEM TURMA' para ficar claro que é uma resposta a corrigir na planilha.
+- Nomes de arquivo gerados (planejamento e PEI) não trocam mais cada letra acentuada por '_' (ex.: 'Educação Física' virava 'Educa__o F_sica') — os acentos são convertidos para a letra correspondente, o que também evita gerar arquivos diferentes para o mesmo texto digitado de formas diferentes.
+- As telas de Planejamento e PEI passam a mostrar o status (turmas coloridas, quantidade gerada, 'Abrir pasta') a partir dos documentos já salvos no computador, não só da última busca na planilha — um erro pontual de leitura não faz mais turmas com documento já gerado aparecerem como se nada tivesse sido entregue. Recarregar também deixa de reescrever documentos cujo conteúdo não mudou.
+
+## v2.21.5 - Corrige race no botão de sincronizar do grupo de trabalho
+
+- Corrigido: o botão 'Sincronizar do grupo de trabalho' (Configurações → Perfil & Sincronização) podia trazer o estado de outro coordenador em vez do mais recente de cada um — ele lia um arquivo único compartilhado, sobrescrito por qualquer publicação de qualquer pessoa do grupo, em vez do arquivo próprio de cada coordenador (que é o que o ciclo automático de sincronização já usava corretamente). Isso podia fazer a config de Planejamento/PEI de um coordenador nunca chegar aos demais, de forma intermitente.
+
+## v2.21.4 - Web App de Planejamento/PEI compartilhado sem OAuth extra
+
+- Planejamento e PEI: quando um coordenador do grupo de trabalho já configurou o Web App automático, os demais deixam de precisar clicar em 'Criar automaticamente' — a config (link e token de leitura) chega sozinha pela sincronização de grupo já existente (Kanban/Calendário), e a tela mostra só o nome (e foto, se houver) de quem configurou, com um botão 'Carregar agora'.
+- Se mesmo assim alguém clicar em 'Criar automaticamente' tendo uma configuração de grupo já ativa, o app avisa que isso cria uma configuração paralela e substitui a atual nesta máquina, antes de prosseguir — o objetivo é manter só uma configuração ativa por escola.
+
+## v2.21.3 - Corrige falso "crítico" no status do PEI e avisos de troubleshooting
+
+- Corrigido: a bolinha de status do PEI podia acusar 'crítico' (vermelho) mesmo com vários PEIs recebidos, quando a carga horária do 3º/4º bimestre ainda não tinha sido importada para o aluno — agora, sem esse dado, ela cai num indicador simples (recebeu algo ou não) em vez de um falso vermelho.
+- Telas de Planejamento e PEI ganham avisos na aba Automático: o que fazer se o Google mostrar 'Acesso bloqueado'/'app não verificado' ao autorizar (link direto pro tutorial de client próprio), e o que fazer se o link parar de abrir para outras pessoas depois de republicar (falha conhecida da API do Google ao atualizar implantações — resolvida resalvando a implantação pelo editor do Apps Script).
+
+## v2.21.2 - Hotfix de teste e "o que há de novo" (2.21.0/2.21.1 não foram a publico)
+
+- Planejamento e PEI ganham um Web App próprio, criado e republicado automaticamente pelo CoordenacaoOP (autorização única com sua conta Google) — sem precisar mais colar script no Apps Script nem compartilhar planilha manualmente. O caminho manual antigo (script/Forms) continua disponível como alternativa, na aba 'Manual' de cada tela.
+- No Web App do PEI, o professor escolhe a própria turma e só vê os alunos elegíveis dela — turmas sem nenhum aluno elegível nem aparecem na lista — e o componente curricular já vem filtrado pelas disciplinas reais daquele aluno.
+- Os dois Web Apps têm impressão/PDF sem precisar de nenhuma autorização extra, cópia por e-mail opcional para o professor e um botão para enviar outro planejamento/PEI sem recarregar a página.
+- PEI e Planejamento viram itens próprios do menu lateral, em vez de cards dentro de Relatórios.
+- Os prazos de entrega por semestre (1º/2º bimestre e 3º/4º) saem do Planejamento e passam a ser configuração da instituição, ajustável em Configurações → Instituição ou no assistente inicial — os valores já configurados são migrados automaticamente. O indicador de status do PEI passa a seguir esses mesmos prazos, em vez de depender de médias já importadas.
+- Quem não conseguir usar 'Criar automaticamente' por causa do limite de usuários de teste do Google pode agora configurar seu próprio client OAuth, sem precisar recompilar o app — veja o tutorial 'Configurar_Client_OAuth_Proprio.md' no repositório.
+
+## v2.21.1 - Client OAuth próprio (config sem recompilar) e tutorial
+
+- Client OAuth proprio (config sem recompilar) e tutorial.
+
+## v2.20.1 - Quickfix no relatório de Elegíveis a Recuperação
+
+- Quickfix no relatorio de Elegiveis a Recuperacao.
+
+## v2.20.0 - Elegíveis a recuperação, responsável múltiplo e reorganização de Configurações
+
+- Novo relatório 'Elegíveis à Prova de Recuperação': lista, por turma, os alunos com um percentual configurável de notas vermelhas (50% por padrão, ajustável na própria tela) somando todos os bimestres, e aponta qual nota o professor deve substituir após a recuperação — 1º ou 2º bimestre, e 3º ou 4º, separados por página e por disciplina para facilitar a entrega a cada professor.
+- Tela de Configurações reorganizada: a navegação passa a ter 2 níveis fixos (Institucional, Conselho, Perfil & Sincronização, Sistema) em vez de uma lista com 7 itens soltos. As 4 seções do Conselho (Perfil da turma, Aluno destaque, Encaminhamentos, Notas na ATA) e 'Perfil e sincronização' viram destinos diretos, sem precisar abrir um acordeão dentro de outro.
+- Quadro Kanban: o campo Responsável passa a aceitar mais de um coordenador do grupo de trabalho (ou o próprio nome, quando não há grupo configurado), com o mesmo seletor usado em Vínculos.
+- Corrigidos casos de texto ilegível no tema escuro: nota editável nas tabelas, seletor de arquivo do Kanban, opções de documento do conselho, botão de cancelar ao criar turma, cronômetro do modo reunião e popover de histórico de notas.
+
+## v2.19.0 - Parecer do Conselho por bimestre e impressão de notas
+
+- O campo 'Parecer do Conselho' na ficha do aluno agora mostra os encaminhamentos já marcados no Conselho, organizados por bimestre (1º ao 4º) — sem precisar trocar de tela para consultar o que foi combinado em cada bimestre.
+- Novo botão 'Imprimir notas e parecer' na ficha do aluno: gera uma impressão com a tabela de notas por disciplina e o parecer por bimestre, pronta para entregar ou arquivar.
+- Corrigido: os assistentes de configuração (Conselho, Turmas, Setup inicial) podiam ficar com os botões de navegação fora da tela quando havia muitos itens cadastrados, sem forma de rolar, salvar ou fechar. Agora rolam normalmente.
+
+## v2.18.0 - Configuração de conselho, encaminhamentos e assistente inicial
+
+- Novo assistente de configuração inicial: além da sincronização, agora também cadastra os dados da instituição e permite criar a primeira turma sem sair do assistente.
+- Turmas e Conselho ganham assistentes de configuração próprios (líder de sala, elegível, perfil da turma, aluno destaque, encaminhamentos), acessíveis a qualquer momento — não só no primeiro acesso.
+- Encaminhamentos do conselho (a lista de 'outras observações e encaminhamentos' da ATA) deixam de ser fixos: a coordenação pode adicionar, editar, reordenar e remover opções em Configurações. Cada opção tem um número fixo, preservado mesmo ao editar a lista, para não invalidar marcações já feitas em outras turmas.
+- Tela 'Configuração de Conselho' reorganizada em acordeão — Perfil da Turma, Aluno destaque, Encaminhamentos e Notas na ATA começam fechados, com um resumo de uma linha, reduzindo a rolagem.
+- Scripts de planejamento (Anos Finais e Ensino Médio) passam a montar o Forms em etapas, com continuação automática a cada minuto, evitando o timeout do Apps Script em formulários grandes.
+
+## v2.17.0 - Prazos de entrega do planejamento por semestre
+
+- Planejamento dos Professores: cada segmento (Anos Finais e Ensino Médio) agora usa uma única planilha de respostas cobrindo o ano letivo inteiro (1º ao 4º bimestre), em vez de uma planilha por semestre — configuração mais simples do Forms.
+- Novos prazos de entrega por semestre na tela de Planejamento: defina a data de corte do 1º e do 2º semestre e a bolinha de cada turma passa a indicar entrega completa (verde), parcial (amarelo) ou nenhuma (vermelho), comparando com as disciplinas do mapão.
+- Corrigida a leitura da planilha do Forms quando Turma, Componente, Série/Ano ou Bimestre aparecem em colunas repetidas (um ramo do formulário por resposta anterior) — o app agora usa sempre a primeira coluna preenchida.
+- Renomeado 'Fundamental' para 'Anos Finais' no script e na tela de Planejamento, alinhado à nomenclatura oficial.
+
+## v2.16.1 - Hotfix de atualização das telas
+
+- Hotfix de atualizacao das telas.
+
+## v2.16.0 - Pendrive do conselho e status por bimestre
+
+- Novo 'Pendrive do conselho': prepare um pendrive com as turmas do conselho — o app copia a si mesmo e os dados necessários (notas, fotos e configurações). Faça o conselho em qualquer computador e reintegre tudo na volta.
+- Reintegração com um clique: ao abrir o app com o pendrive plugado, ele detecta o conselho feito e oferece a reintegração, criando um backup de segurança antes de mesclar.
+- A tela de conselhos mostra o andamento por bimestre em cada turma: selo verde com a data quando o conselho foi finalizado e selo vermelho quando a turma está em conselho externo.
+- Tutorial de primeiro acesso na tela de conselhos, apresentando os selos de status e o fluxo do pendrive.
+- Corrigido: o status de 'conselho finalizado' considerava apenas o 1º bimestre — agora vale para todos os bimestres.
+- Corrigido: conselhos finalizados em outra máquina (sincronização ou pendrive) não se perdem mais na mesclagem — a finalização mais recente vence e o texto da ata acompanha.
+- Desempenho: sincronização, importações, backups e geração de documentos deixaram de travar a interface.
+- Quadro Kanban, calendário e caches de PEI/planejamento ganharam cópia de segurança em disco, restaurada automaticamente se o navegador interno perder os dados.
+
+## v2.15.4 - Fix de turmas duplicadas no sync e clareza na importação
+
+- Corrigida a duplicação de turmas na sincronização: cópias de conflito criadas pelo OneDrive (ex.: 'turma_X-NomePC') agora são ignoradas e removidas automaticamente — as turmas não aparecem mais duplicadas ou triplicadas após sincronizar.
+- Criação de turmas (individual e em lote) passa a bloquear duplicatas com grafia diferente do mesmo nome — ex.: '3ª SERIE A' não cria mais uma cópia de '3ª Série A'.
+- Importação de notas mais clara: o contador 'Duplicados' virou 'Ambíguos' (alunos cujo nome casa com mais de um estudante, deixados de fora por segurança) e a prévia agora informa quantos alunos serão importados e atualizados.
+
+## v2.15.3 - Ajustes e correções
+
+- Conselho de classe: o Perfil da Turma passa a respeitar a configuração principal e só aparece quando estiver ativado.
+- Perfil da Turma e Aluno Destaque agora vêm desativados por padrão nas configurações.
+- Atendimentos do aluno já ficam disponíveis com os tipos padrão do app, mesmo antes de o coordenador salvar as configurações.
+- Tema escuro refinado nas telas de Perfil da Turma e Atendimentos, com melhor leitura de tabelas, cards e linha do tempo.
+- Modal de registro de atendimento ajustado para manter o botão de salvar acessível também na versão instalada.
+
+## v2.15.2 - Relatório de tarefas com abas por turma e seletor
+
+- Relatorio de Tarefas agora exporta planilha Excel (.xlsx) com uma aba por turma — sem misturar turmas diferentes na mesma tabela.
+- Seletor de turmas: escolha quais turmas incluir no relatorio com checkboxes individuais e botoes 'Todas' / 'Nenhuma'.
+- Turmas ordenadas por codigo na planilha e no seletor.
+
+## v2.15.1 - Resolução de ambíguos por contexto e fix do atualizador
+
+- Resolucao automatica de alunos ambiguos por contexto: quando um mesmo nome existe em mais de uma turma, o app identifica a turma correta contando quantos outros colegas do mesmo arquivo ja foram casados com cada candidata — sem necessidade de intervencao manual na maioria dos casos.
+- Previas de importacao mostram badge 'inferido' (laranja) para alunos resolvidos por contexto, com explicacao do criterio.
+- Corrigida sincronizacao da versao no binario instalado — o atualizador automatico nao exibe mais falso positivo apos a instalacao.
+
+## v2.15.0 - Importador e relatório da Prova Paulista e Tarefas
+
+- Importador de Tarefas Realizadas: carregue o CSV da SED com o andamento das tarefas dos alunos e registre feitas, total e percentual por bimestre.
+- Relatorio de Tarefas: exporte uma planilha (.csv) com Turma, Numero, Nome, Feitas, Total e Nota (0–10) de todos os alunos ativos por bimestre.
+- Importador da Prova Paulista: carregue a planilha XLSX de resultados e registre automaticamente as notas por disciplina e bimestre — deteccao automatica das disciplinas disponiveis (varia por serie).
+- Relatorio da Prova Paulista: exporte planilha (.csv) com colunas dinamicas por disciplina — so aparecem as disciplinas com dados importados para aquele bimestre.
+- Dados da Prova Paulista gravados individualmente em cada aluno, prontos para uso em outras funcoes.
+
+## v2.14.1 - Corrige boletim e importação de backup
+
+- Corrige boletim e importação de backup.
+
+## v2.14.0 - Busca global completa e dashboard redesenhado
+
+- Busca global completa e dashboard redesenhado.
+
+## v2.13.2 - Sincronização de versão no binário
+
+- Correcao interna: versao do aplicativo agora e gravada corretamente no binario — o atualizador automatico passa a funcionar de forma confiavel.
+
+## v2.13.1 - Corrige importador com RA duplicado
+
+- Corrigido: ao importar um CSV em que o mesmo aluno aparece mais de uma vez (ex.: 'Ativo' + 'TROCA ALUNO ENTRE CLASSES'), o app agora mantém a entrada ativa — sem necessidade de recriar a turma, basta reimportar o CSV.
+
+## v2.13.0 - Animações de tema e indicador de sincronização
+
+- Indicador de sincronizacao animado no rodape da barra lateral: ponto verde pulsante com o tempo da ultima sincronizacao ('agora mesmo', 'ha 1 min' etc.), atualizado a cada 30 segundos.
+- Colunas do Quadro Kanban animam a entrada ao abrir o quadro, aparecendo em cascata com atraso escalonado.
+- Cards de prioridade Alta pulsam suavemente em vermelho para destacar urgencia — a animacao e suprimida durante o arrasto.
+- Tema escuro: animacao de pulso usa cor e intensidade adaptadas para o tema escuro.
+
+## v2.12.0 - Corrige KanbanAnexoResultado: adiciona Deserialize e Clone
+
+- Nova aba 'Atendimentos' no perfil do aluno: registre atendimentos com tipo, data e descricao, adicione seguimentos (follow-ups) e anexe documentos.
+- Linha do tempo de seguimentos por atendimento para acompanhar o historico de cada caso.
+- Novo Relatorio de Atendimentos na Central de Relatorios: metricas agregadas por tipo, turma e periodo.
+- Tipos de atendimento configurados em Configuracoes — padrao inclui Disciplinar, Duvidas, Pedagogico, Financeiro e Educacao Especial; personalizaveis.
+
+## v2.11.1 - Corrige importação de turmas de anos iniciais
+
+- Corrige importação de turmas de anos iniciais.
+
 ## v2.11.0 - Busca global e redesign visual
 
 ### Busca global (nova função)
