@@ -41,11 +41,10 @@ pub(crate) fn publicar_estado_sincronizacao(input: SyncStateInput) -> Result<Syn
     fs::write(&peer_tmp, &conteudo).map_err(|err| err.to_string())?;
     fs::rename(&peer_tmp, &peer_destino).map_err(|err| err.to_string())?;
 
-    // Mantém o arquivo único para compatibilidade com versões antigas do app.
-    let destino = estado.join("workspace-state.json");
-    let temporario = estado.join(format!("workspace-state.{}.tmp", Local::now().timestamp_millis()));
-    fs::write(&temporario, &conteudo).map_err(|err| err.to_string())?;
-    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
+    // O arquivo único legado (state/workspace-state.json) não é mais gravado.
+    // Todos os dispositivos regravando o mesmo arquivo a cada ciclo fazia o
+    // OneDrive gerar uma cópia de conflito (~1 MB) a cada colisão — milhares
+    // por mês na pasta do grupo. Versões desde a v2.7.0 já leem state/peers/.
 
     if let Some(profile) = input.payload.get("profile") {
         let perfil_path = dispositivos.join(format!("{}.json", nome_arquivo_seguro(&input.device_id)));
@@ -853,6 +852,8 @@ pub(crate) fn mesclar_conselhos_turma(
 // Google Drive) recebem sufixo com o nome do dispositivo: "turma_X-NomePC.json" ou
 // "turma_X-NomePC-2.json". Se remover sufixos "-token" do nome resultar em um
 // arquivo que também existe na mesma pasta, este é uma cópia de conflito, não uma turma.
+// O Syncthing usa outro padrão, inconfundível por si só:
+// "turma_X.sync-conflict-20260930-153012-ABCDEFG.json".
 pub(crate) fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
     let Some(pasta) = caminho.parent() else {
         return false;
@@ -860,6 +861,9 @@ pub(crate) fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
     let Some(stem) = caminho.file_stem().and_then(|s| s.to_str()) else {
         return false;
     };
+    if stem.contains(".sync-conflict-") {
+        return true;
+    }
     let mut base = stem;
     while let Some(pos) = base.rfind('-') {
         base = &base[..pos];

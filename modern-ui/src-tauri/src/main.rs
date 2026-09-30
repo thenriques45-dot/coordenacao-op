@@ -1308,4 +1308,25 @@ mod tests {
 
         fs::remove_dir_all(&peers).unwrap();
     }
+
+    #[test]
+    fn copia_de_conflito_do_syncthing_nao_entra_como_peer() {
+        let peers = pasta_temporaria("peers-syncthing");
+        let original = peers.join("f00ce5b1-1b7e-45f1-8b36-125ea9cddf3f.json");
+        let conflito = peers.join(
+            "f00ce5b1-1b7e-45f1-8b36-125ea9cddf3f.sync-conflict-20260930-153012-777V5SL.json",
+        );
+        fs::write(&original, "{}").unwrap();
+        fs::write(&conflito, "{}").unwrap();
+
+        assert!(eh_copia_de_conflito_sync(&conflito));
+        assert!(!eh_copia_de_conflito_sync(&original));
+
+        // Mesmo sem o original ao lado (ex.: turma apagada depois), o padrão
+        // do Syncthing continua sendo cópia de conflito.
+        fs::remove_file(&original).unwrap();
+        assert!(eh_copia_de_conflito_sync(&conflito));
+
+        fs::remove_dir_all(&peers).unwrap();
+    }
 }
