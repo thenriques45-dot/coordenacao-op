@@ -151,44 +151,47 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
         });
     }
 
+    limpar_temporarios_institucionais_antigos(&estado, Local::now().timestamp_millis());
+
     let temporario = estado.join(format!(
         "institutional-data.{}.tmp",
         Local::now().timestamp_millis()
     ));
-    if temporario.exists() {
-        fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
-    }
-    fs::create_dir_all(&temporario).map_err(|err| err.to_string())?;
-
     let mut total = 0;
-    if origem.exists() {
-        copiar_dados_institucionais(&origem, &temporario.join("dados"), &mut total)
-            .map_err(|err| err.to_string())?;
-    } else {
-        fs::create_dir_all(temporario.join("dados")).map_err(|err| err.to_string())?;
-    }
-
     let atualizado_em = Local::now().to_rfc3339();
-    let manifesto = serde_json::json!({
-        "app": "CoordenacaoOP",
-        "tipo": "coordenacaoop-institutional-data",
-        "formato": 1,
-        "versao_app": env!("CARGO_PKG_VERSION"),
-        "device_id": input.device_id,
-        "atualizado_em": atualizado_em,
-        "assinatura": assinatura,
-        "total_arquivos": total,
-    });
-    fs::write(
-        temporario.join("manifest.json"),
-        serde_json::to_vec_pretty(&manifesto).map_err(|err| err.to_string())?,
-    )
-    .map_err(|err| err.to_string())?;
+    let montagem = (|| -> io::Result<()> {
+        if temporario.exists() {
+            fs::remove_dir_all(&temporario)?;
+        }
+        fs::create_dir_all(&temporario)?;
 
-    if destino.exists() {
-        fs::remove_dir_all(&destino).map_err(|err| err.to_string())?;
+        if origem.exists() {
+            copiar_dados_institucionais(&origem, &temporario.join("dados"), &mut total)?;
+        } else {
+            fs::create_dir_all(temporario.join("dados"))?;
+        }
+
+        let manifesto = serde_json::json!({
+            "app": "CoordenacaoOP",
+            "tipo": "coordenacaoop-institutional-data",
+            "formato": 1,
+            "versao_app": env!("CARGO_PKG_VERSION"),
+            "device_id": input.device_id,
+            "atualizado_em": atualizado_em,
+            "assinatura": assinatura,
+            "total_arquivos": total,
+        });
+        fs::write(temporario.join("manifest.json"), serde_json::to_vec_pretty(&manifesto)?)?;
+
+        trocar_diretorio_institucional(&temporario, &destino)
+    })();
+    if let Err(err) = montagem {
+        // Sem isto, cada publicação que falhava (OneDrive travando arquivos no
+        // Windows, app fechado no meio) deixava uma cópia inteira dos dados
+        // na pasta do grupo.
+        let _ = fs::remove_dir_all(&temporario);
+        return Err(err.to_string());
     }
-    fs::rename(&temporario, &destino).map_err(|err| err.to_string())?;
     salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
 
     Ok(SyncInstitutionalResultado {
@@ -451,6 +454,60 @@ pub(crate) fn copiar_dados_institucionais(
         copiar_recursivamente_contando(&entrada.path(), &destino.join(&nome), total)?;
     }
     Ok(())
+}
+
+/// Põe `temporario` no lugar de `destino` sem deixar o grupo sem dados: a
+/// versão atual é afastada por rename (em vez de `remove_dir_all`, que no
+/// Windows falhava no meio com o OneDrive travando arquivos e deixava
+/// `destino` pela metade) e volta ao lugar se a troca falhar.
+pub(crate) fn trocar_diretorio_institucional(temporario: &Path, destino: &Path) -> io::Result<()> {
+    if !destino.exists() {
+        return fs::rename(temporario, destino);
+    }
+    let antigo = destino.with_file_name(format!(
+        "institutional-data.{}.old.tmp",
+        Local::now().timestamp_millis()
+    ));
+    fs::rename(destino, &antigo)?;
+    if let Err(err) = fs::rename(temporario, destino) {
+        let _ = fs::rename(&antigo, destino);
+        return Err(err);
+    }
+    // Se falhar agora (arquivo travado), a faxina da próxima publicação apaga.
+    let _ = fs::remove_dir_all(&antigo);
+    Ok(())
+}
+
+/// Idade a partir da qual um `institutional-data.<ms>[.old].tmp` é tido como
+/// sobra. Mais novo que isso pode ser a publicação em andamento de outro
+/// coordenador.
+const IDADE_SOBRA_INSTITUCIONAL_MS: i64 = 60 * 60 * 1000;
+
+/// Apaga da pasta do grupo as sobras de publicações interrompidas. O nome
+/// traz o instante de criação em milissegundos; só o que tem mais de
+/// `IDADE_SOBRA_INSTITUCIONAL_MS` é removido.
+pub(crate) fn limpar_temporarios_institucionais_antigos(estado: &Path, agora_ms: i64) {
+    let Ok(entradas) = fs::read_dir(estado) else {
+        return;
+    };
+    for entrada in entradas.flatten() {
+        let nome = entrada.file_name();
+        let Some(nome) = nome.to_str() else {
+            continue;
+        };
+        let Some(resto) = nome.strip_prefix("institutional-data.") else {
+            continue;
+        };
+        if !resto.ends_with(".tmp") {
+            continue;
+        }
+        let Some(criado_ms) = resto.split('.').next().and_then(|ms| ms.parse::<i64>().ok()) else {
+            continue;
+        };
+        if agora_ms - criado_ms >= IDADE_SOBRA_INSTITUCIONAL_MS {
+            let _ = fs::remove_dir_all(entrada.path());
+        }
+    }
 }
 
 pub(crate) fn copiar_recursivamente_contando(

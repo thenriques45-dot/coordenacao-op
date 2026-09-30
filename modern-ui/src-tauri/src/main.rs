@@ -1329,4 +1329,48 @@ mod tests {
 
         fs::remove_dir_all(&peers).unwrap();
     }
+
+    #[test]
+    fn faxina_apaga_so_sobras_institucionais_antigas() {
+        let estado = pasta_temporaria("estado-faxina");
+        let agora: i64 = 1_790_000_000_000;
+        let hora: i64 = 60 * 60 * 1000;
+        let antiga = estado.join(format!("institutional-data.{}.tmp", agora - 2 * hora));
+        let antiga_old = estado.join(format!("institutional-data.{}.old.tmp", agora - 2 * hora));
+        let recente = estado.join(format!("institutional-data.{}.tmp", agora - 5 * 60 * 1000));
+        let atual = estado.join("institutional-data");
+        let alheia = estado.join("outra-coisa.tmp");
+        for pasta in [&antiga, &antiga_old, &recente, &atual, &alheia] {
+            fs::create_dir_all(pasta.join("dados")).unwrap();
+        }
+
+        limpar_temporarios_institucionais_antigos(&estado, agora);
+
+        assert!(!antiga.exists());
+        assert!(!antiga_old.exists());
+        assert!(recente.exists(), "pode ser a publicação em andamento de outro coordenador");
+        assert!(atual.exists());
+        assert!(alheia.exists());
+
+        fs::remove_dir_all(&estado).unwrap();
+    }
+
+    #[test]
+    fn troca_institucional_substitui_sem_deixar_sobras() {
+        let estado = pasta_temporaria("estado-troca");
+        let destino = estado.join("institutional-data");
+        let temporario = estado.join("institutional-data.123.tmp");
+        fs::create_dir_all(destino.join("dados")).unwrap();
+        fs::write(destino.join("manifest.json"), "velho").unwrap();
+        fs::create_dir_all(temporario.join("dados")).unwrap();
+        fs::write(temporario.join("manifest.json"), "novo").unwrap();
+
+        trocar_diretorio_institucional(&temporario, &destino).unwrap();
+
+        assert_eq!(fs::read_to_string(destino.join("manifest.json")).unwrap(), "novo");
+        let restantes: Vec<_> = fs::read_dir(&estado).unwrap().flatten().map(|e| e.file_name()).collect();
+        assert_eq!(restantes, vec![std::ffi::OsString::from("institutional-data")]);
+
+        fs::remove_dir_all(&estado).unwrap();
+    }
 }
