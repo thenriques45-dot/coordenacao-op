@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.2.4 - Pasta compartilhada sem cópias acumuladas
+
+### Sincronização do grupo de trabalho
+- **Fim das cópias `institutional-data.<n>.tmp`:** a publicação dos dados institucionais montava uma cópia completa dos dados numa pasta temporária e, se o OneDrive travasse algum arquivo durante a troca (comum no Windows), a cópia ficava abandonada na pasta do grupo. Eram ~70 sobras (~15 GB) desde junho. Agora a troca é feita por renomeação — a versão anterior só é apagada depois que a nova está no lugar, e volta se algo falhar —, o temporário é apagado em caso de erro e cada publicação remove sobras com mais de 1 hora.
+- **Fim das cópias de conflito de `workspace-state.json`:** todos os dispositivos regravavam esse arquivo legado a cada ciclo, e o OneDrive criava uma cópia de conflito (~1 MB) a cada colisão — 5.909 cópias (4,6 GB). Desde a v2.7.0 cada dispositivo publica o próprio arquivo em `state/peers/`, então o legado deixou de ser gravado (a leitura continua, por compatibilidade).
+- **Syncthing:** cópias de conflito no padrão do Syncthing (`arquivo.sync-conflict-AAAAMMDD-HHMMSS-ID.json`) passam a ser reconhecidas e ignoradas, como já acontecia com as do OneDrive e do Google Drive.
+
 ## v2.11.0 - Busca global e redesign visual
 
 ### Busca global (nova função)
