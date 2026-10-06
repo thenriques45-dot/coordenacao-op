@@ -235,7 +235,7 @@ export type IndicadorAluno = {
   mediaAtual: number | null;
   disciplinasAbaixo: string[];
   variacaoNotas: number | null; // média do bimestre atual − média do anterior com nota
-  pp: { bimestre: string; percentual: number | null; participou: boolean }[];
+  pp: { bimestre: string; percentual: number | null; participou: boolean; disciplinas: Record<string, number> }[];
   ppUltimo: number | null;
   ppPrimeiro: number | null;
   ppVariacao: number | null;
@@ -426,6 +426,11 @@ export function calcularDiagnostico(
       bimestre: b,
       percentual: paraPercentual(prova[b]?.geral),
       participou: prova[b]?.participou !== false,
+      disciplinas: Object.fromEntries(
+        Object.entries(prova[b]?.disciplinas ?? {})
+          .map(([nome, valor]) => [nome, paraPercentual(valor)] as const)
+          .filter((par): par is readonly [string, number] => par[1] !== null),
+      ),
     }));
     const ppComNota = pp.filter((item) => item.percentual !== null);
     const ppPrimeiro = ppComNota.length ? ppComNota[0].percentual : null;
@@ -1003,4 +1008,153 @@ function montarLeitura(diag: DiagnosticoTurma) {
   diag.pontosAtencao = atencao.sort((a, b) => ordemTom[a.tom] - ordemTom[b.tom]);
   diag.pontosPositivos = positivos;
   diag.sugestoes = sugestoes;
+}
+
+// ---------------------------------------------------------------------------
+// Leitura individual: o mesmo diagnóstico, recortado para um aluno
+// ---------------------------------------------------------------------------
+
+export type PresencaEmLista = { lista: string; posicao: number; total: number; tom: Tom };
+
+export type ComparacaoDisciplina = {
+  nome: string;
+  nota: number | null;
+  mediaTurma: number | null;
+  diferenca: number | null;
+};
+
+export type LeituraAluno = {
+  indicador: IndicadorAluno;
+  totalAlunos: number;
+  posicaoMedia: number | null; // 1 = maior média da turma
+  listas: PresencaEmLista[];
+  disciplinas: ComparacaoDisciplina[];
+  pontosAtencao: Alerta[];
+  pontosPositivos: Alerta[];
+  sugestoes: string[];
+};
+
+/**
+ * Onde o aluno aparece nas listas do relatório da turma, como ele se compara
+ * à média da turma e o que isso sugere. `limite` é o tamanho das listas do
+ * relatório (o aluno só "aparece" numa lista se estiver dentro dele).
+ */
+export function leituraAluno(diag: DiagnosticoTurma, chave: string, limite = 10): LeituraAluno | null {
+  const indicador = diag.alunos.find((a) => a.chave === chave);
+  if (!indicador) return null;
+  const todos = diag.alunos.length;
+
+  const listas: PresencaEmLista[] = [];
+  const verificar = (lista: string, tom: Tom, ranking: IndicadorAluno[]) => {
+    const idx = ranking.findIndex((a) => a.chave === chave);
+    if (idx >= 0 && idx < limite) listas.push({ lista, posicao: idx + 1, total: ranking.length, tom });
+  };
+  verificar("Alunos com mais faltas", "critico", rankingFaltas(diag, todos));
+  verificar("Alunos que mais precisam de apoio", "critico", rankingFragilidade(diag, todos));
+  verificar("Alunos desafio na Prova Paulista", "atencao", rankingQuedaPP(diag, todos));
+  verificar("Alunos desafio na AvD", "atencao", rankingDesafioAvd(diag, todos));
+  verificar("Maiores médias", "bom", rankingMelhoresMedias(diag, todos));
+  verificar("Alunos em ascensão nas notas", "bom", rankingEvolucaoNotas(diag, todos));
+  verificar("Alunos em ascensão na Prova Paulista", "bom", rankingEvolucaoPP(diag, todos));
+  verificar("Alunos em ascensão na AvD", "bom", rankingAscensaoAvd(diag, todos));
+
+  const porMedia = diag.alunos
+    .filter((a) => a.mediaAtual !== null)
+    .sort((a, b) => (b.mediaAtual ?? 0) - (a.mediaAtual ?? 0));
+  const idxMedia = porMedia.findIndex((a) => a.chave === chave);
+
+  const disciplinas: ComparacaoDisciplina[] = diag.disciplinas
+    .filter((d) => d.alunosComNota > 0 || indicador.notasAtuais[d.nome] !== undefined)
+    .map((d) => {
+      const nota = indicador.notasAtuais[d.nome] ?? null;
+      return {
+        nome: d.nome,
+        nota,
+        mediaTurma: d.media,
+        diferenca: nota !== null && d.media !== null ? nota - d.media : null,
+      };
+    })
+    .filter((d) => d.nota !== null || d.mediaTurma !== null);
+
+  const atencao: Alerta[] = indicador.motivosRisco.map((m) => ({ tom: m.tom, titulo: m.texto.charAt(0).toUpperCase() + m.texto.slice(1), texto: "" }));
+  const positivos: Alerta[] = [];
+  const sugestoes: string[] = [];
+
+  if (indicador.disciplinasAbaixo.length) {
+    const alerta = atencao.find((a) => a.titulo.includes("abaixo de"));
+    if (alerta) alerta.texto = indicador.disciplinasAbaixo.join(", ") + ".";
+    sugestoes.push(`Recuperação contínua em ${indicador.disciplinasAbaixo.slice(0, 3).join(", ")}, com combinado de atividades e retorno ao aluno.`);
+  }
+  if (indicador.disciplinaMaisFaltas && indicador.disciplinaMaisFaltas.frequencia < FREQ_CRITICA) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `Mais ausências em ${indicador.disciplinaMaisFaltas.nome}`,
+      texto: `Frequência de ${Math.round(indicador.disciplinaMaisFaltas.frequencia)}% nesta disciplina.`,
+    });
+  }
+  if (indicador.variacaoNotas !== null && indicador.variacaoNotas <= -1) {
+    atencao.push({ tom: "atencao", titulo: `Média caiu ${fmt(Math.abs(indicador.variacaoNotas))} ponto${Math.abs(indicador.variacaoNotas) >= 2 ? "s" : ""}`, texto: "Em relação ao bimestre anterior com notas." });
+    sugestoes.push("Conversa individual para entender a queda nas notas antes que vire defasagem.");
+  }
+  if (indicador.ppVariacao !== null && indicador.ppVariacao <= -5 && indicador.ppBimestresComparados) {
+    const [de, para] = indicador.ppBimestresComparados;
+    atencao.push({ tom: "atencao", titulo: `Prova Paulista caiu ${Math.round(Math.abs(indicador.ppVariacao))} p.p.`, texto: `Do ${de}º para o ${para}º bimestre.` });
+  }
+  for (const [rotulo, mudanca] of [["Língua Portuguesa", indicador.mudancaPortugues], ["Matemática", indicador.mudancaMatematica]] as const) {
+    if (mudanca && mudanca.passos < 0) atencao.push({ tom: "atencao", titulo: `Caiu de nível na AvD de ${rotulo}`, texto: "Da 1ª para a 2ª avaliação diagnóstica." });
+    if (mudanca && mudanca.passos > 0) positivos.push({ tom: "bom", titulo: `Subiu de nível na AvD de ${rotulo}`, texto: "Da 1ª para a 2ª avaliação diagnóstica." });
+  }
+
+  if (indicador.mediaAtual !== null && indicador.mediaAtual >= NOTA_BOA) {
+    positivos.push({ tom: "bom", titulo: `Média ${fmt(indicador.mediaAtual)}`, texto: idxMedia >= 0 ? `${idxMedia + 1}ª maior média da turma.` : "" });
+  }
+  if (indicador.frequencia !== null && indicador.frequencia >= 95) {
+    positivos.push({ tom: "bom", titulo: `Frequência de ${Math.round(indicador.frequencia)}%`, texto: "Aluno assíduo." });
+  }
+  if (indicador.variacaoNotas !== null && indicador.variacaoNotas >= 0.5) {
+    positivos.push({ tom: "bom", titulo: `Média subiu ${fmt(indicador.variacaoNotas)} ponto${indicador.variacaoNotas >= 2 ? "s" : ""}`, texto: "Em relação ao bimestre anterior com notas." });
+  }
+  if (indicador.ppVariacao !== null && indicador.ppVariacao >= 5 && indicador.ppBimestresComparados) {
+    const [de, para] = indicador.ppBimestresComparados;
+    positivos.push({ tom: "bom", titulo: `Prova Paulista subiu ${Math.round(indicador.ppVariacao)} p.p.`, texto: `Do ${de}º para o ${para}º bimestre.` });
+  }
+  if (indicador.ppUltimo !== null && indicador.ppUltimo >= PP_BOA) {
+    positivos.push({ tom: "bom", titulo: `${Math.round(indicador.ppUltimo)}% de acertos na Prova Paulista`, texto: "Resultado mais recente." });
+  }
+  if (indicador.tarefasPercentual !== null && indicador.tarefasPercentual >= 75) {
+    positivos.push({ tom: "bom", titulo: `${Math.round(indicador.tarefasPercentual)}% das tarefas realizadas`, texto: "Mantém a rotina de tarefas." });
+  }
+  const acima = disciplinas.filter((d) => d.nota !== null && d.nota >= NOTA_BOA && (d.diferenca ?? 0) >= 1).sort((a, b) => (b.diferenca ?? 0) - (a.diferenca ?? 0));
+  if (acima.length) {
+    positivos.push({ tom: "bom", titulo: "Acima da turma em", texto: acima.slice(0, 4).map((d) => `${d.nome} (${fmt(d.nota ?? 0)})`).join(", ") + "." });
+  }
+
+  if (indicador.frequencia !== null && indicador.frequencia < FREQ_ATENCAO) {
+    sugestoes.push(
+      indicador.frequencia < FREQ_CRITICA
+        ? "Busca ativa com a família e plano de compensação de ausências."
+        : "Contato com a família sobre as ausências, antes que a frequência chegue a 75%.",
+    );
+  }
+  if (indicador.avdPortugues === "abaixo" || indicador.avdMatematica === "abaixo") {
+    const componentes = [indicador.avdPortugues === "abaixo" ? "Língua Portuguesa" : null, indicador.avdMatematica === "abaixo" ? "Matemática" : null].filter(Boolean);
+    sugestoes.push(`Atividades de recomposição em ${componentes.join(" e ")}, no nível em que o aluno está.`);
+  }
+  if (indicador.tarefasPercentual !== null && indicador.tarefasPercentual < 50) {
+    sugestoes.push("Acompanhar semanalmente a entrega das tarefas das plataformas.");
+  }
+  if (indicador.elegivel) sugestoes.push("Conferir se as adaptações do PEI estão sendo aplicadas em todas as disciplinas.");
+  if (!sugestoes.length && !atencao.length) sugestoes.push("Manter o acompanhamento e reconhecer o bom desempenho com o aluno e a família.");
+
+  const ordemTom: Record<Tom, number> = { critico: 0, atencao: 1, bom: 2, neutro: 3 };
+  return {
+    indicador,
+    totalAlunos: todos,
+    posicaoMedia: idxMedia >= 0 ? idxMedia + 1 : null,
+    listas,
+    disciplinas,
+    pontosAtencao: atencao.sort((a, b) => ordemTom[a.tom] - ordemTom[b.tom]),
+    pontosPositivos: positivos,
+    sugestoes,
+  };
 }

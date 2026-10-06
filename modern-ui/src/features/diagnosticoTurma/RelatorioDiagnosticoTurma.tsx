@@ -1,14 +1,11 @@
-// Relatório Diagnóstico da Turma: painel geral, em páginas A4, para entregar
-// aos professores. Fica na aba "Diagnóstico" da tela da turma e imprime (ou
-// salva em PDF) só as páginas do relatório.
+// Relatório Diagnóstico da Turma: painel geral para entregar aos professores.
+// O mesmo conteúdo aparece na aba "Estatísticas" da turma (modo tela) e no
+// botão "Relatório diagnóstico", que imprime (ou salva em PDF) as páginas A4.
 
-import { AlertTriangle, CheckCircle2, Lightbulb, Printer, Star } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle2, FileText, Lightbulb, Printer, Star, X } from "lucide-react";
+import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { invokeApp, tauriDisponivel } from "../appBridge";
 import {
-  calcularDiagnostico,
-  EXTRAS_VAZIOS,
   FREQ_ATENCAO,
   FREQ_CRITICA,
   NIVEIS_AVD,
@@ -26,19 +23,18 @@ import {
   tomFrequencia,
   tomNota,
   tomProvaPaulista,
-  type AlunoDiag,
   type DiagnosticoTurma,
   type IndicadorAluno,
-  type IndicadoresExtras,
   type MudancaAvd,
   type NivelAvd,
   type Tom,
 } from "./calculos";
 import { BarraEmpilhada, BarrasHorizontais, Colunas, Legenda, Rosca, Variacao } from "./graficos";
+import { useImpressaoDiagnostico } from "./useDiagnostico";
 import "./diagnostico.css";
 
-type CriterioPerfil = { id: string; nome: string; opcoes: { nivel: string; label: string }[] };
-type CriterioDestaque = { id: string; titulo: string; icone: string };
+export type CriterioPerfil = { id: string; nome: string; opcoes: { nivel: string; label: string }[] };
+export type CriterioDestaque = { id: string; titulo: string; icone: string };
 
 export type CabecalhoTurmaDiagnostico = {
   rotulo: string;
@@ -63,7 +59,7 @@ const SECOES: { id: SecaoId; rotulo: string }[] = [
   { id: "avaliacoes", rotulo: "SARESP e destaques" },
 ];
 
-const TOM_NIVEL_AVD: Record<NivelAvd, Tom | "avancado"> = {
+export const TOM_NIVEL_AVD: Record<NivelAvd, Tom | "avancado"> = {
   abaixo: "critico",
   basico: "atencao",
   adequado: "bom",
@@ -71,12 +67,12 @@ const TOM_NIVEL_AVD: Record<NivelAvd, Tom | "avancado"> = {
   nao: "neutro",
 };
 
-function nota(valor: number | null | undefined) {
+export function nota(valor: number | null | undefined) {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return "—";
   return valor.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-function percentual(valor: number | null | undefined) {
+export function percentual(valor: number | null | undefined) {
   if (valor === null || valor === undefined || !Number.isFinite(valor)) return "—";
   return `${Math.round(valor)}%`;
 }
@@ -86,7 +82,7 @@ function abreviarDisciplina(nome: string) {
   return limpo.length > 26 ? `${limpo.slice(0, 25)}…` : limpo;
 }
 
-const ROTULO_CURTO_NIVEL: Record<NivelAvd, string> = {
+export const ROTULO_CURTO_NIVEL: Record<NivelAvd, string> = {
   abaixo: "Abaixo do básico",
   basico: "Básico",
   adequado: "Adequado",
@@ -94,7 +90,7 @@ const ROTULO_CURTO_NIVEL: Record<NivelAvd, string> = {
   nao: "—",
 };
 
-function CelulaMudancaAvd({ mudanca }: { mudanca: MudancaAvd | null }) {
+export function CelulaMudancaAvd({ mudanca }: { mudanca: MudancaAvd | null }) {
   if (!mudanca) return <span className="diag-avd-mudanca">—</span>;
   const classe = mudanca.passos > 0 ? "texto-bom" : mudanca.passos < 0 ? "texto-critico" : "";
   const seta = mudanca.passos > 0 ? "▲" : mudanca.passos < 0 ? "▼" : "=";
@@ -118,7 +114,7 @@ function CelulaMudancaAvd({ mudanca }: { mudanca: MudancaAvd | null }) {
   );
 }
 
-function Kpi({ rotulo, valor, tom, detalhe }: { rotulo: string; valor: string; tom: Tom; detalhe?: string }) {
+export function Kpi({ rotulo, valor, tom, detalhe }: { rotulo: string; valor: string; tom: Tom; detalhe?: string }) {
   return (
     <article className={`diag-kpi tom-borda-${tom}`}>
       <span>{rotulo}</span>
@@ -160,7 +156,7 @@ function Pagina({
   );
 }
 
-function Quadro({ titulo, children, className = "" }: { titulo: string; children: ReactNode; className?: string }) {
+export function Quadro({ titulo, children, className = "" }: { titulo: string; children: ReactNode; className?: string }) {
   return (
     <div className={`diag-quadro ${className}`}>
       <h3>{titulo}</h3>
@@ -169,9 +165,12 @@ function Quadro({ titulo, children, className = "" }: { titulo: string; children
   );
 }
 
-function Chip({ tom, children }: { tom: Tom; children: ReactNode }) {
+export function Chip({ tom, children }: { tom: Tom; children: ReactNode }) {
   return <span className={`diag-chip tom-fundo-${tom}`}>{children}</span>;
 }
+
+/** Na tela, o nome do aluno nas listas abre a ficha dele. */
+const AbrirAlunoContexto = createContext<((chave: string) => void) | null>(null);
 
 function TabelaAlunos({
   alunos,
@@ -182,6 +181,7 @@ function TabelaAlunos({
   colunas: { titulo: string; classe?: string; render: (aluno: IndicadorAluno) => ReactNode }[];
   vazio: string;
 }) {
+  const abrirAluno = useContext(AbrirAlunoContexto);
   if (!alunos.length) return <p className="diag-vazio">{vazio}</p>;
   return (
     <table className="diag-tabela">
@@ -199,7 +199,11 @@ function TabelaAlunos({
           <tr key={aluno.chave}>
             <td className="diag-col-pos">{idx + 1}</td>
             <td className="diag-col-nome">
-              {aluno.nome}
+              {abrirAluno ? (
+                <button type="button" className="diag-link-aluno" onClick={() => abrirAluno(aluno.chave)}>{aluno.nome}</button>
+              ) : (
+                aluno.nome
+              )}
               <small>Nº {aluno.chamada || "—"}{aluno.elegivel ? " · Ed. especial" : ""}</small>
             </td>
             {colunas.map((c) => (
@@ -219,6 +223,7 @@ function Relatorio({
   limite,
   criteriosPerfil,
   criteriosDestaque,
+  modo,
 }: {
   diag: DiagnosticoTurma;
   cabecalho: CabecalhoTurmaDiagnostico;
@@ -226,6 +231,7 @@ function Relatorio({
   limite: number;
   criteriosPerfil: CriterioPerfil[];
   criteriosDestaque: CriterioDestaque[];
+  modo: "papel" | "tela";
 }) {
   const b = diag.bimestreAtual;
   const total = diag.totalAlunos;
@@ -267,7 +273,7 @@ function Relatorio({
     : [];
 
   return (
-    <div className="diag-relatorio">
+    <div className={`diag-relatorio diag-modo-${modo}`}>
       {secoes.has("panorama") && (
         <section className="diag-pagina diag-capa">
           <header className="diag-capa-topo">
@@ -797,60 +803,60 @@ function Relatorio({
   );
 }
 
-export function RelatorioDiagnosticoTurma({
-  cabecalho,
-  alunos,
-  bimestre,
-  criteriosPerfil,
-  criteriosDestaque,
-}: {
+type PropsRelatorioTurma = {
+  diag: DiagnosticoTurma;
   cabecalho: CabecalhoTurmaDiagnostico;
-  alunos: AlunoDiag[];
-  bimestre: string | null | undefined;
   criteriosPerfil: CriterioPerfil[];
   criteriosDestaque: CriterioDestaque[];
-}) {
-  const [extras, setExtras] = useState<IndicadoresExtras>(EXTRAS_VAZIOS);
-  const [erroExtras, setErroExtras] = useState<string | null>(null);
+};
+
+/** Aba "Estatísticas" da turma: o diagnóstico completo, adaptado para a tela. */
+export function PainelEstatisticasTurma({
+  diag,
+  cabecalho,
+  criteriosPerfil,
+  criteriosDestaque,
+  erroExtras,
+  onAbrirAluno,
+}: PropsRelatorioTurma & { erroExtras?: string | null; onAbrirAluno?: (chave: string) => void }) {
+  const [limite, setLimite] = useState(10);
+  const todas = useMemo(() => new Set(SECOES.map((s) => s.id)), []);
+  return (
+    <section className="diag-tela">
+      <div className="diag-tela-barra no-print">
+        <p>
+          Diagnóstico do {diag.bimestreAtual}º bimestre com notas, frequência, Aluno Presente, Prova Paulista, AvD, SARESP e conselho de classe.
+          {onAbrirAluno && " Clique no nome de um aluno para abrir a ficha dele."}
+        </p>
+        <label className="diag-limite">
+          Alunos por lista
+          <select value={limite} onChange={(event) => setLimite(Number(event.target.value))}>
+            {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+      </div>
+      {erroExtras && <p className="danger-text no-print">Prova Paulista, tarefas e conselho não carregaram: {erroExtras}</p>}
+      <AbrirAlunoContexto.Provider value={onAbrirAluno ?? null}>
+        <Relatorio
+          diag={diag}
+          cabecalho={cabecalho}
+          secoes={todas}
+          limite={limite}
+          criteriosPerfil={criteriosPerfil}
+          criteriosDestaque={criteriosDestaque}
+          modo="tela"
+        />
+      </AbrirAlunoContexto.Provider>
+    </section>
+  );
+}
+
+/** Botão da tela da turma que abre as opções e imprime (ou salva em PDF) o relatório. */
+export function BotaoRelatorioTurma({ diag, cabecalho, criteriosPerfil, criteriosDestaque }: PropsRelatorioTurma) {
+  const [aberto, setAberto] = useState(false);
   const [limite, setLimite] = useState(10);
   const [secoes, setSecoes] = useState<Set<SecaoId>>(() => new Set(SECOES.map((s) => s.id)));
-  const [imprimindo, setImprimindo] = useState(false);
-
-  useEffect(() => {
-    if (!cabecalho.caminho || !tauriDisponivel) return;
-    let ativo = true;
-    invokeApp<IndicadoresExtras>("carregar_indicadores_diagnostico_turma", { caminho: cabecalho.caminho })
-      .then((dados) => {
-        if (!ativo) return;
-        setExtras({ ...EXTRAS_VAZIOS, ...dados });
-        setErroExtras(null);
-      })
-      .catch((erro) => {
-        if (ativo) setErroExtras(String(erro));
-      });
-    return () => {
-      ativo = false;
-    };
-  }, [cabecalho.caminho]);
-
-  const diag = useMemo(() => calcularDiagnostico(alunos, extras, bimestre), [alunos, extras, bimestre]);
-
-  useEffect(() => {
-    if (!imprimindo) return;
-    const terminar = () => {
-      document.body.classList.remove("imprimindo-diagnostico");
-      setImprimindo(false);
-    };
-    document.body.classList.add("imprimindo-diagnostico");
-    window.addEventListener("afterprint", terminar, { once: true });
-    // Espera o portal de impressão ser desenhado antes de abrir o diálogo.
-    const timer = window.setTimeout(() => window.print(), 50);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", terminar);
-      document.body.classList.remove("imprimindo-diagnostico");
-    };
-  }, [imprimindo]);
+  const { imprimindo, imprimir } = useImpressaoDiagnostico();
 
   function alternarSecao(id: SecaoId) {
     setSecoes((atual) => {
@@ -861,48 +867,65 @@ export function RelatorioDiagnosticoTurma({
     });
   }
 
-  const relatorio = (
-    <Relatorio
-      diag={diag}
-      cabecalho={cabecalho}
-      secoes={secoes}
-      limite={limite}
-      criteriosPerfil={criteriosPerfil}
-      criteriosDestaque={criteriosDestaque}
-    />
-  );
-
   return (
-    <section className="diag-tela">
-      <div className="panel diag-controles no-print">
-        <div>
-          <h3>Relatório diagnóstico da turma</h3>
-          <p>Panorama para entregar aos professores: dificuldades, características e pontos positivos da turma no {diag.bimestreAtual}º bimestre.</p>
-          {erroExtras && <p className="danger-text">Prova Paulista, tarefas e conselho não carregaram: {erroExtras}</p>}
-        </div>
-        <div className="diag-controles-opcoes">
-          <div className="diag-secoes" role="group" aria-label="Páginas do relatório">
-            {SECOES.map((secao) => (
-              <label key={secao.id} className={secoes.has(secao.id) ? "ativo" : ""}>
-                <input type="checkbox" checked={secoes.has(secao.id)} onChange={() => alternarSecao(secao.id)} />
-                {secao.rotulo}
+    <>
+      <button type="button" className="secondary-action diag-botao-relatorio" onClick={() => setAberto(true)}>
+        <FileText size={16} />
+        Relatório diagnóstico
+      </button>
+      {aberto && (
+        <div className="modal-backdrop no-print" role="dialog" aria-modal="true">
+          <div className="kanban-task-modal diag-modal" style={{ maxWidth: "620px", width: "100%" }}>
+            <div className="modal-title-row">
+              <div>
+                <h2>Relatório diagnóstico · {cabecalho.rotulo}</h2>
+                <p>Páginas A4 para entregar aos professores, com o {diag.bimestreAtual}º bimestre e os dados importados da turma.</p>
+              </div>
+              <button type="button" onClick={() => setAberto(false)} aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <div className="kanban-task-modal-body diag-modal-corpo">
+              <span className="diag-modal-rotulo">Páginas do relatório</span>
+              <div className="diag-secoes" role="group" aria-label="Páginas do relatório">
+                {SECOES.map((secao) => (
+                  <label key={secao.id} className={secoes.has(secao.id) ? "ativo" : ""}>
+                    <input type="checkbox" checked={secoes.has(secao.id)} onChange={() => alternarSecao(secao.id)} />
+                    {secao.rotulo}
+                  </label>
+                ))}
+              </div>
+              <label className="diag-limite">
+                Alunos por lista
+                <select value={limite} onChange={(event) => setLimite(Number(event.target.value))}>
+                  {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
               </label>
-            ))}
+              <p className="diag-modal-dica">No diálogo de impressão, escolha "Salvar como PDF" para gerar o arquivo.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setAberto(false)}>Fechar</button>
+              <button type="button" className="primary-action" onClick={imprimir} disabled={secoes.size === 0}>
+                <Printer size={16} />
+                Imprimir ou salvar PDF
+              </button>
+            </div>
           </div>
-          <label className="diag-limite">
-            Alunos por ranking
-            <select value={limite} onChange={(event) => setLimite(Number(event.target.value))}>
-              {[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-          </label>
-          <button type="button" className="primary-action diag-imprimir" onClick={() => setImprimindo(true)} disabled={secoes.size === 0}>
-            <Printer size={16} />
-            Imprimir ou salvar PDF
-          </button>
         </div>
-      </div>
-      <div className="diag-previa">{relatorio}</div>
-      {imprimindo && createPortal(<div className="diag-impressao">{relatorio}</div>, document.body)}
-    </section>
+      )}
+      {imprimindo &&
+        createPortal(
+          <div className="diag-impressao">
+            <Relatorio
+              diag={diag}
+              cabecalho={cabecalho}
+              secoes={secoes}
+              limite={limite}
+              criteriosPerfil={criteriosPerfil}
+              criteriosDestaque={criteriosDestaque}
+              modo="papel"
+            />
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

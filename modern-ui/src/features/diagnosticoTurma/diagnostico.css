@@ -7,26 +7,6 @@
   gap: 18px;
 }
 
-.diag-controles {
-  display: grid;
-  gap: 14px;
-}
-
-.diag-controles h3 {
-  margin: 0 0 4px;
-}
-
-.diag-controles p {
-  margin: 0;
-}
-
-.diag-controles-opcoes {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 .diag-secoes {
   display: flex;
   flex-wrap: wrap;
@@ -56,16 +36,62 @@
   gap: 8px;
 }
 
-.diag-imprimir {
+/* Barra da aba Estatísticas e da aba Diagnóstico do aluno. */
+.diag-tela-barra {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.diag-tela-barra p {
+  color: #6b6670;
+  margin: 0;
+  max-width: 820px;
+}
+
+.diag-tela-barra button,
+.diag-botao-relatorio {
   align-items: center;
   display: inline-flex;
   gap: 8px;
-  margin-left: auto;
+  white-space: nowrap;
 }
 
-.diag-previa {
-  overflow-x: auto;
-  padding-bottom: 12px;
+/* Linha das abas da turma com o botão do relatório ao lado. */
+.detail-tabs-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.detail-tabs-row .detail-tabs {
+  margin-top: 0;
+}
+
+.diag-modal-corpo {
+  display: grid;
+  gap: 12px;
+}
+
+.diag-modal-rotulo {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.diag-modal-dica {
+  color: #6b6670;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.diag-modal .modal-actions .primary-action {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
 }
 
 .diag-impressao {
@@ -919,4 +945,88 @@
   gap: 4px;
   padding-bottom: 6px;
   padding-top: 8px;
+}
+
+/* ---------- Modo tela (aba Estatísticas e ficha do aluno) ----------
+   Mesmo conteúdo das folhas A4, ocupando a largura da tela e um pouco
+   maior para leitura no monitor. */
+
+.diag-modo-tela {
+  display: grid;
+  gap: 18px;
+  justify-content: stretch;
+}
+
+.diag-modo-tela .diag-pagina {
+  border: 1px solid #eae8e3;
+  border-radius: 12px;
+  box-shadow: none;
+  min-height: 0;
+  padding: 18px 20px;
+  width: auto;
+  zoom: 1.2;
+}
+
+.diag-modo-tela .diag-numero-pagina {
+  display: none;
+}
+
+.diag-modo-tela .diag-quadro:has(.diag-mapa) {
+  overflow-x: auto;
+}
+
+.diag-link-aluno {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.diag-link-aluno:hover {
+  color: var(--diag-marca);
+  text-decoration: underline;
+}
+
+.diag-coluna-quadros {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diag-perfil li span.diag-avd-componente {
+  align-items: flex-start;
+  display: grid;
+  gap: 1px;
+}
+
+.diag-avd-componente small {
+  font-size: 9.5px;
+  font-weight: 400;
+}
+
+@media (max-width: 1100px) {
+  .diag-modo-tela .diag-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .diag-modo-tela .diag-grade-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .diag-modo-tela .diag-pagina {
+    zoom: 1.1;
+  }
+}
+
+.diag-secoes input {
+  height: auto;
+  margin: 0;
+  width: auto;
+}
+
+.diag-limite select {
+  width: auto;
 }
