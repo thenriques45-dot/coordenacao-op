@@ -50,7 +50,7 @@ import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate, type SettingsSection } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
-import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
+import { AvisosFlutuantes, PainelAvisos, SinoAvisos, useCentralAvisos } from "./features/CentralAvisos";
 import {
   aplicarPayloadSincronizacao,
   carregarPerfilSincronizacao,
@@ -1051,6 +1051,9 @@ export function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
+  const centralAvisos = useCentralAvisos();
+  const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const [tarefaParaAbrir, setTarefaParaAbrir] = useState<string | null>(null);
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
   const [perfilSync, setPerfilSync] = useState<WorkgroupSyncProfile>(() => carregarPerfilSincronizacao());
   const [mostrarAssistenteSync, setMostrarAssistenteSync] = useState(() => carregarPerfilSincronizacao().onboarding === "pending");
@@ -1111,10 +1114,6 @@ export function App() {
     localStorage.setItem("coordenacaoop:menu-gestao", gestaoMenuAberto ? "aberto" : "fechado");
   }, [gestaoMenuAberto]);
 
-  useEffect(() => {
-    if (!tauriDisponivel) return;
-    return iniciarMonitorAlertasTarefas();
-  }, []);
 
   function aplicarConfigCarregada(c: ConfiguracoesApp) {
     setTurmaConfig({
@@ -1613,6 +1612,11 @@ export function App() {
     return () => window.removeEventListener("keydown", abrirBusca);
   }, []);
 
+  function abrirTarefaDoAviso(tarefaId: string) {
+    setTarefaParaAbrir(tarefaId);
+    navegarPara("kanban");
+  }
+
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
@@ -1705,6 +1709,11 @@ export function App() {
               : <small>{perfilSync.role || "Equipe pedagogica"}</small>
             }
           </div>
+          <SinoAvisos
+            naoLidos={centralAvisos.naoLidos}
+            aberto={avisosAbertos}
+            onAlternar={() => setAvisosAbertos((atual) => !atual)}
+          />
           <button
             className="theme-toggle"
             type="button"
@@ -1716,6 +1725,19 @@ export function App() {
           </button>
         </div>
       </aside>
+
+      {avisosAbertos && (
+        <PainelAvisos
+          avisos={centralAvisos.avisos}
+          onFechar={() => setAvisosAbertos(false)}
+          onAbrirTarefa={abrirTarefaDoAviso}
+        />
+      )}
+      <AvisosFlutuantes
+        avisos={centralAvisos.flutuantes}
+        onFechar={centralAvisos.fecharFlutuante}
+        onAbrirTarefa={abrirTarefaDoAviso}
+      />
 
       <section className="workspace">
         {["dashboard", "turmas", "gestao-turma", "atendimentos", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
@@ -1935,7 +1957,14 @@ export function App() {
             }
           }} />
         )}
-        {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
+        {tela === "kanban" && (
+          <QuadroKanban
+            turmas={turmas}
+            perfil={perfilSync}
+            abrirTarefaId={tarefaParaAbrir}
+            onTarefaAberta={() => setTarefaParaAbrir(null)}
+          />
+        )}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

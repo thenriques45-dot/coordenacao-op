@@ -122,7 +122,18 @@ function rotuloTurma(turma: TurmaKanban) {
   return rotuloSerie(codigo) || codigo;
 }
 
-export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; perfil?: WorkgroupSyncProfile }) {
+export function QuadroKanban({
+  turmas = [],
+  perfil,
+  abrirTarefaId = null,
+  onTarefaAberta,
+}: {
+  turmas?: TurmaKanban[];
+  perfil?: WorkgroupSyncProfile;
+  // Tarefa a abrir assim que o quadro montar (vinda de um aviso de prazo).
+  abrirTarefaId?: string | null;
+  onTarefaAberta?: () => void;
+}) {
   const [tarefas, setTarefas] = useState<KanbanTarefa[]>(carregarTarefasKanban);
   const [colunas, setColunas] = useState<KanbanColuna[]>(carregarColunasKanban);
   // Qual formulário está aberto. O estado do que foi digitado (novaTarefa)
@@ -405,6 +416,15 @@ export function QuadroKanban({ turmas = [], perfil }: { turmas?: TurmaKanban[]; 
     setNovaTarefa(formularioDaTarefa(tarefa));
     setFormulario(modo);
   }
+
+  useEffect(() => {
+    if (!abrirTarefaId) return;
+    const tarefa = tarefas.find((item) => item.id === abrirTarefaId);
+    if (tarefa) abrirEdicaoTarefa(tarefa, "rapido");
+    onTarefaAberta?.();
+    // Só reage a um novo pedido; `tarefas` muda a cada edição do quadro.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirTarefaId]);
 
   function fecharFormulario() {
     setFormulario(null);

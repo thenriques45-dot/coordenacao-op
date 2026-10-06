@@ -325,8 +325,7 @@ pub(crate) fn provisionar_planejamento_automatico(
     // Roda numa thread OS dedicada, fora do runtime async do Tauri: o fluxo
     // usa reqwest::blocking (que cria seu próprio runtime interno) e um
     // TcpListener bloqueante aguardando o navegador — nenhum dos dois é
-    // seguro dentro de um contexto assíncrono (mesmo motivo documentado em
-    // shell::enviar_notificacao para o notify-rust).
+    // seguro dentro de um contexto assíncrono.
     std::thread::spawn(move || provisionar_planejamento_via_oauth(config))
         .join()
         .map_err(|_| "Falha interna ao provisionar o Web App de Planejamento.".to_string())?

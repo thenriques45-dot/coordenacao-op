@@ -1944,7 +1944,7 @@ export function Configuracoes({
                 />
                 Iniciar com o Windows e minimizar para a bandeja ao fechar
               </label>
-              <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo na bandeja para continuar enviando notificações.</span>
+              <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo aberto na bandeja do sistema.</span>
             </>
           )}
         </article>

@@ -18,6 +18,17 @@ const CHAVES_ESPELHADAS = [
   "coordenacaoop:workgroup-sync-profile:v1",
   "coordenacaoop:workgroup-sync-members:v1",
   "coordenacaoop:workgroup-sync-tombstones:v1",
+  "coordenacaoop:avisos:v1",
+  // Preferências da interface: espelhadas para sobreviver à troca do
+  // identificador do app, que muda a pasta do localStorage do WebView.
+  "coordenacaoop:tema",
+  "coordenacaoop:menu-gestao",
+  "coordenacaoop:kanban-exibicao:v1",
+  "coordenacaoop:ultimo-backup",
+  "coordenacaoop:tutorial-conselho-visto:v1",
+  "coordenacaoop:tutorial-relatorios-visto:v1",
+  "coordenacaoop:wizard-conselho-visto:v1",
+  "coordenacaoop:wizard-turmas-visto:v1",
 ];
 
 // Restaura do disco as chaves ausentes no localStorage. Precisa rodar antes do
@@ -38,7 +49,7 @@ export async function hidratarEstadoUi() {
         semearNoEspelho[chave] = valorLocal;
       }
     }
-    // Numa só gravação: são até 12 chaves, e cada chamada avulsa reescreveria
+    // Numa só gravação: são até 21 chaves, e cada chamada avulsa reescreveria
     // o arquivo inteiro logo na abertura do app.
     if (Object.keys(semearNoEspelho).length > 0) {
       invokeApp("salvar_estado_ui_lote", { entradas: semearNoEspelho }).catch(() => {});

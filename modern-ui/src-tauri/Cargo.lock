@@ -678,7 +678,6 @@ dependencies = [
  "genpdf",
  "image",
  "keyring",
- "notify-rust",
  "rand 0.8.6",
  "reqwest 0.12.28",
  "rust_xlsxwriter",
@@ -690,7 +689,6 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-autostart",
  "tauri-plugin-dialog",
- "tauri-plugin-notification",
  "tauri-plugin-process",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
@@ -2582,18 +2580,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d947cbb889ed21c2a84be6ffbaebf5b4e0f4340638cba0444907e38b56be084"
 
 [[package]]
-name = "mac-notification-sys"
-version = "0.6.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29a16783dd1a47849b8c8133c9cd3eb2112cfbc6901670af3dba47c8bbfb07d3"
-dependencies = [
- "cc",
- "objc2",
- "objc2-foundation",
- "time 0.3.47",
-]
-
-[[package]]
 name = "markup5ever"
 version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2733,20 +2719,6 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "memoffset",
-]
-
-[[package]]
-name = "notify-rust"
-version = "4.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50ff2e74231b72c832d82982193b417f230945be6bdb5575b251d941d31adb00"
-dependencies = [
- "futures-lite",
- "log",
- "mac-notification-sys",
- "serde",
- "tauri-winrt-notification",
- "zbus 5.15.0",
 ]
 
 [[package]]
@@ -3519,15 +3491,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1004a344b30a54e2ee58d66a71b32d2db2feb0a31f9a2d302bf0536f15de2a33"
 dependencies = [
  "encoding_rs",
- "memchr",
-]
-
-[[package]]
-name = "quick-xml"
-version = "0.37.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
-dependencies = [
  "memchr",
 ]
 
@@ -4967,25 +4930,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-plugin-notification"
-version = "2.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01fc2c5ff41105bd1f7242d8201fdf3efd70749b82fa013a17f2126357d194cc"
-dependencies = [
- "log",
- "notify-rust",
- "rand 0.9.4",
- "serde",
- "serde_json",
- "serde_repr",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.18",
- "time 0.3.47",
- "url",
-]
-
-[[package]]
 name = "tauri-plugin-process"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5141,18 +5085,6 @@ dependencies = [
  "dunce",
  "embed-resource",
  "toml 1.1.2+spec-1.1.0",
-]
-
-[[package]]
-name = "tauri-winrt-notification"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b1e66e07de489fe43a46678dd0b8df65e0c973909df1b60ba33874e297ba9b9"
-dependencies = [
- "quick-xml 0.37.5",
- "thiserror 2.0.18",
- "windows",
- "windows-version",
 ]
 
 [[package]]

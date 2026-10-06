@@ -120,7 +120,6 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
@@ -212,7 +211,6 @@ fn main() {
             importador_mapao::analisar_diagnostico_aprendizagem,
             importador_mapao::aplicar_diagnostico_aprendizagem,
             ia::verificar_atualizacao,
-            shell::enviar_notificacao,
             ia::diagnosticar_ia_local,
             ia::iniciar_ollama_local,
             ia::baixar_modelo_ia_local,
