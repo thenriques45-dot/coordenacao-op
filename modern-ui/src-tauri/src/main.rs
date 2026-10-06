@@ -9,6 +9,7 @@ mod backup;
 mod config;
 mod conselho_pendrive;
 mod diagnosticos;
+mod diagnostico_turma;
 mod docx;
 mod fotos;
 mod github_oauth;
@@ -38,7 +39,7 @@ mod whatsapp_api;
 #[allow(unused_imports)]
 pub(crate) use {
     aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
-    conselho_pendrive::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
+    conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
@@ -248,6 +249,7 @@ fn main() {
             config::carregar_perfil_turma,
             config::salvar_perfil_turma,
             config::carregar_alunos_destaque,
+            diagnostico_turma::carregar_indicadores_diagnostico_turma,
             config::salvar_alunos_destaque,
             config::resolver_bimestre_atual,
             config::fixar_bimestre_pin,

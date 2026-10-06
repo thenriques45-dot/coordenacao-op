@@ -1,0 +1,1160 @@
+// Cálculos do Relatório Diagnóstico da Turma: transforma os dados que o app
+// já reúne (notas, frequência, Aluno Presente, Prova Paulista, AvD, SARESP, tarefas,
+// atendimentos e conselho) em indicadores, rankings e alertas da turma.
+// Tudo aqui é puro — a tela só desenha o resultado.
+
+export type NotaBimestreDiag = { bimestre: string; media: number };
+
+export type DisciplinaDiag = {
+  nome: string;
+  mediaOriginal: number | null;
+  mediaConselho: number | null;
+  faltas?: number | null;
+  totalAulas?: number | null;
+  faltasAcumuladas?: number | null;
+  totalAulasAcumuladas?: number | null;
+  historicoBimestres?: NotaBimestreDiag[];
+};
+
+export type ComponenteAvd = {
+  status: string | null;
+  evolucao: string | null;
+  mensurado: boolean;
+  nivel_avd1?: string | null;
+  nivel_avd2?: string | null;
+  equivalente_avd1?: string | null;
+  equivalente_avd2?: string | null;
+};
+
+export type AlunoDiag = {
+  matricula?: string;
+  chamada: number;
+  nome: string;
+  ativo?: boolean;
+  elegivel: boolean;
+  deficiencias: string[];
+  frequencia: number | null;
+  encaminhamentosBimestres?: { bimestre: string; codigos: number[] }[];
+  atendimentos?: { data: string; tipos: string[] }[];
+  diagnosticoAprendizagem?: { portugues: ComponenteAvd; matematica: ComponenteAvd } | null;
+  disciplinas: DisciplinaDiag[];
+};
+
+type ProvaPaulistaBimestre = { participou?: boolean; geral?: number; disciplinas?: Record<string, number> };
+type TarefasBimestre = { feitas?: number; total?: number; percentual?: number };
+/** Importação do BI "Aluno Presente": percentuais de 0 a 100. */
+type AlunoPresente = { anual?: number | null; semana_atual?: number | null; semana_anterior?: number | null; risco_reprovacao?: boolean };
+/** Importação do BI "SARESP – Diagnóstico": notas de 0 a 10 por sigla (LPT, MAT...). */
+type Saresp = { media?: number | null; menor_nota?: string; disciplinas?: Record<string, number> };
+
+/** Resposta do comando `carregar_indicadores_diagnostico_turma`. */
+export type IndicadoresExtras = {
+  alunos: Record<
+    string,
+    {
+      prova_paulista?: Record<string, ProvaPaulistaBimestre>;
+      tarefas?: Record<string, TarefasBimestre>;
+      aluno_presente?: AlunoPresente;
+      saresp?: Saresp;
+    }
+  >;
+  perfil_turma: Record<string, Record<string, string>>;
+  alunos_destaque: Record<string, Record<string, string>>;
+};
+
+export const EXTRAS_VAZIOS: IndicadoresExtras = { alunos: {}, perfil_turma: {}, alunos_destaque: {} };
+
+export type Tom = "bom" | "atencao" | "critico" | "neutro";
+
+export const BIMESTRES = ["1", "2", "3", "4"] as const;
+
+// Limites usados nas cores e nos alertas.
+export const FREQ_CRITICA = 75; // abaixo disso há risco de retenção por falta
+export const FREQ_ATENCAO = 85;
+export const NOTA_MINIMA = 5;
+export const NOTA_BOA = 7;
+export const PP_CRITICA = 40; // % de acertos na Prova Paulista
+export const PP_BOA = 60;
+export const SARESP_CRITICO = 4; // nota de 0 a 10; mesmo corte padrão dos alunos prioritários
+
+export function tomNota(nota: number | null | undefined): Tom {
+  if (nota === null || nota === undefined || !Number.isFinite(nota)) return "neutro";
+  if (nota < NOTA_MINIMA) return "critico";
+  if (nota < 6) return "atencao";
+  return "bom";
+}
+
+export function tomFrequencia(freq: number | null | undefined): Tom {
+  if (freq === null || freq === undefined || !Number.isFinite(freq)) return "neutro";
+  if (freq < FREQ_CRITICA) return "critico";
+  if (freq < FREQ_ATENCAO) return "atencao";
+  return "bom";
+}
+
+export function tomProvaPaulista(percentual: number | null | undefined): Tom {
+  if (percentual === null || percentual === undefined || !Number.isFinite(percentual)) return "neutro";
+  if (percentual < PP_CRITICA) return "critico";
+  if (percentual < PP_BOA) return "atencao";
+  return "bom";
+}
+
+function media(valores: number[]): number | null {
+  return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
+}
+
+function finito(valor: unknown): valor is number {
+  return typeof valor === "number" && Number.isFinite(valor);
+}
+
+function semAcento(valor: string) {
+  return valor.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+/** Nota de cada bimestre (1..4) de uma disciplina; a nota do conselho vale sobre a original. */
+export function notasPorBimestre(disciplina: DisciplinaDiag, bimestreAtual: number): Array<number | null> {
+  const notas: Array<number | null> = [null, null, null, null];
+  for (const hb of disciplina.historicoBimestres ?? []) {
+    const idx = Number.parseInt(hb.bimestre, 10) - 1;
+    if (idx >= 0 && idx < 4 && finito(hb.media)) notas[idx] = hb.media;
+  }
+  const atual = disciplina.mediaConselho ?? disciplina.mediaOriginal;
+  if (finito(atual)) notas[bimestreAtual - 1] = atual;
+  return notas;
+}
+
+// ---------------------------------------------------------------------------
+// Prova Paulista
+// ---------------------------------------------------------------------------
+
+/**
+ * O importador grava "% de acertos × 10" arredondado: com a planilha do BI
+ * (fração, 0,65) o valor fica de 0 a 10, a mesma escala que os alunos
+ * prioritários usam. Se a planilha vier com o percentual como número (65), o
+ * valor fica de 0 a 1000. A escala é decidida pelo conjunto da turma e tudo é
+ * convertido para % de acertos (0–100).
+ */
+export function fatorEscalaProvaPaulista(valores: number[]): number {
+  const maximo = Math.max(0, ...valores);
+  if (maximo <= 10) return 10;
+  if (maximo <= 100) return 1;
+  return 0.1;
+}
+
+// ---------------------------------------------------------------------------
+// AvD (Recomposição – Diagnóstico): níveis da 1ª e da 2ª avaliação
+// ---------------------------------------------------------------------------
+
+export type NivelAvd = "abaixo" | "basico" | "adequado" | "avancado" | "nao";
+
+export const NIVEIS_AVD: { id: NivelAvd; rotulo: string }[] = [
+  { id: "abaixo", rotulo: "Abaixo do básico" },
+  { id: "basico", rotulo: "Básico" },
+  { id: "adequado", rotulo: "Adequado" },
+  { id: "avancado", rotulo: "Avançado" },
+  { id: "nao", rotulo: "Não mensurado" },
+];
+
+function nivelDoTexto(valor: string | null | undefined): NivelAvd {
+  if (!valor) return "nao";
+  const texto = semAcento(valor);
+  if (texto.includes("abaixo")) return "abaixo";
+  if (texto.includes("avanc")) return "avancado";
+  if (texto.includes("adequ") || texto.includes("profic")) return "adequado";
+  if (texto.includes("basic")) return "basico";
+  return "nao";
+}
+
+export function nivelAvd(componente: ComponenteAvd | null | undefined): NivelAvd {
+  if (!componente || !componente.mensurado) return "nao";
+  return nivelDoTexto(componente.status);
+}
+
+const ORDEM_NIVEL: Record<NivelAvd, number | null> = { abaixo: 0, basico: 1, adequado: 2, avancado: 3, nao: null };
+
+/** Mudança de um componente da 1ª para a 2ª AvD. */
+export type MudancaAvd = {
+  de: NivelAvd;
+  para: NivelAvd;
+  equivalenteDe: string | null;
+  equivalentePara: string | null;
+  /** Níveis ganhos (+) ou perdidos (−). Sem os dois níveis, ±1 pela coluna "Evolução" do BI. */
+  passos: number;
+};
+
+export function mudancaAvd(componente: ComponenteAvd | null | undefined): MudancaAvd | null {
+  if (!componente) return null;
+  const de = nivelDoTexto(componente.nivel_avd1);
+  const para = nivelDoTexto(componente.nivel_avd2);
+  const ordemDe = ORDEM_NIVEL[de];
+  const ordemPara = ORDEM_NIVEL[para];
+  let passos: number | null = null;
+  if (ordemDe !== null && ordemPara !== null) passos = ordemPara - ordemDe;
+  else {
+    const evolucao = evolucaoAvd(componente);
+    if (evolucao === "avancou") passos = 1;
+    else if (evolucao === "regrediu") passos = -1;
+    else if (evolucao === "manteve") passos = 0;
+  }
+  if (passos === null) return null;
+  return {
+    de,
+    para,
+    equivalenteDe: componente.equivalente_avd1 ?? null,
+    equivalentePara: componente.equivalente_avd2 ?? null,
+    passos,
+  };
+}
+
+export type EvolucaoAvd = "avancou" | "manteve" | "regrediu" | "sem";
+
+export function evolucaoAvd(componente: ComponenteAvd | null | undefined): EvolucaoAvd {
+  const texto = componente?.evolucao ? semAcento(componente.evolucao) : "";
+  if (!texto) return "sem";
+  if (texto.includes("avanc")) return "avancou";
+  if (texto.includes("regred")) return "regrediu";
+  return "manteve";
+}
+
+// ---------------------------------------------------------------------------
+// Indicadores por aluno
+// ---------------------------------------------------------------------------
+
+export type IndicadorAluno = {
+  chave: string;
+  nome: string;
+  chamada: number;
+  elegivel: boolean;
+  frequencia: number | null;
+  presencaSemanaAtual: number | null;
+  presencaSemanaAnterior: number | null;
+  riscoReprovacaoFaltas: boolean;
+  faltasTotal: number | null;
+  disciplinaMaisFaltas: { nome: string; frequencia: number } | null;
+  notasAtuais: Record<string, number | null>;
+  mediaPorBimestre: Array<number | null>;
+  mediaAtual: number | null;
+  disciplinasAbaixo: string[];
+  variacaoNotas: number | null; // média do bimestre atual − média do anterior com nota
+  pp: { bimestre: string; percentual: number | null; participou: boolean; disciplinas: Record<string, number> }[];
+  ppUltimo: number | null;
+  ppPrimeiro: number | null;
+  ppVariacao: number | null;
+  ppBimestresComparados: [string, string] | null;
+  avdPortugues: NivelAvd;
+  avdMatematica: NivelAvd;
+  evolucaoPortugues: EvolucaoAvd;
+  evolucaoMatematica: EvolucaoAvd;
+  mudancaPortugues: MudancaAvd | null;
+  mudancaMatematica: MudancaAvd | null;
+  sarespMedia: number | null;
+  sarespMenorNota: string | null;
+  sarespDisciplinas: Record<string, number>;
+  tarefasPercentual: number | null;
+  atendimentos: number;
+  encaminhamentosBimestre: number;
+  pontuacaoRisco: number;
+  motivosRisco: { texto: string; tom: Tom }[];
+};
+
+export type DesempenhoDisciplina = {
+  nome: string;
+  media: number | null;
+  percentualAbaixo: number; // % dos alunos com nota que estão abaixo da mínima
+  alunosComNota: number;
+  frequencia: number | null;
+  mediaPorBimestre: Array<number | null>;
+};
+
+export type Alerta = { tom: Tom; titulo: string; texto: string };
+
+export type DiagnosticoTurma = {
+  bimestreAtual: number;
+  totalAlunos: number;
+  alunos: IndicadorAluno[];
+  disciplinas: DesempenhoDisciplina[];
+  mediaTurma: number | null;
+  mediaTurmaPorBimestre: Array<number | null>;
+  frequenciaMedia: number | null;
+  situacao: { adequados: number; atencao: number; criticos: number; semNota: number };
+  faixasFrequencia: { bom: number; atencao: number; critico: number; semDado: number };
+  provaPaulista: {
+    temDados: boolean;
+    porBimestre: { bimestre: string; media: number | null; participacao: number | null }[];
+    disciplinasUltimo: { nome: string; media: number }[];
+    bimestreUltimo: string | null;
+  };
+  avd: {
+    temDados: boolean;
+    portugues: Record<NivelAvd, number>;
+    matematica: Record<NivelAvd, number>;
+    evolucaoPortugues: Record<EvolucaoAvd, number>;
+    evolucaoMatematica: Record<EvolucaoAvd, number>;
+  };
+  alunoPresente: {
+    temDados: boolean;
+    emRisco: number;
+    semanaAtual: number | null;
+    semanaAnterior: number | null;
+  };
+  saresp: {
+    temDados: boolean;
+    media: number | null;
+    disciplinas: { nome: string; media: number; abaixo: number; total: number }[];
+  };
+  tarefasMedia: number | null;
+  elegiveis: number;
+  totalAtendimentos: number;
+  alunosComEncaminhamento: number;
+  perfil: { bimestre: string; apontamentos: Record<string, string> } | null;
+  destaques: { bimestre: string; nomes: Record<string, string> } | null;
+  pontosAtencao: Alerta[];
+  pontosPositivos: Alerta[];
+  sugestoes: string[];
+};
+
+function contagemVazia<T extends string>(chaves: readonly T[]): Record<T, number> {
+  return Object.fromEntries(chaves.map((chave) => [chave, 0])) as Record<T, number>;
+}
+
+function ultimoBimestreComDados(
+  porBimestre: Record<string, Record<string, string>>,
+  bimestreAtual: number,
+): { bimestre: string; valores: Record<string, string> } | null {
+  for (let b = bimestreAtual; b >= 1; b -= 1) {
+    const valores = porBimestre[String(b)];
+    if (valores && Object.values(valores).some((v) => typeof v === "string" && v.trim())) {
+      return { bimestre: String(b), valores };
+    }
+  }
+  return null;
+}
+
+function nomeCurto(nome: string) {
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length <= 2) return nome.trim();
+  return `${partes[0]} ${partes[partes.length - 1]}`;
+}
+
+function listaNomes(alunos: IndicadorAluno[], limite = 4) {
+  const nomes = alunos.slice(0, limite).map((a) => nomeCurto(a.nome));
+  const resto = alunos.length - nomes.length;
+  return resto > 0 ? `${nomes.join(", ")} e mais ${resto}` : nomes.join(", ");
+}
+
+function pct(parte: number, total: number) {
+  return total > 0 ? Math.round((parte / total) * 100) : 0;
+}
+
+export function calcularDiagnostico(
+  alunosEntrada: AlunoDiag[],
+  extras: IndicadoresExtras,
+  bimestre: string | null | undefined,
+): DiagnosticoTurma {
+  const bimestreAtual = Math.max(1, Math.min(4, Number.parseInt(bimestre ?? "1", 10) || 1));
+  const idxAtual = bimestreAtual - 1;
+  const alunosAtivos = alunosEntrada.filter((aluno) => aluno.ativo !== false);
+
+  // Escala da Prova Paulista decidida pela turma inteira.
+  const valoresPP: number[] = [];
+  for (const aluno of alunosAtivos) {
+    const prova = extras.alunos[aluno.matricula ?? ""]?.prova_paulista ?? {};
+    for (const entrada of Object.values(prova)) {
+      if (finito(entrada?.geral)) valoresPP.push(entrada.geral);
+      for (const v of Object.values(entrada?.disciplinas ?? {})) if (finito(v)) valoresPP.push(v);
+    }
+  }
+  const fatorPP = fatorEscalaProvaPaulista(valoresPP);
+  const paraPercentual = (valor: number | undefined | null) =>
+    finito(valor) ? Math.max(0, Math.min(100, valor * fatorPP)) : null;
+
+  const nomesDisciplinas = Array.from(
+    new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((d) => d.nome))),
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  const alunos: IndicadorAluno[] = alunosAtivos.map((aluno) => {
+    const chave = aluno.matricula ?? aluno.nome;
+    const extrasAluno = extras.alunos[aluno.matricula ?? ""] ?? {};
+
+    // Notas
+    const notasAtuais: Record<string, number | null> = {};
+    const porBim: number[][] = [[], [], [], []];
+    for (const disciplina of aluno.disciplinas) {
+      const notas = notasPorBimestre(disciplina, bimestreAtual);
+      notasAtuais[disciplina.nome] = notas[idxAtual];
+      notas.forEach((nota, idx) => {
+        if (nota !== null) porBim[idx].push(nota);
+      });
+    }
+    const mediaPorBimestre = porBim.map((lista) => media(lista));
+    let mediaAtual = mediaPorBimestre[idxAtual];
+    if (mediaAtual === null) {
+      for (let i = idxAtual - 1; i >= 0 && mediaAtual === null; i -= 1) mediaAtual = mediaPorBimestre[i];
+    }
+    const disciplinasAbaixo = Object.entries(notasAtuais)
+      .filter(([, nota]) => finito(nota) && nota < NOTA_MINIMA)
+      .map(([nome]) => nome);
+    let variacaoNotas: number | null = null;
+    const atualBim = mediaPorBimestre[idxAtual];
+    if (atualBim !== null) {
+      for (let i = idxAtual - 1; i >= 0; i -= 1) {
+        const anterior = mediaPorBimestre[i];
+        if (anterior !== null) {
+          variacaoNotas = atualBim - anterior;
+          break;
+        }
+      }
+    }
+
+    // Faltas
+    let faltasTotal: number | null = null;
+    let disciplinaMaisFaltas: IndicadorAluno["disciplinaMaisFaltas"] = null;
+    for (const disciplina of aluno.disciplinas) {
+      const faltas = disciplina.faltasAcumuladas ?? disciplina.faltas;
+      const aulas = disciplina.totalAulasAcumuladas ?? disciplina.totalAulas;
+      if (finito(faltas)) faltasTotal = (faltasTotal ?? 0) + faltas;
+      if (finito(faltas) && finito(aulas) && aulas > 0) {
+        const freq = Math.max(0, Math.min(100, ((aulas - faltas) / aulas) * 100));
+        if (!disciplinaMaisFaltas || freq < disciplinaMaisFaltas.frequencia) {
+          disciplinaMaisFaltas = { nome: disciplina.nome, frequencia: freq };
+        }
+      }
+    }
+
+    // Prova Paulista
+    const prova = extrasAluno.prova_paulista ?? {};
+    const pp = BIMESTRES.filter((b) => prova[b]).map((b) => ({
+      bimestre: b,
+      percentual: paraPercentual(prova[b]?.geral),
+      participou: prova[b]?.participou !== false,
+      disciplinas: Object.fromEntries(
+        Object.entries(prova[b]?.disciplinas ?? {})
+          .map(([nome, valor]) => [nome, paraPercentual(valor)] as const)
+          .filter((par): par is readonly [string, number] => par[1] !== null),
+      ),
+    }));
+    const ppComNota = pp.filter((item) => item.percentual !== null);
+    const ppPrimeiro = ppComNota.length ? ppComNota[0].percentual : null;
+    const ppUltimo = ppComNota.length ? ppComNota[ppComNota.length - 1].percentual : null;
+    const ppVariacao = ppComNota.length >= 2 && ppPrimeiro !== null && ppUltimo !== null ? ppUltimo - ppPrimeiro : null;
+    const ppBimestresComparados: [string, string] | null =
+      ppComNota.length >= 2 ? [ppComNota[0].bimestre, ppComNota[ppComNota.length - 1].bimestre] : null;
+
+    // Tarefas: bimestre atual, ou o último anterior com registro.
+    let tarefasPercentual: number | null = null;
+    for (let b = bimestreAtual; b >= 1 && tarefasPercentual === null; b -= 1) {
+      const t = extrasAluno.tarefas?.[String(b)];
+      if (t && finito(t.percentual)) tarefasPercentual = t.percentual;
+      else if (t && finito(t.feitas) && finito(t.total) && t.total > 0) tarefasPercentual = (t.feitas / t.total) * 100;
+    }
+
+    const presente = extrasAluno.aluno_presente;
+    const presencaSemanaAtual = finito(presente?.semana_atual) ? presente.semana_atual : null;
+    const presencaSemanaAnterior = finito(presente?.semana_anterior) ? presente.semana_anterior : null;
+    const riscoReprovacaoFaltas = presente?.risco_reprovacao === true;
+    const sarespMedia = finito(extrasAluno.saresp?.media) ? extrasAluno.saresp.media : null;
+    const sarespDisciplinas = Object.fromEntries(
+      Object.entries(extrasAluno.saresp?.disciplinas ?? {}).filter(([, v]) => finito(v)),
+    ) as Record<string, number>;
+    const sarespMenorNota = extrasAluno.saresp?.menor_nota?.trim() || null;
+
+    const diag = aluno.diagnosticoAprendizagem;
+    const avdPortugues = nivelAvd(diag?.portugues);
+    const avdMatematica = nivelAvd(diag?.matematica);
+
+    const encaminhamentosBimestre =
+      aluno.encaminhamentosBimestres?.find((e) => e.bimestre === String(bimestreAtual))?.codigos.length ?? 0;
+
+    // Pontuação de fragilidade: soma de sinais, cada um com seu motivo.
+    const motivosRisco: IndicadorAluno["motivosRisco"] = [];
+    let pontuacaoRisco = 0;
+    if (disciplinasAbaixo.length) {
+      pontuacaoRisco += disciplinasAbaixo.length * 2;
+      motivosRisco.push({
+        texto: `${disciplinasAbaixo.length} disciplina${disciplinasAbaixo.length > 1 ? "s" : ""} abaixo de ${NOTA_MINIMA}`,
+        tom: disciplinasAbaixo.length >= 3 ? "critico" : "atencao",
+      });
+    }
+    if (mediaAtual !== null && mediaAtual < NOTA_MINIMA) {
+      pontuacaoRisco += 3;
+      motivosRisco.push({ texto: "média geral abaixo de 5", tom: "critico" });
+    }
+    if (finito(aluno.frequencia) && aluno.frequencia < FREQ_CRITICA) {
+      pontuacaoRisco += 3;
+      motivosRisco.push({ texto: `frequência ${Math.round(aluno.frequencia)}%`, tom: "critico" });
+    } else if (finito(aluno.frequencia) && aluno.frequencia < FREQ_ATENCAO) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `frequência ${Math.round(aluno.frequencia)}%`, tom: "atencao" });
+    }
+    if (riscoReprovacaoFaltas) {
+      pontuacaoRisco += 2;
+      motivosRisco.push({ texto: "risco de reprovação por faltas", tom: "critico" });
+    }
+    if (presencaSemanaAtual !== null && presencaSemanaAtual < FREQ_CRITICA) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `presença na semana ${Math.round(presencaSemanaAtual)}%`, tom: "atencao" });
+    }
+    if (avdPortugues === "abaixo") {
+      pontuacaoRisco += 2;
+      motivosRisco.push({ texto: "AvD LP abaixo do básico", tom: "critico" });
+    }
+    if (avdMatematica === "abaixo") {
+      pontuacaoRisco += 2;
+      motivosRisco.push({ texto: "AvD MAT abaixo do básico", tom: "critico" });
+    }
+    if (ppUltimo !== null && ppUltimo < PP_CRITICA) {
+      pontuacaoRisco += 2;
+      motivosRisco.push({ texto: `Prova Paulista ${Math.round(ppUltimo)}%`, tom: "critico" });
+    }
+    if (sarespMedia !== null && sarespMedia < SARESP_CRITICO) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `SARESP ${fmt(sarespMedia)}`, tom: "atencao" });
+    }
+    if (tarefasPercentual !== null && tarefasPercentual < 50) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `tarefas ${Math.round(tarefasPercentual)}%`, tom: "atencao" });
+    }
+
+    return {
+      chave,
+      nome: aluno.nome,
+      chamada: aluno.chamada,
+      elegivel: aluno.elegivel,
+      frequencia: finito(aluno.frequencia) ? aluno.frequencia : null,
+      presencaSemanaAtual,
+      presencaSemanaAnterior,
+      riscoReprovacaoFaltas,
+      faltasTotal,
+      disciplinaMaisFaltas,
+      notasAtuais,
+      mediaPorBimestre,
+      mediaAtual,
+      disciplinasAbaixo,
+      variacaoNotas,
+      pp,
+      ppUltimo,
+      ppPrimeiro,
+      ppVariacao,
+      ppBimestresComparados,
+      avdPortugues,
+      avdMatematica,
+      evolucaoPortugues: evolucaoAvd(diag?.portugues),
+      evolucaoMatematica: evolucaoAvd(diag?.matematica),
+      mudancaPortugues: mudancaAvd(diag?.portugues),
+      mudancaMatematica: mudancaAvd(diag?.matematica),
+      sarespMedia,
+      sarespMenorNota,
+      sarespDisciplinas,
+      tarefasPercentual,
+      atendimentos: aluno.atendimentos?.length ?? 0,
+      encaminhamentosBimestre,
+      pontuacaoRisco,
+      motivosRisco,
+    };
+  });
+
+  // Disciplinas
+  const disciplinas: DesempenhoDisciplina[] = nomesDisciplinas.map((nome) => {
+    const notas: number[] = [];
+    const porBim: number[][] = [[], [], [], []];
+    let faltas = 0;
+    let aulas = 0;
+    for (const aluno of alunosAtivos) {
+      const disciplina = aluno.disciplinas.find((d) => d.nome === nome);
+      if (!disciplina) continue;
+      const notasBim = notasPorBimestre(disciplina, bimestreAtual);
+      const atual = notasBim[idxAtual];
+      if (atual !== null) notas.push(atual);
+      notasBim.forEach((n, i) => {
+        if (n !== null) porBim[i].push(n);
+      });
+      const f = disciplina.faltasAcumuladas ?? disciplina.faltas;
+      const a = disciplina.totalAulasAcumuladas ?? disciplina.totalAulas;
+      if (finito(f) && finito(a) && a > 0) {
+        faltas += f;
+        aulas += a;
+      }
+    }
+    return {
+      nome,
+      media: media(notas),
+      percentualAbaixo: pct(notas.filter((n) => n < NOTA_MINIMA).length, notas.length),
+      alunosComNota: notas.length,
+      frequencia: aulas > 0 ? Math.max(0, ((aulas - faltas) / aulas) * 100) : null,
+      mediaPorBimestre: porBim.map((lista) => media(lista)),
+    };
+  });
+
+  const mediasAlunos = alunos.map((a) => a.mediaAtual).filter(finito);
+  const mediaTurma = media(mediasAlunos);
+  const mediaTurmaPorBimestre = [0, 1, 2, 3].map((i) => media(alunos.map((a) => a.mediaPorBimestre[i]).filter(finito)));
+  const frequencias = alunos.map((a) => a.frequencia).filter(finito);
+  const frequenciaMedia = media(frequencias);
+
+  const situacao = { adequados: 0, atencao: 0, criticos: 0, semNota: 0 };
+  for (const aluno of alunos) {
+    if (aluno.mediaAtual === null) situacao.semNota += 1;
+    else {
+      const arredondada = Math.floor(aluno.mediaAtual + 0.5);
+      if (arredondada < NOTA_MINIMA) situacao.criticos += 1;
+      else if (arredondada === NOTA_MINIMA) situacao.atencao += 1;
+      else situacao.adequados += 1;
+    }
+  }
+
+  const faixasFrequencia = { bom: 0, atencao: 0, critico: 0, semDado: 0 };
+  for (const aluno of alunos) {
+    const tom = tomFrequencia(aluno.frequencia);
+    if (tom === "neutro") faixasFrequencia.semDado += 1;
+    else faixasFrequencia[tom] += 1;
+  }
+
+  // Prova Paulista da turma
+  const ppPorBimestre = BIMESTRES.map((b) => {
+    const registros = alunos.flatMap((a) => a.pp.filter((p) => p.bimestre === b));
+    const notas = registros.map((r) => r.percentual).filter(finito);
+    return {
+      bimestre: b,
+      media: media(notas),
+      participacao: registros.length ? pct(registros.filter((r) => r.participou).length, alunos.length) : null,
+    };
+  });
+  const bimestreUltimoPP = [...ppPorBimestre].reverse().find((p) => p.media !== null)?.bimestre ?? null;
+  const disciplinasPP: Record<string, number[]> = {};
+  if (bimestreUltimoPP) {
+    for (const aluno of alunosAtivos) {
+      const entrada = extras.alunos[aluno.matricula ?? ""]?.prova_paulista?.[bimestreUltimoPP];
+      for (const [disc, valor] of Object.entries(entrada?.disciplinas ?? {})) {
+        const p = paraPercentual(valor);
+        if (p !== null) (disciplinasPP[disc] ??= []).push(p);
+      }
+    }
+  }
+  const disciplinasUltimo = Object.entries(disciplinasPP)
+    .map(([nome, valores]) => ({ nome, media: media(valores) ?? 0 }))
+    .sort((a, b) => a.media - b.media);
+
+  // AvD
+  const chavesNivel = NIVEIS_AVD.map((n) => n.id);
+  const chavesEvolucao = ["avancou", "manteve", "regrediu", "sem"] as const;
+  const avd = {
+    temDados: false,
+    portugues: contagemVazia(chavesNivel),
+    matematica: contagemVazia(chavesNivel),
+    evolucaoPortugues: contagemVazia(chavesEvolucao),
+    evolucaoMatematica: contagemVazia(chavesEvolucao),
+  };
+  for (const aluno of alunos) {
+    avd.portugues[aluno.avdPortugues] += 1;
+    avd.matematica[aluno.avdMatematica] += 1;
+    avd.evolucaoPortugues[aluno.evolucaoPortugues] += 1;
+    avd.evolucaoMatematica[aluno.evolucaoMatematica] += 1;
+  }
+  avd.temDados = alunos.length - avd.portugues.nao > 0 || alunos.length - avd.matematica.nao > 0;
+
+  const comPresente = alunosAtivos.filter((a) => extras.alunos[a.matricula ?? ""]?.aluno_presente);
+  const alunoPresente = {
+    temDados: comPresente.length > 0,
+    emRisco: alunos.filter((a) => a.riscoReprovacaoFaltas).length,
+    semanaAtual: media(alunos.map((a) => a.presencaSemanaAtual).filter(finito)),
+    semanaAnterior: media(alunos.map((a) => a.presencaSemanaAnterior).filter(finito)),
+  };
+
+  const sarespPorDisciplina: Record<string, number[]> = {};
+  for (const aluno of alunos) {
+    for (const [sigla, valor] of Object.entries(aluno.sarespDisciplinas)) (sarespPorDisciplina[sigla] ??= []).push(valor);
+  }
+  const sarespMedias = alunos.map((a) => a.sarespMedia).filter(finito);
+  const saresp = {
+    temDados: sarespMedias.length > 0 || Object.keys(sarespPorDisciplina).length > 0,
+    media: media(sarespMedias),
+    disciplinas: Object.entries(sarespPorDisciplina)
+      .map(([nome, valores]) => ({
+        nome,
+        media: media(valores) ?? 0,
+        abaixo: valores.filter((v) => v < SARESP_CRITICO).length,
+        total: valores.length,
+      }))
+      .sort((a, b) => a.media - b.media),
+  };
+
+  const tarefas = alunos.map((a) => a.tarefasPercentual).filter(finito);
+  const perfilUltimo = ultimoBimestreComDados(extras.perfil_turma ?? {}, bimestreAtual);
+  const destaquesUltimo = ultimoBimestreComDados(extras.alunos_destaque ?? {}, bimestreAtual);
+
+  const total = alunos.length;
+  const diagnostico: DiagnosticoTurma = {
+    bimestreAtual,
+    totalAlunos: total,
+    alunos,
+    disciplinas,
+    mediaTurma,
+    mediaTurmaPorBimestre,
+    frequenciaMedia,
+    situacao,
+    faixasFrequencia,
+    provaPaulista: {
+      temDados: ppPorBimestre.some((p) => p.media !== null),
+      porBimestre: ppPorBimestre,
+      disciplinasUltimo,
+      bimestreUltimo: bimestreUltimoPP,
+    },
+    avd,
+    alunoPresente,
+    saresp,
+    tarefasMedia: media(tarefas),
+    elegiveis: alunos.filter((a) => a.elegivel).length,
+    totalAtendimentos: alunos.reduce((s, a) => s + a.atendimentos, 0),
+    alunosComEncaminhamento: alunos.filter((a) => a.encaminhamentosBimestre > 0).length,
+    perfil: perfilUltimo ? { bimestre: perfilUltimo.bimestre, apontamentos: perfilUltimo.valores } : null,
+    destaques: destaquesUltimo ? { bimestre: destaquesUltimo.bimestre, nomes: destaquesUltimo.valores } : null,
+    pontosAtencao: [],
+    pontosPositivos: [],
+    sugestoes: [],
+  };
+  montarLeitura(diagnostico);
+  return diagnostico;
+}
+
+// ---------------------------------------------------------------------------
+// Rankings
+// ---------------------------------------------------------------------------
+
+export function rankingFaltas(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.frequencia !== null && a.frequencia < 100)
+    .sort((a, b) => (a.frequencia ?? 100) - (b.frequencia ?? 100) || (b.faltasTotal ?? 0) - (a.faltasTotal ?? 0))
+    .slice(0, limite);
+}
+
+export function rankingFragilidade(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.pontuacaoRisco > 0)
+    .sort((a, b) => b.pontuacaoRisco - a.pontuacaoRisco || (a.mediaAtual ?? 10) - (b.mediaAtual ?? 10))
+    .slice(0, limite);
+}
+
+export function rankingEvolucaoPP(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.ppVariacao !== null && a.ppVariacao > 0)
+    .sort((a, b) => (b.ppVariacao ?? 0) - (a.ppVariacao ?? 0))
+    .slice(0, limite);
+}
+
+export function rankingQuedaPP(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.ppVariacao !== null && a.ppVariacao < 0)
+    .sort((a, b) => (a.ppVariacao ?? 0) - (b.ppVariacao ?? 0))
+    .slice(0, limite);
+}
+
+export function rankingMelhoresMedias(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.mediaAtual !== null && a.mediaAtual >= NOTA_BOA)
+    .sort((a, b) => (b.mediaAtual ?? 0) - (a.mediaAtual ?? 0))
+    .slice(0, limite);
+}
+
+function passosAvd(aluno: IndicadorAluno) {
+  const passos = [aluno.mudancaPortugues?.passos, aluno.mudancaMatematica?.passos].filter(finito);
+  return {
+    total: passos.reduce((s, p) => s + p, 0),
+    ganhos: passos.filter((p) => p > 0).reduce((s, p) => s + p, 0),
+    perdas: passos.filter((p) => p < 0).reduce((s, p) => s + p, 0),
+  };
+}
+
+/** Alunos em ascensão na AvD: subiram de nível em ao menos um componente. */
+export function rankingAscensaoAvd(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .map((aluno) => ({ aluno, ...passosAvd(aluno) }))
+    .filter((item) => item.ganhos > 0)
+    .sort((a, b) => b.total - a.total || b.ganhos - a.ganhos || a.aluno.nome.localeCompare(b.aluno.nome, "pt-BR"))
+    .slice(0, limite)
+    .map((item) => item.aluno);
+}
+
+/** Alunos desafio na AvD: caíram de nível em ao menos um componente. */
+export function rankingDesafioAvd(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .map((aluno) => ({ aluno, ...passosAvd(aluno) }))
+    .filter((item) => item.perdas < 0)
+    .sort((a, b) => a.total - b.total || a.perdas - b.perdas || a.aluno.nome.localeCompare(b.aluno.nome, "pt-BR"))
+    .slice(0, limite)
+    .map((item) => item.aluno);
+}
+
+export function rankingEvolucaoNotas(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .filter((a) => a.variacaoNotas !== null && a.variacaoNotas >= 0.5)
+    .sort((a, b) => (b.variacaoNotas ?? 0) - (a.variacaoNotas ?? 0))
+    .slice(0, limite);
+}
+
+// ---------------------------------------------------------------------------
+// Leitura automática: pontos de atenção, pontos positivos e sugestões
+// ---------------------------------------------------------------------------
+
+function fmt(valor: number, casas = 1) {
+  return valor.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
+function montarLeitura(diag: DiagnosticoTurma) {
+  const { alunos, totalAlunos: total } = diag;
+  const atencao: Alerta[] = [];
+  const positivos: Alerta[] = [];
+  const sugestoes: string[] = [];
+  if (!total) return;
+
+  // Frequência
+  const criticosFreq = alunos.filter((a) => tomFrequencia(a.frequencia) === "critico").sort((a, b) => (a.frequencia ?? 0) - (b.frequencia ?? 0));
+  if (criticosFreq.length) {
+    atencao.push({
+      tom: "critico",
+      titulo: `${criticosFreq.length} aluno${criticosFreq.length > 1 ? "s" : ""} com frequência abaixo de ${FREQ_CRITICA}%`,
+      texto: `Risco de retenção por falta: ${listaNomes(criticosFreq)}.`,
+    });
+    sugestoes.push(
+      `Busca ativa com as famílias dos ${criticosFreq.length} alunos abaixo de ${FREQ_CRITICA}% de frequência e combinado de compensação de ausências.`,
+    );
+  }
+  if (diag.alunoPresente.emRisco) {
+    const emRisco = alunos.filter((a) => a.riscoReprovacaoFaltas).sort((a, b) => (a.frequencia ?? 0) - (b.frequencia ?? 0));
+    atencao.push({
+      tom: "critico",
+      titulo: `${emRisco.length} aluno${emRisco.length > 1 ? "s" : ""} em risco de reprovação por faltas`,
+      texto: `Segundo o Aluno Presente: ${listaNomes(emRisco)}.`,
+    });
+  }
+  const { semanaAtual, semanaAnterior } = diag.alunoPresente;
+  if (semanaAtual !== null && semanaAnterior !== null && semanaAnterior - semanaAtual >= 5) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `Presença caiu de ${Math.round(semanaAnterior)}% para ${Math.round(semanaAtual)}% na última semana`,
+      texto: "Média da turma no Aluno Presente. Vale entender o que mudou.",
+    });
+  }
+  if (diag.frequenciaMedia !== null && diag.frequenciaMedia >= 90) {
+    positivos.push({ tom: "bom", titulo: `Frequência média de ${Math.round(diag.frequenciaMedia)}%`, texto: "A turma é assídua de forma geral." });
+  }
+
+  // Disciplinas
+  const criticas = diag.disciplinas
+    .filter((d) => d.alunosComNota > 0 && d.percentualAbaixo >= 30)
+    .sort((a, b) => b.percentualAbaixo - a.percentualAbaixo);
+  if (criticas.length) {
+    atencao.push({
+      tom: criticas[0].percentualAbaixo >= 50 ? "critico" : "atencao",
+      titulo: `Disciplinas com muitos alunos abaixo de ${NOTA_MINIMA}`,
+      texto: criticas.slice(0, 4).map((d) => `${d.nome} (${d.percentualAbaixo}%)`).join(", ") + ".",
+    });
+    sugestoes.push(
+      `Planejar recuperação contínua em ${criticas.slice(0, 3).map((d) => d.nome).join(", ")}, com reagrupamento por dificuldade e monitoria entre pares.`,
+    );
+  }
+  const fortes = diag.disciplinas
+    .filter((d) => d.media !== null && d.media >= NOTA_BOA && d.percentualAbaixo < 15)
+    .sort((a, b) => (b.media ?? 0) - (a.media ?? 0));
+  if (fortes.length) {
+    positivos.push({
+      tom: "bom",
+      titulo: "Disciplinas em que a turma vai bem",
+      texto: fortes.slice(0, 4).map((d) => `${d.nome} (média ${fmt(d.media ?? 0)})`).join(", ") + ".",
+    });
+  }
+  const freqBaixaDisc = diag.disciplinas.filter((d) => d.frequencia !== null && d.frequencia < FREQ_ATENCAO).sort((a, b) => (a.frequencia ?? 0) - (b.frequencia ?? 0));
+  if (freqBaixaDisc.length) {
+    atencao.push({
+      tom: "atencao",
+      titulo: "Disciplinas com mais ausências",
+      texto: freqBaixaDisc.slice(0, 4).map((d) => `${d.nome} (${Math.round(d.frequencia ?? 0)}%)`).join(", ") + ". Vale olhar horário e dinâmica dessas aulas.",
+    });
+  }
+
+  // Situação geral
+  const pctCriticos = pct(diag.situacao.criticos, total);
+  if (pctCriticos >= 20) {
+    atencao.push({
+      tom: "critico",
+      titulo: `${pctCriticos}% da turma com média geral abaixo de ${NOTA_MINIMA}`,
+      texto: "Fragilidade espalhada pela turma; pede ação coletiva, não só individual.",
+    });
+  }
+  const multiplas = alunos.filter((a) => a.disciplinasAbaixo.length >= 3);
+  if (multiplas.length) {
+    atencao.push({
+      tom: "critico",
+      titulo: `${multiplas.length} aluno${multiplas.length > 1 ? "s" : ""} abaixo de ${NOTA_MINIMA} em 3 ou mais disciplinas`,
+      texto: `${listaNomes(multiplas.sort((a, b) => b.disciplinasAbaixo.length - a.disciplinasAbaixo.length))}.`,
+    });
+    sugestoes.push("Plano individual de acompanhamento (tutoria) para os alunos com fragilidade em 3 ou mais disciplinas, com retorno quinzenal.");
+  }
+  if (diag.mediaTurma !== null && diag.mediaTurma >= NOTA_BOA) {
+    positivos.push({ tom: "bom", titulo: `Média geral da turma ${fmt(diag.mediaTurma)}`, texto: "Desempenho acima do esperado." });
+  }
+  const evolucaoTurma = (() => {
+    const atual = diag.mediaTurmaPorBimestre[diag.bimestreAtual - 1];
+    for (let i = diag.bimestreAtual - 2; i >= 0; i -= 1) {
+      const anterior = diag.mediaTurmaPorBimestre[i];
+      if (anterior !== null && atual !== null) return { delta: atual - anterior, de: i + 1 };
+    }
+    return null;
+  })();
+  if (evolucaoTurma && evolucaoTurma.delta >= 0.3) {
+    positivos.push({
+      tom: "bom",
+      titulo: `Média da turma subiu ${fmt(evolucaoTurma.delta)} ponto${evolucaoTurma.delta >= 2 ? "s" : ""}`,
+      texto: `Em relação ao ${evolucaoTurma.de}º bimestre.`,
+    });
+  } else if (evolucaoTurma && evolucaoTurma.delta <= -0.3) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `Média da turma caiu ${fmt(Math.abs(evolucaoTurma.delta))} ponto${Math.abs(evolucaoTurma.delta) >= 2 ? "s" : ""}`,
+      texto: `Em relação ao ${evolucaoTurma.de}º bimestre.`,
+    });
+  }
+
+  // Prova Paulista
+  if (diag.provaPaulista.temDados) {
+    const ultimo = diag.provaPaulista.porBimestre.find((p) => p.bimestre === diag.provaPaulista.bimestreUltimo);
+    if (ultimo?.media !== null && ultimo?.media !== undefined) {
+      const tom = tomProvaPaulista(ultimo.media);
+      const alerta = { tom, titulo: `Prova Paulista: ${Math.round(ultimo.media)}% de acertos em média`, texto: `Resultado do ${ultimo.bimestre}º bimestre.` };
+      if (tom === "bom") positivos.push(alerta);
+      else atencao.push(alerta);
+    }
+    const piores = diag.provaPaulista.disciplinasUltimo.filter((d) => d.media < PP_CRITICA);
+    if (piores.length) {
+      sugestoes.push(
+        `Retomar habilidades de ${piores.slice(0, 3).map((d) => d.nome).join(", ")} a partir dos itens com menor acerto na Prova Paulista.`,
+      );
+    }
+    const subiram = alunos.filter((a) => (a.ppVariacao ?? 0) >= 5).length;
+    const cairam = alunos.filter((a) => (a.ppVariacao ?? 0) <= -5).length;
+    if (subiram) positivos.push({ tom: "bom", titulo: `${subiram} aluno${subiram > 1 ? "s" : ""} em ascensão na Prova Paulista (+5 p.p. ou mais)`, texto: "Reconhecer o avanço em sala ajuda a manter o engajamento." });
+    if (cairam) atencao.push({ tom: "atencao", titulo: `${cairam} aluno${cairam > 1 ? "s" : ""} desafio na Prova Paulista (−5 p.p. ou mais)`, texto: "Investigar se houve mudança de frequência, de rotina ou de engajamento." });
+    const participacao = ultimo?.participacao;
+    if (participacao !== null && participacao !== undefined && participacao < 85) {
+      atencao.push({ tom: "atencao", titulo: `Participação de ${participacao}% na última Prova Paulista`, texto: "Ausências na avaliação reduzem a leitura diagnóstica da turma." });
+    }
+  }
+
+  // AvD
+  if (diag.avd.temDados) {
+    for (const [rotulo, contagem] of [["Língua Portuguesa", diag.avd.portugues], ["Matemática", diag.avd.matematica]] as const) {
+      const mensurados = total - contagem.nao;
+      const pctAbaixo = pct(contagem.abaixo, mensurados);
+      if (mensurados && pctAbaixo >= 30) {
+        atencao.push({ tom: "critico", titulo: `${pctAbaixo}% abaixo do básico em ${rotulo} na AvD`, texto: "Recomposição – Diagnóstico (nível mais recente)." });
+        sugestoes.push(`Trabalhar habilidades estruturantes de ${rotulo} (recomposição), com atividades em níveis e acompanhamento da próxima AvD.`);
+      }
+      const pctAdequado = pct(contagem.adequado + contagem.avancado, mensurados);
+      if (mensurados && pctAdequado >= 50) {
+        positivos.push({ tom: "bom", titulo: `${pctAdequado}% adequado ou avançado em ${rotulo} na AvD`, texto: "Recomposição – Diagnóstico (nível mais recente)." });
+      }
+    }
+    const avancaram = diag.avd.evolucaoPortugues.avancou + diag.avd.evolucaoMatematica.avancou;
+    if (avancaram) positivos.push({ tom: "bom", titulo: `${avancaram} avanço${avancaram > 1 ? "s" : ""} de nível da 1ª para a 2ª AvD`, texto: "Somando Língua Portuguesa e Matemática." });
+    const desafio = alunos.filter((aluno) => passosAvd(aluno).perdas < 0);
+    if (desafio.length) {
+      atencao.push({
+        tom: desafio.length >= 5 ? "critico" : "atencao",
+        titulo: `${desafio.length} aluno${desafio.length > 1 ? "s" : ""} desafio na AvD`,
+        texto: `Caíram de nível da 1ª para a 2ª AvD: ${listaNomes(desafio)}.`,
+      });
+    }
+  }
+
+  // SARESP
+  if (diag.saresp.temDados) {
+    const fracas = diag.saresp.disciplinas.filter((d) => d.media < SARESP_CRITICO + 1);
+    if (diag.saresp.media !== null && diag.saresp.media < 5) {
+      atencao.push({
+        tom: diag.saresp.media < SARESP_CRITICO ? "critico" : "atencao",
+        titulo: `Nota média de ${fmt(diag.saresp.media)} no SARESP`,
+        texto: fracas.length ? `Menores notas: ${fracas.slice(0, 3).map((d) => `${d.nome} (${fmt(d.media)})`).join(", ")}.` : "Escala de 0 a 10.",
+      });
+    } else if (diag.saresp.media !== null && diag.saresp.media >= 6) {
+      positivos.push({ tom: "bom", titulo: `Nota média de ${fmt(diag.saresp.media)} no SARESP`, texto: "Escala de 0 a 10." });
+    }
+    if (fracas.length) {
+      sugestoes.push(`Usar as habilidades do SARESP em ${fracas.slice(0, 2).map((d) => d.nome).join(" e ")} como base do plano de recomposição.`);
+    }
+  }
+
+  // Tarefas
+  if (diag.tarefasMedia !== null) {
+    if (diag.tarefasMedia < 50) {
+      atencao.push({ tom: "atencao", titulo: `Só ${Math.round(diag.tarefasMedia)}% das tarefas realizadas`, texto: "Média da turma nas plataformas." });
+      sugestoes.push("Reservar momentos em aula para as tarefas das plataformas e acompanhar semanalmente quem não entregou.");
+    } else if (diag.tarefasMedia >= 75) {
+      positivos.push({ tom: "bom", titulo: `${Math.round(diag.tarefasMedia)}% das tarefas realizadas`, texto: "A turma mantém a rotina de tarefas." });
+    }
+  }
+
+  if (diag.elegiveis) {
+    sugestoes.push(`Garantir as adaptações previstas nos PEIs dos ${diag.elegiveis} estudante${diag.elegiveis > 1 ? "s" : ""} elegíve${diag.elegiveis > 1 ? "is" : "l"} da educação especial.`);
+  }
+  const quedaNotas = alunos.filter((a) => (a.variacaoNotas ?? 0) <= -1.5);
+  if (quedaNotas.length) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `${quedaNotas.length} aluno${quedaNotas.length > 1 ? "s" : ""} com queda forte nas notas`,
+      texto: `Média caiu 1,5 ponto ou mais em relação ao bimestre anterior: ${listaNomes(quedaNotas)}.`,
+    });
+    sugestoes.push("Conversar individualmente com os alunos que tiveram queda brusca de notas antes que vire defasagem.");
+  }
+
+  const ordemTom: Record<Tom, number> = { critico: 0, atencao: 1, bom: 2, neutro: 3 };
+  diag.pontosAtencao = atencao.sort((a, b) => ordemTom[a.tom] - ordemTom[b.tom]);
+  diag.pontosPositivos = positivos;
+  diag.sugestoes = sugestoes;
+}
+
+// ---------------------------------------------------------------------------
+// Leitura individual: o mesmo diagnóstico, recortado para um aluno
+// ---------------------------------------------------------------------------
+
+export type PresencaEmLista = { lista: string; posicao: number; total: number; tom: Tom };
+
+export type ComparacaoDisciplina = {
+  nome: string;
+  nota: number | null;
+  mediaTurma: number | null;
+  diferenca: number | null;
+};
+
+export type LeituraAluno = {
+  indicador: IndicadorAluno;
+  totalAlunos: number;
+  posicaoMedia: number | null; // 1 = maior média da turma
+  listas: PresencaEmLista[];
+  disciplinas: ComparacaoDisciplina[];
+  pontosAtencao: Alerta[];
+  pontosPositivos: Alerta[];
+  sugestoes: string[];
+};
+
+/**
+ * Onde o aluno aparece nas listas do relatório da turma, como ele se compara
+ * à média da turma e o que isso sugere. `limite` é o tamanho das listas do
+ * relatório (o aluno só "aparece" numa lista se estiver dentro dele).
+ */
+export function leituraAluno(diag: DiagnosticoTurma, chave: string, limite = 10): LeituraAluno | null {
+  const indicador = diag.alunos.find((a) => a.chave === chave);
+  if (!indicador) return null;
+  const todos = diag.alunos.length;
+
+  const listas: PresencaEmLista[] = [];
+  const verificar = (lista: string, tom: Tom, ranking: IndicadorAluno[]) => {
+    const idx = ranking.findIndex((a) => a.chave === chave);
+    if (idx >= 0 && idx < limite) listas.push({ lista, posicao: idx + 1, total: ranking.length, tom });
+  };
+  verificar("Alunos com mais faltas", "critico", rankingFaltas(diag, todos));
+  verificar("Alunos que mais precisam de apoio", "critico", rankingFragilidade(diag, todos));
+  verificar("Alunos desafio na Prova Paulista", "atencao", rankingQuedaPP(diag, todos));
+  verificar("Alunos desafio na AvD", "atencao", rankingDesafioAvd(diag, todos));
+  verificar("Maiores médias", "bom", rankingMelhoresMedias(diag, todos));
+  verificar("Alunos em ascensão nas notas", "bom", rankingEvolucaoNotas(diag, todos));
+  verificar("Alunos em ascensão na Prova Paulista", "bom", rankingEvolucaoPP(diag, todos));
+  verificar("Alunos em ascensão na AvD", "bom", rankingAscensaoAvd(diag, todos));
+
+  const porMedia = diag.alunos
+    .filter((a) => a.mediaAtual !== null)
+    .sort((a, b) => (b.mediaAtual ?? 0) - (a.mediaAtual ?? 0));
+  const idxMedia = porMedia.findIndex((a) => a.chave === chave);
+
+  const disciplinas: ComparacaoDisciplina[] = diag.disciplinas
+    .filter((d) => d.alunosComNota > 0 || indicador.notasAtuais[d.nome] !== undefined)
+    .map((d) => {
+      const nota = indicador.notasAtuais[d.nome] ?? null;
+      return {
+        nome: d.nome,
+        nota,
+        mediaTurma: d.media,
+        diferenca: nota !== null && d.media !== null ? nota - d.media : null,
+      };
+    })
+    .filter((d) => d.nota !== null || d.mediaTurma !== null);
+
+  const atencao: Alerta[] = indicador.motivosRisco.map((m) => ({ tom: m.tom, titulo: m.texto.charAt(0).toUpperCase() + m.texto.slice(1), texto: "" }));
+  const positivos: Alerta[] = [];
+  const sugestoes: string[] = [];
+
+  if (indicador.disciplinasAbaixo.length) {
+    const alerta = atencao.find((a) => a.titulo.includes("abaixo de"));
+    if (alerta) alerta.texto = indicador.disciplinasAbaixo.join(", ") + ".";
+    sugestoes.push(`Recuperação contínua em ${indicador.disciplinasAbaixo.slice(0, 3).join(", ")}, com combinado de atividades e retorno ao aluno.`);
+  }
+  if (indicador.disciplinaMaisFaltas && indicador.disciplinaMaisFaltas.frequencia < FREQ_CRITICA) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `Mais ausências em ${indicador.disciplinaMaisFaltas.nome}`,
+      texto: `Frequência de ${Math.round(indicador.disciplinaMaisFaltas.frequencia)}% nesta disciplina.`,
+    });
+  }
+  if (indicador.variacaoNotas !== null && indicador.variacaoNotas <= -1) {
+    atencao.push({ tom: "atencao", titulo: `Média caiu ${fmt(Math.abs(indicador.variacaoNotas))} ponto${Math.abs(indicador.variacaoNotas) >= 2 ? "s" : ""}`, texto: "Em relação ao bimestre anterior com notas." });
+    sugestoes.push("Conversa individual para entender a queda nas notas antes que vire defasagem.");
+  }
+  if (indicador.ppVariacao !== null && indicador.ppVariacao <= -5 && indicador.ppBimestresComparados) {
+    const [de, para] = indicador.ppBimestresComparados;
+    atencao.push({ tom: "atencao", titulo: `Prova Paulista caiu ${Math.round(Math.abs(indicador.ppVariacao))} p.p.`, texto: `Do ${de}º para o ${para}º bimestre.` });
+  }
+  for (const [rotulo, mudanca] of [["Língua Portuguesa", indicador.mudancaPortugues], ["Matemática", indicador.mudancaMatematica]] as const) {
+    if (mudanca && mudanca.passos < 0) atencao.push({ tom: "atencao", titulo: `Caiu de nível na AvD de ${rotulo}`, texto: "Da 1ª para a 2ª avaliação diagnóstica." });
+    if (mudanca && mudanca.passos > 0) positivos.push({ tom: "bom", titulo: `Subiu de nível na AvD de ${rotulo}`, texto: "Da 1ª para a 2ª avaliação diagnóstica." });
+  }
+
+  if (indicador.mediaAtual !== null && indicador.mediaAtual >= NOTA_BOA) {
+    positivos.push({ tom: "bom", titulo: `Média ${fmt(indicador.mediaAtual)}`, texto: idxMedia >= 0 ? `${idxMedia + 1}ª maior média da turma.` : "" });
+  }
+  if (indicador.frequencia !== null && indicador.frequencia >= 95) {
+    positivos.push({ tom: "bom", titulo: `Frequência de ${Math.round(indicador.frequencia)}%`, texto: "Aluno assíduo." });
+  }
+  if (indicador.variacaoNotas !== null && indicador.variacaoNotas >= 0.5) {
+    positivos.push({ tom: "bom", titulo: `Média subiu ${fmt(indicador.variacaoNotas)} ponto${indicador.variacaoNotas >= 2 ? "s" : ""}`, texto: "Em relação ao bimestre anterior com notas." });
+  }
+  if (indicador.ppVariacao !== null && indicador.ppVariacao >= 5 && indicador.ppBimestresComparados) {
+    const [de, para] = indicador.ppBimestresComparados;
+    positivos.push({ tom: "bom", titulo: `Prova Paulista subiu ${Math.round(indicador.ppVariacao)} p.p.`, texto: `Do ${de}º para o ${para}º bimestre.` });
+  }
+  if (indicador.ppUltimo !== null && indicador.ppUltimo >= PP_BOA) {
+    positivos.push({ tom: "bom", titulo: `${Math.round(indicador.ppUltimo)}% de acertos na Prova Paulista`, texto: "Resultado mais recente." });
+  }
+  if (indicador.tarefasPercentual !== null && indicador.tarefasPercentual >= 75) {
+    positivos.push({ tom: "bom", titulo: `${Math.round(indicador.tarefasPercentual)}% das tarefas realizadas`, texto: "Mantém a rotina de tarefas." });
+  }
+  const acima = disciplinas.filter((d) => d.nota !== null && d.nota >= NOTA_BOA && (d.diferenca ?? 0) >= 1).sort((a, b) => (b.diferenca ?? 0) - (a.diferenca ?? 0));
+  if (acima.length) {
+    positivos.push({ tom: "bom", titulo: "Acima da turma em", texto: acima.slice(0, 4).map((d) => `${d.nome} (${fmt(d.nota ?? 0)})`).join(", ") + "." });
+  }
+
+  if (indicador.frequencia !== null && indicador.frequencia < FREQ_ATENCAO) {
+    sugestoes.push(
+      indicador.frequencia < FREQ_CRITICA
+        ? "Busca ativa com a família e plano de compensação de ausências."
+        : "Contato com a família sobre as ausências, antes que a frequência chegue a 75%.",
+    );
+  }
+  if (indicador.avdPortugues === "abaixo" || indicador.avdMatematica === "abaixo") {
+    const componentes = [indicador.avdPortugues === "abaixo" ? "Língua Portuguesa" : null, indicador.avdMatematica === "abaixo" ? "Matemática" : null].filter(Boolean);
+    sugestoes.push(`Atividades de recomposição em ${componentes.join(" e ")}, no nível em que o aluno está.`);
+  }
+  if (indicador.tarefasPercentual !== null && indicador.tarefasPercentual < 50) {
+    sugestoes.push("Acompanhar semanalmente a entrega das tarefas das plataformas.");
+  }
+  if (indicador.elegivel) sugestoes.push("Conferir se as adaptações do PEI estão sendo aplicadas em todas as disciplinas.");
+  if (!sugestoes.length && !atencao.length) sugestoes.push("Manter o acompanhamento e reconhecer o bom desempenho com o aluno e a família.");
+
+  const ordemTom: Record<Tom, number> = { critico: 0, atencao: 1, bom: 2, neutro: 3 };
+  return {
+    indicador,
+    totalAlunos: todos,
+    posicaoMedia: idxMedia >= 0 ? idxMedia + 1 : null,
+    listas,
+    disciplinas,
+    pontosAtencao: atencao.sort((a, b) => ordemTom[a.tom] - ordemTom[b.tom]),
+    pontosPositivos: positivos,
+    sugestoes,
+  };
+}

@@ -29,6 +29,10 @@ import {
 } from "./atendimentos/mensagemFamilia";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
+import { calcularDiagnostico } from "./diagnosticoTurma/calculos";
+import { DiagnosticoAluno } from "./diagnosticoTurma/DiagnosticoAluno";
+import { BotaoRelatorioTurma, PainelEstatisticasTurma, type CabecalhoTurmaDiagnostico } from "./diagnosticoTurma/RelatorioDiagnosticoTurma";
+import { useIndicadoresExtras } from "./diagnosticoTurma/useDiagnostico";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -435,7 +439,19 @@ export function GestaoTurma({
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[]; encaminhamento_opcoes?: OpcaoEncaminhamento[]; mensagem_familia_templates?: MensagemTemplate[] };
+  turmaConfig: {
+    lider_ativo: boolean;
+    lider_rotulo: string;
+    elegivel_ativo: boolean;
+    elegivel_rotulo: string;
+    atendimento_tipos?: string[];
+    encaminhamento_opcoes?: OpcaoEncaminhamento[];
+    mensagem_familia_templates?: MensagemTemplate[];
+    perfil_turma_ativo?: boolean;
+    perfil_turma_criterios?: { id: string; nome: string; opcoes: { nivel: string; label: string }[] }[];
+    aluno_destaque_ativo?: boolean;
+    aluno_destaque_criterios?: { id: string; titulo: string; icone: string }[];
+  };
   nomeAlunoInicial?: string | null;
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
@@ -503,22 +519,26 @@ export function GestaoTurma({
   const bimestreAtualTurma = bimestreParaNumero(turmaDetalhe?.bimestre);
   const disciplinas = useMemo(() => Array.from(new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunosAtivos]);
   const mediaGeral = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma).mediaGeral;
-  const metricas = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma);
   const total = alunosAtivos.length || 1;
-  const desempenhoDisciplinas = useMemo(() => disciplinas.map((disciplina) => {
-    const notas = alunosAtivos.flatMap((aluno) => {
-      const nota = aluno.disciplinas.find((item) => item.nome === disciplina)?.mediaOriginal;
-      return typeof nota === "number" && Number.isFinite(nota) ? [nota] : [];
-    });
-    const media = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : 0;
-    return { disciplina, media };
-  }), [alunosAtivos, disciplinas]);
-  const bimestreLabel = `${turmaDetalhe?.bimestre ?? "1"}º bim`;
-  const percentuaisSituacao = {
-    adequados: Math.round(metricas.adequados / total * 100),
-    atencao: Math.round(metricas.atencao / total * 100),
-    criticos: Math.round(metricas.criticos / total * 100),
+
+  // Diagnóstico da turma: alimenta a aba Estatísticas, o relatório imprimível
+  // e a aba Diagnóstico da ficha de cada aluno.
+  const { extras: indicadoresExtras, erro: erroIndicadores } = useIndicadoresExtras(turma?.caminho);
+  const diagnostico = useMemo(
+    () => calcularDiagnostico(alunosAtivos, indicadoresExtras, turmaDetalhe?.bimestre),
+    [alunosAtivos, indicadoresExtras, turmaDetalhe?.bimestre],
+  );
+  const cabecalhoDiagnostico: CabecalhoTurmaDiagnostico = {
+    rotulo: turma ? rotuloTurma(turma) : turmaDetalhe?.codigo ?? "Turma",
+    serie: rotuloSerie(turma?.serie) || turma?.ciclo || "",
+    periodo: turma?.periodo ?? null,
+    ano: turma?.ano ?? turmaDetalhe?.ano ?? null,
+    sala: turma?.sala ?? null,
+    coordenador: turma?.coordenador_turma ?? turmaDetalhe?.coordenador_turma ?? null,
+    caminho: turma?.caminho ?? null,
   };
+  const criteriosPerfil = turmaConfig.perfil_turma_ativo === false ? [] : turmaConfig.perfil_turma_criterios ?? [];
+  const criteriosDestaque = turmaConfig.aluno_destaque_ativo === false ? [] : turmaConfig.aluno_destaque_criterios ?? [];
   const tarefasDaTurma = useMemo(() => {
     const termos = [
       turma ? rotuloTurma(turma) : "",
@@ -635,6 +655,15 @@ export function GestaoTurma({
           eventos={eventosCalendario}
           onOpenKanban={onOpenKanban}
           onAbrirTelaAtendimentos={onAbrirTelaAtendimentos}
+          abaDiagnostico={
+            <DiagnosticoAluno
+              diag={diagnostico}
+              chave={alunoAbertoAtual.matricula ?? alunoAbertoAtual.nome}
+              cabecalho={cabecalhoDiagnostico}
+              criteriosDestaque={criteriosDestaque}
+              erroExtras={erroIndicadores}
+            />
+          }
         />
       </>
     );
@@ -682,12 +711,20 @@ export function GestaoTurma({
         </div>
       </section>
 
-      <div className="detail-tabs">
-        <button className={aba === "alunos" ? "active" : ""} onClick={() => setAba("alunos")}>Alunos ({alunos.length})</button>
-        <button className={aba === "estatisticas" ? "active" : ""} onClick={() => setAba("estatisticas")}>Estatísticas</button>
-        {tarefasDaTurma.length > 0 && (
-          <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDaTurma.length})</button>
-        )}
+      <div className="detail-tabs-row">
+        <div className="detail-tabs">
+          <button className={aba === "alunos" ? "active" : ""} onClick={() => setAba("alunos")}>Alunos ({alunos.length})</button>
+          <button className={aba === "estatisticas" ? "active" : ""} onClick={() => setAba("estatisticas")}>Estatísticas</button>
+          {tarefasDaTurma.length > 0 && (
+            <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDaTurma.length})</button>
+          )}
+        </div>
+        <BotaoRelatorioTurma
+          diag={diagnostico}
+          cabecalho={cabecalhoDiagnostico}
+          criteriosPerfil={criteriosPerfil}
+          criteriosDestaque={criteriosDestaque}
+        />
       </div>
 
       {aba === "alunos" && (
@@ -771,55 +808,17 @@ export function GestaoTurma({
       )}
 
       {aba === "estatisticas" && (
-        <section className="stats-layout">
-          <div className="panel stats-card discipline-performance-card">
-            <div className="stats-card-heading">
-              <h3>Desempenho por Disciplina</h3>
-              <span>{bimestreLabel}</span>
-            </div>
-            <div className="subject-performance-chart">
-              {desempenhoDisciplinas.map(({ disciplina, media }) => {
-                return (
-                  <div className="subject-performance-row" key={disciplina}>
-                    <span title={disciplina}>{disciplina}</span>
-                    <div className="subject-performance-track">
-                      <i style={{ width: `${Math.max(2, media * 10)}%` }} />
-                    </div>
-                    <strong>{formatarMediaGlobal(media)}</strong>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="panel stats-card status-evolution-card">
-            <div className="stats-card-heading">
-              <h3>Evolução da Situação da Turma</h3>
-              <span>Panorama anual</span>
-            </div>
-            <div className="status-evolution-row">
-              <span>{bimestreLabel}</span>
-              <div className="status-evolution-bar" aria-label={`Distribuição da turma no ${bimestreLabel}`}>
-                <i className="ok" style={{ width: `${percentuaisSituacao.adequados}%` }} />
-                <i className="warn" style={{ width: `${percentuaisSituacao.atencao}%` }} />
-                <i className="bad" style={{ width: `${percentuaisSituacao.criticos}%` }} />
-              </div>
-            </div>
-            <div className="status-evolution-placeholder">
-              <span>Os próximos bimestres entram aqui quando a turma tiver novos mapões importados.</span>
-            </div>
-            <div className="pie-legend status-legend">
-              <span className="ok">Adequados: {percentuaisSituacao.adequados}%</span>
-              <span className="warn">Atenção: {percentuaisSituacao.atencao}%</span>
-              <span className="bad">Críticos: {percentuaisSituacao.criticos}%</span>
-            </div>
-          </div>
-          <div className="panel stats-summary">
-            <h3>Análise Geral da Turma</h3>
-            <article className="ok"><strong>{metricas.adequados}</strong><span>Alunos em situação regular</span></article>
-            <article className="warn"><strong>{metricas.atencao}</strong><span>Alunos necessitando atenção</span></article>
-            <article className="bad"><strong>{metricas.criticos}</strong><span>Alunos em situação crítica</span></article>
-          </div>
-        </section>
+        <PainelEstatisticasTurma
+          diag={diagnostico}
+          cabecalho={cabecalhoDiagnostico}
+          criteriosPerfil={criteriosPerfil}
+          criteriosDestaque={criteriosDestaque}
+          erroExtras={erroIndicadores}
+          onAbrirAluno={(chave) => {
+            const aluno = alunosAtivos.find((item) => (item.matricula ?? item.nome) === chave);
+            if (aluno) setAlunoAberto(aluno);
+          }}
+        />
       )}
 
       {aba === "tarefas" && (
@@ -1572,6 +1571,7 @@ function AlunoDetalheGestao({
   eventos,
   onOpenKanban,
   onAbrirTelaAtendimentos,
+  abaDiagnostico,
 }: {
   aluno: Aluno;
   bimestre: string;
@@ -1589,8 +1589,9 @@ function AlunoDetalheGestao({
   eventos: CalendarEvent[];
   onOpenKanban: () => void;
   onAbrirTelaAtendimentos?: (alunoNome: string) => void;
+  abaDiagnostico?: ReactNode;
 }) {
-  const [aba, setAba] = useState<"desempenho" | "atendimentos" | "educacao" | "tarefas">("desempenho");
+  const [aba, setAba] = useState<"desempenho" | "diagnostico" | "atendimentos" | "educacao" | "tarefas">("desempenho");
   const [deficienciasSelecionadas, setDeficienciasSelecionadas] = useState<string[]>(aluno.deficiencias);
   const [comentario, setComentario] = useState(aluno.comentarioEducacaoEspecial ?? "");
   const [novaCondicao, setNovaCondicao] = useState("");
@@ -1969,6 +1970,9 @@ function AlunoDetalheGestao({
 
       <div className="student-profile-tabs">
         <button className={aba === "desempenho" ? "active" : ""} onClick={() => setAba("desempenho")}>Desempenho</button>
+        {abaDiagnostico && (
+          <button className={aba === "diagnostico" ? "active" : ""} onClick={() => setAba("diagnostico")}>Diagnóstico</button>
+        )}
         <button className={aba === "atendimentos" ? "active" : ""} onClick={() => setAba("atendimentos")}>Atendimentos ({aluno.atendimentos?.length ?? 0})</button>
         {tarefasDoAluno.length > 0 && (
           <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDoAluno.length})</button>
@@ -2087,6 +2091,8 @@ function AlunoDetalheGestao({
       </div>
       </>
       )}
+
+      {aba === "diagnostico" && abaDiagnostico}
 
       {aba === "atendimentos" && (
         <section className="student-attendance-section">
