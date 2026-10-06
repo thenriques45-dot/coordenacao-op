@@ -860,6 +860,7 @@
     visibility: visible !important;
   }
 
+  html:has(body.imprimindo-diagnostico),
   body.imprimindo-diagnostico {
     background: #ffffff !important;
     margin: 0;
@@ -892,4 +893,30 @@
     break-after: auto;
     page-break-after: auto;
   }
+}
+
+.diag-avd-mudanca {
+  white-space: nowrap;
+}
+
+.diag-avd-mudanca small {
+  color: var(--diag-tinta-3);
+  display: block;
+  font-size: 8.5px;
+}
+
+.diag-avd-manteve {
+  color: var(--diag-tinta-3);
+}
+
+/* Página da AvD: duas listas de alunos com duas linhas por célula. */
+.diag-pagina-compacta .diag-tabela td {
+  padding-bottom: 2px;
+  padding-top: 2px;
+}
+
+.diag-pagina-compacta .diag-quadro {
+  gap: 4px;
+  padding-bottom: 6px;
+  padding-top: 8px;
 }

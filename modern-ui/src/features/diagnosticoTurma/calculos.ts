@@ -20,6 +20,10 @@ export type ComponenteAvd = {
   status: string | null;
   evolucao: string | null;
   mensurado: boolean;
+  nivel_avd1?: string | null;
+  nivel_avd2?: string | null;
+  equivalente_avd1?: string | null;
+  equivalente_avd2?: string | null;
 };
 
 export type AlunoDiag = {
@@ -150,14 +154,55 @@ export const NIVEIS_AVD: { id: NivelAvd; rotulo: string }[] = [
   { id: "nao", rotulo: "Não mensurado" },
 ];
 
-export function nivelAvd(componente: ComponenteAvd | null | undefined): NivelAvd {
-  if (!componente || !componente.mensurado || !componente.status) return "nao";
-  const texto = semAcento(componente.status);
+function nivelDoTexto(valor: string | null | undefined): NivelAvd {
+  if (!valor) return "nao";
+  const texto = semAcento(valor);
   if (texto.includes("abaixo")) return "abaixo";
   if (texto.includes("avanc")) return "avancado";
   if (texto.includes("adequ") || texto.includes("profic")) return "adequado";
   if (texto.includes("basic")) return "basico";
   return "nao";
+}
+
+export function nivelAvd(componente: ComponenteAvd | null | undefined): NivelAvd {
+  if (!componente || !componente.mensurado) return "nao";
+  return nivelDoTexto(componente.status);
+}
+
+const ORDEM_NIVEL: Record<NivelAvd, number | null> = { abaixo: 0, basico: 1, adequado: 2, avancado: 3, nao: null };
+
+/** Mudança de um componente da 1ª para a 2ª AvD. */
+export type MudancaAvd = {
+  de: NivelAvd;
+  para: NivelAvd;
+  equivalenteDe: string | null;
+  equivalentePara: string | null;
+  /** Níveis ganhos (+) ou perdidos (−). Sem os dois níveis, ±1 pela coluna "Evolução" do BI. */
+  passos: number;
+};
+
+export function mudancaAvd(componente: ComponenteAvd | null | undefined): MudancaAvd | null {
+  if (!componente) return null;
+  const de = nivelDoTexto(componente.nivel_avd1);
+  const para = nivelDoTexto(componente.nivel_avd2);
+  const ordemDe = ORDEM_NIVEL[de];
+  const ordemPara = ORDEM_NIVEL[para];
+  let passos: number | null = null;
+  if (ordemDe !== null && ordemPara !== null) passos = ordemPara - ordemDe;
+  else {
+    const evolucao = evolucaoAvd(componente);
+    if (evolucao === "avancou") passos = 1;
+    else if (evolucao === "regrediu") passos = -1;
+    else if (evolucao === "manteve") passos = 0;
+  }
+  if (passos === null) return null;
+  return {
+    de,
+    para,
+    equivalenteDe: componente.equivalente_avd1 ?? null,
+    equivalentePara: componente.equivalente_avd2 ?? null,
+    passos,
+  };
 }
 
 export type EvolucaoAvd = "avancou" | "manteve" | "regrediu" | "sem";
@@ -199,6 +244,8 @@ export type IndicadorAluno = {
   avdMatematica: NivelAvd;
   evolucaoPortugues: EvolucaoAvd;
   evolucaoMatematica: EvolucaoAvd;
+  mudancaPortugues: MudancaAvd | null;
+  mudancaMatematica: MudancaAvd | null;
   sarespMedia: number | null;
   sarespMenorNota: string | null;
   sarespDisciplinas: Record<string, number>;
@@ -487,6 +534,8 @@ export function calcularDiagnostico(
       avdMatematica,
       evolucaoPortugues: evolucaoAvd(diag?.portugues),
       evolucaoMatematica: evolucaoAvd(diag?.matematica),
+      mudancaPortugues: mudancaAvd(diag?.portugues),
+      mudancaMatematica: mudancaAvd(diag?.matematica),
       sarespMedia,
       sarespMenorNota,
       sarespDisciplinas,
@@ -700,6 +749,35 @@ export function rankingMelhoresMedias(diag: DiagnosticoTurma, limite: number) {
     .slice(0, limite);
 }
 
+function passosAvd(aluno: IndicadorAluno) {
+  const passos = [aluno.mudancaPortugues?.passos, aluno.mudancaMatematica?.passos].filter(finito);
+  return {
+    total: passos.reduce((s, p) => s + p, 0),
+    ganhos: passos.filter((p) => p > 0).reduce((s, p) => s + p, 0),
+    perdas: passos.filter((p) => p < 0).reduce((s, p) => s + p, 0),
+  };
+}
+
+/** Alunos em ascensão na AvD: subiram de nível em ao menos um componente. */
+export function rankingAscensaoAvd(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .map((aluno) => ({ aluno, ...passosAvd(aluno) }))
+    .filter((item) => item.ganhos > 0)
+    .sort((a, b) => b.total - a.total || b.ganhos - a.ganhos || a.aluno.nome.localeCompare(b.aluno.nome, "pt-BR"))
+    .slice(0, limite)
+    .map((item) => item.aluno);
+}
+
+/** Alunos desafio na AvD: caíram de nível em ao menos um componente. */
+export function rankingDesafioAvd(diag: DiagnosticoTurma, limite: number) {
+  return diag.alunos
+    .map((aluno) => ({ aluno, ...passosAvd(aluno) }))
+    .filter((item) => item.perdas < 0)
+    .sort((a, b) => a.total - b.total || a.perdas - b.perdas || a.aluno.nome.localeCompare(b.aluno.nome, "pt-BR"))
+    .slice(0, limite)
+    .map((item) => item.aluno);
+}
+
 export function rankingEvolucaoNotas(diag: DiagnosticoTurma, limite: number) {
   return diag.alunos
     .filter((a) => a.variacaoNotas !== null && a.variacaoNotas >= 0.5)
@@ -847,8 +925,8 @@ function montarLeitura(diag: DiagnosticoTurma) {
     }
     const subiram = alunos.filter((a) => (a.ppVariacao ?? 0) >= 5).length;
     const cairam = alunos.filter((a) => (a.ppVariacao ?? 0) <= -5).length;
-    if (subiram) positivos.push({ tom: "bom", titulo: `${subiram} aluno${subiram > 1 ? "s" : ""} melhoraram 5 p.p. ou mais na Prova Paulista`, texto: "Reconhecer o avanço em sala ajuda a manter o engajamento." });
-    if (cairam) atencao.push({ tom: "atencao", titulo: `${cairam} aluno${cairam > 1 ? "s" : ""} caíram 5 p.p. ou mais na Prova Paulista`, texto: "Investigar se houve mudança de frequência, de rotina ou de engajamento." });
+    if (subiram) positivos.push({ tom: "bom", titulo: `${subiram} aluno${subiram > 1 ? "s" : ""} em ascensão na Prova Paulista (+5 p.p. ou mais)`, texto: "Reconhecer o avanço em sala ajuda a manter o engajamento." });
+    if (cairam) atencao.push({ tom: "atencao", titulo: `${cairam} aluno${cairam > 1 ? "s" : ""} desafio na Prova Paulista (−5 p.p. ou mais)`, texto: "Investigar se houve mudança de frequência, de rotina ou de engajamento." });
     const participacao = ultimo?.participacao;
     if (participacao !== null && participacao !== undefined && participacao < 85) {
       atencao.push({ tom: "atencao", titulo: `Participação de ${participacao}% na última Prova Paulista`, texto: "Ausências na avaliação reduzem a leitura diagnóstica da turma." });
@@ -871,6 +949,14 @@ function montarLeitura(diag: DiagnosticoTurma) {
     }
     const avancaram = diag.avd.evolucaoPortugues.avancou + diag.avd.evolucaoMatematica.avancou;
     if (avancaram) positivos.push({ tom: "bom", titulo: `${avancaram} avanço${avancaram > 1 ? "s" : ""} de nível da 1ª para a 2ª AvD`, texto: "Somando Língua Portuguesa e Matemática." });
+    const desafio = alunos.filter((aluno) => passosAvd(aluno).perdas < 0);
+    if (desafio.length) {
+      atencao.push({
+        tom: desafio.length >= 5 ? "critico" : "atencao",
+        titulo: `${desafio.length} aluno${desafio.length > 1 ? "s" : ""} desafio na AvD`,
+        texto: `Caíram de nível da 1ª para a 2ª AvD: ${listaNomes(desafio)}.`,
+      });
+    }
   }
 
   // SARESP

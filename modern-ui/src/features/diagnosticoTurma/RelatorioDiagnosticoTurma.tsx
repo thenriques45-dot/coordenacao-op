@@ -13,6 +13,8 @@ import {
   FREQ_CRITICA,
   NIVEIS_AVD,
   NOTA_MINIMA,
+  rankingAscensaoAvd,
+  rankingDesafioAvd,
   rankingEvolucaoNotas,
   rankingEvolucaoPP,
   rankingFaltas,
@@ -28,6 +30,7 @@ import {
   type DiagnosticoTurma,
   type IndicadorAluno,
   type IndicadoresExtras,
+  type MudancaAvd,
   type NivelAvd,
   type Tom,
 } from "./calculos";
@@ -47,7 +50,7 @@ export type CabecalhoTurmaDiagnostico = {
   caminho: string | null;
 };
 
-type SecaoId = "panorama" | "leitura" | "frequencia" | "fragilidades" | "mapa" | "paulista" | "avaliacoes";
+type SecaoId = "panorama" | "leitura" | "frequencia" | "fragilidades" | "mapa" | "paulista" | "avd" | "avaliacoes";
 
 const SECOES: { id: SecaoId; rotulo: string }[] = [
   { id: "panorama", rotulo: "Panorama" },
@@ -56,7 +59,8 @@ const SECOES: { id: SecaoId; rotulo: string }[] = [
   { id: "fragilidades", rotulo: "Fragilidades" },
   { id: "mapa", rotulo: "Mapa de notas" },
   { id: "paulista", rotulo: "Prova Paulista" },
-  { id: "avaliacoes", rotulo: "AvD, SARESP e destaques" },
+  { id: "avd", rotulo: "AvD" },
+  { id: "avaliacoes", rotulo: "SARESP e destaques" },
 ];
 
 const TOM_NIVEL_AVD: Record<NivelAvd, Tom | "avancado"> = {
@@ -82,6 +86,38 @@ function abreviarDisciplina(nome: string) {
   return limpo.length > 26 ? `${limpo.slice(0, 25)}…` : limpo;
 }
 
+const ROTULO_CURTO_NIVEL: Record<NivelAvd, string> = {
+  abaixo: "Abaixo do básico",
+  basico: "Básico",
+  adequado: "Adequado",
+  avancado: "Avançado",
+  nao: "—",
+};
+
+function CelulaMudancaAvd({ mudanca }: { mudanca: MudancaAvd | null }) {
+  if (!mudanca) return <span className="diag-avd-mudanca">—</span>;
+  const classe = mudanca.passos > 0 ? "texto-bom" : mudanca.passos < 0 ? "texto-critico" : "";
+  const seta = mudanca.passos > 0 ? "▲" : mudanca.passos < 0 ? "▼" : "=";
+  const comNiveis = mudanca.de !== "nao" && mudanca.para !== "nao";
+  return (
+    <span className="diag-avd-mudanca">
+      <strong className={classe}>{seta}</strong>{" "}
+      {comNiveis && mudanca.passos === 0 ? (
+        <span className="diag-avd-manteve">{ROTULO_CURTO_NIVEL[mudanca.para]}</span>
+      ) : comNiveis ? (
+        <>
+          {ROTULO_CURTO_NIVEL[mudanca.de]} → <span className={classe}>{ROTULO_CURTO_NIVEL[mudanca.para]}</span>
+        </>
+      ) : (
+        <span className={classe}>{mudanca.passos > 0 ? "avançou" : mudanca.passos < 0 ? "regrediu" : "manteve"}</span>
+      )}
+      {mudanca.equivalenteDe && mudanca.equivalentePara && mudanca.equivalenteDe !== mudanca.equivalentePara && (
+        <small>{mudanca.equivalenteDe} → {mudanca.equivalentePara}</small>
+      )}
+    </span>
+  );
+}
+
 function Kpi({ rotulo, valor, tom, detalhe }: { rotulo: string; valor: string; tom: Tom; detalhe?: string }) {
   return (
     <article className={`diag-kpi tom-borda-${tom}`}>
@@ -99,6 +135,7 @@ function Pagina({
   bimestre,
   numero,
   children,
+  className = "",
 }: {
   titulo: string;
   subtitulo?: string;
@@ -106,9 +143,10 @@ function Pagina({
   bimestre: number;
   numero: number;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="diag-pagina">
+    <section className={`diag-pagina ${className}`}>
       <header className="diag-pagina-topo">
         <div>
           <span className="diag-sobretitulo">Diagnóstico da turma · {cabecalho.rotulo} · {bimestre}º bimestre</span>
@@ -199,6 +237,12 @@ function Relatorio({
   const cairamPP = rankingQuedaPP(diag, limite);
   const melhores = rankingMelhoresMedias(diag, limite);
   const evoluiramNotas = rankingEvolucaoNotas(diag, limite);
+  const ascensaoAvd = rankingAscensaoAvd(diag, limite);
+  const desafioAvd = rankingDesafioAvd(diag, limite);
+  const colunasAvd = [
+    { titulo: "Português", render: (a: IndicadorAluno) => <CelulaMudancaAvd mudanca={a.mudancaPortugues} /> },
+    { titulo: "Matemática", render: (a: IndicadorAluno) => <CelulaMudancaAvd mudanca={a.mudancaMatematica} /> },
+  ];
   const maxVariacaoPP = Math.max(5, ...[...subiramPP, ...cairamPP].map((a) => Math.abs(a.ppVariacao ?? 0)));
   const maxVariacaoNotas = Math.max(1, ...evoluiramNotas.map((a) => Math.abs(a.variacaoNotas ?? 0)));
   const disciplinasMapa = diag.disciplinas.filter((d) => d.alunosComNota > 0);
@@ -463,7 +507,7 @@ function Relatorio({
               />
             </div>
           )}
-          <Quadro titulo={`Top ${limite} alunos com mais faltas`}>
+          <Quadro titulo="Alunos com mais faltas">
             <TabelaAlunos
               alunos={faltas}
               vazio="Nenhum aluno com faltas registradas."
@@ -520,7 +564,7 @@ function Relatorio({
 
       {secoes.has("fragilidades") && (
         <Pagina titulo="Alunos com maiores fragilidades pedagógicas" subtitulo="Ranking que soma notas abaixo de 5, média, frequência, AvD, Prova Paulista, SARESP e tarefas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
-          <Quadro titulo={`Top ${limite} alunos que mais precisam de apoio`}>
+          <Quadro titulo="Alunos que mais precisam de apoio">
             <TabelaAlunos
               alunos={fragilidades}
               vazio="Nenhum aluno com sinais de fragilidade nos dados disponíveis."
@@ -611,7 +655,7 @@ function Relatorio({
       )}
 
       {secoes.has("paulista") && (
-        <Pagina titulo="Prova Paulista" subtitulo="Percentual de acertos da turma e quem mais evoluiu ou caiu entre as aplicações" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
+        <Pagina titulo="Prova Paulista" subtitulo="Percentual de acertos da turma, alunos em ascensão e alunos desafio entre as aplicações" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
           {diag.provaPaulista.temDados ? (
             <>
               <div className="diag-grade-2">
@@ -639,7 +683,7 @@ function Relatorio({
                 </Quadro>
               </div>
               <div className="diag-grade-2">
-                <Quadro titulo={`Top ${limite} que mais evoluíram`} className="diag-quadro-positivo">
+                <Quadro titulo="Alunos em ascensão" className="diag-quadro-positivo">
                   <TabelaAlunos
                     alunos={subiramPP}
                     vazio="Ninguém subiu entre as aplicações (são necessárias ao menos duas)."
@@ -649,7 +693,7 @@ function Relatorio({
                     ]}
                   />
                 </Quadro>
-                <Quadro titulo={`Top ${limite} que mais caíram`} className="diag-quadro-atencao">
+                <Quadro titulo="Alunos desafio" className="diag-quadro-atencao">
                   <TabelaAlunos
                     alunos={cairamPP}
                     vazio="Ninguém caiu entre as aplicações (são necessárias ao menos duas)."
@@ -668,9 +712,8 @@ function Relatorio({
         </Pagina>
       )}
 
-      {secoes.has("avaliacoes") && (
-        <Pagina titulo="AvD, SARESP e destaques" subtitulo="Níveis da Recomposição – Diagnóstico (AvD), notas do SARESP, quem se destaca e quem mais evoluiu nas notas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
-          <div className="diag-grade-2">
+      {secoes.has("avd") && (
+        <Pagina className="diag-pagina-compacta" titulo="Avaliação Diagnóstica (AvD)" subtitulo="Recomposição – Diagnóstico: níveis da turma, alunos em ascensão e alunos desafio da 1ª para a 2ª AvD" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
           <Quadro titulo="Níveis na AvD (Recomposição – Diagnóstico)">
             {diag.avd.temDados ? (
               <>
@@ -686,12 +729,27 @@ function Relatorio({
                   </div>
                 ))}
                 <Legenda itens={NIVEIS_AVD.map((n) => ({ rotulo: n.rotulo, tom: TOM_NIVEL_AVD[n.id] }))} />
-                <p className="diag-nota-rodape">Nível mais recente de cada aluno. À direita: quantos avançaram (▲), mantiveram (=) ou regrediram (▼) da 1ª para a 2ª AvD.</p>
+                <p className="diag-nota-rodape">Nível mais recente de cada aluno. À direita: quantos avançaram (▲), mantiveram (=) ou regrediram (▼) da 1ª para a 2ª AvD. Nas listas abaixo, ascensão é quem subiu de nível em ao menos um componente e desafio é quem caiu em ao menos um, na ordem do saldo de níveis; sob o nível, a mudança na aprendizagem equivalente.</p>
               </>
             ) : (
               <p className="diag-vazio">Nenhuma AvD importada para esta turma.</p>
             )}
           </Quadro>
+          {diag.avd.temDados && (
+            <>
+              <Quadro titulo="Alunos em ascensão" className="diag-quadro-positivo">
+                <TabelaAlunos alunos={ascensaoAvd} vazio="Ninguém subiu de nível da 1ª para a 2ª AvD." colunas={colunasAvd} />
+              </Quadro>
+              <Quadro titulo="Alunos desafio" className="diag-quadro-atencao">
+                <TabelaAlunos alunos={desafioAvd} vazio="Ninguém caiu de nível da 1ª para a 2ª AvD." colunas={colunasAvd} />
+              </Quadro>
+            </>
+          )}
+        </Pagina>
+      )}
+
+      {secoes.has("avaliacoes") && (
+        <Pagina titulo="SARESP e destaques" subtitulo="Notas do SARESP – Diagnóstico, maiores médias e alunos em ascensão nas notas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
           <Quadro titulo={diag.saresp.media !== null ? `SARESP · nota média ${nota(diag.saresp.media)}` : "SARESP"}>
             {diag.saresp.temDados ? (
               <>
@@ -711,7 +769,6 @@ function Relatorio({
               <p className="diag-vazio">Nenhum resultado do SARESP – Diagnóstico importado para esta turma.</p>
             )}
           </Quadro>
-          </div>
           <div className="diag-grade-2">
             <Quadro titulo={`Maiores médias · ${b}º bimestre`} className="diag-quadro-positivo">
               <TabelaAlunos
@@ -723,7 +780,7 @@ function Relatorio({
                 ]}
               />
             </Quadro>
-            <Quadro titulo="Quem mais evoluiu nas notas" className="diag-quadro-positivo">
+            <Quadro titulo="Alunos em ascensão nas notas" className="diag-quadro-positivo">
               <TabelaAlunos
                 alunos={evoluiramNotas}
                 vazio="Sem bimestre anterior para comparar, ou ninguém subiu meio ponto."
