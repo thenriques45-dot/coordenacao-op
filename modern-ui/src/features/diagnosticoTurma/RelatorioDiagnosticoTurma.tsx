@@ -11,7 +11,7 @@ import {
   EXTRAS_VAZIOS,
   FREQ_ATENCAO,
   FREQ_CRITICA,
-  NIVEIS_SARESP,
+  NIVEIS_AVD,
   NOTA_MINIMA,
   rankingEvolucaoNotas,
   rankingEvolucaoPP,
@@ -19,6 +19,8 @@ import {
   rankingFragilidade,
   rankingMelhoresMedias,
   rankingQuedaPP,
+  PP_CRITICA,
+  SARESP_CRITICO,
   tomFrequencia,
   tomNota,
   tomProvaPaulista,
@@ -26,7 +28,7 @@ import {
   type DiagnosticoTurma,
   type IndicadorAluno,
   type IndicadoresExtras,
-  type NivelSaresp,
+  type NivelAvd,
   type Tom,
 } from "./calculos";
 import { BarraEmpilhada, BarrasHorizontais, Colunas, Legenda, Rosca, Variacao } from "./graficos";
@@ -54,10 +56,10 @@ const SECOES: { id: SecaoId; rotulo: string }[] = [
   { id: "fragilidades", rotulo: "Fragilidades" },
   { id: "mapa", rotulo: "Mapa de notas" },
   { id: "paulista", rotulo: "Prova Paulista" },
-  { id: "avaliacoes", rotulo: "Diagnósticas e destaques" },
+  { id: "avaliacoes", rotulo: "AvD, SARESP e destaques" },
 ];
 
-const TOM_NIVEL_SARESP: Record<NivelSaresp, Tom | "avancado"> = {
+const TOM_NIVEL_AVD: Record<NivelAvd, Tom | "avancado"> = {
   abaixo: "critico",
   basico: "atencao",
   adequado: "bom",
@@ -244,7 +246,7 @@ function Relatorio({
           <div className="diag-kpis">
             <Kpi rotulo="Alunos ativos" valor={String(total)} tom="neutro" detalhe={diag.elegiveis ? `${diag.elegiveis} da educação especial` : undefined} />
             <Kpi rotulo="Média geral" valor={nota(diag.mediaTurma)} tom={tomNota(diag.mediaTurma)} detalhe={`${b}º bimestre`} />
-            <Kpi rotulo="Frequência média" valor={percentual(diag.frequenciaMedia)} tom={tomFrequencia(diag.frequenciaMedia)} detalhe={`${diag.faixasFrequencia.critico} abaixo de ${FREQ_CRITICA}%`} />
+            <Kpi rotulo="Frequência média" valor={percentual(diag.frequenciaMedia)} tom={tomFrequencia(diag.frequenciaMedia)} detalhe={diag.alunoPresente.emRisco ? `${diag.alunoPresente.emRisco} em risco de reprovação` : `${diag.faixasFrequencia.critico} abaixo de ${FREQ_CRITICA}%`} />
             <Kpi
               rotulo="Média abaixo de 5"
               valor={String(diag.situacao.criticos)}
@@ -364,7 +366,8 @@ function Relatorio({
             <Quadro titulo="Pontos de atenção" className="diag-quadro-atencao">
               {diag.pontosAtencao.length ? (
                 <ul className="diag-alertas">
-                  {diag.pontosAtencao.map((alerta) => (
+                  {/* Limites para a página caber numa folha; a lista já vem do mais grave ao mais leve. */}
+                  {diag.pontosAtencao.slice(0, 7).map((alerta) => (
                     <li key={alerta.titulo} className={`tom-borda-${alerta.tom}`}>
                       <AlertTriangle size={15} className={`texto-${alerta.tom}`} />
                       <div><strong>{alerta.titulo}</strong><span>{alerta.texto}</span></div>
@@ -378,7 +381,7 @@ function Relatorio({
             <Quadro titulo="Pontos positivos" className="diag-quadro-positivo">
               {diag.pontosPositivos.length ? (
                 <ul className="diag-alertas">
-                  {diag.pontosPositivos.map((alerta) => (
+                  {diag.pontosPositivos.slice(0, 7).map((alerta) => (
                     <li key={alerta.titulo} className="tom-borda-bom">
                       <CheckCircle2 size={15} className="texto-bom" />
                       <div><strong>{alerta.titulo}</strong><span>{alerta.texto}</span></div>
@@ -393,7 +396,7 @@ function Relatorio({
           <Quadro titulo="Sugestões de abordagem" className="diag-quadro-sugestoes">
             {diag.sugestoes.length ? (
               <ol className="diag-sugestoes">
-                {diag.sugestoes.map((sugestao) => (
+                {diag.sugestoes.slice(0, 6).map((sugestao) => (
                   <li key={sugestao}><Lightbulb size={14} /> {sugestao}</li>
                 ))}
               </ol>
@@ -434,7 +437,32 @@ function Relatorio({
       )}
 
       {secoes.has("frequencia") && (
-        <Pagina titulo="Frequência" subtitulo={`Alunos com mais faltas e disciplinas com mais ausências · abaixo de ${FREQ_CRITICA}% há risco de retenção`} cabecalho={cabecalho} bimestre={b} numero={proximo()}>
+        <Pagina titulo="Frequência" subtitulo={
+            diag.alunoPresente.temDados
+              ? `Frequência anual e presença semanal do Aluno Presente; por disciplina, do mapão · abaixo de ${FREQ_CRITICA}% há risco de retenção`
+              : `Alunos com mais faltas e disciplinas com mais ausências · abaixo de ${FREQ_CRITICA}% há risco de retenção`
+          } cabecalho={cabecalho} bimestre={b} numero={proximo()}>
+          {diag.alunoPresente.temDados && (
+            <div className="diag-kpis diag-kpis-3">
+              <Kpi
+                rotulo="Risco de reprovação por faltas"
+                valor={String(diag.alunoPresente.emRisco)}
+                tom={diag.alunoPresente.emRisco ? "critico" : "bom"}
+                detalhe="alunos, segundo o Aluno Presente"
+              />
+              <Kpi rotulo="Presença na semana anterior" valor={percentual(diag.alunoPresente.semanaAnterior)} tom={tomFrequencia(diag.alunoPresente.semanaAnterior)} detalhe="média da turma" />
+              <Kpi
+                rotulo="Presença na semana atual"
+                valor={percentual(diag.alunoPresente.semanaAtual)}
+                tom={tomFrequencia(diag.alunoPresente.semanaAtual)}
+                detalhe={
+                  diag.alunoPresente.semanaAtual !== null && diag.alunoPresente.semanaAnterior !== null
+                    ? `${diag.alunoPresente.semanaAtual >= diag.alunoPresente.semanaAnterior ? "▲ +" : "▼ "}${Math.round(diag.alunoPresente.semanaAtual - diag.alunoPresente.semanaAnterior)} p.p. na semana`
+                    : "média da turma"
+                }
+              />
+            </div>
+          )}
           <Quadro titulo={`Top ${limite} alunos com mais faltas`}>
             <TabelaAlunos
               alunos={faltas}
@@ -447,7 +475,27 @@ function Relatorio({
                     <BarrasHorizontais maximo={100} formatar={(v) => percentual(v)} itens={[{ rotulo: "", valor: a.frequencia, tom: tomFrequencia(a.frequencia) }]} />
                   ),
                 },
-                { titulo: "Faltas (aulas)", classe: "diag-col-num", render: (a) => (a.faltasTotal === null ? "—" : Math.round(a.faltasTotal)) },
+                ...(diag.alunoPresente.temDados
+                  ? [
+                      {
+                        titulo: "Últimas semanas",
+                        classe: "diag-col-num",
+                        render: (a: IndicadorAluno) =>
+                          a.presencaSemanaAtual === null && a.presencaSemanaAnterior === null ? (
+                            "—"
+                          ) : (
+                            <>
+                              {percentual(a.presencaSemanaAnterior)} → <span className={`texto-${tomFrequencia(a.presencaSemanaAtual)}`}>{percentual(a.presencaSemanaAtual)}</span>
+                            </>
+                          ),
+                      },
+                      {
+                        titulo: "Risco",
+                        classe: "diag-col-num",
+                        render: (a: IndicadorAluno) => (a.riscoReprovacaoFaltas ? <Chip tom="critico">reprovação</Chip> : "—"),
+                      },
+                    ]
+                  : [{ titulo: "Faltas (aulas)", classe: "diag-col-num", render: (a: IndicadorAluno) => (a.faltasTotal === null ? "—" : Math.round(a.faltasTotal)) }]),
                 {
                   titulo: "Disciplina com mais faltas",
                   render: (a) => (a.disciplinaMaisFaltas ? <>{abreviarDisciplina(a.disciplinaMaisFaltas.nome)} <small className={`texto-${tomFrequencia(a.disciplinaMaisFaltas.frequencia)}`}>({percentual(a.disciplinaMaisFaltas.frequencia)})</small></> : "—"),
@@ -471,7 +519,7 @@ function Relatorio({
       )}
 
       {secoes.has("fragilidades") && (
-        <Pagina titulo="Alunos com maiores fragilidades pedagógicas" subtitulo="Ranking que soma notas abaixo de 5, média, frequência, diagnósticas, Prova Paulista e tarefas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
+        <Pagina titulo="Alunos com maiores fragilidades pedagógicas" subtitulo="Ranking que soma notas abaixo de 5, média, frequência, AvD, Prova Paulista, SARESP e tarefas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
           <Quadro titulo={`Top ${limite} alunos que mais precisam de apoio`}>
             <TabelaAlunos
               alunos={fragilidades}
@@ -491,7 +539,7 @@ function Relatorio({
               ]}
             />
             <p className="diag-nota-rodape">
-              Disciplinas abaixo de 5 de cada aluno aparecem no mapa de notas. Ordem: pontuação de fragilidade (cada disciplina abaixo de 5 vale 2; média abaixo de 5, 3; frequência abaixo de {FREQ_CRITICA}%, 3; abaixo do básico nas diagnósticas ou na Prova Paulista, 2 cada; tarefas abaixo de 50%, 1).
+              Disciplinas abaixo de 5 de cada aluno aparecem no mapa de notas. Ordem: pontuação de fragilidade. Cada disciplina abaixo de 5 vale 2; média abaixo de 5, 3; frequência abaixo de {FREQ_CRITICA}%, 3 (entre {FREQ_CRITICA}% e {FREQ_ATENCAO}%, 1); risco de reprovação por faltas no Aluno Presente, 2; presença abaixo de {FREQ_CRITICA}% na semana, 1; abaixo do básico na AvD, 2 por componente; Prova Paulista abaixo de {PP_CRITICA}%, 2; SARESP abaixo de {SARESP_CRITICO}, 1; tarefas abaixo de 50%, 1.
             </p>
           </Quadro>
           <Quadro titulo="Onde a turma tem mais alunos abaixo de 5">
@@ -621,28 +669,49 @@ function Relatorio({
       )}
 
       {secoes.has("avaliacoes") && (
-        <Pagina titulo="Avaliações diagnósticas e destaques" subtitulo="Níveis de aprendizagem (Diagnósticas/SARESP), quem se destaca e quem mais evoluiu nas notas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
-          <Quadro titulo="Níveis de aprendizagem nas avaliações diagnósticas">
-            {diag.saresp.temDados ? (
+        <Pagina titulo="AvD, SARESP e destaques" subtitulo="Níveis da Recomposição – Diagnóstico (AvD), notas do SARESP, quem se destaca e quem mais evoluiu nas notas" cabecalho={cabecalho} bimestre={b} numero={proximo()}>
+          <div className="diag-grade-2">
+          <Quadro titulo="Níveis na AvD (Recomposição – Diagnóstico)">
+            {diag.avd.temDados ? (
               <>
-                {([["Língua Portuguesa", diag.saresp.portugues, diag.saresp.evolucaoPortugues], ["Matemática", diag.saresp.matematica, diag.saresp.evolucaoMatematica]] as const).map(([rotulo, contagem, evolucao]) => (
-                  <div className="diag-saresp-linha" key={rotulo}>
-                    <span className="diag-saresp-rotulo">{rotulo}</span>
-                    <BarraEmpilhada segmentos={NIVEIS_SARESP.map((n) => ({ rotulo: n.rotulo, valor: contagem[n.id], tom: TOM_NIVEL_SARESP[n.id] }))} />
-                    <span className="diag-saresp-evolucao">
+                {([["Português", diag.avd.portugues, diag.avd.evolucaoPortugues], ["Matemática", diag.avd.matematica, diag.avd.evolucaoMatematica]] as const).map(([rotulo, contagem, evolucao]) => (
+                  <div className="diag-avd-linha" key={rotulo}>
+                    <span className="diag-avd-rotulo">{rotulo}</span>
+                    <BarraEmpilhada segmentos={NIVEIS_AVD.map((n) => ({ rotulo: n.rotulo, valor: contagem[n.id], tom: TOM_NIVEL_AVD[n.id] }))} />
+                    <span className="diag-avd-evolucao">
                       <span className="texto-bom">▲ {evolucao.avancou}</span>
                       <span>= {evolucao.manteve}</span>
                       <span className="texto-critico">▼ {evolucao.regrediu}</span>
                     </span>
                   </div>
                 ))}
-                <Legenda itens={NIVEIS_SARESP.map((n) => ({ rotulo: n.rotulo, tom: TOM_NIVEL_SARESP[n.id] }))} />
-                <p className="diag-nota-rodape">À direita: quantos alunos avançaram (▲), mantiveram (=) ou regrediram (▼) da Diagnóstica 1 para a 2.</p>
+                <Legenda itens={NIVEIS_AVD.map((n) => ({ rotulo: n.rotulo, tom: TOM_NIVEL_AVD[n.id] }))} />
+                <p className="diag-nota-rodape">Nível mais recente de cada aluno. À direita: quantos avançaram (▲), mantiveram (=) ou regrediram (▼) da 1ª para a 2ª AvD.</p>
               </>
             ) : (
-              <p className="diag-vazio">Nenhum diagnóstico de aprendizagem importado para esta turma.</p>
+              <p className="diag-vazio">Nenhuma AvD importada para esta turma.</p>
             )}
           </Quadro>
+          <Quadro titulo={diag.saresp.media !== null ? `SARESP · nota média ${nota(diag.saresp.media)}` : "SARESP"}>
+            {diag.saresp.temDados ? (
+              <>
+                <BarrasHorizontais
+                  maximo={10}
+                  formatar={(v) => nota(v)}
+                  itens={diag.saresp.disciplinas.map((d) => ({
+                    rotulo: d.nome,
+                    valor: d.media,
+                    tom: d.media < SARESP_CRITICO ? "critico" : tomNota(d.media),
+                    detalhe: d.abaixo ? <span className="texto-critico">{d.abaixo} &lt; {SARESP_CRITICO}</span> : <span className="texto-bom">ninguém &lt; {SARESP_CRITICO}</span>,
+                  }))}
+                />
+                <p className="diag-nota-rodape">Média da turma por disciplina (0 a 10). À direita: alunos abaixo de {SARESP_CRITICO}.</p>
+              </>
+            ) : (
+              <p className="diag-vazio">Nenhum resultado do SARESP – Diagnóstico importado para esta turma.</p>
+            )}
+          </Quadro>
+          </div>
           <div className="diag-grade-2">
             <Quadro titulo={`Maiores médias · ${b}º bimestre`} className="diag-quadro-positivo">
               <TabelaAlunos

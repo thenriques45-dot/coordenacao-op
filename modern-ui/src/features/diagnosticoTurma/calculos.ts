@@ -1,5 +1,5 @@
 // Cálculos do Relatório Diagnóstico da Turma: transforma os dados que o app
-// já reúne (notas, frequência, Prova Paulista, diagnóstico SARESP, tarefas,
+// já reúne (notas, frequência, Aluno Presente, Prova Paulista, AvD, SARESP, tarefas,
 // atendimentos e conselho) em indicadores, rankings e alertas da turma.
 // Tudo aqui é puro — a tela só desenha o resultado.
 
@@ -16,7 +16,7 @@ export type DisciplinaDiag = {
   historicoBimestres?: NotaBimestreDiag[];
 };
 
-export type ComponenteSaresp = {
+export type ComponenteAvd = {
   status: string | null;
   evolucao: string | null;
   mensurado: boolean;
@@ -32,16 +32,28 @@ export type AlunoDiag = {
   frequencia: number | null;
   encaminhamentosBimestres?: { bimestre: string; codigos: number[] }[];
   atendimentos?: { data: string; tipos: string[] }[];
-  diagnosticoAprendizagem?: { portugues: ComponenteSaresp; matematica: ComponenteSaresp } | null;
+  diagnosticoAprendizagem?: { portugues: ComponenteAvd; matematica: ComponenteAvd } | null;
   disciplinas: DisciplinaDiag[];
 };
 
 type ProvaPaulistaBimestre = { participou?: boolean; geral?: number; disciplinas?: Record<string, number> };
 type TarefasBimestre = { feitas?: number; total?: number; percentual?: number };
+/** Importação do BI "Aluno Presente": percentuais de 0 a 100. */
+type AlunoPresente = { anual?: number | null; semana_atual?: number | null; semana_anterior?: number | null; risco_reprovacao?: boolean };
+/** Importação do BI "SARESP – Diagnóstico": notas de 0 a 10 por sigla (LPT, MAT...). */
+type Saresp = { media?: number | null; menor_nota?: string; disciplinas?: Record<string, number> };
 
 /** Resposta do comando `carregar_indicadores_diagnostico_turma`. */
 export type IndicadoresExtras = {
-  alunos: Record<string, { prova_paulista?: Record<string, ProvaPaulistaBimestre>; tarefas?: Record<string, TarefasBimestre> }>;
+  alunos: Record<
+    string,
+    {
+      prova_paulista?: Record<string, ProvaPaulistaBimestre>;
+      tarefas?: Record<string, TarefasBimestre>;
+      aluno_presente?: AlunoPresente;
+      saresp?: Saresp;
+    }
+  >;
   perfil_turma: Record<string, Record<string, string>>;
   alunos_destaque: Record<string, Record<string, string>>;
 };
@@ -59,6 +71,7 @@ export const NOTA_MINIMA = 5;
 export const NOTA_BOA = 7;
 export const PP_CRITICA = 40; // % de acertos na Prova Paulista
 export const PP_BOA = 60;
+export const SARESP_CRITICO = 4; // nota de 0 a 10; mesmo corte padrão dos alunos prioritários
 
 export function tomNota(nota: number | null | undefined): Tom {
   if (nota === null || nota === undefined || !Number.isFinite(nota)) return "neutro";
@@ -110,9 +123,10 @@ export function notasPorBimestre(disciplina: DisciplinaDiag, bimestreAtual: numb
 // ---------------------------------------------------------------------------
 
 /**
- * O importador grava "% de acertos × 10" arredondado. Conforme a planilha traz
- * o percentual como fração (0,65) ou como número (65), o valor salvo fica na
- * faixa 0–10 ou 0–1000. A escala é decidida pelo conjunto da turma e tudo é
+ * O importador grava "% de acertos × 10" arredondado: com a planilha do BI
+ * (fração, 0,65) o valor fica de 0 a 10, a mesma escala que os alunos
+ * prioritários usam. Se a planilha vier com o percentual como número (65), o
+ * valor fica de 0 a 1000. A escala é decidida pelo conjunto da turma e tudo é
  * convertido para % de acertos (0–100).
  */
 export function fatorEscalaProvaPaulista(valores: number[]): number {
@@ -123,12 +137,12 @@ export function fatorEscalaProvaPaulista(valores: number[]): number {
 }
 
 // ---------------------------------------------------------------------------
-// SARESP / avaliações diagnósticas
+// AvD (Recomposição – Diagnóstico): níveis da 1ª e da 2ª avaliação
 // ---------------------------------------------------------------------------
 
-export type NivelSaresp = "abaixo" | "basico" | "adequado" | "avancado" | "nao";
+export type NivelAvd = "abaixo" | "basico" | "adequado" | "avancado" | "nao";
 
-export const NIVEIS_SARESP: { id: NivelSaresp; rotulo: string }[] = [
+export const NIVEIS_AVD: { id: NivelAvd; rotulo: string }[] = [
   { id: "abaixo", rotulo: "Abaixo do básico" },
   { id: "basico", rotulo: "Básico" },
   { id: "adequado", rotulo: "Adequado" },
@@ -136,7 +150,7 @@ export const NIVEIS_SARESP: { id: NivelSaresp; rotulo: string }[] = [
   { id: "nao", rotulo: "Não mensurado" },
 ];
 
-export function nivelSaresp(componente: ComponenteSaresp | null | undefined): NivelSaresp {
+export function nivelAvd(componente: ComponenteAvd | null | undefined): NivelAvd {
   if (!componente || !componente.mensurado || !componente.status) return "nao";
   const texto = semAcento(componente.status);
   if (texto.includes("abaixo")) return "abaixo";
@@ -146,9 +160,9 @@ export function nivelSaresp(componente: ComponenteSaresp | null | undefined): Ni
   return "nao";
 }
 
-export type EvolucaoSaresp = "avancou" | "manteve" | "regrediu" | "sem";
+export type EvolucaoAvd = "avancou" | "manteve" | "regrediu" | "sem";
 
-export function evolucaoSaresp(componente: ComponenteSaresp | null | undefined): EvolucaoSaresp {
+export function evolucaoAvd(componente: ComponenteAvd | null | undefined): EvolucaoAvd {
   const texto = componente?.evolucao ? semAcento(componente.evolucao) : "";
   if (!texto) return "sem";
   if (texto.includes("avanc")) return "avancou";
@@ -166,6 +180,9 @@ export type IndicadorAluno = {
   chamada: number;
   elegivel: boolean;
   frequencia: number | null;
+  presencaSemanaAtual: number | null;
+  presencaSemanaAnterior: number | null;
+  riscoReprovacaoFaltas: boolean;
   faltasTotal: number | null;
   disciplinaMaisFaltas: { nome: string; frequencia: number } | null;
   notasAtuais: Record<string, number | null>;
@@ -178,10 +195,13 @@ export type IndicadorAluno = {
   ppPrimeiro: number | null;
   ppVariacao: number | null;
   ppBimestresComparados: [string, string] | null;
-  sarespPortugues: NivelSaresp;
-  sarespMatematica: NivelSaresp;
-  evolucaoPortugues: EvolucaoSaresp;
-  evolucaoMatematica: EvolucaoSaresp;
+  avdPortugues: NivelAvd;
+  avdMatematica: NivelAvd;
+  evolucaoPortugues: EvolucaoAvd;
+  evolucaoMatematica: EvolucaoAvd;
+  sarespMedia: number | null;
+  sarespMenorNota: string | null;
+  sarespDisciplinas: Record<string, number>;
   tarefasPercentual: number | null;
   atendimentos: number;
   encaminhamentosBimestre: number;
@@ -216,12 +236,23 @@ export type DiagnosticoTurma = {
     disciplinasUltimo: { nome: string; media: number }[];
     bimestreUltimo: string | null;
   };
+  avd: {
+    temDados: boolean;
+    portugues: Record<NivelAvd, number>;
+    matematica: Record<NivelAvd, number>;
+    evolucaoPortugues: Record<EvolucaoAvd, number>;
+    evolucaoMatematica: Record<EvolucaoAvd, number>;
+  };
+  alunoPresente: {
+    temDados: boolean;
+    emRisco: number;
+    semanaAtual: number | null;
+    semanaAnterior: number | null;
+  };
   saresp: {
     temDados: boolean;
-    portugues: Record<NivelSaresp, number>;
-    matematica: Record<NivelSaresp, number>;
-    evolucaoPortugues: Record<EvolucaoSaresp, number>;
-    evolucaoMatematica: Record<EvolucaoSaresp, number>;
+    media: number | null;
+    disciplinas: { nome: string; media: number; abaixo: number; total: number }[];
   };
   tarefasMedia: number | null;
   elegiveis: number;
@@ -364,9 +395,19 @@ export function calcularDiagnostico(
       else if (t && finito(t.feitas) && finito(t.total) && t.total > 0) tarefasPercentual = (t.feitas / t.total) * 100;
     }
 
+    const presente = extrasAluno.aluno_presente;
+    const presencaSemanaAtual = finito(presente?.semana_atual) ? presente.semana_atual : null;
+    const presencaSemanaAnterior = finito(presente?.semana_anterior) ? presente.semana_anterior : null;
+    const riscoReprovacaoFaltas = presente?.risco_reprovacao === true;
+    const sarespMedia = finito(extrasAluno.saresp?.media) ? extrasAluno.saresp.media : null;
+    const sarespDisciplinas = Object.fromEntries(
+      Object.entries(extrasAluno.saresp?.disciplinas ?? {}).filter(([, v]) => finito(v)),
+    ) as Record<string, number>;
+    const sarespMenorNota = extrasAluno.saresp?.menor_nota?.trim() || null;
+
     const diag = aluno.diagnosticoAprendizagem;
-    const sarespPortugues = nivelSaresp(diag?.portugues);
-    const sarespMatematica = nivelSaresp(diag?.matematica);
+    const avdPortugues = nivelAvd(diag?.portugues);
+    const avdMatematica = nivelAvd(diag?.matematica);
 
     const encaminhamentosBimestre =
       aluno.encaminhamentosBimestres?.find((e) => e.bimestre === String(bimestreAtual))?.codigos.length ?? 0;
@@ -392,17 +433,29 @@ export function calcularDiagnostico(
       pontuacaoRisco += 1;
       motivosRisco.push({ texto: `frequência ${Math.round(aluno.frequencia)}%`, tom: "atencao" });
     }
-    if (sarespPortugues === "abaixo") {
+    if (riscoReprovacaoFaltas) {
       pontuacaoRisco += 2;
-      motivosRisco.push({ texto: "LP abaixo do básico", tom: "critico" });
+      motivosRisco.push({ texto: "risco de reprovação por faltas", tom: "critico" });
     }
-    if (sarespMatematica === "abaixo") {
+    if (presencaSemanaAtual !== null && presencaSemanaAtual < FREQ_CRITICA) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `presença na semana ${Math.round(presencaSemanaAtual)}%`, tom: "atencao" });
+    }
+    if (avdPortugues === "abaixo") {
       pontuacaoRisco += 2;
-      motivosRisco.push({ texto: "MAT abaixo do básico", tom: "critico" });
+      motivosRisco.push({ texto: "AvD LP abaixo do básico", tom: "critico" });
+    }
+    if (avdMatematica === "abaixo") {
+      pontuacaoRisco += 2;
+      motivosRisco.push({ texto: "AvD MAT abaixo do básico", tom: "critico" });
     }
     if (ppUltimo !== null && ppUltimo < PP_CRITICA) {
       pontuacaoRisco += 2;
       motivosRisco.push({ texto: `Prova Paulista ${Math.round(ppUltimo)}%`, tom: "critico" });
+    }
+    if (sarespMedia !== null && sarespMedia < SARESP_CRITICO) {
+      pontuacaoRisco += 1;
+      motivosRisco.push({ texto: `SARESP ${fmt(sarespMedia)}`, tom: "atencao" });
     }
     if (tarefasPercentual !== null && tarefasPercentual < 50) {
       pontuacaoRisco += 1;
@@ -415,6 +468,9 @@ export function calcularDiagnostico(
       chamada: aluno.chamada,
       elegivel: aluno.elegivel,
       frequencia: finito(aluno.frequencia) ? aluno.frequencia : null,
+      presencaSemanaAtual,
+      presencaSemanaAnterior,
+      riscoReprovacaoFaltas,
       faltasTotal,
       disciplinaMaisFaltas,
       notasAtuais,
@@ -427,10 +483,13 @@ export function calcularDiagnostico(
       ppPrimeiro,
       ppVariacao,
       ppBimestresComparados,
-      sarespPortugues,
-      sarespMatematica,
-      evolucaoPortugues: evolucaoSaresp(diag?.portugues),
-      evolucaoMatematica: evolucaoSaresp(diag?.matematica),
+      avdPortugues,
+      avdMatematica,
+      evolucaoPortugues: evolucaoAvd(diag?.portugues),
+      evolucaoMatematica: evolucaoAvd(diag?.matematica),
+      sarespMedia,
+      sarespMenorNota,
+      sarespDisciplinas,
       tarefasPercentual,
       atendimentos: aluno.atendimentos?.length ?? 0,
       encaminhamentosBimestre,
@@ -520,10 +579,10 @@ export function calcularDiagnostico(
     .map(([nome, valores]) => ({ nome, media: media(valores) ?? 0 }))
     .sort((a, b) => a.media - b.media);
 
-  // SARESP
-  const chavesNivel = NIVEIS_SARESP.map((n) => n.id);
+  // AvD
+  const chavesNivel = NIVEIS_AVD.map((n) => n.id);
   const chavesEvolucao = ["avancou", "manteve", "regrediu", "sem"] as const;
-  const saresp = {
+  const avd = {
     temDados: false,
     portugues: contagemVazia(chavesNivel),
     matematica: contagemVazia(chavesNivel),
@@ -531,12 +590,38 @@ export function calcularDiagnostico(
     evolucaoMatematica: contagemVazia(chavesEvolucao),
   };
   for (const aluno of alunos) {
-    saresp.portugues[aluno.sarespPortugues] += 1;
-    saresp.matematica[aluno.sarespMatematica] += 1;
-    saresp.evolucaoPortugues[aluno.evolucaoPortugues] += 1;
-    saresp.evolucaoMatematica[aluno.evolucaoMatematica] += 1;
+    avd.portugues[aluno.avdPortugues] += 1;
+    avd.matematica[aluno.avdMatematica] += 1;
+    avd.evolucaoPortugues[aluno.evolucaoPortugues] += 1;
+    avd.evolucaoMatematica[aluno.evolucaoMatematica] += 1;
   }
-  saresp.temDados = alunos.length - saresp.portugues.nao > 0 || alunos.length - saresp.matematica.nao > 0;
+  avd.temDados = alunos.length - avd.portugues.nao > 0 || alunos.length - avd.matematica.nao > 0;
+
+  const comPresente = alunosAtivos.filter((a) => extras.alunos[a.matricula ?? ""]?.aluno_presente);
+  const alunoPresente = {
+    temDados: comPresente.length > 0,
+    emRisco: alunos.filter((a) => a.riscoReprovacaoFaltas).length,
+    semanaAtual: media(alunos.map((a) => a.presencaSemanaAtual).filter(finito)),
+    semanaAnterior: media(alunos.map((a) => a.presencaSemanaAnterior).filter(finito)),
+  };
+
+  const sarespPorDisciplina: Record<string, number[]> = {};
+  for (const aluno of alunos) {
+    for (const [sigla, valor] of Object.entries(aluno.sarespDisciplinas)) (sarespPorDisciplina[sigla] ??= []).push(valor);
+  }
+  const sarespMedias = alunos.map((a) => a.sarespMedia).filter(finito);
+  const saresp = {
+    temDados: sarespMedias.length > 0 || Object.keys(sarespPorDisciplina).length > 0,
+    media: media(sarespMedias),
+    disciplinas: Object.entries(sarespPorDisciplina)
+      .map(([nome, valores]) => ({
+        nome,
+        media: media(valores) ?? 0,
+        abaixo: valores.filter((v) => v < SARESP_CRITICO).length,
+        total: valores.length,
+      }))
+      .sort((a, b) => a.media - b.media),
+  };
 
   const tarefas = alunos.map((a) => a.tarefasPercentual).filter(finito);
   const perfilUltimo = ultimoBimestreComDados(extras.perfil_turma ?? {}, bimestreAtual);
@@ -559,6 +644,8 @@ export function calcularDiagnostico(
       disciplinasUltimo,
       bimestreUltimo: bimestreUltimoPP,
     },
+    avd,
+    alunoPresente,
     saresp,
     tarefasMedia: media(tarefas),
     elegiveis: alunos.filter((a) => a.elegivel).length,
@@ -646,6 +733,22 @@ function montarLeitura(diag: DiagnosticoTurma) {
     sugestoes.push(
       `Busca ativa com as famílias dos ${criticosFreq.length} alunos abaixo de ${FREQ_CRITICA}% de frequência e combinado de compensação de ausências.`,
     );
+  }
+  if (diag.alunoPresente.emRisco) {
+    const emRisco = alunos.filter((a) => a.riscoReprovacaoFaltas).sort((a, b) => (a.frequencia ?? 0) - (b.frequencia ?? 0));
+    atencao.push({
+      tom: "critico",
+      titulo: `${emRisco.length} aluno${emRisco.length > 1 ? "s" : ""} em risco de reprovação por faltas`,
+      texto: `Segundo o Aluno Presente: ${listaNomes(emRisco)}.`,
+    });
+  }
+  const { semanaAtual, semanaAnterior } = diag.alunoPresente;
+  if (semanaAtual !== null && semanaAnterior !== null && semanaAnterior - semanaAtual >= 5) {
+    atencao.push({
+      tom: "atencao",
+      titulo: `Presença caiu de ${Math.round(semanaAnterior)}% para ${Math.round(semanaAtual)}% na última semana`,
+      texto: "Média da turma no Aluno Presente. Vale entender o que mudou.",
+    });
   }
   if (diag.frequenciaMedia !== null && diag.frequenciaMedia >= 90) {
     positivos.push({ tom: "bom", titulo: `Frequência média de ${Math.round(diag.frequenciaMedia)}%`, texto: "A turma é assídua de forma geral." });
@@ -752,22 +855,39 @@ function montarLeitura(diag: DiagnosticoTurma) {
     }
   }
 
-  // SARESP
-  if (diag.saresp.temDados) {
-    for (const [rotulo, contagem] of [["Língua Portuguesa", diag.saresp.portugues], ["Matemática", diag.saresp.matematica]] as const) {
+  // AvD
+  if (diag.avd.temDados) {
+    for (const [rotulo, contagem] of [["Língua Portuguesa", diag.avd.portugues], ["Matemática", diag.avd.matematica]] as const) {
       const mensurados = total - contagem.nao;
       const pctAbaixo = pct(contagem.abaixo, mensurados);
       if (mensurados && pctAbaixo >= 30) {
-        atencao.push({ tom: "critico", titulo: `${pctAbaixo}% abaixo do básico em ${rotulo}`, texto: "Diagnóstico das avaliações de aprendizagem." });
-        sugestoes.push(`Trabalhar habilidades estruturantes de ${rotulo} (recomposição), com atividades em níveis e acompanhamento das Diagnósticas.`);
+        atencao.push({ tom: "critico", titulo: `${pctAbaixo}% abaixo do básico em ${rotulo} na AvD`, texto: "Recomposição – Diagnóstico (nível mais recente)." });
+        sugestoes.push(`Trabalhar habilidades estruturantes de ${rotulo} (recomposição), com atividades em níveis e acompanhamento da próxima AvD.`);
       }
       const pctAdequado = pct(contagem.adequado + contagem.avancado, mensurados);
       if (mensurados && pctAdequado >= 50) {
-        positivos.push({ tom: "bom", titulo: `${pctAdequado}% adequado ou avançado em ${rotulo}`, texto: "Diagnóstico das avaliações de aprendizagem." });
+        positivos.push({ tom: "bom", titulo: `${pctAdequado}% adequado ou avançado em ${rotulo} na AvD`, texto: "Recomposição – Diagnóstico (nível mais recente)." });
       }
     }
-    const avancaram = diag.saresp.evolucaoPortugues.avancou + diag.saresp.evolucaoMatematica.avancou;
-    if (avancaram) positivos.push({ tom: "bom", titulo: `${avancaram} avanço${avancaram > 1 ? "s" : ""} de nível entre a Diagnóstica 1 e a 2`, texto: "Somando Língua Portuguesa e Matemática." });
+    const avancaram = diag.avd.evolucaoPortugues.avancou + diag.avd.evolucaoMatematica.avancou;
+    if (avancaram) positivos.push({ tom: "bom", titulo: `${avancaram} avanço${avancaram > 1 ? "s" : ""} de nível da 1ª para a 2ª AvD`, texto: "Somando Língua Portuguesa e Matemática." });
+  }
+
+  // SARESP
+  if (diag.saresp.temDados) {
+    const fracas = diag.saresp.disciplinas.filter((d) => d.media < SARESP_CRITICO + 1);
+    if (diag.saresp.media !== null && diag.saresp.media < 5) {
+      atencao.push({
+        tom: diag.saresp.media < SARESP_CRITICO ? "critico" : "atencao",
+        titulo: `Nota média de ${fmt(diag.saresp.media)} no SARESP`,
+        texto: fracas.length ? `Menores notas: ${fracas.slice(0, 3).map((d) => `${d.nome} (${fmt(d.media)})`).join(", ")}.` : "Escala de 0 a 10.",
+      });
+    } else if (diag.saresp.media !== null && diag.saresp.media >= 6) {
+      positivos.push({ tom: "bom", titulo: `Nota média de ${fmt(diag.saresp.media)} no SARESP`, texto: "Escala de 0 a 10." });
+    }
+    if (fracas.length) {
+      sugestoes.push(`Usar as habilidades do SARESP em ${fracas.slice(0, 2).map((d) => d.nome).join(" e ")} como base do plano de recomposição.`);
+    }
   }
 
   // Tarefas

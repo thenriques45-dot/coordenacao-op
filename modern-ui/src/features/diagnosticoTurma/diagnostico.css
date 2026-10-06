@@ -238,6 +238,10 @@
   font-size: 9.5px;
 }
 
+.diag-kpis-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .diag-grade-2 {
   display: grid;
   gap: 12px;
@@ -813,19 +817,19 @@
 
 /* ---------- Diagnósticas ---------- */
 
-.diag-saresp-linha {
+.diag-avd-linha {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: 110px minmax(0, 1fr) auto;
+  grid-template-columns: 62px minmax(0, 1fr) auto;
 }
 
-.diag-saresp-rotulo {
+.diag-avd-rotulo {
   font-size: 11px;
   font-weight: 700;
 }
 
-.diag-saresp-evolucao {
+.diag-avd-evolucao {
   display: inline-flex;
   font-size: 10.5px;
   font-weight: 700;
