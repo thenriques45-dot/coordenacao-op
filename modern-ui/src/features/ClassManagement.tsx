@@ -29,6 +29,7 @@ import {
 } from "./atendimentos/mensagemFamilia";
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { FotoAluno } from "./StudentPhoto";
+import { RelatorioDiagnosticoTurma } from "./diagnosticoTurma/RelatorioDiagnosticoTurma";
 import {
   carregarEventosCalendario,
   carregarTarefasKanban,
@@ -435,7 +436,19 @@ export function GestaoTurma({
   turma: TurmaResumo | null;
   turmaDetalhe: TurmaDetalhe | null;
   alunos: Aluno[];
-  turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; atendimento_tipos?: string[]; encaminhamento_opcoes?: OpcaoEncaminhamento[]; mensagem_familia_templates?: MensagemTemplate[] };
+  turmaConfig: {
+    lider_ativo: boolean;
+    lider_rotulo: string;
+    elegivel_ativo: boolean;
+    elegivel_rotulo: string;
+    atendimento_tipos?: string[];
+    encaminhamento_opcoes?: OpcaoEncaminhamento[];
+    mensagem_familia_templates?: MensagemTemplate[];
+    perfil_turma_ativo?: boolean;
+    perfil_turma_criterios?: { id: string; nome: string; opcoes: { nivel: string; label: string }[] }[];
+    aluno_destaque_ativo?: boolean;
+    aluno_destaque_criterios?: { id: string; titulo: string; icone: string }[];
+  };
   nomeAlunoInicial?: string | null;
   onVoltar: () => void;
   onSalvarCoordenador: (coordenador: string) => Promise<void>;
@@ -447,7 +460,7 @@ export function GestaoTurma({
   onOpenKanban: () => void;
   onAbrirTelaAtendimentos?: (alunoNome: string) => void;
 }) {
-  const [aba, setAba] = useState<"alunos" | "estatisticas" | "tarefas">("alunos");
+  const [aba, setAba] = useState<"alunos" | "estatisticas" | "diagnostico" | "tarefas">("alunos");
   const [busca, setBusca] = useState("");
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editandoCoordenador, setEditandoCoordenador] = useState(false);
@@ -685,6 +698,7 @@ export function GestaoTurma({
       <div className="detail-tabs">
         <button className={aba === "alunos" ? "active" : ""} onClick={() => setAba("alunos")}>Alunos ({alunos.length})</button>
         <button className={aba === "estatisticas" ? "active" : ""} onClick={() => setAba("estatisticas")}>Estatísticas</button>
+        <button className={aba === "diagnostico" ? "active" : ""} onClick={() => setAba("diagnostico")}>Diagnóstico da turma</button>
         {tarefasDaTurma.length > 0 && (
           <button className={aba === "tarefas" ? "active" : ""} onClick={() => setAba("tarefas")}>Tarefas ({tarefasDaTurma.length})</button>
         )}
@@ -820,6 +834,24 @@ export function GestaoTurma({
             <article className="bad"><strong>{metricas.criticos}</strong><span>Alunos em situação crítica</span></article>
           </div>
         </section>
+      )}
+
+      {aba === "diagnostico" && (
+        <RelatorioDiagnosticoTurma
+          cabecalho={{
+            rotulo: turma ? rotuloTurma(turma) : turmaDetalhe?.codigo ?? "Turma",
+            serie: rotuloSerie(turma?.serie) || turma?.ciclo || "",
+            periodo: turma?.periodo ?? null,
+            ano: turma?.ano ?? turmaDetalhe?.ano ?? null,
+            sala: turma?.sala ?? null,
+            coordenador: turma?.coordenador_turma ?? turmaDetalhe?.coordenador_turma ?? null,
+            caminho: turma?.caminho ?? null,
+          }}
+          alunos={alunosAtivos}
+          bimestre={turmaDetalhe?.bimestre}
+          criteriosPerfil={turmaConfig.perfil_turma_ativo === false ? [] : turmaConfig.perfil_turma_criterios ?? []}
+          criteriosDestaque={turmaConfig.aluno_destaque_ativo === false ? [] : turmaConfig.aluno_destaque_criterios ?? []}
+        />
       )}
 
       {aba === "tarefas" && (

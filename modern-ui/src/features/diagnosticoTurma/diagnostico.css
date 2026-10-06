@@ -1,0 +1,891 @@
+/* Relatório Diagnóstico da Turma.
+   As páginas imitam uma folha A4 na tela e são sempre claras (é papel),
+   inclusive no tema escuro do app. */
+
+.diag-tela {
+  display: grid;
+  gap: 18px;
+}
+
+.diag-controles {
+  display: grid;
+  gap: 14px;
+}
+
+.diag-controles h3 {
+  margin: 0 0 4px;
+}
+
+.diag-controles p {
+  margin: 0;
+}
+
+.diag-controles-opcoes {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.diag-secoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diag-secoes label {
+  align-items: center;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 6px;
+  padding: 4px 10px;
+}
+
+.diag-secoes label.ativo {
+  border-color: #2563eb;
+}
+
+.diag-limite {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.85rem;
+  gap: 8px;
+}
+
+.diag-imprimir {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.diag-previa {
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.diag-impressao {
+  display: none;
+}
+
+/* ---------- Página ---------- */
+
+.diag-relatorio {
+  --diag-tinta: #101828;
+  --diag-tinta-2: #475467;
+  --diag-tinta-3: #667085;
+  --diag-linha: #e4e7ec;
+  --diag-fundo-quadro: #f8fafc;
+  --diag-bom: #16a34a;
+  --diag-bom-claro: #dcfce7;
+  --diag-otimo: #15803d;
+  --diag-atencao: #f59e0b;
+  --diag-atencao-claro: #fef3c7;
+  --diag-critico: #dc2626;
+  --diag-critico-claro: #fee2e2;
+  --diag-avancado: #1d4ed8;
+  --diag-neutro: #cbd5e1;
+  --diag-marca: #1e3a8a;
+  color: var(--diag-tinta);
+  display: grid;
+  font-size: 11px;
+  gap: 24px;
+  justify-content: center;
+  line-height: 1.35;
+}
+
+.diag-pagina {
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 14px rgba(16, 24, 40, 0.14);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 297mm;
+  padding: 12mm 12mm 10mm;
+  width: 210mm;
+}
+
+.diag-pagina h2,
+.diag-pagina h3,
+.diag-pagina h4,
+.diag-pagina p {
+  color: var(--diag-tinta);
+  margin: 0;
+}
+
+.diag-pagina-topo,
+.diag-capa-topo {
+  align-items: flex-start;
+  border-bottom: 3px solid var(--diag-marca);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.diag-pagina-topo h2 {
+  font-size: 19px;
+}
+
+.diag-pagina-topo p {
+  color: var(--diag-tinta-2);
+  font-size: 11px;
+}
+
+.diag-sobretitulo {
+  color: var(--diag-marca);
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.diag-numero-pagina {
+  background: var(--diag-marca);
+  border-radius: 999px;
+  color: #ffffff;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 22px;
+  min-width: 22px;
+  text-align: center;
+}
+
+.diag-capa-topo {
+  background: linear-gradient(120deg, #1e3a8a, #2563eb);
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 16px 18px;
+}
+
+.diag-capa-topo h1 {
+  color: #ffffff;
+  font-size: 28px;
+  margin: 2px 0;
+}
+
+.diag-capa-topo p,
+.diag-capa-topo .diag-sobretitulo {
+  color: #dbeafe;
+}
+
+.diag-capa-topo dl {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 0 auto;
+  text-align: right;
+}
+
+.diag-capa-topo dt {
+  color: #bfdbfe;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diag-capa-topo dd {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.diag-capa-topo .diag-numero-pagina {
+  background: #ffffff;
+  color: var(--diag-marca);
+}
+
+/* ---------- Blocos ---------- */
+
+.diag-kpis {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.diag-kpi {
+  background: var(--diag-fundo-quadro);
+  border: 1px solid var(--diag-linha);
+  border-radius: 8px;
+  border-top-width: 4px;
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+}
+
+.diag-kpi span {
+  color: var(--diag-tinta-2);
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diag-kpi strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.diag-kpi small {
+  color: var(--diag-tinta-3);
+  font-size: 9.5px;
+}
+
+.diag-grade-2 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.diag-quadro {
+  background: var(--diag-fundo-quadro);
+  border: 1px solid var(--diag-linha);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.diag-quadro h3 {
+  font-size: 12.5px;
+}
+
+.diag-quadro h4 {
+  color: var(--diag-tinta-2);
+  font-size: 10.5px;
+  margin-top: 6px;
+}
+
+.diag-quadro-atencao {
+  border-left: 4px solid var(--diag-critico);
+}
+
+.diag-quadro-positivo {
+  border-left: 4px solid var(--diag-bom);
+}
+
+.diag-quadro-sugestoes {
+  border-left: 4px solid var(--diag-marca);
+}
+
+.diag-vazio {
+  color: var(--diag-tinta-3) !important;
+  font-style: italic;
+}
+
+.diag-vazio-grande {
+  font-size: 13px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.diag-nota-rodape {
+  color: var(--diag-tinta-3) !important;
+  font-size: 9px;
+}
+
+/* ---------- Cores ---------- */
+
+.tom-bom { background: var(--diag-bom); }
+.tom-atencao { background: var(--diag-atencao); }
+.tom-critico { background: var(--diag-critico); }
+.tom-neutro { background: var(--diag-neutro); }
+.tom-avancado { background: var(--diag-avancado); }
+
+.texto-bom { color: var(--diag-otimo) !important; }
+.texto-atencao { color: #b45309 !important; }
+.texto-critico { color: var(--diag-critico) !important; }
+.texto-neutro { color: var(--diag-tinta) !important; }
+
+.tom-borda-bom { border-top-color: var(--diag-bom); border-left-color: var(--diag-bom); }
+.tom-borda-atencao { border-top-color: var(--diag-atencao); border-left-color: var(--diag-atencao); }
+.tom-borda-critico { border-top-color: var(--diag-critico); border-left-color: var(--diag-critico); }
+.tom-borda-neutro { border-top-color: var(--diag-marca); border-left-color: var(--diag-marca); }
+
+.tom-fundo-bom { background: var(--diag-bom-claro); color: #166534; }
+.tom-fundo-atencao { background: var(--diag-atencao-claro); color: #92400e; }
+.tom-fundo-critico { background: var(--diag-critico-claro); color: #991b1b; }
+.tom-fundo-neutro { background: #f1f5f9; color: var(--diag-tinta-2); }
+
+/* ---------- Barras horizontais ---------- */
+
+.diag-barras {
+  display: grid;
+  gap: 4px;
+}
+
+.diag-barra-linha {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 38%) minmax(0, 1fr) 34px auto;
+}
+
+.diag-col-barra .diag-barra-linha {
+  grid-template-columns: 0 minmax(0, 1fr) 34px;
+  gap: 6px;
+}
+
+.diag-barra-rotulo {
+  color: var(--diag-tinta-2);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diag-barra-trilho {
+  background: #eef2f6;
+  border-radius: 4px;
+  display: block;
+  height: 10px;
+  overflow: hidden;
+}
+
+.diag-barra-trilho i {
+  border-radius: 0 4px 4px 0;
+  display: block;
+  height: 100%;
+}
+
+.diag-barra-valor {
+  font-size: 10.5px;
+  text-align: right;
+}
+
+.diag-barra-detalhe {
+  color: var(--diag-tinta-3);
+  font-size: 9.5px;
+  min-width: 52px;
+  white-space: nowrap;
+}
+
+/* ---------- Rosca, empilhada, colunas ---------- */
+
+.diag-rosca-bloco {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.diag-rosca {
+  flex: 0 0 110px;
+  height: 110px;
+  position: relative;
+}
+
+.diag-rosca svg {
+  height: 100%;
+  width: 100%;
+}
+
+.diag-rosca-fundo {
+  fill: none;
+  stroke: #eef2f6;
+  stroke-width: 14;
+}
+
+.diag-rosca-fatia {
+  background: none;
+  fill: none;
+  stroke-width: 14;
+}
+
+.diag-rosca-fatia.tom-bom { stroke: var(--diag-bom); }
+.diag-rosca-fatia.tom-atencao { stroke: var(--diag-atencao); }
+.diag-rosca-fatia.tom-critico { stroke: var(--diag-critico); }
+.diag-rosca-fatia.tom-neutro { stroke: var(--diag-neutro); }
+
+.diag-rosca-centro {
+  display: grid;
+  inset: 0;
+  place-content: center;
+  position: absolute;
+  text-align: center;
+}
+
+.diag-rosca-centro strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.diag-rosca-centro span {
+  color: var(--diag-tinta-3);
+  font-size: 9.5px;
+}
+
+.diag-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.diag-rosca-bloco .diag-legenda {
+  display: grid;
+  gap: 5px;
+}
+
+.diag-legenda span {
+  align-items: center;
+  color: var(--diag-tinta-2);
+  display: inline-flex;
+  font-size: 10px;
+  gap: 5px;
+}
+
+.diag-legenda i {
+  border-radius: 3px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.diag-legenda strong {
+  color: var(--diag-tinta);
+  margin-left: 2px;
+}
+
+.diag-empilhada {
+  border-radius: 4px;
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  overflow: hidden;
+}
+
+.diag-empilhada i {
+  color: #ffffff;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 18px;
+  min-width: 3px;
+  text-align: center;
+}
+
+.diag-empilhada i.tom-neutro,
+.diag-empilhada i.tom-atencao {
+  color: var(--diag-tinta);
+}
+
+.diag-empilhada-vazia {
+  background: #eef2f6;
+  flex: 1;
+}
+
+.diag-colunas {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  height: 120px;
+}
+
+.diag-coluna {
+  align-items: center;
+  display: grid;
+  gap: 3px;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  text-align: center;
+}
+
+.diag-coluna strong {
+  font-size: 11px;
+}
+
+.diag-coluna-trilho {
+  align-items: end;
+  background: #eef2f6;
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  height: 100%;
+  justify-self: center;
+  width: 60%;
+}
+
+.diag-coluna-trilho i {
+  border-radius: 4px 4px 0 0;
+  display: block;
+  width: 100%;
+}
+
+.diag-coluna-rotulo {
+  color: var(--diag-tinta-3);
+  font-size: 9.5px;
+}
+
+.diag-variacao {
+  align-items: center;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(40px, 1fr) auto;
+}
+
+.diag-variacao-trilho {
+  background: #eef2f6;
+  border-radius: 4px;
+  display: block;
+  height: 10px;
+  position: relative;
+}
+
+.diag-variacao-trilho i {
+  border-radius: 3px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+}
+
+.diag-variacao-trilho b {
+  background: var(--diag-tinta-3);
+  height: 14px;
+  left: 50%;
+  position: absolute;
+  top: -2px;
+  width: 1px;
+}
+
+.diag-variacao strong {
+  font-size: 10px;
+  min-width: 46px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ---------- Tabelas ---------- */
+
+/* Neutraliza as regras globais de table/th/td do styles.css (largura fixa e
+   centralização da 2ª e 3ª colunas, margem e padding). */
+.diag-relatorio table {
+  margin-top: 0;
+}
+
+.diag-relatorio table th,
+.diag-relatorio table td {
+  text-align: left;
+  width: auto;
+}
+
+.diag-tabela {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.diag-tabela th {
+  border-bottom: 2px solid var(--diag-linha);
+  color: var(--diag-tinta-3);
+  font-size: 9px;
+  font-weight: 800;
+  padding: 4px 6px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.diag-tabela td {
+  border-bottom: 1px solid var(--diag-linha);
+  font-size: 10.5px;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+
+.diag-tabela tr {
+  break-inside: avoid;
+}
+
+.diag-relatorio .diag-col-pos {
+  color: var(--diag-tinta-3);
+  width: 18px;
+}
+
+.diag-tabela th:nth-child(2),
+.diag-col-nome {
+  font-weight: 700;
+  text-align: left !important;
+}
+
+.diag-col-nome small {
+  color: var(--diag-tinta-3);
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.diag-col-num {
+  text-align: center !important;
+  white-space: nowrap;
+}
+
+.diag-col-barra {
+  min-width: 120px;
+}
+
+.diag-destaque-num {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.diag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.diag-chip {
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* ---------- Leitura ---------- */
+
+.diag-alertas,
+.diag-sugestoes,
+.diag-perfil {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.diag-alertas li {
+  background: #ffffff;
+  border: 1px solid var(--diag-linha);
+  border-left-width: 4px;
+  border-radius: 6px;
+  display: flex;
+  gap: 7px;
+  padding: 6px 8px;
+}
+
+.diag-alertas svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.diag-alertas strong {
+  display: block;
+  font-size: 11px;
+}
+
+.diag-alertas span {
+  color: var(--diag-tinta-2);
+  font-size: 10px;
+}
+
+.diag-sugestoes li {
+  align-items: flex-start;
+  display: flex;
+  font-size: 11px;
+  gap: 6px;
+}
+
+.diag-sugestoes svg {
+  color: var(--diag-marca);
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.diag-perfil li {
+  align-items: center;
+  border-bottom: 1px dashed var(--diag-linha);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding-bottom: 4px;
+}
+
+.diag-perfil li span {
+  align-items: center;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.diag-mini-kpis {
+  display: grid;
+  gap: 4px;
+  margin-top: auto;
+}
+
+.diag-mini-kpis span {
+  color: var(--diag-tinta-2);
+  font-size: 10px;
+}
+
+.diag-mini-kpis strong {
+  color: var(--diag-marca);
+  font-size: 13px;
+}
+
+/* ---------- Mapa de notas ---------- */
+
+.diag-mapa {
+  border-collapse: separate;
+  border-spacing: 1px;
+  table-layout: auto;
+  width: 100%;
+}
+
+.diag-mapa th,
+.diag-mapa td {
+  border: 0;
+  font-size: 9px;
+  padding: 0;
+}
+
+.diag-mapa-nome {
+  overflow: hidden;
+  padding-right: 6px !important;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diag-relatorio .diag-mapa .diag-mapa-disc {
+  height: 34mm;
+  text-align: center;
+  width: 6.5mm;
+  vertical-align: bottom;
+}
+
+.diag-mapa-disc span {
+  color: var(--diag-tinta-2);
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 700;
+  max-height: 33mm;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+}
+
+.diag-mapa-resumo span {
+  color: var(--diag-tinta);
+}
+
+.diag-relatorio .diag-mapa td.diag-celula {
+  text-align: center;
+}
+
+.diag-celula {
+  border-radius: 2px;
+  font-weight: 700;
+  height: 15px;
+  min-width: 15px;
+  text-align: center;
+}
+
+.diag-relatorio .diag-mapa .diag-mapa-resumo {
+  width: 10mm;
+}
+
+.diag-mapa .diag-mapa-total td {
+  border-top: 2px solid var(--diag-tinta-3);
+  font-weight: 800;
+}
+
+.tom-celula-critico { background: #f87171; color: #ffffff; }
+.tom-celula-atencao { background: #fcd34d; color: var(--diag-tinta); }
+.tom-celula-bom { background: #bbf7d0; color: #14532d; }
+.tom-celula-otimo { background: #16a34a; color: #ffffff; }
+.tom-celula-neutro { background: #f1f5f9; color: var(--diag-tinta-3); }
+
+.diag-legenda-mapa i {
+  height: 12px;
+  width: 16px;
+}
+
+/* ---------- Diagnósticas ---------- */
+
+.diag-saresp-linha {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+}
+
+.diag-saresp-rotulo {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diag-saresp-evolucao {
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 700;
+  gap: 8px;
+}
+
+/* ---------- Impressão ---------- */
+
+@page diagnostico {
+  margin: 0;
+  size: A4 portrait;
+}
+
+@media print {
+  body.imprimindo-diagnostico > *:not(.diag-impressao) {
+    display: none !important;
+  }
+
+  body.imprimindo-diagnostico .diag-impressao {
+    display: block;
+    page: diagnostico;
+  }
+
+  /* O styles.css esconde tudo na impressão (ficha do aluno); aqui o
+     relatório volta a aparecer. */
+  body.imprimindo-diagnostico .diag-impressao,
+  body.imprimindo-diagnostico .diag-impressao * {
+    visibility: visible !important;
+  }
+
+  body.imprimindo-diagnostico {
+    background: #ffffff !important;
+    margin: 0;
+  }
+
+  .diag-impressao .diag-relatorio {
+    display: block;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Flex atrapalha a fragmentação de página do Chromium: na impressão a
+     página vira bloco com espaçamento entre os filhos. */
+  .diag-impressao .diag-pagina {
+    display: block;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    /* Uma página que transborda continua na folha seguinte em vez de ser
+       cortada; 1mm a menos evita folha em branco por arredondamento. */
+    min-height: 296mm;
+    page-break-after: always;
+  }
+
+  .diag-impressao .diag-pagina > * + * {
+    margin-top: 12px;
+  }
+
+  .diag-impressao .diag-pagina:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+}
