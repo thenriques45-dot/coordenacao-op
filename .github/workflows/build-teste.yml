@@ -1,0 +1,50 @@
+name: Build de teste
+
+# Gera um executável portátil do Windows a cada PR que mexe no app, para
+# testar a mudança antes de mesclar. Não assina, não instala e não publica
+# nada: o .exe fica só como artefato do run, por 14 dias.
+
+on:
+  pull_request:
+    paths:
+      - "modern-ui/**"
+      - ".github/workflows/build-teste.yml"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  windows-portatil:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      # --no-bundle: só o .exe, sem instalador nem artefatos do updater
+      # (que exigiriam a chave de assinatura).
+      - name: Build
+        working-directory: modern-ui
+        run: npm run tauri build -- --no-bundle
+
+      - name: Upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: CoordenacaoOP-teste-windows-pr${{ github.event.pull_request.number || 'manual' }}
+          path: modern-ui/src-tauri/target/release/*.exe
+          retention-days: 14
+          if-no-files-found: error
