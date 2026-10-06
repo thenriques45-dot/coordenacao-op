@@ -213,6 +213,7 @@ type AppInfo = {
   version: string;
   data_dir: string;
   loja?: boolean;
+  loja_nome?: string;
 };
 
 type SyncStateResultado = {
@@ -1912,15 +1913,26 @@ export function Configuracoes({
         <article className="settings-card">
           {appInfo?.loja ? (
             <>
-              <CabecalhoSecao secao="atualizacao" titulo="Atualização" descricao="Nesta versão da Microsoft Store, a própria Store instala as atualizações." />
+              <CabecalhoSecao
+                secao="atualizacao"
+                titulo="Atualização"
+                descricao={`Nesta versão do ${appInfo.loja_nome || "aplicativo da loja"}, a própria loja instala as atualizações.`}
+              />
               <span className="settings-version">Versão atual: {appInfo?.version ? `v${appInfo.version}` : "não identificada"}</span>
               {onVerNovidades && (
                 <button type="button" onClick={onVerNovidades}>O que há de novidade nesta versão</button>
               )}
-              <p style={{ marginTop: "1rem" }}>
-                Verifique atualizações pela Microsoft Store (Biblioteca → Obter atualizações). O início automático com o Windows
-                é controlado em Configurações do Windows → Aplicativos → Inicialização.
-              </p>
+              {appInfo.loja_nome === "Flathub" ? (
+                <p style={{ marginTop: "1rem" }}>
+                  As atualizações chegam pela loja de aplicativos do sistema (GNOME Software, Discover) ou pelo comando
+                  <code> flatpak update</code>.
+                </p>
+              ) : (
+                <p style={{ marginTop: "1rem" }}>
+                  Verifique atualizações pela Microsoft Store (Biblioteca → Obter atualizações). O início automático com o Windows
+                  é controlado em Configurações do Windows → Aplicativos → Inicialização.
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -1944,7 +1956,7 @@ export function Configuracoes({
                 />
                 Iniciar com o Windows e minimizar para a bandeja ao fechar
               </label>
-              <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo na bandeja para continuar enviando notificações.</span>
+              <span className="settings-version">Quando ativo, fechar a janela mantém o aplicativo aberto na bandeja do sistema.</span>
             </>
           )}
         </article>

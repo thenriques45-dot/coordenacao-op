@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "4.2.6"
+version = "4.3.0"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
@@ -11,6 +11,9 @@ edition = "2021"
 # container do MSIX não deixa rodar o instalador do updater nem gravar a
 # chave de autostart no registro — então a UI dessas duas coisas some.
 store = []
+# Build para o Flatpak/Flathub: a loja (GNOME Software / `flatpak update`)
+# atualiza o app, e os dados ficam na pasta do sandbox (~/.var/app/<id>).
+flatpak = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -25,11 +28,9 @@ calamine = "0.26"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
-tauri-plugin-notification = "2.3.1"
 tauri-plugin-dialog = "2.4.1"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
-notify-rust = "4"
 base64 = "0.22"
 sevenz-rust = "0.6"
 rust_xlsxwriter = "0.79"

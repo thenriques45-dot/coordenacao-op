@@ -80,14 +80,22 @@ fn montar_secoes<'a>(
     for secao in &definicao.secoes {
         let mut linhas = gerar_linhas_secao(secao, turmas, &definicao.fonte, bimestre, nota_minima, parametros);
         ordenar_linhas(&mut linhas, &secao.ordenacao);
-        let blocos = agrupar_linhas(linhas, &secao.agrupamento, parametros);
+        let mut blocos = agrupar_linhas(linhas, &secao.agrupamento, parametros);
+        // Colunas ocultas (no fim da lista) já serviram para ordenar: saem
+        // do resultado para nenhum renderer mostrá-las.
+        let visiveis = secao.colunas.iter().position(|coluna| coluna.oculta).unwrap_or(secao.colunas.len());
+        for (_, linhas_bloco) in &mut blocos {
+            for linha in linhas_bloco {
+                linha.valores.truncate(visiveis);
+            }
+        }
         let linhas_secao: usize = blocos.iter().map(|(_, linhas)| linhas.len()).sum();
         total_linhas += linhas_secao;
         total_grupos += blocos.len();
         linhas_por_secao.push(linhas_secao);
         secoes_resultado.push(SecaoResultado {
             titulo: secao.titulo.clone(),
-            colunas: &secao.colunas,
+            colunas: &secao.colunas[..visiveis],
             blocos,
         });
     }
@@ -520,6 +528,41 @@ mod testes {
         }))
     }
 
+    /// Relatório "Alunos prioritários (AvD)": só quem chega ao corte, mais
+    /// pontos primeiro, desempate pela menor aprendizagem equivalente — e a
+    /// coluna de desempate (oculta) não aparece no resultado.
+    #[test]
+    fn alunos_prioritarios_ordena_e_esconde_coluna_de_desempate() {
+        use super::super::embutidos::definicao_alunos_prioritarios;
+        let avd = |nivel: &str, ano: &str| json!({ "nivel": nivel, "aprendizagem_equivalente": ano });
+        let turma = turma_fixture(json!({
+            "codigo": "1ª Série A", "ano": 2026, "serie": "1ª Série", "periodo": "NOITE",
+            "alunos": {
+                "1": { "nome": "ALUNA 8 ANO", "ativo": true, "frequencia_percentual": 70.0,
+                       "diagnostico_aprendizagem": { "matematica": { "avd2": avd("Abaixo do Básico", "8º ano") } } },
+                "2": { "nome": "ALUNO 6 ANO", "ativo": true, "frequencia_percentual": 70.0,
+                       "diagnostico_aprendizagem": { "matematica": { "avd2": avd("Abaixo do Básico", "6º ano") } } },
+                "3": { "nome": "ALUNO SEM RISCO", "ativo": true, "frequencia_percentual": 98.0,
+                       "diagnostico_aprendizagem": { "matematica": { "avd2": avd("Adequado", "1ª série") } } }
+            }
+        }));
+        let turmas = vec![(PathBuf::from("turma.json"), turma)];
+        let definicao = definicao_alunos_prioritarios();
+        let parametros = resolver_parametros(&definicao, &BTreeMap::new());
+        let (secoes, total, ..) = montar_secoes(&definicao, &turmas, "3", 5.0, &parametros);
+
+        assert_eq!(total, 2, "só os dois com 2ª AvD + frequência (2,5 pontos) são prioritários");
+        let secao = &secoes[0];
+        assert!(secao.colunas.iter().all(|coluna| !coluna.oculta));
+        let nomes: Vec<String> = secao.blocos[0]
+            .1
+            .iter()
+            .map(|linha| linha.valores[0].1.como_texto())
+            .collect();
+        assert_eq!(nomes, ["ALUNO 6 ANO", "ALUNA 8 ANO"]);
+        assert_eq!(secao.blocos[0].1[0].valores.len(), secao.colunas.len());
+    }
+
     /// "Top Alunos" (ex-Top 60) agora aceita um parâmetro `quantidade_top`
     /// que sobrepõe o `limite_por_grupo` fixo da definição — prova que
     /// `limite_efetivo` realmente lê o parâmetro passado na hora de gerar,
@@ -589,6 +632,7 @@ mod testes {
                         expressao: campo("aluno_numero_chamada"),
                         largura: None,
                         alinhamento: Alinhamento::Centro,
+                        oculta: false,
                     },
                     ColunaRelatorio {
                         id: "nome".to_string(),
@@ -596,6 +640,7 @@ mod testes {
                         expressao: campo("aluno_nome"),
                         largura: None,
                         alinhamento: Alinhamento::Esquerda,
+                        oculta: false,
                     },
                     ColunaRelatorio {
                         id: "turma".to_string(),
@@ -603,6 +648,7 @@ mod testes {
                         expressao: campo("turma_rotulo"),
                         largura: None,
                         alinhamento: Alinhamento::Centro,
+                        oculta: false,
                     },
                     ColunaRelatorio {
                         id: "nota".to_string(),
@@ -610,6 +656,7 @@ mod testes {
                         expressao: campo_param("nota_disciplina_bimestre", "MATEMATICA"),
                         largura: None,
                         alinhamento: Alinhamento::Centro,
+                        oculta: false,
                     },
                 ],
                 ordenacao: vec![OrdenacaoRelatorio {
@@ -729,6 +776,7 @@ mod testes {
                         expressao: campo("aluno_nome"),
                         largura: None,
                         alinhamento: Alinhamento::Esquerda,
+                        oculta: false,
                     },
                     ColunaRelatorio {
                         id: "dias".to_string(),
@@ -736,6 +784,7 @@ mod testes {
                         expressao: campo("expansao_dias_sem_acesso"),
                         largura: None,
                         alinhamento: Alinhamento::Centro,
+                        oculta: false,
                     },
                 ],
                 ordenacao: vec![OrdenacaoRelatorio { coluna_id: "dias".to_string(), decrescente: true }],

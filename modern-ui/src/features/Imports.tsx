@@ -1,4 +1,4 @@
-import { BarChart3, Check, ImagePlus, Upload, Users } from "lucide-react";
+import { BarChart3, CalendarCheck, Check, ImagePlus, Upload, Users } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
@@ -109,6 +109,8 @@ export function ImportarDados({
   onImportarNotas,
   onImportarElegiveis,
   onImportarDiagnostico,
+  onImportarAlunoPresente,
+  onImportarSaresp,
   onImportarFotos,
   onImportarAlunosLote,
   onImportarTarefas,
@@ -118,6 +120,8 @@ export function ImportarDados({
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
   onImportarDiagnostico: () => void;
+  onImportarAlunoPresente: () => void;
+  onImportarSaresp: () => void;
   onImportarFotos: () => void;
   onImportarAlunosLote: () => void;
   onImportarTarefas: () => void;
@@ -152,8 +156,22 @@ export function ImportarDados({
         <button type="button" className="import-menu-card" onClick={onImportarDiagnostico}>
           <BarChart3 size={24} />
           <div>
-            <strong>Importar Diagnóstico SARESP</strong>
-            <span>Leia o relatório "Aprendizagem Equivalente" (Diagnóstica 1 e Diagnóstica 2) de Português e Matemática.</span>
+            <strong>Importar Recomposição – Diagnóstico (AvD)</strong>
+            <span>Leia a extração do BI "Recomposição – Diagnóstico" (1ª e 2ª AvD) de Português e Matemática.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarAlunoPresente}>
+          <CalendarCheck size={24} />
+          <div>
+            <strong>Importar Aluno Presente</strong>
+            <span>Atualize a frequência geral dos alunos toda semana, sem esperar o mapão.</span>
+          </div>
+        </button>
+        <button type="button" className="import-menu-card" onClick={onImportarSaresp}>
+          <BarChart3 size={24} />
+          <div>
+            <strong>Importar SARESP – Diagnóstico</strong>
+            <span>Guarde a nota média e a nota por disciplina do SARESP de cada aluno.</span>
           </div>
         </button>
         <button type="button" className="import-menu-card" onClick={onImportarFotos}>
@@ -937,7 +955,69 @@ export function ImportarElegiveis({ onImportado }: { onImportado: () => void }) 
   );
 }
 
+type ConfigImportadorBi = {
+  eyebrow: string;
+  titulo: string;
+  descricao: string;
+  comandoAnalisar: string;
+  comandoAplicar: string;
+  semArquivo: string;
+  rotuloAplicar: string;
+  concluido: string;
+  aviso: string;
+};
+
+const CONFIG_DIAGNOSTICO: ConfigImportadorBi = {
+  eyebrow: "Recomposição – Diagnóstico",
+  titulo: "Importar Recomposição – Diagnóstico (AvD)",
+  descricao: 'Atualize Português e Matemática por aluno a partir da extração do BI "Recomposição – Diagnóstico" (1ª e 2ª Avaliação Diagnóstica, com a aprendizagem equivalente). Os alunos são casados por RA (e por nome, quando o RA não bate).',
+  comandoAnalisar: "analisar_diagnostico_aprendizagem",
+  comandoAplicar: "aplicar_diagnostico_aprendizagem",
+  semArquivo: "Selecione ao menos uma planilha da Recomposição – Diagnóstico.",
+  rotuloAplicar: "Aplicar Recomposição – Diagnóstico",
+  concluido: "Recomposição – Diagnóstico importada.",
+  aviso: "Alunos não encontrados ou ambíguos ficam de fora para evitar gravar diagnóstico no estudante errado.",
+};
+
+const CONFIG_ALUNO_PRESENTE: ConfigImportadorBi = {
+  eyebrow: "Aluno Presente",
+  titulo: "Importar Aluno Presente",
+  descricao: 'Atualize a frequência dos alunos com a exportação do BI "Aluno Presente" (uma planilha por turma; pode selecionar várias). A presença anual passa a ser a frequência geral do aluno no app, e a das duas últimas semanas e o risco de reprovação por faltas ficam guardados. A frequência por disciplina continua vindo do mapão. Os alunos são casados por RA (e por nome, quando o RA não bate).',
+  comandoAnalisar: "analisar_aluno_presente",
+  comandoAplicar: "aplicar_aluno_presente",
+  semArquivo: "Selecione ao menos uma planilha do Aluno Presente.",
+  rotuloAplicar: "Aplicar Aluno Presente",
+  concluido: "Frequência do Aluno Presente importada.",
+  aviso: "Alunos não encontrados ou ambíguos ficam de fora para evitar gravar a frequência no estudante errado.",
+};
+
 export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }) {
+  return <ImportadorPlanilhaBi config={CONFIG_DIAGNOSTICO} onImportado={onImportado} />;
+}
+
+const CONFIG_SARESP: ConfigImportadorBi = {
+  eyebrow: "SARESP – Diagnóstico",
+  titulo: "Importar SARESP – Diagnóstico",
+  descricao: 'Guarde a nota do SARESP por aluno com a exportação do BI "SARESP - Diagnóstico" (uma planilha por turma; pode selecionar várias): nota média, disciplina de menor nota e nota de cada disciplina, de 0 a 10. O arquivo não traz RA: os alunos são casados pelo nome, e a turma do rodapé da planilha desempata nomes repetidos.',
+  comandoAnalisar: "analisar_saresp",
+  comandoAplicar: "aplicar_saresp",
+  semArquivo: "Selecione ao menos uma planilha do SARESP - Diagnóstico.",
+  rotuloAplicar: "Aplicar SARESP",
+  concluido: "SARESP importado.",
+  aviso: "Alunos não encontrados ou ambíguos ficam de fora para evitar gravar a nota no estudante errado. Nome escrito de outro jeito no BI vira \"não encontrado\".",
+};
+
+export function ImportarSaresp({ onImportado }: { onImportado: () => void }) {
+  return <ImportadorPlanilhaBi config={CONFIG_SARESP} onImportado={onImportado} />;
+}
+
+export function ImportarAlunoPresente({ onImportado }: { onImportado: () => void }) {
+  return <ImportadorPlanilhaBi config={CONFIG_ALUNO_PRESENTE} onImportado={onImportado} />;
+}
+
+// Importações de planilhas do BI que gravam um bloco por aluno: mesmo fluxo
+// (selecionar, analisar, aplicar) e mesma prévia.
+function ImportadorPlanilhaBi({ config, onImportado }: { config: ConfigImportadorBi; onImportado: () => void }) {
   const [arquivos, setArquivos] = useState<ArquivoMapaoPayload[]>([]);
   const [previa, setPrevia] = useState<PreviaImportacaoDiagnostico | null>(null);
   const [resultado, setResultado] = useState<ResultadoImportacaoDiagnostico | null>(null);
@@ -966,13 +1046,13 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
 
   function analisar() {
     if (!arquivos.length) {
-      setErro("Selecione ao menos uma planilha de Diagnóstico SARESP.");
+      setErro(config.semArquivo);
       return;
     }
     setProcessando(true);
     setErro("");
     setResultado(null);
-    invokeApp<PreviaImportacaoDiagnostico>("analisar_diagnostico_aprendizagem", {
+    invokeApp<PreviaImportacaoDiagnostico>(config.comandoAnalisar, {
       input: { arquivos },
     })
       .then(setPrevia)
@@ -984,7 +1064,7 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
     if (!arquivos.length || !previa) return;
     setProcessando(true);
     setErro("");
-    invokeApp<ResultadoImportacaoDiagnostico>("aplicar_diagnostico_aprendizagem", {
+    invokeApp<ResultadoImportacaoDiagnostico>(config.comandoAplicar, {
       input: { arquivos },
     })
       .then((resposta) => {
@@ -1000,9 +1080,9 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
     <>
       <header className="topbar">
         <div>
-          <span className="eyebrow">Diagnóstico SARESP</span>
-          <h1>Importar Diagnóstico SARESP</h1>
-          <p>Atualize Português e Matemática por aluno a partir do relatório "Aprendizagem Equivalente" das Devolutivas Pedagógicas (Diagnóstica 1 e Diagnóstica 2). Os alunos são casados por RA (e por nome, quando o RA não bate).</p>
+          <span className="eyebrow">{config.eyebrow}</span>
+          <h1>{config.titulo}</h1>
+          <p>{config.descricao}</p>
         </div>
       </header>
 
@@ -1069,13 +1149,13 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
           {(previa.total_nao_encontrados > 0 || previa.total_duplicados > 0) && (
             <div className="import-diagnostics">
               <strong>Verifique antes de aplicar</strong>
-              <span>Alunos não encontrados ou ambíguos ficam de fora para evitar gravar diagnóstico no estudante errado.</span>
+              <span>{config.aviso}</span>
             </div>
           )}
 
           <div className="import-preview-actions">
             <button className="primary-action" onClick={aplicar} disabled={processando || previa.total_correspondencias === 0}>
-              {processando ? "Importando..." : "Aplicar Diagnóstico SARESP"}
+              {processando ? "Importando..." : config.rotuloAplicar}
             </button>
           </div>
         </section>
@@ -1083,7 +1163,7 @@ export function ImportarDiagnostico({ onImportado }: { onImportado: () => void }
 
       {resultado && (
         <section className="finish-confirmation import-result">
-          <strong>Diagnóstico SARESP importado.</strong>
+          <strong>{config.concluido}</strong>
           <span>Turmas atualizadas: {resultado.turmas_atualizadas}</span>
           <span>Alunos atualizados: {resultado.alunos_atualizados}</span>
         </section>

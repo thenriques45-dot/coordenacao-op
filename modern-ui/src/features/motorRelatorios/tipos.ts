@@ -69,6 +69,8 @@ export type ColunaRelatorio = {
   rotulo: string;
   expressao: ExpressaoNo;
   largura?: number | null;
+  // Só para ordenar: fica no fim da lista e não aparece no documento.
+  oculta?: boolean;
   alinhamento: Alinhamento;
 };
 

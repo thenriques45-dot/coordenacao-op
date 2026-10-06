@@ -604,7 +604,16 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
         .get("frequencia_percentual_bimestre")
         .and_then(Value::as_str)
         .unwrap_or("");
-    if inc_obj.contains_key("frequencia_percentual") && bim_inc >= bim_local {
+    // Frequência vinda do Aluno Presente (semanal) não regride para a do mapão:
+    // ela é tratada no bloco aluno_presente logo abaixo.
+    let fonte_aluno_presente =
+        |obj: &serde_json::Map<String, Value>| obj.get("frequencia_fonte").and_then(Value::as_str) == Some("aluno_presente");
+    let local_do_aluno_presente = fonte_aluno_presente(local_obj);
+    if inc_obj.contains_key("frequencia_percentual")
+        && bim_inc >= bim_local
+        && !local_do_aluno_presente
+        && !fonte_aluno_presente(inc_obj)
+    {
         if let Some(valor) = inc_obj.get("frequencia_percentual") {
             local_obj.insert("frequencia_percentual".to_string(), valor.clone());
         }
@@ -616,7 +625,40 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
         }
     }
 
-    // diagnostico_aprendizagem: bloco único por aluno (SARESP/AvD), gravado
+    // aluno_presente: bloco único por aluno, gravado inteiro a cada importação.
+    // Vence o mais recente por `em`, e a frequência geral acompanha o bloco.
+    if let Some(presente_inc) = inc_obj.get("aluno_presente") {
+        let em_local = local_obj
+            .get("aluno_presente")
+            .and_then(|bloco| bloco.get("em"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let em_inc = presente_inc.get("em").and_then(Value::as_str).unwrap_or("");
+        if em_inc >= em_local {
+            local_obj.insert("aluno_presente".to_string(), presente_inc.clone());
+            for campo in &["frequencia_percentual", "frequencia_fonte"] {
+                if let Some(valor) = inc_obj.get(*campo) {
+                    local_obj.insert(campo.to_string(), valor.clone());
+                }
+            }
+        }
+    }
+
+    // saresp: bloco único por aluno, gravado inteiro a cada importação; vence o
+    // mais recente por `em`.
+    if let Some(saresp_inc) = inc_obj.get("saresp") {
+        let em_local = local_obj
+            .get("saresp")
+            .and_then(|bloco| bloco.get("em"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let em_inc = saresp_inc.get("em").and_then(Value::as_str).unwrap_or("");
+        if em_inc >= em_local {
+            local_obj.insert("saresp".to_string(), saresp_inc.clone());
+        }
+    }
+
+    // diagnostico_aprendizagem: bloco único por aluno (AvD), gravado
     // inteiro a cada importação. Vence o mais recente por `atualizado_em`, ou
     // o incoming quando o local ainda não tem nenhum — senão o diagnóstico
     // importado num dispositivo nunca chegava aos outros pelo sync.
@@ -1360,7 +1402,7 @@ mod testes {
         assert_eq!(lista[0]["id"], "atendimento-1");
     }
 
-    /// Diagnóstico SARESP importado só na máquina A tem que chegar na B pelo
+    /// Diagnóstico da AvD importado só na máquina A tem que chegar na B pelo
     /// sync — antes `mesclar_aluno` não tocava no campo e o dado nunca saía
     /// do dispositivo onde foi importado.
     #[test]

@@ -303,7 +303,7 @@ function montarPromptRelatorio({ aluno, bimestre, turma, tarefas }: AiStudentRep
       condicoesRegistradas: aluno.deficiencias ?? [],
       comentarioEducacaoEspecial: aluno.comentarioEducacaoEspecial ?? null,
       encaminhamentosSelecionados: aluno.encaminhamentos ?? [],
-      diagnosticoSaresp: aluno.diagnosticoAprendizagem ?? null,
+      diagnosticoAvd: aluno.diagnosticoAprendizagem ?? null,
       disciplinas,
       tarefasRelacionadas: (tarefas ?? []).slice(0, 8),
     },

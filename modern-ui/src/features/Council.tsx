@@ -114,7 +114,7 @@ function setaEvolucao(evolucao: string) {
   return classe === "up" ? "▲" : classe === "down" ? "▼" : "=";
 }
 
-function diagnosticoSarespPorDisciplina(
+function diagnosticoAvdPorDisciplina(
   diagnostico: DiagnosticoAprendizagem | null | undefined,
   disciplina: string,
 ) {
@@ -939,7 +939,7 @@ export function Council({
                     const evolucao = calcularEvolucaoDisciplina(disciplina, bimestreSelecionado);
                     const historicoAberto = disciplinaHistoricoAberta === disciplina.nome;
                     const historico = disciplina.historicoBimestres ?? [];
-                    const diagnosticoDisciplina = diagnosticoSarespPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
+                    const diagnosticoDisciplina = diagnosticoAvdPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
                     return (
                     <tr key={disciplina.nome}>
                       <td>

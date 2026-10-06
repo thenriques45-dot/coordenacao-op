@@ -1,5 +1,5 @@
 
-// Integração com o sistema: notificações, abrir URLs/pastas/arquivos e anexos.
+// Integração com o sistema: abrir URLs/pastas/arquivos e anexos.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
 // através dos re-exports globais feitos no main.rs (use crate::*).
 
@@ -16,39 +16,6 @@ use std::{
 // ao compilar/rodar `cargo fix` no Windows ou macOS.
 #[cfg(target_os = "linux")]
 use std::env;
-
-
-/// Envia uma notificação nativa do sistema diretamente pelo backend.
-///
-/// Evita a API web `window.Notification` (instável no WebKitGTK do Linux e no
-/// WebView2 do Windows). Também não usa o `.show()` do plugin, que dispara a
-/// notificação dentro do runtime async e descarta o erro — no Linux o
-/// `zbus::blocking` (usado pelo notify-rust) falha de forma intermitente quando
-/// chamado de dentro do Tokio. Aqui rodamos o `show()` numa thread OS dedicada,
-/// sem runtime async no caminho, e propagamos o erro real.
-#[tauri::command]
-pub(crate) fn enviar_notificacao(titulo: String, corpo: String) -> Result<(), String> {
-    std::thread::spawn(move || {
-        let mut notificacao = notify_rust::Notification::new();
-        notificacao.summary(&titulo).body(&corpo);
-        // O appname padrão do notify-rust é o nome do binário ("coordenacaoop").
-        // Em algumas versões do GNOME esse nome casa com um .desktop quebrado da
-        // integração do AppImage e as notificações são silenciosamente descartadas.
-        // Usar o nome de exibição evita essa colisão.
-        notificacao.appname("CoordenacaoOP");
-        #[cfg(target_os = "windows")]
-        {
-            // AppUserModelID registrado pelo instalador, necessário para o toast.
-            notificacao.app_id("br.gov.sp.educacao.coordenacaoop");
-        }
-        notificacao
-            .show()
-            .map(|_| ())
-            .map_err(|err| err.to_string())
-    })
-    .join()
-    .map_err(|_| "Falha ao executar a thread de notificação.".to_string())?
-}
 
 #[tauri::command]
 pub(crate) fn abrir_url(url: String) -> Result<(), String> {

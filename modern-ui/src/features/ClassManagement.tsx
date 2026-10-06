@@ -338,7 +338,7 @@ function setaEvolucao(evolucao: string) {
   return classe === "up" ? "▲" : classe === "down" ? "▼" : "=";
 }
 
-function diagnosticoSarespPorDisciplina(diagnostico: DiagnosticoAprendizagem | null | undefined, disciplina: string) {
+function diagnosticoAvdPorDisciplina(diagnostico: DiagnosticoAprendizagem | null | undefined, disciplina: string) {
   if (!diagnostico) return null;
   const nome = normalizarBusca(disciplina);
   if (nome === "portugues" || nome === "portuguesa" || nome === "lingua portuguesa") {
@@ -2015,7 +2015,7 @@ function AlunoDetalheGestao({
       {aluno.diagnosticoAprendizagem && (
         <section className="student-diagnostic-panel">
           <div className="student-chart-heading">
-            <h3>Diagnóstico SARESP</h3>
+            <h3>Diagnóstico (AvD)</h3>
             {aluno.diagnosticoAprendizagem.turma_origem && <span>{aluno.diagnosticoAprendizagem.turma_origem}</span>}
           </div>
           <div className="student-diagnostic-grid">
@@ -2045,7 +2045,7 @@ function AlunoDetalheGestao({
                 const nota = disciplina.mediaConselho ?? disciplina.mediaOriginal;
                 const mediaDisciplina = calcularMediaDisciplina(disciplina, bimestreAtual);
                 const frequencia = calcularFrequenciaDisciplina(disciplina);
-                const diagnosticoDisciplina = diagnosticoSarespPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
+                const diagnosticoDisciplina = diagnosticoAvdPorDisciplina(aluno.diagnosticoAprendizagem, disciplina.nome);
                 return (
                   <tr key={disciplina.nome}>
                     <td>

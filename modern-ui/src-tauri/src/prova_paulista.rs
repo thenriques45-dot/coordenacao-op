@@ -21,6 +21,7 @@ pub(crate) struct ArquivoProvaInput {
 }
 
 pub(crate) struct AlunoProvaPaulistaData {
+    pub(crate) ra: String,
     pub(crate) nome: String,
     pub(crate) participou: bool,
     pub(crate) geral: Option<u32>,
@@ -104,6 +105,7 @@ pub(crate) fn extrair_prova_paulista_xlsx(
         }
 
         alunos.push(AlunoProvaPaulistaData {
+            ra: col0.trim().to_string(),
             nome,
             participou,
             geral,
@@ -154,6 +156,33 @@ pub(crate) struct PreviaPaulista {
     pub(crate) matches: Vec<PreviaPaulistaAluno>,
 }
 
+/// Casa pelo RA da coluna "NR RA" e só cai no nome quando o RA não bate com
+/// ninguém (arquivo antigo sem RA, ou aluno com RA digitado diferente). Por
+/// nome, grafias diferentes viravam "não encontrado" ou "ambíguo".
+fn candidatos_prova(
+    aluno: &AlunoProvaPaulistaData,
+    indice_ra: &BTreeMap<String, Vec<(usize, String)>>,
+    indice_nome: &BTreeMap<String, Vec<(usize, String)>>,
+) -> Vec<(usize, String)> {
+    let mut por_ra: Vec<(usize, String)> = Vec::new();
+    if aluno.ra.chars().any(|c| c.is_ascii_digit()) {
+        for variante in variantes_matricula(&aluno.ra) {
+            for candidato in indice_ra.get(&variante).into_iter().flatten() {
+                if !por_ra.contains(candidato) {
+                    por_ra.push(candidato.clone());
+                }
+            }
+        }
+    }
+    if !por_ra.is_empty() {
+        return por_ra;
+    }
+    indice_nome
+        .get(&normalizar_nome_busca(&aluno.nome))
+        .cloned()
+        .unwrap_or_default()
+}
+
 #[tauri::command(async)]
 pub(crate) fn analisar_prova_paulista(
     bimestre: String,
@@ -162,12 +191,13 @@ pub(crate) fn analisar_prova_paulista(
     let _dados = travar_dados();
     let (alunos_csv, disciplinas) = extrair_prova_paulista_xlsx(&arquivo.bytes)?;
     let turmas = carregar_turmas_com_caminho()?;
-    let indice = indice_alunos_por_nome(&turmas);
+    let indice_ra = indice_alunos_por_ra(&turmas);
+    let indice_nome = indice_alunos_por_nome(&turmas);
 
     // 1ª passagem: classifica e acumula contexto
     let candidaturas: Vec<Vec<(usize, String)>> = alunos_csv
         .iter()
-        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .map(|a| candidatos_prova(a, &indice_ra, &indice_nome))
         .collect();
     let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
     for dest in &candidaturas {
@@ -277,13 +307,14 @@ pub(crate) fn aplicar_prova_paulista(
     let _dados = travar_dados();
     let (alunos_csv, _) = extrair_prova_paulista_xlsx(&arquivo.bytes)?;
     let turmas = carregar_turmas_com_caminho()?;
-    let indice = indice_alunos_por_nome(&turmas);
+    let indice_ra = indice_alunos_por_ra(&turmas);
+    let indice_nome = indice_alunos_por_nome(&turmas);
     let agora = Local::now().to_rfc3339();
 
     // Contexto: conta alunos exatos por turma para resolver ambíguos
     let candidaturas: Vec<Vec<(usize, String)>> = alunos_csv
         .iter()
-        .map(|a| indice.get(&normalizar_nome_busca(&a.nome)).cloned().unwrap_or_default())
+        .map(|a| candidatos_prova(a, &indice_ra, &indice_nome))
         .collect();
     let mut contagem: BTreeMap<usize, usize> = BTreeMap::new();
     for dest in &candidaturas {

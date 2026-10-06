@@ -34,6 +34,7 @@ Arquivos publicados:
 - Windows: instalador `CoordenacaoOP_<versao>_x64-setup.exe`
 - Windows portátil: pacote `CoordenacaoOP_<versao>_windows_portable.zip`
 - Linux: `CoordenacaoOP_<versao>_amd64.AppImage`
+- Linux (Flatpak): `CoordenacaoOP_v<versao>_x86_64.flatpak`
 
 ## Como usar no Windows
 
@@ -49,6 +50,16 @@ Dependendo das configurações do Windows/SmartScreen, pode aparecer alerta de a
 1. Baixe o arquivo `CoordenacaoOP_<versao>_amd64.AppImage`.
 2. Dê permissão de execução ao arquivo.
 3. Execute o AppImage.
+
+Ou, pelo Flatpak:
+
+```bash
+flatpak install --user CoordenacaoOP_v<versao>_x86_64.flatpak
+```
+
+No Flatpak as atualizações vêm da loja do sistema (ou `flatpak update`), e os dados ficam separados
+dos do AppImage. Para levar os dados de um para o outro e outros detalhes, veja
+[docs/flatpak.md](docs/flatpak.md).
 
 ## Sobre o desenvolvimento
 

@@ -1,5 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
+mod aluno_presente;
 mod apps_script_api;
 mod atendimentos_lote;
 mod apps_script_webapp_conteudo;
@@ -24,6 +25,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod saresp;
 mod sheets_api;
 mod shell;
 mod sync;
@@ -36,9 +38,9 @@ mod whatsapp_api;
 // módulos autocontidos, cujos itens ninguém referencia pela raiz.
 #[allow(unused_imports)]
 pub(crate) use {
-    apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
+    aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
-    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 
@@ -106,22 +108,69 @@ fn variante_tema_sistema() -> Option<&'static str> {
     }
 }
 
+/// Identificador usado até a v4.2. Sugeria vínculo com a Secretaria da
+/// Educação, que o app não tem; trocado por um baseado no GitHub do autor.
+/// (No Flatpak o ID é `io.github.thenriques45_dot.CoordenacaoOP`: o Flathub
+/// troca `-` por `_`, e o Tauri não aceita `_` no identificador.)
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+const IDENTIFICADOR_ANTIGO: &str = "br.gov.sp.educacao.coordenacaoop";
+
+/// Cria a janela principal (no tauri.conf.json ela tem `create: false`).
+///
+/// O WebView guarda o localStorage numa pasta com o nome do identificador.
+/// Para a troca de identificador não apagar o que só existe lá (configurações
+/// de IA, tema, tutoriais vistos...), quem já tinha a pasta antiga continua
+/// usando ela. Instalação nova usa o padrão do Tauri.
+fn criar_janela_principal(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .first()
+        .ok_or("janela principal ausente no tauri.conf.json")?
+        .clone();
+    #[allow(unused_mut)]
+    let mut janela = tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?;
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    if let Ok(pasta_local) = app.path().local_data_dir() {
+        let antiga = pasta_local.join(IDENTIFICADOR_ANTIGO);
+        if antiga.is_dir() {
+            janela = janela.data_directory(antiga);
+        }
+    }
+    janela.build()?;
+    Ok(())
+}
+
+/// Instância única: ao relançar pelo ícone, foca a janela existente (que pode
+/// estar na bandeja) em vez de abrir outra.
+fn plugin_instancia_unica() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    #[allow(unused_mut)]
+    let mut builder = tauri_plugin_single_instance::Builder::new().callback(|app, _args, _cwd| {
+        if let Some(janela) = app.get_webview_window("main") {
+            let _ = janela.show();
+            let _ = janela.unminimize();
+            let _ = janela.set_focus();
+        }
+    });
+    // O plugin registra `<identificador>.SingleInstance` no D-Bus, e o
+    // sandbox do Flatpak só deixa o app registrar nomes que começam com o ID
+    // dele — que difere do identificador do Tauri (ver IDENTIFICADOR_ANTIGO).
+    #[cfg(target_os = "linux")]
+    if let Ok(id_flatpak) = std::env::var("FLATPAK_ID") {
+        builder = builder.dbus_id(id_flatpak);
+    }
+    builder.build()
+}
+
 fn main() {
     #[cfg(target_os = "linux")]
     configurar_renderizacao_linux();
 
     tauri::Builder::default()
-        // Instância única: ao relançar pelo ícone, foca a janela existente
-        // (que pode estar na bandeja) em vez de abrir outra. Deve ser o 1º plugin.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(janela) = app.get_webview_window("main") {
-                let _ = janela.show();
-                let _ = janela.unminimize();
-                let _ = janela.set_focus();
-            }
-        }))
+        // Deve ser o 1º plugin.
+        .plugin(plugin_instancia_unica())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
@@ -129,6 +178,8 @@ fn main() {
             None,
         ))
         .setup(|app| {
+            criar_janela_principal(app)?;
+
             // Resíduos de sincronizações passadas ocupavam centenas de MB e
             // entravam na assinatura/backup de cada ciclo. Em thread separada
             // porque varre diretórios grandes e não pode atrasar a abertura da
@@ -213,8 +264,11 @@ fn main() {
             importador_alunos::importar_alunos_elegiveis,
             importador_mapao::analisar_diagnostico_aprendizagem,
             importador_mapao::aplicar_diagnostico_aprendizagem,
+            aluno_presente::analisar_aluno_presente,
+            aluno_presente::aplicar_aluno_presente,
+            saresp::analisar_saresp,
+            saresp::aplicar_saresp,
             ia::verificar_atualizacao,
-            shell::enviar_notificacao,
             ia::diagnosticar_ia_local,
             ia::iniciar_ollama_local,
             ia::baixar_modelo_ia_local,

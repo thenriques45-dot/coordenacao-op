@@ -1,0 +1,82 @@
+# Manifesto Flatpak do CoordenacaoOP.
+#
+# Build local (na raiz do repositório):
+#   flatpak run org.flatpak.Builder --user --install --force-clean \
+#     build-flatpak flatpak/io.github.thenriques45_dot.CoordenacaoOP.yml
+#
+# O Flatpak compila sem internet: as dependências do Cargo e do npm vêm de
+# cargo-sources.json e node-sources.json. Ao mudar Cargo.lock ou
+# package-lock.json, regenere-os com flatpak/gerar-fontes.sh.
+
+id: io.github.thenriques45_dot.CoordenacaoOP
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node22
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: coordenacaoop
+
+finish-args:
+  - --share=ipc
+  # Sincronização com o grupo, login Google/GitHub, assistente de IA.
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Pasta compartilhada do grupo (OneDrive, Syncthing...) e anexos do Kanban
+  # são guardados pelo caminho do arquivo; importações e relatórios usam
+  # arquivos escolhidos pelo usuário em qualquer lugar da pasta pessoal.
+  - --filesystem=home
+  # Pendrive do conselho de classe.
+  - --filesystem=/run/media
+  # Ícone na bandeja do sistema.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --filesystem=xdg-run/tray-icon:create
+
+modules:
+  # Ícone na bandeja: o runtime GNOME não traz a libayatana-appindicator e o
+  # Tauri derruba o app ao criar o ícone sem ela. Submódulo do Flathub.
+  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
+
+  - name: coordenacaoop
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node22/bin:/usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/coordenacaoop/cargo
+        CARGO_NET_OFFLINE: 'true'
+        npm_config_cache: /run/build/coordenacaoop/flatpak-node/npm-cache
+        npm_config_offline: 'true'
+        XDG_CACHE_HOME: /run/build/coordenacaoop/flatpak-node/cache
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - .git
+          - flatpak/shared-modules
+          - .flatpak-builder
+          - build-flatpak
+          - dados
+          - relatorios_repositorio
+          - modern-ui/node_modules
+          - modern-ui/dist
+          - modern-ui/src-tauri/target
+          - modern-ui/src-tauri/dados
+          - modern-ui/src-tauri/config
+      - cargo-sources.json
+      - node-sources.json
+    build-commands:
+      - cd modern-ui && npm ci --offline --no-audit --no-fund
+      - cd modern-ui && npm run build
+      # `tauri/custom-protocol` embute a interface compilada no binário (é o
+      # que o `tauri build` liga); sem ele o app procuraria o servidor do Vite.
+      - cd modern-ui/src-tauri && cargo build --release --offline --features flatpak,tauri/custom-protocol
+      - install -Dm755 modern-ui/src-tauri/target/release/coordenacaoop -t /app/bin
+      - install -Dm644 flatpak/io.github.thenriques45_dot.CoordenacaoOP.desktop -t /app/share/applications
+      - install -Dm644 flatpak/io.github.thenriques45_dot.CoordenacaoOP.metainfo.xml -t /app/share/metainfo
+      - |
+        for tamanho in 32 64 128 256 512; do
+          install -Dm644 modern-ui/src-tauri/icons/${tamanho}x${tamanho}.png \
+            /app/share/icons/hicolor/${tamanho}x${tamanho}/apps/io.github.thenriques45_dot.CoordenacaoOP.png
+        done

@@ -38,7 +38,7 @@ import { GestaoTurma } from "./features/ClassManagement";
 import { TelaAtendimentos } from "./features/Atendimentos";
 import { Council, SelecaoConselho } from "./features/Council";
 import { Dashboard } from "./features/Dashboard";
-import { ImportarAlunosLote, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
+import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { NovidadesWizard, normalizarNovidades, type EntradaNovidades } from "./features/Novidades";
@@ -50,7 +50,7 @@ import { TelaPlanejamento } from "./features/Planejamento";
 import { Configuracoes, type ConfiguracoesApp, type OpcaoEncaminhamento, type MensagemTemplate, type SettingsSection } from "./features/SettingsPage";
 import { AssistenteConfiguracaoInicial } from "./features/SetupWizard";
 import { type NovoAlunoPayload } from "./features/studentsCsv";
-import { iniciarMonitorAlertasTarefas } from "./features/taskNotifications";
+import { AvisosFlutuantes, PainelAvisos, SinoAvisos, useCentralAvisos } from "./features/CentralAvisos";
 import {
   aplicarPayloadSincronizacao,
   carregarPerfilSincronizacao,
@@ -61,7 +61,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -346,6 +346,7 @@ type AppInfo = {
   version: string;
   data_dir: string;
   loja?: boolean;
+  loja_nome?: string;
 };
 
 type SyncStateResultado = {
@@ -361,6 +362,17 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.3.0": [
+    "Avisos de prazo dentro do app: o sino no rodapé da barra lateral mostra quantos avisos você ainda não leu, e clicar num aviso abre a tarefa no Quadro Kanban. Quando surge um aviso novo, ele aparece por alguns segundos no canto da tela. Os avisos de prazo antes dependiam das notificações do sistema, que não funcionavam.",
+    "Avisos de tarefas compartilhadas chegam para todos: antes, o primeiro coordenador a abrir o app marcava o aviso como enviado para o grupo inteiro.",
+    "Nova importação do Aluno Presente: a frequência dos alunos pode ser atualizada toda semana com a planilha do BI, sem esperar o mapão. A presença das últimas duas semanas e o risco de reprovação por faltas também entram no app.",
+    "Nova importação do SARESP – Diagnóstico: a nota média e a nota por disciplina do SARESP de cada aluno passam a ficar no app e podem ser usadas nos relatórios.",
+    "Novo relatório \"Alunos prioritários (AvD)\" na Central de Relatórios: soma os critérios da 2ª e 1ª AvD, frequência, Prova Paulista e SARESP e lista quem chega ao corte, com os critérios escolhidos na hora de gerar.",
+    "O importador da Avaliação Diagnóstica agora se chama \"Recomposição – Diagnóstico (AvD)\", o nome do BI de onde o arquivo vem.",
+    "Prova Paulista: os alunos passam a ser encontrados pelo RA, e não mais só pelo nome. Menos alunos ficam de fora por grafia diferente.",
+    "Linux: o app agora também está disponível como Flatpak, integrado à loja de aplicativos do sistema.",
+    "O identificador interno do app mudou para um baseado no GitHub do autor. O antigo sugeria um vínculo com a Secretaria da Educação, que o app não tem. Seus dados e preferências continuam onde estavam.",
+  ],
   "4.2.6": [
     "Linux: a barra de título da janela agora acompanha o tema claro ou escuro do sistema. Antes ela podia aparecer clara com o sistema em modo escuro, principalmente quando o programa abria junto com o computador ou reiniciava após uma atualização.",
   ],
@@ -1051,6 +1063,9 @@ export function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
+  const centralAvisos = useCentralAvisos();
+  const [avisosAbertos, setAvisosAbertos] = useState(false);
+  const [tarefaParaAbrir, setTarefaParaAbrir] = useState<string | null>(null);
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
   const [perfilSync, setPerfilSync] = useState<WorkgroupSyncProfile>(() => carregarPerfilSincronizacao());
   const [mostrarAssistenteSync, setMostrarAssistenteSync] = useState(() => carregarPerfilSincronizacao().onboarding === "pending");
@@ -1111,10 +1126,6 @@ export function App() {
     localStorage.setItem("coordenacaoop:menu-gestao", gestaoMenuAberto ? "aberto" : "fechado");
   }, [gestaoMenuAberto]);
 
-  useEffect(() => {
-    if (!tauriDisponivel) return;
-    return iniciarMonitorAlertasTarefas();
-  }, []);
 
   function aplicarConfigCarregada(c: ConfiguracoesApp) {
     setTurmaConfig({
@@ -1613,6 +1624,11 @@ export function App() {
     return () => window.removeEventListener("keydown", abrirBusca);
   }, []);
 
+  function abrirTarefaDoAviso(tarefaId: string) {
+    setTarefaParaAbrir(tarefaId);
+    navegarPara("kanban");
+  }
+
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
@@ -1667,7 +1683,7 @@ export function App() {
             onClick={() => navegarPara("atendimentos")}
             badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
           />
-          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-aluno-presente" || tela === "importar-saresp" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
@@ -1705,6 +1721,11 @@ export function App() {
               : <small>{perfilSync.role || "Equipe pedagogica"}</small>
             }
           </div>
+          <SinoAvisos
+            naoLidos={centralAvisos.naoLidos}
+            aberto={avisosAbertos}
+            onAlternar={() => setAvisosAbertos((atual) => !atual)}
+          />
           <button
             className="theme-toggle"
             type="button"
@@ -1716,6 +1737,19 @@ export function App() {
           </button>
         </div>
       </aside>
+
+      {avisosAbertos && (
+        <PainelAvisos
+          avisos={centralAvisos.avisos}
+          onFechar={() => setAvisosAbertos(false)}
+          onAbrirTarefa={abrirTarefaDoAviso}
+        />
+      )}
+      <AvisosFlutuantes
+        avisos={centralAvisos.flutuantes}
+        onFechar={centralAvisos.fecharFlutuante}
+        onAbrirTarefa={abrirTarefaDoAviso}
+      />
 
       <section className="workspace">
         {["dashboard", "turmas", "gestao-turma", "atendimentos", "conselhos", "relatorios", "relatorio-atendimentos", "planejamento", "pei"].includes(tela) && (
@@ -1871,6 +1905,8 @@ export function App() {
             onImportarNotas={() => navegarPara("importar-notas")}
             onImportarElegiveis={() => navegarPara("importar-elegiveis")}
             onImportarDiagnostico={() => navegarPara("importar-diagnostico")}
+            onImportarAlunoPresente={() => navegarPara("importar-aluno-presente")}
+            onImportarSaresp={() => navegarPara("importar-saresp")}
             onImportarFotos={() => navegarPara("importar-fotos")}
             onImportarAlunosLote={() => navegarPara("importar-alunos-lote")}
             onImportarTarefas={() => navegarPara("importar-tarefas")}
@@ -1935,7 +1971,36 @@ export function App() {
             }
           }} />
         )}
-        {tela === "kanban" && <QuadroKanban turmas={turmas} perfil={perfilSync} />}
+        {tela === "importar-aluno-presente" && (
+          <ImportarAlunoPresente onImportado={() => {
+            invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+            if (turmaSelecionada) {
+              invokeApp<TurmaDetalhe>("carregar_turma", {
+                caminho: turmaSelecionada.caminho,
+                bimestre: bimestreSelecionado,
+              }).then(setTurmaDetalhe).catch(() => {});
+            }
+          }} />
+        )}
+        {tela === "importar-saresp" && (
+          <ImportarSaresp onImportado={() => {
+            invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
+            if (turmaSelecionada) {
+              invokeApp<TurmaDetalhe>("carregar_turma", {
+                caminho: turmaSelecionada.caminho,
+                bimestre: bimestreSelecionado,
+              }).then(setTurmaDetalhe).catch(() => {});
+            }
+          }} />
+        )}
+        {tela === "kanban" && (
+          <QuadroKanban
+            turmas={turmas}
+            perfil={perfilSync}
+            abrirTarefaId={tarefaParaAbrir}
+            onTarefaAberta={() => setTarefaParaAbrir(null)}
+          />
+        )}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

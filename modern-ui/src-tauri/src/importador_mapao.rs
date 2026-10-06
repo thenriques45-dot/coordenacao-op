@@ -100,7 +100,11 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
                 continue;
             };
 
-            if let Some(freq) = aluno_mapao.frequencia_percentual {
+            // Quem já tem dado do Aluno Presente (semanal, ver aluno_presente.rs)
+            // não tem a frequência geral sobrescrita pelo mapão, que é mais antigo.
+            let frequencia_do_aluno_presente =
+                info.get("frequencia_fonte").and_then(Value::as_str) == Some("aluno_presente");
+            if let Some(freq) = aluno_mapao.frequencia_percentual.filter(|_| !frequencia_do_aluno_presente) {
                 // "Fre An(%)" é cumulativo (frequência anual até aquele bimestre), então o
                 // mapão do bimestre mais recente sempre tem o valor mais completo. Sem essa
                 // checagem, reimportar um mapão de correção de um bimestre anterior (depois
@@ -764,7 +768,8 @@ pub(crate) fn mapao_eh_expansao(linhas: &[Vec<Data>], linha_inicio: usize) -> bo
     false
 }
 
-/// Lê o relatório "Aprendizagem Equivalente" das Devolutivas Pedagógicas
+/// Lê a extração do BI "Recomposição – Diagnóstico" (relatório "Aprendizagem
+/// Equivalente" das Devolutivas Pedagógicas)
 /// (Prova Paulista / AvD). Layout fixo: colunas A=TURMA (genérica),
 /// B=RA, C=ESTUDANTE, F–H=Português (AvD1, AvD2, Evolução), I–K=Matemática.
 /// A turma real, a escola e a diretoria só aparecem no rodapé "Filtros
@@ -788,7 +793,7 @@ pub(crate) fn ler_diagnostico_bytes(
         .iter()
         .position(|linha| linha_parece_cabecalho_diagnostico(linha))
         .ok_or_else(|| {
-            "Cabeçalho do diagnóstico não encontrado. Use o relatório \"Aprendizagem Equivalente\" das Devolutivas Pedagógicas."
+            "Cabeçalho do diagnóstico não encontrado. Use a extração do BI \"Recomposição – Diagnóstico\" (aba TURMA)."
                 .to_string()
         })?;
 
@@ -1007,7 +1012,7 @@ pub(crate) fn analisar_diagnostico_input(
     turmas: &[(PathBuf, TurmaArquivo)],
 ) -> Result<PreviaImportacaoDiagnostico, String> {
     if arquivos.is_empty() {
-        return Err("Selecione ao menos uma planilha de diagnóstico SARESP.".to_string());
+        return Err("Selecione ao menos uma planilha da Recomposição – Diagnóstico.".to_string());
     }
     let arquivos = arquivos
         .iter()

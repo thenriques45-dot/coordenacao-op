@@ -100,6 +100,11 @@ pub(crate) struct ColunaRelatorio {
     pub(crate) largura: Option<i32>,
     #[serde(default)]
     pub(crate) alinhamento: Alinhamento,
+    /// Coluna que só serve para ordenar (ex.: desempate) e não aparece no
+    /// documento. Precisa ficar no FIM da lista: a tabela mostra as colunas
+    /// até a primeira oculta (ver executor::montar_secoes).
+    #[serde(default)]
+    pub(crate) oculta: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
