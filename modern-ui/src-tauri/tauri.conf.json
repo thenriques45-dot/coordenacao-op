@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "CoordenacaoOP",
-  "version": "4.2.6",
-  "identifier": "br.gov.sp.educacao.coordenacaoop",
+  "version": "4.3.0",
+  "identifier": "io.github.thenriques45-dot.CoordenacaoOP",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1420",
@@ -12,6 +12,8 @@
   "app": {
     "windows": [
       {
+        "label": "main",
+        "create": false,
         "title": "CoordenacaoOP",
         "width": 1366,
         "height": 820,
@@ -30,6 +32,7 @@
     "createUpdaterArtifacts": true,
     "targets": "all",
     "category": "Education",
+    "publisher": "Thiago Henrique Santos",
     "linux": {
       "appimage": {
         "files": {

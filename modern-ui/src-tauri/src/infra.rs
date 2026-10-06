@@ -172,6 +172,16 @@ pub(crate) fn app_base_dir() -> io::Result<PathBuf> {
         return Ok(base);
     }
 
+    // No Flatpak o executável fica em /app (só leitura) e a pasta de trabalho
+    // costuma ser a pasta pessoal: as regras de modo portátil abaixo gravariam
+    // os dados soltos no $HOME. Vai direto para a pasta do sandbox
+    // ($XDG_DATA_HOME = ~/.var/app/<id>/data).
+    if cfg!(feature = "flatpak") {
+        let base = pasta_dados_usuario()?;
+        preparar_base_portatil(&base)?;
+        return Ok(base);
+    }
+
     if let Ok(appimage) = env::var("APPIMAGE") {
         if let Some(base) = PathBuf::from(appimage).parent().map(Path::to_path_buf) {
             if pasta_gravavel(&base) {

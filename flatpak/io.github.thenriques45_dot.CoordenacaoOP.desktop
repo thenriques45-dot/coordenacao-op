@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=CoordenacaoOP
+Comment=Support for school pedagogical coordination: classes, grades and class councils
+Comment[pt_BR]=Apoio à coordenação pedagógica: turmas, notas e conselhos de classe
+Exec=coordenacaoop
+Icon=io.github.thenriques45_dot.CoordenacaoOP
+Terminal=false
+Categories=Education;
+Keywords=school;teacher;council;grades;escola;coordenação;conselho;notas;turmas;
+StartupNotify=true
+StartupWMClass=coordenacaoop

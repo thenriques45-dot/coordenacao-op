@@ -1,5 +1,28 @@
 # Changelog
 
+## v4.3.0 - Central de avisos e versão Flatpak
+
+### Avisos de prazo dentro do app
+- **Central de avisos:** os alertas de prazo das tarefas do Kanban ("2 dias", "1 dia", "no dia") passam a aparecer dentro do app. Um sino no rodapé da barra lateral mostra quantos avisos ainda não foram lidos; clicar num aviso abre a tarefa no Kanban. Quando surge um aviso novo, ele aparece por alguns segundos no canto da tela. O texto diz quanto falta de fato: se o app ficou fechado alguns dias, o alerta "2 dias antes" aparece como "vence amanhã".
+- **Fim das notificações do sistema:** os avisos dependiam das notificações do Windows e do Linux, que nunca funcionaram de forma confiável. Saíram o `notify-rust`, o plugin de notificação do Tauri e a permissão correspondente.
+- **Avisos de tarefas compartilhadas para todos:** a marca de "já avisado" ficava gravada na própria tarefa, que sincroniza com o grupo. O primeiro coordenador a abrir o app consumia o aviso dos colegas. Agora cada computador guarda o próprio registro.
+
+### Importações
+- **Aluno Presente:** novo importador para a exportação do BI "Aluno Presente", com uma planilha por turma e várias de uma vez. A presença anual passa a ser a frequência geral do aluno no app, atualizada toda semana sem esperar o mapão. A presença das duas últimas semanas e o risco de reprovação por faltas também ficam guardados. A frequência por disciplina continua vindo do mapão, que para de sobrescrever a frequência geral de quem já tem dado do Aluno Presente. Na sincronização com o grupo, vence a importação mais recente.
+- **SARESP – Diagnóstico:** novo importador para a exportação do BI "SARESP - Diagnóstico". Guarda por aluno a nota média, a disciplina de menor nota e a nota de cada disciplina, de 0 a 10. O arquivo não traz RA: o aluno é casado pelo nome, e a turma do rodapé da planilha desempata nomes repetidos. As notas entram no motor de relatórios.
+- **Recomposição – Diagnóstico (AvD):** o antigo "Importar Diagnóstico SARESP" passou a se chamar assim, que é o nome do BI de onde o arquivo vem (1ª e 2ª AvD, com a aprendizagem equivalente). Nada muda na leitura do arquivo.
+- **Prova Paulista por RA:** os alunos passam a ser casados pelo RA da coluna "NR RA". Antes eram casados pelo nome, e grafias diferentes deixavam alunos de fora ou ambíguos.
+- **Alunos prioritários:** novo relatório pronto "Alunos prioritários (AvD)", com a pontuação da planilha de análise da AvD (2ª AvD 1,5; 1ª AvD, frequência, Prova Paulista e SARESP 1 cada). Componente, nível da AvD, cortes de frequência, Prova Paulista e SARESP, e pontos para ser prioritário são escolhidos na hora de gerar. Ordem: mais pontos primeiro; no empate, menor aprendizagem equivalente. Os campos (pontos, critérios atendidos, prioritário, 1ª e 2ª AvD, ano equivalente) também ficam disponíveis para relatórios personalizados.
+- **Motor de relatórios:** colunas podem ser marcadas como ocultas, para servir só de critério de ordenação.
+- **Motor de relatórios:** campos novos de média da Prova Paulista entre os bimestres importados (geral e por disciplina), do SARESP (nota média, nota por disciplina e disciplina de menor nota) e do Aluno Presente (presença na semana atual e na anterior, risco de reprovação por faltas).
+
+### Linux: Flatpak
+- O app passa a ser publicado também como `.flatpak` em cada release, com o runtime GNOME 51. No Flatpak quem atualiza é a loja do sistema ou o `flatpak update`. Os dados ficam no sandbox (`~/.var/app/io.github.thenriques45_dot.CoordenacaoOP`). Para levar os dados do AppImage, use Backup → Exportar no AppImage e Restaurar no Flatpak. Detalhes em `docs/flatpak.md`.
+
+### Identificador do app
+- O identificador mudou de `br.gov.sp.educacao.coordenacaoop` para `io.github.thenriques45-dot.CoordenacaoOP` (no Flatpak, `io.github.thenriques45_dot.CoordenacaoOP`, porque o Flathub troca `-` por `_` e o Tauri não aceita `_`), porque o antigo sugeria um vínculo com a Secretaria da Educação que o app não tem. O WebView continua usando a pasta de dados do identificador antigo quando ela existe, então nada se perde: configurações de IA, tema e tutoriais vistos continuam lá. O instalador do Windows passa a indicar "Thiago Henrique Santos" como fabricante.
+- O espelho em disco (`dados/estado_ui.json`) passa a guardar também os avisos, o tema, o menu Gestão aberto ou fechado, a exibição do Kanban e os tutoriais já vistos.
+
 ## v4.2.6 - Barra de título no tema do sistema (Linux)
 
 - **Linux (AppImage):** a barra de título podia aparecer clara com o Fedora/GNOME em modo escuro. Desde a v4.2.5 a barra é desenhada pelo próprio app em Wayland. Para escolher o tema, o AppImage consultava o sistema com tempo limite de 1 segundo e, se a consulta falhasse, ficava no claro. Isso acontecia sobretudo ao abrir junto com o sistema e ao reiniciar depois de uma atualização. O app agora lê a preferência claro/escuro do sistema por conta própria. Para escolher outro tema, defina `APPIMAGE_GTK_THEME` (por exemplo, `adw-gtk3-dark`, com o pacote `adw-gtk3-theme` instalado).

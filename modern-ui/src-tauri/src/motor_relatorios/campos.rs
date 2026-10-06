@@ -295,6 +295,134 @@ pub(crate) const CAMPOS: &[CampoRelatorio] = &[
         extrator: campo_prova_paulista_disciplina,
     },
     CampoRelatorio {
+        id: "prova_paulista_media_geral",
+        rotulo: "Prova Paulista — Média Geral dos Bimestres",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_prova_paulista_media_geral,
+    },
+    CampoRelatorio {
+        id: "prova_paulista_media_disciplina",
+        rotulo: "Prova Paulista — Média dos Bimestres por Disciplina",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: true,
+        extrator: campo_prova_paulista_media_disciplina,
+    },
+    CampoRelatorio {
+        id: "avd1_nivel",
+        rotulo: "AvD — 1ª Avaliação (nível e ano equivalente)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_avd1_nivel,
+    },
+    CampoRelatorio {
+        id: "avd2_nivel",
+        rotulo: "AvD — 2ª Avaliação (nível e ano equivalente)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_avd2_nivel,
+    },
+    CampoRelatorio {
+        id: "avd_ano_equivalente",
+        rotulo: "AvD — Ano Equivalente (número, para ordenar)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_avd_ano_equivalente,
+    },
+    CampoRelatorio {
+        id: "prova_paulista_media_componente",
+        rotulo: "Prova Paulista — Média dos Bimestres no Componente",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_prova_paulista_media_componente,
+    },
+    CampoRelatorio {
+        id: "saresp_componente",
+        rotulo: "SARESP — Nota no Componente",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_saresp_componente,
+    },
+    CampoRelatorio {
+        id: "prioridade_pontos",
+        rotulo: "Prioridade — Pontos (critérios da AvD)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_prioridade_pontos,
+    },
+    CampoRelatorio {
+        id: "prioridade_criterios",
+        rotulo: "Prioridade — Critérios Atendidos",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_prioridade_criterios,
+    },
+    CampoRelatorio {
+        id: "prioritario",
+        rotulo: "Prioridade — Aluno Prioritário (Sim/Não)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_prioritario,
+    },
+    CampoRelatorio {
+        id: "saresp_nota_media",
+        rotulo: "SARESP — Nota Média",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: false,
+        extrator: campo_saresp_nota_media,
+    },
+    CampoRelatorio {
+        id: "saresp_nota_disciplina",
+        rotulo: "SARESP — Nota por Disciplina (LPT, MAT, ING...)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Numero,
+        requer_parametro: true,
+        extrator: campo_saresp_nota_disciplina,
+    },
+    CampoRelatorio {
+        id: "saresp_menor_nota",
+        rotulo: "SARESP — Disciplina de Menor Nota",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_saresp_menor_nota,
+    },
+    CampoRelatorio {
+        id: "aluno_presente_semana_atual",
+        rotulo: "Aluno Presente — Presença na Semana Atual (%)",
+        categoria: CategoriaCampo::Frequencia,
+        tipo: TipoCampo::Percentual,
+        requer_parametro: false,
+        extrator: campo_aluno_presente_semana_atual,
+    },
+    CampoRelatorio {
+        id: "aluno_presente_semana_anterior",
+        rotulo: "Aluno Presente — Presença na Semana Anterior (%)",
+        categoria: CategoriaCampo::Frequencia,
+        tipo: TipoCampo::Percentual,
+        requer_parametro: false,
+        extrator: campo_aluno_presente_semana_anterior,
+    },
+    CampoRelatorio {
+        id: "aluno_presente_risco_reprovacao",
+        rotulo: "Aluno Presente — Risco de Reprovação por Faltas",
+        categoria: CategoriaCampo::Frequencia,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: campo_aluno_presente_risco_reprovacao,
+    },
+    CampoRelatorio {
         id: "nota_minima_configurada",
         rotulo: "Nota Mínima Configurada",
         categoria: CategoriaCampo::Configuracao,
@@ -737,6 +865,102 @@ fn campo_prova_paulista_disciplina(ctx: &ContextoLinha, parametro: Option<&str>)
         .and_then(Value::as_u64)
         .map(|valor| ValorExpressao::Numero(valor as f64))
         .unwrap_or(ValorExpressao::Nulo)
+}
+
+/// Média de todos os bimestres da Prova Paulista importados para o aluno
+/// (a planilha de análise da AvD usa a média do 1º ao 3º bimestre). Bimestre
+/// em que o aluno não tem nota não entra na conta.
+fn media_prova_paulista(ctx: &ContextoLinha, extrair: impl Fn(&Value) -> Option<f64>) -> ValorExpressao {
+    let notas: Vec<f64> = ctx
+        .aluno
+        .and_then(|aluno| aluno.get("prova_paulista"))
+        .and_then(Value::as_object)
+        .map(|bimestres| bimestres.values().filter_map(&extrair).collect())
+        .unwrap_or_default();
+    if notas.is_empty() {
+        return ValorExpressao::Nulo;
+    }
+    let media = notas.iter().sum::<f64>() / notas.len() as f64;
+    ValorExpressao::Numero((media * 10.0).round() / 10.0)
+}
+
+fn campo_prova_paulista_media_geral(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    media_prova_paulista(ctx, |entrada| entrada.get("geral").and_then(Value::as_f64))
+}
+
+/// O nome da disciplina é comparado sem acento e sem diferença de caixa:
+/// o importador guarda o nome como veio na planilha da prova.
+fn campo_prova_paulista_media_disciplina(ctx: &ContextoLinha, parametro: Option<&str>) -> ValorExpressao {
+    let Some(disciplina) = parametro.map(normalizar_texto_basico) else {
+        return ValorExpressao::Nulo;
+    };
+    media_prova_paulista(ctx, |entrada| {
+        entrada
+            .get("disciplinas")
+            .and_then(Value::as_object)?
+            .iter()
+            .find(|(nome, _)| normalizar_texto_basico(nome) == disciplina)
+            .and_then(|(_, nota)| nota.as_f64())
+    })
+}
+
+fn valor_saresp<'a>(ctx: &'a ContextoLinha, chave: &str) -> Option<&'a Value> {
+    ctx.aluno?.get("saresp")?.get(chave)
+}
+
+fn campo_saresp_nota_media(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    valor_saresp(ctx, "media")
+        .and_then(Value::as_f64)
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+/// Parâmetro = sigla da coluna do relatório do BI (LPT, MAT, ING, CIE...),
+/// comparada sem acento e sem diferença de caixa.
+fn campo_saresp_nota_disciplina(ctx: &ContextoLinha, parametro: Option<&str>) -> ValorExpressao {
+    let Some(sigla) = parametro.map(normalizar_texto_basico) else {
+        return ValorExpressao::Nulo;
+    };
+    valor_saresp(ctx, "disciplinas")
+        .and_then(Value::as_object)
+        .and_then(|notas| notas.iter().find(|(nome, _)| normalizar_texto_basico(nome) == sigla))
+        .and_then(|(_, nota)| nota.as_f64())
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_saresp_menor_nota(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    valor_saresp(ctx, "menor_nota")
+        .and_then(Value::as_str)
+        .filter(|sigla| !sigla.is_empty())
+        .map(|sigla| ValorExpressao::Texto(sigla.to_string()))
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn valor_aluno_presente<'a>(ctx: &'a ContextoLinha, chave: &str) -> Option<&'a Value> {
+    ctx.aluno?.get("aluno_presente")?.get(chave)
+}
+
+fn campo_aluno_presente_semana_atual(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    valor_aluno_presente(ctx, "semana_atual")
+        .and_then(Value::as_f64)
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_aluno_presente_semana_anterior(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    valor_aluno_presente(ctx, "semana_anterior")
+        .and_then(Value::as_f64)
+        .map(ValorExpressao::Numero)
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+fn campo_aluno_presente_risco_reprovacao(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {
+    match valor_aluno_presente(ctx, "risco_reprovacao").and_then(Value::as_bool) {
+        Some(true) => ValorExpressao::Texto("Sim".to_string()),
+        Some(false) => ValorExpressao::Texto("Não".to_string()),
+        None => ValorExpressao::Nulo,
+    }
 }
 
 fn campo_bimestre_linha(ctx: &ContextoLinha, _parametro: Option<&str>) -> ValorExpressao {

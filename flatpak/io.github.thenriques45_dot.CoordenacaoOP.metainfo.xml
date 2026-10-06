@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.thenriques45_dot.CoordenacaoOP</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>CoordenacaoOP</name>
+  <summary>Support for school pedagogical coordination</summary>
+  <summary xml:lang="pt-BR">Apoio à coordenação pedagógica escolar</summary>
+
+  <developer id="io.github.thenriques45_dot">
+    <name>Thiago Henrique Santos</name>
+  </developer>
+
+  <description>
+    <p>
+      CoordenacaoOP helps school pedagogical coordinators organize classes, import grades and
+      student data, run class councils and produce the official documents that come out of them.
+      It is built around the data exported by the São Paulo state education network (SED), and its
+      interface is in Brazilian Portuguese.
+    </p>
+    <p xml:lang="pt-BR">
+      O CoordenacaoOP ajuda a coordenação pedagógica a organizar turmas, importar notas e dados de
+      alunos, conduzir conselhos de classe e gerar os documentos oficiais que saem deles. Foi feito
+      em torno dos dados exportados pela Secretaria Escolar Digital (SED) de São Paulo.
+    </p>
+    <ul>
+      <li>Class and student management, with CSV and grade-sheet (mapão) import</li>
+      <li xml:lang="pt-BR">Gestão de turmas e alunos, com importação de CSV e de mapões</li>
+      <li>Class council with per-student referrals, grade adjustments and a meeting mode</li>
+      <li xml:lang="pt-BR">Conselho de classe com encaminhamentos por aluno, ajustes de nota e modo reunião</li>
+      <li>Council minutes and teacher reports generated as .docx</li>
+      <li xml:lang="pt-BR">Ata do conselho e relatório para professores em .docx</li>
+      <li>Kanban board and calendar with deadline alerts inside the app</li>
+      <li xml:lang="pt-BR">Quadro Kanban e calendário com avisos de prazo dentro do app</li>
+      <li>Optional sync between coordinators through a shared folder</li>
+      <li xml:lang="pt-BR">Sincronização opcional entre coordenadores por uma pasta compartilhada</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.thenriques45_dot.CoordenacaoOP.desktop</launchable>
+
+  <url type="homepage">https://github.com/thenriques45-dot/coordenacao-op</url>
+  <url type="bugtracker">https://github.com/thenriques45-dot/coordenacao-op/issues</url>
+  <url type="vcs-browser">https://github.com/thenriques45-dot/coordenacao-op</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Kanban board with deadline alerts</caption>
+      <caption xml:lang="pt-BR">Quadro Kanban com avisos de prazo</caption>
+      <image>https://raw.githubusercontent.com/thenriques45-dot/coordenacao-op/v4.3.0/docs/imagens/flathub/quadro-kanban.png</image>
+    </screenshot>
+  </screenshots>
+
+  <categories>
+    <category>Education</category>
+  </categories>
+
+  <requires>
+    <display_length compare="ge">1100</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#fdeceb</color>
+    <color type="primary" scheme_preference="dark">#5c1013</color>
+  </branding>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="4.3.0" date="2026-10-06">
+      <description>
+        <ul>
+          <li>Deadline alerts from the Kanban board now show up in an alert center inside the app</li>
+          <li>First release as a Flatpak</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

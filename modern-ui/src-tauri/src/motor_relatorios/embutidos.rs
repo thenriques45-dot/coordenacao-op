@@ -52,6 +52,15 @@ fn coluna(id: &str, rotulo: &str, expressao: ExpressaoNo, largura: Option<i32>, 
         expressao,
         largura,
         alinhamento,
+        oculta: false,
+    }
+}
+
+/// Coluna só para ordenar; vai no fim da lista (ver ColunaRelatorio::oculta).
+fn coluna_oculta(id: &str, expressao: ExpressaoNo) -> ColunaRelatorio {
+    ColunaRelatorio {
+        oculta: true,
+        ..coluna(id, id, expressao, None, Alinhamento::Centro)
     }
 }
 
@@ -483,6 +492,82 @@ pub(crate) fn definicao_pendencia_lancamento() -> ReportDefinition {
     }
 }
 
+/// Lista da planilha de análise da AvD: alunos que somam pontos suficientes
+/// nos critérios de recomposição (ver prioridade.rs). Todos os cortes são
+/// parâmetros, escolhidos na hora de gerar.
+pub(crate) fn definicao_alunos_prioritarios() -> ReportDefinition {
+    use super::prioridade::*;
+    let parametro_texto = |id: &str, rotulo: &str, padrao: &str| DefinicaoParametro {
+        id: id.to_string(),
+        rotulo: rotulo.to_string(),
+        tipo: TipoParametro::Texto,
+        valor_padrao: ValorExpressao::Texto(padrao.to_string()),
+    };
+    let parametro_numero = |id: &str, rotulo: &str, padrao: f64| DefinicaoParametro {
+        id: id.to_string(),
+        rotulo: rotulo.to_string(),
+        tipo: TipoParametro::Numero,
+        valor_padrao: ValorExpressao::Numero(padrao),
+    };
+    ReportDefinition {
+        id: "alunos_prioritarios".to_string(),
+        nome: "Alunos prioritários (AvD)".to_string(),
+        descricao: "Alunos prioritários para a recomposição, como na planilha de análise da AvD. Cada critério \
+             atendido soma pontos: 2ª AvD 1,5; 1ª AvD, frequência (Aluno Presente), média da Prova Paulista e \
+             SARESP 1 cada. Prioritário é quem chega ao corte de pontos. Ordem: mais pontos primeiro; no \
+             empate, menor aprendizagem equivalente. Prova Paulista e SARESP estão de 0 a 10 (5 = 50% de \
+             acertos). A lista é ponto de partida para a conversa com os professores, não um veredito."
+            .to_string(),
+        autor: None,
+        embutido: true,
+        fonte: FiltroTurmas::default(),
+        parametros: vec![
+            parametro_texto(PARAM_COMPONENTE, "Componente (Matemática ou Língua Portuguesa)", PADRAO_COMPONENTE),
+            parametro_texto(
+                PARAM_NIVEL_AVD,
+                "Nível da AvD (Abaixo do Básico, ou Abaixo do Básico ou Básico)",
+                PADRAO_NIVEL_AVD,
+            ),
+            parametro_numero(PARAM_FREQUENCIA, "Frequência abaixo de (%)", PADRAO_FREQUENCIA),
+            parametro_numero(PARAM_PROVA_PAULISTA, "Prova Paulista: média abaixo de (0 a 10)", PADRAO_PROVA_PAULISTA),
+            parametro_numero(PARAM_SARESP, "SARESP: nota abaixo de (0 a 10)", PADRAO_SARESP),
+            parametro_numero(PARAM_PONTOS, "Pontos para ser prioritário", PADRAO_PONTOS),
+        ],
+        secoes: secao_unica(
+            GrupoFiltros {
+                combinador: Combinador::E,
+                condicoes: vec![FiltroCondicao {
+                    campo: campo("prioritario"),
+                    operador: Operador::Igual,
+                    valor: Some(literal_texto("Sim")),
+                }],
+            },
+            vec![
+                coluna("nome", "Aluno", campo("aluno_nome"), Some(2600), Alinhamento::Esquerda),
+                coluna("turma", "Turma", campo("turma_rotulo"), Some(1100), Alinhamento::Centro),
+                coluna("avd1", "1ª AvD", campo("avd1_nivel"), Some(1700), Alinhamento::Centro),
+                coluna("avd2", "2ª AvD", campo("avd2_nivel"), Some(1700), Alinhamento::Centro),
+                coluna("frequencia", "Frequência", campo("frequencia_percentual"), Some(1000), Alinhamento::Centro),
+                coluna("prova", "Prova Paulista", campo("prova_paulista_media_componente"), Some(1000), Alinhamento::Centro),
+                coluna("saresp", "SARESP", campo("saresp_componente"), Some(900), Alinhamento::Centro),
+                coluna("pontos", "Pontos", campo("prioridade_pontos"), Some(800), Alinhamento::Centro),
+                coluna("criterios", "Critérios", campo("prioridade_criterios"), Some(2200), Alinhamento::Esquerda),
+                coluna_oculta("ano_equivalente", campo("avd_ano_equivalente")),
+            ],
+            vec![
+                OrdenacaoRelatorio {
+                    coluna_id: "pontos".to_string(),
+                    decrescente: true,
+                },
+                ordenacao("ano_equivalente"),
+            ],
+            AgrupamentoRelatorio::default(),
+        ),
+        blocos: Vec::new(),
+        formato_saida: FormatoSaida::Docx,
+    }
+}
+
 pub(crate) fn definicoes_embutidas() -> Vec<ReportDefinition> {
     vec![
         definicao_top60(),
@@ -490,5 +575,6 @@ pub(crate) fn definicoes_embutidas() -> Vec<ReportDefinition> {
         definicao_alteracoes_notas(),
         definicao_elegiveis_recuperacao(),
         definicao_pendencia_lancamento(),
+        definicao_alunos_prioritarios(),
     ]
 }

@@ -153,6 +153,7 @@ jobs:
           CoordenacaoOP ${{ github.ref_name }} publica melhorias e correcoes da modern-ui.
 
           Esta release publica os instaladores Tauri para Windows e Linux, o pacote portable Windows, assinaturas do updater e latest.json para autoatualizacao.
+          O pacote .flatpak e anexado alguns minutos depois, quando o build dele termina.
           EOF
 
       - name: Create/Update GitHub Release
@@ -167,6 +168,33 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.zip
           generate_release_notes: true
+
+  # Flatpak depois do publish: anexa o .flatpak à release que o publish criou.
+  # Se falhar, a release e o auto-update dos outros pacotes já saíram.
+  build-flatpak:
+    needs: [publish]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Build Flatpak bundle
+        uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: CoordenacaoOP_${{ github.ref_name }}_x86_64.flatpak
+          manifest-path: flatpak/io.github.thenriques45_dot.CoordenacaoOP.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+
+      - name: Attach Flatpak to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: CoordenacaoOP_${{ github.ref_name }}_x86_64.flatpak
 
   # Os jobs da Store ficam fora do `needs` do publish: se o MSIX falhar, a
   # release do GitHub (e o auto-update de quem instalou por lá) sai igual.

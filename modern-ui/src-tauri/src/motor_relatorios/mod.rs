@@ -15,6 +15,7 @@ mod definicao;
 mod embutidos;
 mod executor;
 mod expressoes;
+mod prioridade;
 mod publicacao;
 mod renderers;
 mod repositorio;

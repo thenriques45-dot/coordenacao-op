@@ -24,7 +24,14 @@ pub(crate) fn app_info() -> AppInfo {
         stage: "modern-ui-prototype",
         version: env!("CARGO_PKG_VERSION"),
         data_dir,
-        loja: cfg!(feature = "store"),
+        loja: cfg!(any(feature = "store", feature = "flatpak")),
+        loja_nome: if cfg!(feature = "flatpak") {
+            "Flathub"
+        } else if cfg!(feature = "store") {
+            "Microsoft Store"
+        } else {
+            ""
+        },
     }
 }
 
