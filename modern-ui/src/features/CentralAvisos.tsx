@@ -9,7 +9,7 @@ import {
   marcarTodosAvisosLidos,
   removerAviso,
   type AvisoApp,
-} from "./centralAvisos";
+} from "./centralAvisosDados";
 
 const DURACAO_FLUTUANTE_MS = 8000;
 const MAX_FLUTUANTES = 3;
