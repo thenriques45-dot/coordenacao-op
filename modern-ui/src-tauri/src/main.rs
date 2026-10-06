@@ -53,9 +53,13 @@ use tauri::{
 /// - O hook GTK do linuxdeploy força `GDK_BACKEND=x11` no AppImage. Sob
 ///   XWayland, o GTK3 e o mutter perdem a sincronização de quadros
 ///   (`_NET_WM_FRAME_DRAWN`) depois de algum tempo e a janela congela até ser
-///   fechada à força. Em sessão Wayland usamos o backend nativo; o build exclui
-///   o libwayland empacotado (`LINUXDEPLOY_EXCLUDED_LIBRARIES`), que era o que
-///   derrubava o app em Wayland. `APPIMAGE_GDK_BACKEND` permite forçar outro.
+///   fechada à força. Em sessão Wayland usamos o backend nativo.
+///   `APPIMAGE_GDK_BACKEND` permite forçar outro.
+/// - Em Wayland a barra de título é desenhada pelo próprio GTK, com o tema do
+///   `GTK_THEME`. O hook decide entre `Adwaita:light`/`:dark` consultando o
+///   portal com timeout de 1 s e, se falhar (comum no autostart e ao reiniciar
+///   pelo updater), cai no claro mesmo com o sistema escuro. Relemos a
+///   preferência do sistema; `APPIMAGE_GTK_THEME` continua tendo prioridade.
 /// - Em Wayland com GPU NVIDIA o renderizador DMA-BUF do WebKitGTK entrega
 ///   quadros incompletos (janela preta, só a área sob o mouse desenhada).
 ///   Quem precisar do comportamento antigo pode definir a variável antes.
@@ -70,10 +74,34 @@ fn configurar_renderizacao_linux() {
             _ if em_wayland => env::set_var("GDK_BACKEND", "wayland"),
             _ => {}
         }
+
+        if env::var_os("APPIMAGE_GTK_THEME").is_none() {
+            if let Some(variante) = variante_tema_sistema() {
+                env::set_var("GTK_THEME", format!("Adwaita:{variante}"));
+            }
+        }
     }
 
     if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
+/// Preferência claro/escuro do sistema (`org.gnome.desktop.interface
+/// color-scheme`), lida com o `gsettings` do sistema e não o do AppImage.
+#[cfg(target_os = "linux")]
+fn variante_tema_sistema() -> Option<&'static str> {
+    let saida = comando_externo("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+        .output()
+        .ok()?;
+    let valor = String::from_utf8_lossy(&saida.stdout);
+    if valor.contains("prefer-dark") {
+        Some("dark")
+    } else if valor.contains("prefer-light") || valor.contains("default") {
+        Some("light")
+    } else {
+        None
     }
 }
 

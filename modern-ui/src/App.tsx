@@ -361,6 +361,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.2.6": [
+    "Linux: a barra de título da janela agora acompanha o tema claro ou escuro do sistema. Antes ela podia aparecer clara com o sistema em modo escuro, principalmente quando o programa abria junto com o computador ou reiniciava após uma atualização.",
+  ],
   "4.2.5": [
     "Linux: a janela do programa podia congelar depois de algum tempo aberta, e só voltava a funcionar ao forçar o fechamento. Em sessões Wayland o app agora usa o modo gráfico nativo do sistema, e o congelamento não acontece mais. Também foi corrigida a tela que ficava preta, desenhando só a área sob o mouse, em computadores com placa de vídeo NVIDIA.",
   ],
