@@ -171,30 +171,142 @@ jobs:
 
   # Flatpak depois do publish: anexa o .flatpak à release que o publish criou.
   # Se falhar, a release e o auto-update dos outros pacotes já saíram.
+  #
+  # Com o secret FLATPAK_GPG_PRIVATE_KEY configurado, o build também gera um
+  # repositório Flatpak assinado, publicado no GitHub Pages pelo job
+  # publish-flatpak-repo. Quem instala por ele (ou pelo .flatpak da release,
+  # que aponta para ele) recebe as versões novas pela loja do sistema.
   build-flatpak:
     needs: [publish]
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
+    env:
+      APP_ID: io.github.thenriques45_dot.CoordenacaoOP
+      BUNDLE: CoordenacaoOP_${{ github.ref_name }}_x86_64.flatpak
+      PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      FLATHUB_REPO: https://dl.flathub.org/repo/flathub.flatpakrepo
+      HAS_GPG_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY != '' }}
+    outputs:
+      signed: ${{ env.HAS_GPG_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           submodules: true
 
-      - name: Build Flatpak bundle
+      - name: Import Flatpak signing key
+        id: gpg
+        if: env.HAS_GPG_KEY == 'true'
+        env:
+          FLATPAK_GPG_PRIVATE_KEY: ${{ secrets.FLATPAK_GPG_PRIVATE_KEY }}
+        run: |
+          set -eu
+          printf '%s\n' "$FLATPAK_GPG_PRIVATE_KEY" | gpg --batch --import
+          fpr="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')"
+          echo "fingerprint=$fpr" >> "$GITHUB_OUTPUT"
+
+      - name: Build Flatpak
         uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
         with:
-          bundle: CoordenacaoOP_${{ github.ref_name }}_x86_64.flatpak
           manifest-path: flatpak/io.github.thenriques45_dot.CoordenacaoOP.yml
+          branch: stable
+          build-bundle: false
+          gpg-sign: ${{ steps.gpg.outputs.fingerprint }}
           cache-key: flatpak-builder-${{ github.sha }}
           upload-artifact: false
+
+      - name: Bundle and Flatpak repository
+        env:
+          GPG_KEY: ${{ steps.gpg.outputs.fingerprint }}
+        run: |
+          set -eu
+          if [ -z "$GPG_KEY" ]; then
+            echo "Sem FLATPAK_GPG_PRIVATE_KEY: gera so o .flatpak avulso, sem atualizacao pela loja."
+            flatpak build-bundle --runtime-repo="$FLATHUB_REPO" repo "$BUNDLE" "$APP_ID" stable
+            exit 0
+          fi
+
+          gpg --export "$GPG_KEY" > coordenacaoop.gpg
+          flatpak build-update-repo --gpg-sign="$GPG_KEY" --prune repo
+          # O .flatpak da release aponta para o repositório do Pages: quem
+          # instalar por ele também passa a receber as atualizações.
+          flatpak build-bundle --repo-url="$PAGES_URL/repo" --runtime-repo="$FLATHUB_REPO" \
+            --gpg-keys=coordenacaoop.gpg --gpg-sign="$GPG_KEY" repo "$BUNDLE" "$APP_ID" stable
+
+          mkdir site
+          mv repo site/repo
+          rm -rf site/repo/tmp site/repo/.lock
+          chave="$(base64 -w0 coordenacaoop.gpg)"
+
+          cat > site/coordenacaoop.flatpakref <<EOF
+          [Flatpak Ref]
+          Name=$APP_ID
+          Branch=stable
+          Title=CoordenacaoOP
+          Url=$PAGES_URL/repo/
+          SuggestRemoteName=coordenacaoop
+          RuntimeRepo=$FLATHUB_REPO
+          IsRuntime=false
+          GPGKey=$chave
+          EOF
+
+          cat > site/coordenacaoop.flatpakrepo <<EOF
+          [Flatpak Repo]
+          Title=CoordenacaoOP
+          Url=$PAGES_URL/repo/
+          Homepage=https://github.com/${{ github.repository }}
+          GPGKey=$chave
+          EOF
+
+          cat > site/index.html <<EOF
+          <!doctype html>
+          <html lang="pt-BR"><head><meta charset="utf-8"><title>CoordenacaoOP para Linux</title></head>
+          <body style="font-family:sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem">
+          <h1>CoordenacaoOP para Linux (Flatpak)</h1>
+          <p><a href="coordenacaoop.flatpakref">Instalar o CoordenacaoOP</a>: abre na loja de aplicativos
+          (GNOME Software, Discover). As versões novas chegam pela própria loja.</p>
+          <p>Pelo terminal:</p>
+          <pre>flatpak install --user $PAGES_URL/coordenacaoop.flatpakref</pre>
+          <p>Versão atual: ${{ github.ref_name }}</p>
+          </body></html>
+          EOF
+
+      - name: Upload Flatpak repository
+        if: env.HAS_GPG_KEY == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: flatpak-repo
+          path: site
+          include-hidden-files: true
 
       - name: Attach Flatpak to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: CoordenacaoOP_${{ github.ref_name }}_x86_64.flatpak
+          files: ${{ env.BUNDLE }}
+
+  # Publica o repositório Flatpak na branch gh-pages (GitHub Pages servindo a
+  # partir dela). A branch guarda só a versão mais recente, sem histórico.
+  publish-flatpak-repo:
+    needs: [build-flatpak]
+    if: needs.build-flatpak.outputs.signed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Flatpak repository
+        uses: actions/download-artifact@v5
+        with:
+          name: flatpak-repo
+          path: site
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: site
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "Repositorio Flatpak ${{ github.ref_name }}"
 
   # Os jobs da Store ficam fora do `needs` do publish: se o MSIX falhar, a
   # release do GitHub (e o auto-update de quem instalou por lá) sai igual.

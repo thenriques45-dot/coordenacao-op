@@ -51,15 +51,17 @@ Dependendo das configurações do Windows/SmartScreen, pode aparecer alerta de a
 2. Dê permissão de execução ao arquivo.
 3. Execute o AppImage.
 
-Ou, pelo Flatpak:
+Ou, pelo Flatpak, que se atualiza pela loja do sistema (GNOME Software, Discover): abra
+<https://thenriques45-dot.github.io/coordenacao-op/> e clique em **Instalar o CoordenacaoOP**. Pelo
+terminal:
 
 ```bash
-flatpak install --user CoordenacaoOP_v<versao>_x86_64.flatpak
+flatpak install --user https://thenriques45-dot.github.io/coordenacao-op/coordenacaoop.flatpakref
 ```
 
-No Flatpak as atualizações vêm da loja do sistema (ou `flatpak update`), e os dados ficam separados
-dos do AppImage. Para levar os dados de um para o outro e outros detalhes, veja
-[docs/flatpak.md](docs/flatpak.md).
+O `.flatpak` da release também serve (`flatpak install --user CoordenacaoOP_v<versao>_x86_64.flatpak`)
+e passa a receber as atualizações do mesmo jeito. Os dados do Flatpak ficam separados dos do
+AppImage; para levá-los de um para o outro e outros detalhes, veja [docs/flatpak.md](docs/flatpak.md).
 
 ## Sobre o desenvolvimento
 
