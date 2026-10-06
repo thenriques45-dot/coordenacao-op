@@ -361,6 +361,9 @@ type SyncInstitutionalResultado = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.2.5": [
+    "Linux: a janela do programa podia congelar depois de algum tempo aberta, e só voltava a funcionar ao forçar o fechamento. Em sessões Wayland o app agora usa o modo gráfico nativo do sistema, e o congelamento não acontece mais. Também foi corrigida a tela que ficava preta, desenhando só a área sob o mouse, em computadores com placa de vídeo NVIDIA.",
+  ],
   "4.2.4": [
     "Pasta compartilhada muito mais leve: a sincronização deixava para trás cópias inteiras dos dados (pastas \"institutional-data….tmp\") sempre que o OneDrive travava algum arquivo durante o envio, e gerava uma cópia de conflito do arquivo \"workspace-state.json\" a cada sincronização simultânea entre coordenadores. Isso somava mais de 15 GB baixados no OneDrive de cada um. O app não gera mais essas cópias e apaga sozinho as sobras antigas.",
   ],

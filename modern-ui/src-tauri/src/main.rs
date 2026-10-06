@@ -47,7 +47,40 @@ use tauri::{
     Manager,
 };
 
+/// Ajusta o ambiente gráfico antes de o GTK/WebKit iniciarem (precisa rodar
+/// antes do `tauri::Builder`).
+///
+/// - O hook GTK do linuxdeploy força `GDK_BACKEND=x11` no AppImage. Sob
+///   XWayland, o GTK3 e o mutter perdem a sincronização de quadros
+///   (`_NET_WM_FRAME_DRAWN`) depois de algum tempo e a janela congela até ser
+///   fechada à força. Em sessão Wayland usamos o backend nativo; o build exclui
+///   o libwayland empacotado (`LINUXDEPLOY_EXCLUDED_LIBRARIES`), que era o que
+///   derrubava o app em Wayland. `APPIMAGE_GDK_BACKEND` permite forçar outro.
+/// - Em Wayland com GPU NVIDIA o renderizador DMA-BUF do WebKitGTK entrega
+///   quadros incompletos (janela preta, só a área sob o mouse desenhada).
+///   Quem precisar do comportamento antigo pode definir a variável antes.
+#[cfg(target_os = "linux")]
+fn configurar_renderizacao_linux() {
+    use std::env;
+
+    if env::var_os("APPDIR").is_some() {
+        let em_wayland = env::var_os("WAYLAND_DISPLAY").is_some_and(|v| !v.is_empty());
+        match env::var("APPIMAGE_GDK_BACKEND") {
+            Ok(backend) if !backend.is_empty() => env::set_var("GDK_BACKEND", backend),
+            _ if em_wayland => env::set_var("GDK_BACKEND", "wayland"),
+            _ => {}
+        }
+    }
+
+    if env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 fn main() {
+    #[cfg(target_os = "linux")]
+    configurar_renderizacao_linux();
+
     tauri::Builder::default()
         // Instância única: ao relançar pelo ícone, foca a janela existente
         // (que pode estar na bandeja) em vez de abrir outra. Deve ser o 1º plugin.

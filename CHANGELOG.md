@@ -1,5 +1,10 @@
 # Changelog
 
+## v4.2.5 - Janela não congela mais no Linux
+
+- **Linux (AppImage):** a janela podia congelar depois de algum tempo aberta, e só voltava ao forçar o fechamento. O programa continuava rodando, mas a tela parava de ser redesenhada. A causa: o AppImage forçava o modo X11, e nele o GTK e o gerenciador de janelas do GNOME perdiam a sincronização de quadros. Em sessões Wayland o app agora usa o backend nativo. O AppImage deixou de empacotar o `libwayland` e usa o do sistema, porque o empacotado derrubava o app em Wayland. Para voltar ao modo antigo, defina `APPIMAGE_GDK_BACKEND=x11`.
+- **Linux com NVIDIA:** corrigida a tela preta, que desenhava só a área sob o mouse até um clique. O renderizador DMA-BUF do WebKitGTK passa a ficar desligado por padrão. Para reativá-lo, defina `WEBKIT_DISABLE_DMABUF_RENDERER=0`.
+
 ## v4.2.4 - Pasta compartilhada sem cópias acumuladas
 
 ### Sincronização do grupo de trabalho

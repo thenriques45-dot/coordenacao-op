@@ -300,6 +300,7 @@ pub(crate) fn comando_externo(programa: &str) -> Command {
                 "GIO_MODULE_DIR",
                 "LD_LIBRARY_PATH",
                 "LD_PRELOAD",
+                "WEBKIT_DISABLE_DMABUF_RENDERER",
             ] {
                 cmd.env_remove(var);
             }
