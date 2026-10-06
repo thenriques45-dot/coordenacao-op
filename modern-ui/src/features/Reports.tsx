@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, FolderGit2, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, FolderGit2, RefreshCw, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
 
@@ -276,12 +276,14 @@ export function RelatoriosMenu({
   onAbrirRelatorioMotor,
   onAbrirAtendimentos,
   onCriarRelatorio,
+  onDescreverRelatorio,
   onAbrirRepositorio,
   onEditarRelatorio,
 }: {
   onAbrirRelatorioMotor: (definicaoId: string) => void;
   onAbrirAtendimentos: () => void;
   onCriarRelatorio: () => void;
+  onDescreverRelatorio: () => void;
   onAbrirRepositorio: () => void;
   onEditarRelatorio: (definicaoId: string) => void;
 }) {
@@ -385,6 +387,13 @@ export function RelatoriosMenu({
           <div>
             <strong>Criar relatório</strong>
             <span>Monte um relatório novo escolhendo campos, filtros e colunas — sem precisar de um release.</span>
+          </div>
+        </button>
+        <button type="button" className="report-menu-card" onClick={onDescreverRelatorio}>
+          <Sparkles size={26} />
+          <div>
+            <strong>Descrever relatório com IA</strong>
+            <span>Escreva o que precisa, como "alunos com nota abaixo da média em Matemática", e a IA monta o relatório no construtor para você conferir.</span>
           </div>
         </button>
         <button type="button" className="report-menu-card" onClick={onAbrirRepositorio}>

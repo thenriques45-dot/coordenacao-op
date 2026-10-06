@@ -359,6 +359,7 @@ fn main() {
             motor_relatorios::listar_disciplinas_conhecidas,
             motor_relatorios::executar_relatorio_generico,
             motor_relatorios::pre_visualizar_relatorio,
+            motor_relatorios::validar_definicao_relatorio,
             motor_relatorios::salvar_definicao_relatorio,
             motor_relatorios::excluir_definicao_relatorio,
             motor_relatorios::exportar_definicao_relatorio,

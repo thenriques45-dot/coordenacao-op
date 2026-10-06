@@ -19,9 +19,10 @@ mod prioridade;
 mod publicacao;
 mod renderers;
 mod repositorio;
+mod validacao;
 
 #[allow(unused_imports)]
 pub(crate) use {
     comandos::*, definicao::*, executor::RelatorioGenericoResultado, publicacao::*, renderers::carregar_familia_fonte_pdf,
-    repositorio::*,
+    repositorio::*, validacao::*,
 };
