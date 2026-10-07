@@ -41,7 +41,7 @@ import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
-import { NovidadesWizard, normalizarNovidades, type EntradaNovidades } from "./features/Novidades";
+import { NovidadesWizard, normalizarNovidades, type EntradaNovidades, type NovidadesVersao } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
 import { AssistenteRelatorioIa } from "./features/motorRelatorios/AssistenteRelatorioIa";
 import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRelatorios";
@@ -362,74 +362,85 @@ type SyncInstitutionalResultado = {
   backup_seguranca: string | null;
 };
 
+// Versões de correção repetem as novidades da versão base e somam o
+// conserto ao fim de "outras mudanças".
+const NOVIDADES_4_5_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Turmas",
+      titulo: "Relatório diagnóstico da turma, pronto para os professores",
+      corpo:
+        "Na tela da turma, o botão \"Relatório diagnóstico\", ao lado das abas, gera páginas A4 com tudo o que o app sabe da turma: panorama com indicadores e gráficos, frequência, fragilidades, mapa de notas, Prova Paulista, Avaliação Diagnóstica (AvD), SARESP e destaques. Escolha as páginas que quer e, no diálogo de impressão, use \"Salvar como PDF\" para gerar o arquivo.",
+      destaques: [
+        { icone: "novidade", titulo: "Leitura da turma", texto: "Pontos de atenção, pontos positivos e sugestões de abordagem, escritos a partir dos dados." },
+        { icone: "aluno", titulo: "Alunos em ascensão e desafio", texto: "Quem subiu e quem caiu de nível da 1ª para a 2ª AvD, com a aprendizagem equivalente de antes e depois." },
+        { icone: "documento", titulo: "Só as páginas que precisar", texto: "Marque as seções e o tamanho das listas antes de imprimir." },
+      ],
+      irPara: { rotulo: "Abrir Turmas", tela: "turmas" },
+    },
+    {
+      area: "Turmas › Ficha do aluno",
+      titulo: "Estatísticas completas e diagnóstico de cada aluno",
+      corpo:
+        "A aba Estatísticas da turma passa a mostrar o diagnóstico completo, e clicar no nome de um aluno abre a ficha dele. Na ficha, a nova aba Diagnóstico compara o aluno com a turma em notas, frequência, Prova Paulista, AvD e SARESP, e pode ser impressa em duas páginas A4.",
+      destaques: [
+        { icone: "grade", titulo: "Aba Estatísticas", texto: "Os mesmos gráficos e listas do relatório, direto na tela da turma." },
+        { icone: "aluno", titulo: "Aba Diagnóstico", texto: "O aluno ao lado da média da turma, pronto para conversar com a família ou o professor." },
+      ],
+      irPara: { rotulo: "Abrir Turmas", tela: "turmas" },
+    },
+    {
+      area: "Central de Relatórios",
+      titulo: "Descreva o relatório e a IA monta",
+      corpo:
+        "O novo card \"Descrever relatório com IA\" aceita um pedido em português, como \"alunos com nota abaixo da média em Matemática, ordenados pela nota\". A IA do Assistente pedagógico monta o relatório e ele abre no construtor, já na pré-visualização, para você conferir antes de salvar.",
+      destaques: [
+        { icone: "conversa", titulo: "Gemini, Ollama ou modo manual", texto: "Usa a IA configurada no Assistente pedagógico. Sem ela, dá para copiar o prompt e colar a resposta." },
+        { icone: "config", titulo: "Sem dados de alunos", texto: "A IA recebe só a lista de campos, disciplinas e séries, nunca nomes ou notas." },
+        { icone: "filtro", titulo: "Conferido antes de abrir", texto: "Se a IA usar um campo que não existe ou deixar um filtro incompleto, o app pede uma correção a ela e, se o problema continuar, mostra o que está errado." },
+      ],
+      irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
+    },
+    {
+      area: "Central de avisos",
+      titulo: "Avisos de prazo dentro do app",
+      corpo:
+        "O sino no rodapé da barra lateral mostra quantos avisos você ainda não leu, e clicar num aviso abre a tarefa no Quadro Kanban. Quando surge um aviso novo, ele aparece por alguns segundos no canto da tela. Antes os avisos dependiam das notificações do sistema, que não funcionavam.",
+      destaques: [
+        { icone: "agenda", titulo: "Prazo de verdade", texto: "Se o app ficou fechado alguns dias, o aviso de \"2 dias antes\" aparece como \"vence amanhã\"." },
+        { icone: "equipe", titulo: "Para todo o grupo", texto: "Avisos de tarefas compartilhadas chegam para cada coordenador. Antes, o primeiro a abrir o app marcava o aviso como lido para todos." },
+      ],
+      irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
+    },
+    {
+      area: "Importar dados",
+      titulo: "Mais dados do BI e a lista de alunos prioritários",
+      corpo:
+        "Duas importações novas: Aluno Presente, que atualiza a frequência toda semana sem esperar o mapão, e SARESP – Diagnóstico, com a nota média e a nota por disciplina de cada aluno. Com elas, o novo relatório \"Alunos prioritários (AvD)\", na Central de Relatórios, soma os critérios da 2ª e 1ª AvD, frequência, Prova Paulista e SARESP e lista quem chega ao corte.",
+      destaques: [
+        { icone: "agenda", titulo: "Aluno Presente", texto: "Presença das duas últimas semanas e risco de reprovação por faltas também entram no app." },
+        { icone: "lista", titulo: "Alunos prioritários", texto: "Componente, níveis e cortes escolhidos na hora de gerar." },
+      ],
+      irPara: { rotulo: "Abrir Importar dados", tela: "importar-dados" },
+    },
+  ],
+  outrasMudancas: [
+    "O importador da Avaliação Diagnóstica agora se chama \"Recomposição – Diagnóstico (AvD)\", o nome do BI de onde o arquivo vem.",
+    "Prova Paulista: os alunos passam a ser encontrados pelo RA, e não mais só pelo nome. Menos alunos ficam de fora por grafia diferente.",
+    "Linux: o app agora também está disponível como Flatpak, que se atualiza pela loja de aplicativos do sistema. Instale em thenriques45-dot.github.io/coordenacao-op.",
+    "O identificador interno do app mudou para um baseado no GitHub do autor. O antigo sugeria um vínculo com a Secretaria da Educação, que o app não tem. Seus dados e preferências continuam onde estavam.",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
-  "4.5.0": {
-    paginas: [
-      {
-        area: "Turmas",
-        titulo: "Relatório diagnóstico da turma, pronto para os professores",
-        corpo:
-          "Na tela da turma, o botão \"Relatório diagnóstico\", ao lado das abas, gera páginas A4 com tudo o que o app sabe da turma: panorama com indicadores e gráficos, frequência, fragilidades, mapa de notas, Prova Paulista, Avaliação Diagnóstica (AvD), SARESP e destaques. Escolha as páginas que quer e, no diálogo de impressão, use \"Salvar como PDF\" para gerar o arquivo.",
-        destaques: [
-          { icone: "novidade", titulo: "Leitura da turma", texto: "Pontos de atenção, pontos positivos e sugestões de abordagem, escritos a partir dos dados." },
-          { icone: "aluno", titulo: "Alunos em ascensão e desafio", texto: "Quem subiu e quem caiu de nível da 1ª para a 2ª AvD, com a aprendizagem equivalente de antes e depois." },
-          { icone: "documento", titulo: "Só as páginas que precisar", texto: "Marque as seções e o tamanho das listas antes de imprimir." },
-        ],
-        irPara: { rotulo: "Abrir Turmas", tela: "turmas" },
-      },
-      {
-        area: "Turmas › Ficha do aluno",
-        titulo: "Estatísticas completas e diagnóstico de cada aluno",
-        corpo:
-          "A aba Estatísticas da turma passa a mostrar o diagnóstico completo, e clicar no nome de um aluno abre a ficha dele. Na ficha, a nova aba Diagnóstico compara o aluno com a turma em notas, frequência, Prova Paulista, AvD e SARESP, e pode ser impressa em duas páginas A4.",
-        destaques: [
-          { icone: "grade", titulo: "Aba Estatísticas", texto: "Os mesmos gráficos e listas do relatório, direto na tela da turma." },
-          { icone: "aluno", titulo: "Aba Diagnóstico", texto: "O aluno ao lado da média da turma, pronto para conversar com a família ou o professor." },
-        ],
-        irPara: { rotulo: "Abrir Turmas", tela: "turmas" },
-      },
-      {
-        area: "Central de Relatórios",
-        titulo: "Descreva o relatório e a IA monta",
-        corpo:
-          "O novo card \"Descrever relatório com IA\" aceita um pedido em português, como \"alunos com nota abaixo da média em Matemática, ordenados pela nota\". A IA do Assistente pedagógico monta o relatório e ele abre no construtor, já na pré-visualização, para você conferir antes de salvar.",
-        destaques: [
-          { icone: "conversa", titulo: "Gemini, Ollama ou modo manual", texto: "Usa a IA configurada no Assistente pedagógico. Sem ela, dá para copiar o prompt e colar a resposta." },
-          { icone: "config", titulo: "Sem dados de alunos", texto: "A IA recebe só a lista de campos, disciplinas e séries, nunca nomes ou notas." },
-          { icone: "filtro", titulo: "Conferido antes de abrir", texto: "Se a IA usar um campo que não existe ou deixar um filtro incompleto, o app pede uma correção a ela e, se o problema continuar, mostra o que está errado." },
-        ],
-        irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
-      },
-      {
-        area: "Central de avisos",
-        titulo: "Avisos de prazo dentro do app",
-        corpo:
-          "O sino no rodapé da barra lateral mostra quantos avisos você ainda não leu, e clicar num aviso abre a tarefa no Quadro Kanban. Quando surge um aviso novo, ele aparece por alguns segundos no canto da tela. Antes os avisos dependiam das notificações do sistema, que não funcionavam.",
-        destaques: [
-          { icone: "agenda", titulo: "Prazo de verdade", texto: "Se o app ficou fechado alguns dias, o aviso de \"2 dias antes\" aparece como \"vence amanhã\"." },
-          { icone: "equipe", titulo: "Para todo o grupo", texto: "Avisos de tarefas compartilhadas chegam para cada coordenador. Antes, o primeiro a abrir o app marcava o aviso como lido para todos." },
-        ],
-        irPara: { rotulo: "Abrir o Quadro Kanban", tela: "kanban" },
-      },
-      {
-        area: "Importar dados",
-        titulo: "Mais dados do BI e a lista de alunos prioritários",
-        corpo:
-          "Duas importações novas: Aluno Presente, que atualiza a frequência toda semana sem esperar o mapão, e SARESP – Diagnóstico, com a nota média e a nota por disciplina de cada aluno. Com elas, o novo relatório \"Alunos prioritários (AvD)\", na Central de Relatórios, soma os critérios da 2ª e 1ª AvD, frequência, Prova Paulista e SARESP e lista quem chega ao corte.",
-        destaques: [
-          { icone: "agenda", titulo: "Aluno Presente", texto: "Presença das duas últimas semanas e risco de reprovação por faltas também entram no app." },
-          { icone: "lista", titulo: "Alunos prioritários", texto: "Componente, níveis e cortes escolhidos na hora de gerar." },
-        ],
-        irPara: { rotulo: "Abrir Importar dados", tela: "importar-dados" },
-      },
-    ],
+  "4.5.1": {
+    ...NOVIDADES_4_5_0,
     outrasMudancas: [
-      "O importador da Avaliação Diagnóstica agora se chama \"Recomposição – Diagnóstico (AvD)\", o nome do BI de onde o arquivo vem.",
-      "Prova Paulista: os alunos passam a ser encontrados pelo RA, e não mais só pelo nome. Menos alunos ficam de fora por grafia diferente.",
-      "Linux: o app agora também está disponível como Flatpak, que se atualiza pela loja de aplicativos do sistema. Instale em thenriques45-dot.github.io/coordenacao-op.",
-      "O identificador interno do app mudou para um baseado no GitHub do autor. O antigo sugeria um vínculo com a Secretaria da Educação, que o app não tem. Seus dados e preferências continuam onde estavam.",
+      ...(NOVIDADES_4_5_0.outrasMudancas ?? []),
+      "Corrigida a janela do \"Relatório diagnóstico\": as páginas a imprimir apareciam como bolhas grandes e desalinhadas. Agora ficam em linha, com a marcação ao lado do nome.",
     ],
   },
+  "4.5.0": NOVIDADES_4_5_0,
   "4.2.6": [
     "Linux: a barra de título da janela agora acompanha o tema claro ou escuro do sistema. Antes ela podia aparecer clara com o sistema em modo escuro, principalmente quando o programa abria junto com o computador ou reiniciava após uma atualização.",
   ],

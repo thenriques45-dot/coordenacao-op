@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.5.1 - Correção do relatório diagnóstico
+
+Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo".
+
+### Correções
+- **Relatório diagnóstico:** a janela de impressão mostrava as páginas como bolhas grandes, com a marcação em cima e o nome embaixo. Agora são chips em linha, com a marcação ao lado do nome, e o seletor "Alunos por lista" tem o tamanho do conteúdo.
+
 ## v4.5.0 - Diagnóstico da turma, relatórios descritos com IA e central de avisos
 
 Reúne três conjuntos de novidades que entraram juntos (diagnóstico da turma, relatório descrito com IA e central de avisos), por isso a versão salta da 4.2.6 direto para a 4.5.0. As versões 4.3 e 4.4 não foram publicadas.
