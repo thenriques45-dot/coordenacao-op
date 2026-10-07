@@ -18,6 +18,7 @@
 
 ### Linux: Flatpak
 - O app passa a ser publicado também como `.flatpak` em cada release, com o runtime GNOME 51. No Flatpak quem atualiza é a loja do sistema ou o `flatpak update`. Os dados ficam no sandbox (`~/.var/app/io.github.thenriques45_dot.CoordenacaoOP`). Para levar os dados do AppImage, use Backup → Exportar no AppImage e Restaurar no Flatpak. Detalhes em `docs/flatpak.md`.
+- **Atualização pela loja:** o Flatpak sai de um repositório próprio no GitHub Pages (<https://thenriques45-dot.github.io/coordenacao-op/>), assinado com GPG. Quem instala por lá, ou pelo `.flatpak` da release, recebe as versões novas pela loja do sistema.
 
 ### Identificador do app
 - O identificador mudou de `br.gov.sp.educacao.coordenacaoop` para `io.github.thenriques45-dot.CoordenacaoOP` (no Flatpak, `io.github.thenriques45_dot.CoordenacaoOP`, porque o Flathub troca `-` por `_` e o Tauri não aceita `_`), porque o antigo sugeria um vínculo com a Secretaria da Educação que o app não tem. O WebView continua usando a pasta de dados do identificador antigo quando ela existe, então nada se perde: configurações de IA, tema e tutoriais vistos continuam lá. O instalador do Windows passa a indicar "Thiago Henrique Santos" como fabricante.

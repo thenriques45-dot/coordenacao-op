@@ -9,22 +9,24 @@ O CoordenacaoOP para Linux sai em dois formatos:
 ID do app: `io.github.thenriques45_dot.CoordenacaoOP` (o `-` do usuário do GitHub vira `_`,
 como o Flathub exige).
 
-## Instalar o `.flatpak` da release
+## Instalar
 
-Cada release do GitHub traz um `CoordenacaoOP_v<versão>_x86_64.flatpak`. Para instalar:
+Pelo repositório Flatpak do projeto, publicado no GitHub Pages: abra
+<https://thenriques45-dot.github.io/coordenacao-op/> e clique em **Instalar o CoordenacaoOP**, ou:
+
+```bash
+flatpak install --user https://thenriques45-dot.github.io/coordenacao-op/coordenacaoop.flatpakref
+```
+
+O `.flatpak` anexado a cada release (`CoordenacaoOP_v<versão>_x86_64.flatpak`) também funciona e
+aponta para o mesmo repositório:
 
 ```bash
 flatpak install --user CoordenacaoOP_v<versão>_x86_64.flatpak
 ```
 
-O runtime (GNOME 51) vem do Flathub; se o Flathub ainda não estiver configurado:
-
-```bash
-flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-```
-
-O pacote avulso não recebe atualizações sozinho: instale o da release nova por cima. Quando o app
-estiver no Flathub, instale de lá para receber as atualizações pela loja.
+Nos dois casos as versões novas chegam pela loja do sistema ou por `flatpak update`. O runtime
+(GNOME 51) vem do Flathub, que é configurado sozinho na instalação.
 
 ## Levar os dados do AppImage para o Flatpak
 
@@ -66,25 +68,32 @@ O build é offline: as dependências do Cargo e do npm vêm de `flatpak/cargo-so
 `flatpak/gerar-fontes.sh`** e faça commit dos dois JSON junto — senão o build do Flatpak falha
 na release.
 
-## Enviar ao Flathub (primeira vez)
+## Repositório Flatpak próprio (atualização automática)
 
-O envio é um pull request no repositório `flathub/flathub`, feito pela conta do GitHub do autor
-(é ela que comprova o ID `io.github.thenriques45_dot`). Resumo de
-<https://docs.flathub.org/docs/for-app-authors/submission>:
+O job `build-flatpak` do workflow de release gera um repositório Flatpak assinado com GPG e o job
+`publish-flatpak-repo` o publica na branch `gh-pages`, servida pelo GitHub Pages. A branch guarda só
+a versão mais recente. Sem o secret de assinatura, a release sai só com o `.flatpak` avulso, que
+não se atualiza.
 
-1. Fork de `github.com/flathub/flathub`, a partir da branch `new-pr`.
-2. Na raiz do fork, copie o manifesto e os dois JSON de fontes. No manifesto, troque a fonte
-   `type: dir` por uma fonte git fixada numa tag:
-   ```yaml
-   - type: git
-     url: https://github.com/thenriques45-dot/coordenacao-op.git
-     tag: v<versão>
-     commit: <hash do commit da tag>
+Configuração (uma vez só):
+
+1. **Gerar a chave de assinatura.** No Linux, ou no Git Bash do Windows (o Git para Windows já traz
+   o `gpg`):
+   ```bash
+   gpg --batch --passphrase '' --quick-gen-key "CoordenacaoOP Flatpak" rsa4096 sign never
+   gpg --armor --export-secret-keys "CoordenacaoOP Flatpak" > coordenacaoop-flatpak-privada.asc
    ```
-3. Abra o PR contra `new-pr` com o título `Add io.github.thenriques45_dot.CoordenacaoOP`.
-4. Responda à revisão. Pontos que costumam ser questionados: `--filesystem=home` (justificado
-   acima) e as capturas de tela do `metainfo.xml`, que precisam ser URLs públicas.
+2. **Cadastrar o secret.** Em *Settings → Secrets and variables → Actions → New repository
+   secret*, crie `FLATPAK_GPG_PRIVATE_KEY` com o conteúdo inteiro do arquivo `.asc`.
+3. **Guardar o `.asc` num lugar seguro e apagar a cópia solta.** Quem já instalou confia nessa
+   chave: se ela se perder, as atualizações param e todo mundo precisa reinstalar.
+4. **Publicar uma release** (tag `v*`). Ela cria a branch `gh-pages`.
+5. **Ligar o GitHub Pages.** Em *Settings → Pages*, em *Build and deployment*, escolha *Deploy from
+   a branch*, branch `gh-pages`, pasta `/ (root)`.
 
-Aprovado, o Flathub cria `github.com/flathub/io.github.thenriques45_dot.CoordenacaoOP`. A cada
-versão nova, atualize lá a tag/commit (e os JSON de fontes, se mudaram) — à mão ou com o robô
-`x-checker-data`.
+## Flathub
+
+Enviar ao Flathub esbarra na política de IA dele: o manifesto da submissão não pode ter conteúdo
+gerado ou assistido por IA, e o PR e as respostas da revisão também precisam ser do autor
+(<https://docs.flathub.org/docs/for-app-authors/requirements>). Por isso o caminho adotado é o
+repositório próprio acima.
