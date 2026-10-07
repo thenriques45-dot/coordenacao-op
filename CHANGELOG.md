@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.6.0 - Importadores reordenáveis e Prova Paulista em lote
+
+### Importar dados
+- **Ordem dos importadores:** os cartões da tela Importar dados podem ser arrastados pelo ícone ⠿ e a ordem fica salva. A opção "Mais usados primeiro" organiza a tela pela quantidade de vezes que cada importador é aberto (contagem local, no computador). Empates seguem a ordem manual.
+- **Prova Paulista em lote:** o importador aceita várias planilhas de uma vez. Cada uma é analisada e importada separadamente, com resumo por planilha e um único botão de importar.
+- **Importar mapões:** o antigo "Importar notas" mudou de nome e deixa de gravar a frequência geral anual ("Fre An %"). Esse dado vem só do Importar Aluno Presente. Notas, faltas por disciplina e aulas dadas continuam vindo do mapão.
+
 ## v4.5.1 - Correção do relatório diagnóstico
 
 Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo".

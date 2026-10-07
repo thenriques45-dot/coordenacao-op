@@ -433,6 +433,32 @@ const NOVIDADES_4_5_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.6.0": {
+    paginas: [
+      {
+        area: "Importar dados",
+        titulo: "Os importadores na ordem que você preferir",
+        corpo:
+          "Arraste cada cartão da tela Importar dados pelo ícone ⠿, no canto, e deixe no topo os que você usa mais. A ordem fica salva. Se preferir, escolha \"Mais usados primeiro\" e o app organiza sozinho, pela quantidade de vezes que você abre cada importador.",
+        destaques: [
+          { icone: "grade", titulo: "Minha ordem", texto: "Você decide a posição de cada importador arrastando o cartão." },
+          { icone: "lista", titulo: "Mais usados primeiro", texto: "A contagem fica só no seu computador e reorganiza a tela automaticamente." },
+        ],
+        irPara: { rotulo: "Abrir Importar dados", tela: "importar-dados" },
+      },
+      {
+        area: "Importar dados",
+        titulo: "Prova Paulista em lote e mapões só para notas",
+        corpo:
+          "O Importar Prova Paulista aceita várias planilhas de uma vez: o app mostra um resumo de cada uma e importa todas com um único botão. O antigo \"Importar notas\" agora se chama \"Importar mapões\" e traz notas, faltas por disciplina e aulas dadas. A frequência geral (% anual) passa a vir só do Aluno Presente, que é atualizado toda semana.",
+        destaques: [
+          { icone: "documento", titulo: "Várias planilhas", texto: "Selecione todas as planilhas da Prova Paulista do bimestre de uma vez." },
+          { icone: "agenda", titulo: "Frequência pelo Aluno Presente", texto: "Importar um mapão não substitui mais a frequência geral dos alunos." },
+        ],
+        irPara: { rotulo: "Abrir Importar dados", tela: "importar-dados" },
+      },
+    ],
+  },
   "4.5.1": {
     ...NOVIDADES_4_5_0,
     outrasMudancas: [
