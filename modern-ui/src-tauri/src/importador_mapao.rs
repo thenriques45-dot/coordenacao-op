@@ -100,32 +100,9 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
                 continue;
             };
 
-            // Quem já tem dado do Aluno Presente (semanal, ver aluno_presente.rs)
-            // não tem a frequência geral sobrescrita pelo mapão, que é mais antigo.
-            let frequencia_do_aluno_presente =
-                info.get("frequencia_fonte").and_then(Value::as_str) == Some("aluno_presente");
-            if let Some(freq) = aluno_mapao.frequencia_percentual.filter(|_| !frequencia_do_aluno_presente) {
-                // "Fre An(%)" é cumulativo (frequência anual até aquele bimestre), então o
-                // mapão do bimestre mais recente sempre tem o valor mais completo. Sem essa
-                // checagem, reimportar um mapão de correção de um bimestre anterior (depois
-                // de já ter importado um bimestre mais novo) fazia a frequência exibida
-                // regredir para o valor mais antigo.
-                let bimestre_armazenado_e_mais_recente = info
-                    .get("frequencia_percentual_bimestre")
-                    .and_then(Value::as_str)
-                    .map(|armazenado| armazenado > bimestre.as_str())
-                    .unwrap_or(false);
-                if !bimestre_armazenado_e_mais_recente {
-                    let valor = serde_json::Number::from_f64(freq.round())
-                        .map(Value::Number)
-                        .unwrap_or(Value::Null);
-                    info.insert("frequencia_percentual".to_string(), valor);
-                    info.insert(
-                        "frequencia_percentual_bimestre".to_string(),
-                        Value::String(bimestre.clone()),
-                    );
-                }
-            }
+            // A frequência geral (percentual anual) não vem mais do mapão:
+            // quem a alimenta é o importador do Aluno Presente (aluno_presente.rs).
+            // O mapão só grava notas, faltas por disciplina e aulas dadas.
 
             for (disciplina, media, faltas, compensacao) in aluno_mapao.disciplinas {
                 // Mapão de "Tipo de Ensino: Expansão" (turma não seriada de
@@ -637,18 +614,18 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
                     .to_string()
             })?;
 
+    // A coluna "Fre An(%)" só serve para localizar a linha de subcabeçalho;
+    // o valor dela não é importado (a frequência vem do Aluno Presente).
     let mut linha_freq = None;
-    let mut col_frequencia = None;
     for offset in 1..=5 {
         let idx = linha_inicio + offset;
         if idx >= linhas.len() {
             break;
         }
-        for (col, celula) in linhas[idx].iter().enumerate() {
+        for celula in &linhas[idx] {
             let texto = rotulo_celula(celula);
             if texto.contains("FRE") && texto.contains("AN") {
                 linha_freq = Some(idx);
-                col_frequencia = Some(col);
                 break;
             }
         }
@@ -717,10 +694,6 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         {
             continue;
         }
-        let frequencia_percentual = col_frequencia
-            .and_then(|col| linha.get(col))
-            .and_then(numero_celula)
-            .map(|valor| if valor <= 1.0 { valor * 100.0 } else { valor });
         let mut disciplinas_aluno = Vec::new();
         for disciplina in &disciplinas {
             disciplinas_lidas.insert(disciplina.nome.clone());
@@ -738,7 +711,6 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         alunos.push(AlunoMapao {
             nome,
             numero_chamada,
-            frequencia_percentual,
             disciplinas: disciplinas_aluno,
         });
     }

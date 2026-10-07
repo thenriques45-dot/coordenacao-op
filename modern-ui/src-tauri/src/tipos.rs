@@ -886,7 +886,6 @@ pub(crate) type NotasDisciplinaMapao = (DisciplinaMapao, Option<f64>, Option<f64
 pub(crate) struct AlunoMapao {
     pub(crate) nome: String,
     pub(crate) numero_chamada: Option<i64>,
-    pub(crate) frequencia_percentual: Option<f64>,
     pub(crate) disciplinas: Vec<NotasDisciplinaMapao>,
 }
 

@@ -1,5 +1,8 @@
-import { BarChart3, CalendarCheck, Check, ImagePlus, Upload, Users } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
+import { BarChart3, CalendarCheck, Check, GripVertical, ImagePlus, Upload, Users } from "lucide-react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
 import { invokeApp } from "./appBridge";
 import { dividirLinhaCsv, normalizarTextoCsv, parseCsvAlunos, type NovoAlunoPayload } from "./studentsCsv";
@@ -105,6 +108,91 @@ function rotuloTurma(turma: TurmaResumoImportacao) {
   }
   return rotuloSerie(codigo) || codigo;
 }
+type IdImportador =
+  | "mapoes"
+  | "elegiveis"
+  | "diagnostico"
+  | "aluno-presente"
+  | "saresp"
+  | "fotos"
+  | "alunos-lote"
+  | "tarefas"
+  | "prova-paulista"
+  | "expansoes";
+
+type ModoOrdemImportadores = "manual" | "mais-usados";
+
+const CHAVE_ORDEM_IMPORTADORES = "coordenacaoop:importadores-ordem";
+const CHAVE_USO_IMPORTADORES = "coordenacaoop:importadores-uso";
+const CHAVE_MODO_IMPORTADORES = "coordenacaoop:importadores-modo";
+
+function lerJsonLocal<T>(chave: string, padrao: T): T {
+  try {
+    const texto = localStorage.getItem(chave);
+    return texto ? (JSON.parse(texto) as T) : padrao;
+  } catch {
+    return padrao;
+  }
+}
+
+function gravarJsonLocal(chave: string, valor: unknown) {
+  try {
+    localStorage.setItem(chave, JSON.stringify(valor));
+  } catch {
+    // Sem armazenamento local a tela continua funcionando, só não lembra a ordem.
+  }
+}
+
+/// Ordem salva + importadores novos (que ainda não estavam salvos) no fim,
+/// descartando ids que não existem mais.
+function ordemValida(salva: unknown, padrao: IdImportador[]): IdImportador[] {
+  const lista = Array.isArray(salva) ? salva.filter((id): id is IdImportador => padrao.includes(id as IdImportador)) : [];
+  const unicos = Array.from(new Set(lista));
+  return [...unicos, ...padrao.filter((id) => !unicos.includes(id))];
+}
+
+type CartaoImportador = {
+  id: IdImportador;
+  icone: ReactNode;
+  titulo: string;
+  descricao: string;
+  aoAbrir: () => void;
+};
+
+function CartaoImportadorArrastavel({
+  cartao,
+  arrastavel,
+  onAbrir,
+}: {
+  cartao: CartaoImportador;
+  arrastavel: boolean;
+  onAbrir: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cartao.id, disabled: !arrastavel });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : undefined,
+    opacity: isDragging ? 0.85 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className={`import-menu-item${isDragging ? " arrastando" : ""}`}>
+      <button type="button" className="import-menu-card" onClick={onAbrir}>
+        {cartao.icone}
+        <div>
+          <strong>{cartao.titulo}</strong>
+          <span>{cartao.descricao}</span>
+        </div>
+      </button>
+      {arrastavel && (
+        <button type="button" className="import-menu-alca" aria-label={`Arrastar ${cartao.titulo} para reordenar`} title="Arraste para reordenar" {...attributes} {...listeners}>
+          <GripVertical size={18} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ImportarDados({
   onImportarNotas,
   onImportarElegiveis,
@@ -128,6 +216,61 @@ export function ImportarDados({
   onImportarProvaPaulista: () => void;
   onImportarExpansoes: () => void;
 }) {
+  const cartoes: CartaoImportador[] = [
+    { id: "mapoes", icone: <Upload size={24} />, titulo: "Importar mapões", descricao: "Leia mapões em lote e atualize notas, faltas por disciplina e aulas dadas.", aoAbrir: onImportarNotas },
+    { id: "elegiveis", icone: <Check size={24} />, titulo: "Importar elegíveis", descricao: "Atualize a lista de estudantes elegíveis e suas condições cadastradas.", aoAbrir: onImportarElegiveis },
+    { id: "diagnostico", icone: <BarChart3 size={24} />, titulo: "Importar Recomposição – Diagnóstico (AvD)", descricao: "Leia a extração do BI \"Recomposição – Diagnóstico\" (1ª e 2ª AvD) de Português e Matemática.", aoAbrir: onImportarDiagnostico },
+    { id: "aluno-presente", icone: <CalendarCheck size={24} />, titulo: "Importar Aluno Presente", descricao: "Atualize a frequência geral dos alunos toda semana, sem esperar o mapão.", aoAbrir: onImportarAlunoPresente },
+    { id: "saresp", icone: <BarChart3 size={24} />, titulo: "Importar SARESP – Diagnóstico", descricao: "Guarde a nota média e a nota por disciplina do SARESP de cada aluno.", aoAbrir: onImportarSaresp },
+    { id: "fotos", icone: <ImagePlus size={24} />, titulo: "Importar fotos dos alunos", descricao: "Carregue um arquivo .zip ou .7z por turma (nomeado pela turma) com as fotos dos alunos.", aoAbrir: onImportarFotos },
+    { id: "alunos-lote", icone: <Users size={24} />, titulo: "Atualizar turmas em lote", descricao: "Carregue vários CSVs de alunos da SED de uma vez; o app identifica a turma pelos RAs e atualiza status e novos alunos.", aoAbrir: onImportarAlunosLote },
+    { id: "tarefas", icone: <BarChart3 size={24} />, titulo: "Importar Tarefas Realizadas", descricao: "Carregue a planilha de tarefas do sistema e registre o andamento por bimestre para cada aluno.", aoAbrir: onImportarTarefas },
+    { id: "prova-paulista", icone: <BarChart3 size={24} />, titulo: "Importar Prova Paulista", descricao: "Carregue uma ou várias planilhas de resultados da Prova Paulista e registre as notas por disciplina e bimestre.", aoAbrir: onImportarProvaPaulista },
+    { id: "expansoes", icone: <BarChart3 size={24} />, titulo: "Importar Disciplinas de Expansão", descricao: "Carregue as planilhas de progresso das expansões (noturno) e guarde o histórico para o construtor de relatórios.", aoAbrir: onImportarExpansoes },
+  ];
+  const idsPadrao = cartoes.map((cartao) => cartao.id);
+
+  const [ordem, setOrdem] = useState<IdImportador[]>(() => ordemValida(lerJsonLocal(CHAVE_ORDEM_IMPORTADORES, null), idsPadrao));
+  const [uso, setUso] = useState<Record<string, number>>(() => lerJsonLocal(CHAVE_USO_IMPORTADORES, {}));
+  const [modo, setModo] = useState<ModoOrdemImportadores>(() => lerJsonLocal<ModoOrdemImportadores>(CHAVE_MODO_IMPORTADORES, "manual") === "mais-usados" ? "mais-usados" : "manual");
+  const sensores = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const ordenados = (() => {
+    const porId = new Map(cartoes.map((cartao) => [cartao.id, cartao]));
+    const manual = ordem.map((id) => porId.get(id)).filter((cartao): cartao is CartaoImportador => Boolean(cartao));
+    if (modo === "manual") return manual;
+    // Mais usados primeiro; empate (inclusive quem nunca foi usado) segue a ordem manual.
+    return manual
+      .map((cartao, indice) => ({ cartao, indice }))
+      .sort((a, b) => (uso[b.cartao.id] ?? 0) - (uso[a.cartao.id] ?? 0) || a.indice - b.indice)
+      .map(({ cartao }) => cartao);
+  })();
+
+  function mudarModo(novo: ModoOrdemImportadores) {
+    setModo(novo);
+    gravarJsonLocal(CHAVE_MODO_IMPORTADORES, novo);
+  }
+
+  function abrir(cartao: CartaoImportador) {
+    const novoUso = { ...uso, [cartao.id]: (uso[cartao.id] ?? 0) + 1 };
+    setUso(novoUso);
+    gravarJsonLocal(CHAVE_USO_IMPORTADORES, novoUso);
+    cartao.aoAbrir();
+  }
+
+  function aoTerminarArrasto(evento: DragEndEvent) {
+    const { active, over } = evento;
+    if (!over || active.id === over.id) return;
+    const antigo = ordem.indexOf(active.id as IdImportador);
+    const novo = ordem.indexOf(over.id as IdImportador);
+    if (antigo === -1 || novo === -1) return;
+    const novaOrdem = arrayMove(ordem, antigo, novo);
+    setOrdem(novaOrdem);
+    gravarJsonLocal(CHAVE_ORDEM_IMPORTADORES, novaOrdem);
+  }
+
+  const manual = modo === "manual";
+
   return (
     <>
       <header className="topbar">
@@ -138,78 +281,28 @@ export function ImportarDados({
         </div>
       </header>
 
-      <section className="import-menu-grid">
-        <button type="button" className="import-menu-card" onClick={onImportarNotas}>
-          <Upload size={24} />
-          <div>
-            <strong>Importar notas</strong>
-            <span>Leia mapões em lote e atualize notas, faltas e aulas dadas.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarElegiveis}>
-          <Check size={24} />
-          <div>
-            <strong>Importar elegíveis</strong>
-            <span>Atualize a lista de estudantes elegíveis e suas condições cadastradas.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarDiagnostico}>
-          <BarChart3 size={24} />
-          <div>
-            <strong>Importar Recomposição – Diagnóstico (AvD)</strong>
-            <span>Leia a extração do BI "Recomposição – Diagnóstico" (1ª e 2ª AvD) de Português e Matemática.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarAlunoPresente}>
-          <CalendarCheck size={24} />
-          <div>
-            <strong>Importar Aluno Presente</strong>
-            <span>Atualize a frequência geral dos alunos toda semana, sem esperar o mapão.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarSaresp}>
-          <BarChart3 size={24} />
-          <div>
-            <strong>Importar SARESP – Diagnóstico</strong>
-            <span>Guarde a nota média e a nota por disciplina do SARESP de cada aluno.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarFotos}>
-          <ImagePlus size={24} />
-          <div>
-            <strong>Importar fotos dos alunos</strong>
-            <span>Carregue um arquivo .zip ou .7z por turma (nomeado pela turma) com as fotos dos alunos.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarAlunosLote}>
-          <Users size={24} />
-          <div>
-            <strong>Atualizar turmas em lote</strong>
-            <span>Carregue vários CSVs de alunos da SED de uma vez; o app identifica a turma pelos RAs e atualiza status e novos alunos.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarTarefas}>
-          <BarChart3 size={24} />
-          <div>
-            <strong>Importar Tarefas Realizadas</strong>
-            <span>Carregue a planilha de tarefas do sistema e registre o andamento por bimestre para cada aluno.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarProvaPaulista}>
-          <BarChart3 size={24} />
-          <div>
-            <strong>Importar Prova Paulista</strong>
-            <span>Carregue a planilha de resultados da Prova Paulista e registre as notas por disciplina e bimestre.</span>
-          </div>
-        </button>
-        <button type="button" className="import-menu-card" onClick={onImportarExpansoes}>
-          <BarChart3 size={24} />
-          <div>
-            <strong>Importar Disciplinas de Expansão</strong>
-            <span>Carregue as planilhas de progresso das expansões (noturno) e guarde o histórico para o construtor de relatórios.</span>
-          </div>
-        </button>
-      </section>
+      <div className="import-menu-ordem">
+        <span>Ordem dos importadores:</span>
+        <div className="import-menu-ordem-opcoes" role="radiogroup" aria-label="Ordem dos importadores">
+          <button type="button" role="radio" aria-checked={manual} className={manual ? "ativo" : ""} onClick={() => mudarModo("manual")}>
+            Minha ordem
+          </button>
+          <button type="button" role="radio" aria-checked={!manual} className={!manual ? "ativo" : ""} onClick={() => mudarModo("mais-usados")}>
+            Mais usados primeiro
+          </button>
+        </div>
+        <small>{manual ? "Arraste pelo ícone ⠿ no canto do cartão para reordenar." : "Os importadores que você mais abre ficam no topo."}</small>
+      </div>
+
+      <DndContext sensors={sensores} collisionDetection={closestCenter} onDragEnd={aoTerminarArrasto}>
+        <SortableContext items={ordenados.map((cartao) => cartao.id)} strategy={rectSortingStrategy}>
+          <section className="import-menu-grid">
+            {ordenados.map((cartao) => (
+              <CartaoImportadorArrastavel key={cartao.id} cartao={cartao} arrastavel={manual} onAbrir={() => abrir(cartao)} />
+            ))}
+          </section>
+        </SortableContext>
+      </DndContext>
     </>
   );
 }
@@ -692,8 +785,8 @@ export function ImportarNotas({
       <header className="topbar">
         <div>
           <span className="eyebrow">Importação em lote</span>
-          <h1>Importar notas</h1>
-          <p>Selecione vários mapões para casar alunos pelo nome e importar médias, faltas e aulas dadas.</p>
+          <h1>Importar mapões</h1>
+          <p>Selecione vários mapões para casar alunos pelo nome e importar médias, faltas por disciplina e aulas dadas. A frequência geral (% anual) vem do Aluno Presente.</p>
         </div>
       </header>
 
@@ -1449,60 +1542,80 @@ type ResultadoPaulista = {
   ambiguos: string[];
 };
 
+type PreviaPaulistaArquivo = { nome: string; previa: PreviaPaulista | null; erro: string | null };
+type ResultadoPaulistaArquivo = { nome: string; resultado: ResultadoPaulista | null; erro: string | null };
+
+function mensagemErro(err: unknown) {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }) {
   const [bimestre, setBimestre] = useState("1");
-  const [arquivo, setArquivo] = useState<ArquivoProvaPayload | null>(null);
-  const [previa, setPrevia] = useState<PreviaPaulista | null>(null);
-  const [resultado, setResultado] = useState<ResultadoPaulista | null>(null);
+  const [arquivos, setArquivos] = useState<ArquivoProvaPayload[]>([]);
+  const [previas, setPrevias] = useState<PreviaPaulistaArquivo[] | null>(null);
+  const [resultados, setResultados] = useState<ResultadoPaulistaArquivo[] | null>(null);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState("");
 
-  function selecionarArquivo(file: File | null) {
+  function selecionarArquivos(lista: FileList | null) {
     setErro("");
-    setPrevia(null);
-    setResultado(null);
-    if (!file) return;
-    file.arrayBuffer()
-      .then((buf) => setArquivo({ nome: file.name, bytes: Array.from(new Uint8Array(buf)) }))
-      .catch((err) => setErro(err instanceof Error ? err.message : String(err)));
+    setPrevias(null);
+    setResultados(null);
+    if (!lista?.length) {
+      setArquivos([]);
+      return;
+    }
+    Promise.all(Array.from(lista).map(async (file) => ({
+      nome: file.name,
+      bytes: Array.from(new Uint8Array(await file.arrayBuffer())),
+    })))
+      .then(setArquivos)
+      .catch((err) => setErro(mensagemErro(err)));
   }
 
   async function analisar() {
-    if (!arquivo) return;
+    if (!arquivos.length) return;
     setProcessando(true);
     setErro("");
-    setPrevia(null);
-    setResultado(null);
-    try {
-      const res = await invokeApp<PreviaPaulista>("analisar_prova_paulista", {
-        bimestre,
-        arquivo,
-      });
-      setPrevia(res);
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProcessando(false);
+    setPrevias(null);
+    setResultados(null);
+    const saida: PreviaPaulistaArquivo[] = [];
+    for (const arquivo of arquivos) {
+      try {
+        const previa = await invokeApp<PreviaPaulista>("analisar_prova_paulista", { bimestre, arquivo });
+        saida.push({ nome: arquivo.nome, previa, erro: null });
+      } catch (err) {
+        saida.push({ nome: arquivo.nome, previa: null, erro: mensagemErro(err) });
+      }
     }
+    setPrevias(saida);
+    setProcessando(false);
   }
 
   async function aplicar() {
-    if (!arquivo) return;
+    if (!previas) return;
     setProcessando(true);
     setErro("");
-    try {
-      const res = await invokeApp<ResultadoPaulista>("aplicar_prova_paulista", {
-        bimestre,
-        arquivo,
-      });
-      setResultado(res);
-      onAplicado();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : String(err));
-    } finally {
-      setProcessando(false);
+    const saida: ResultadoPaulistaArquivo[] = [];
+    for (const arquivo of arquivos) {
+      const previa = previas.find((p) => p.nome === arquivo.nome)?.previa;
+      if (!previa || previa.encontrados === 0) continue;
+      try {
+        const resultado = await invokeApp<ResultadoPaulista>("aplicar_prova_paulista", { bimestre, arquivo });
+        saida.push({ nome: arquivo.nome, resultado, erro: null });
+      } catch (err) {
+        saida.push({ nome: arquivo.nome, resultado: null, erro: mensagemErro(err) });
+      }
     }
+    setResultados(saida);
+    setProcessando(false);
+    if (saida.some((r) => r.resultado)) onAplicado();
   }
+
+  const totalEncontrados = (previas ?? []).reduce((acc, p) => acc + (p.previa?.encontrados ?? 0), 0);
+  const totalAtualizados = (resultados ?? []).reduce((acc, r) => acc + (r.resultado?.atualizados ?? 0), 0);
+  const algumIgnorado = (previas ?? []).some((p) => (p.previa?.nao_encontrados ?? 0) > 0 || (p.previa?.ambiguos ?? 0) > 0);
+  const algumInferido = (previas ?? []).some((p) => (p.previa?.resolvidos ?? 0) > 0);
 
   return (
     <>
@@ -1510,7 +1623,7 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
         <div>
           <span className="eyebrow">Importações</span>
           <h1>Prova Paulista</h1>
-          <p>Importe os resultados da Prova Paulista por disciplina e bimestre.</p>
+          <p>Importe os resultados da Prova Paulista por disciplina e bimestre. Você pode selecionar várias planilhas de uma vez.</p>
         </div>
       </header>
 
@@ -1518,7 +1631,7 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
         <div className="report-controls">
           <label>
             Bimestre
-            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setPrevia(null); setResultado(null); }}>
+            <select value={bimestre} onChange={(e) => { setBimestre(e.target.value); setPrevias(null); setResultados(null); }}>
               {opcoesBimestreTarefas.map((o) => (
                 <option key={o.valor} value={o.valor}>{o.rotulo}</option>
               ))}
@@ -1528,19 +1641,21 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
 
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           <label className="file-picker-button">
-            Selecionar planilha (.xlsx)
-            <input type="file" accept=".xlsx" onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)} />
+            Selecionar planilhas (.xlsx)
+            <input type="file" multiple accept=".xlsx" onChange={(e) => selecionarArquivos(e.target.files)} />
           </label>
-          {arquivo && (
+          {arquivos.length > 0 && (
             <>
-              <span style={{ fontSize: "0.9rem", color: "var(--muted, #667085)" }}>{arquivo.nome}</span>
+              <span style={{ fontSize: "0.9rem", color: "var(--muted, #667085)" }}>
+                {arquivos.length === 1 ? arquivos[0].nome : `${arquivos.length} planilhas selecionadas`}
+              </span>
               <button
                 type="button"
                 className="primary-action"
                 disabled={processando}
                 onClick={() => void analisar()}
               >
-                {processando && !previa ? "Analisando..." : "Analisar"}
+                {processando && !previas ? "Analisando..." : "Analisar"}
               </button>
             </>
           )}
@@ -1548,65 +1663,76 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
 
         {erro && <div className="notice error">{erro}</div>}
 
-        {previa && !resultado && (
+        {previas && !resultados && (
           <>
-            <div className="notice">
-              <strong>{previa.total_csv} alunos na planilha</strong>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
-                <span className="active-badge">✓ {previa.encontrados} encontrado(s)</span>
-                {previa.resolvidos > 0 && (
-                  <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>⟳ {previa.resolvidos} inferido(s) por contexto</span>
-                )}
-                {previa.nao_encontrados > 0 && (
-                  <span className="inactive-badge">⚠ {previa.nao_encontrados} não encontrado(s)</span>
-                )}
-                {previa.ambiguos > 0 && (
-                  <span className="inactive-badge">⚠ {previa.ambiguos} ambíguo(s)</span>
+            {previas.map(({ nome, previa, erro: erroArquivo }) => (
+              <div key={nome} className="notice">
+                <strong>{nome}</strong>
+                {erroArquivo || !previa ? (
+                  <span style={{ color: "var(--danger, #ef4444)" }}>{erroArquivo ?? "Não foi possível ler a planilha."}</span>
+                ) : (
+                  <>
+                    <span>{previa.total_csv} alunos na planilha</span>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+                      <span className="active-badge">✓ {previa.encontrados} encontrado(s)</span>
+                      {previa.resolvidos > 0 && (
+                        <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>⟳ {previa.resolvidos} inferido(s) por contexto</span>
+                      )}
+                      {previa.nao_encontrados > 0 && (
+                        <span className="inactive-badge">⚠ {previa.nao_encontrados} não encontrado(s)</span>
+                      )}
+                      {previa.ambiguos > 0 && (
+                        <span className="inactive-badge">⚠ {previa.ambiguos} ambíguo(s)</span>
+                      )}
+                    </div>
+                    {previa.disciplinas_detectadas.length > 0 && (
+                      <span>Disciplinas detectadas: {previa.disciplinas_detectadas.join(", ")}</span>
+                    )}
+                    <details open={previas.length === 1} style={{ marginTop: "0.5rem" }}>
+                      <summary style={{ cursor: "pointer" }}>Ver alunos</summary>
+                      <div style={{ overflowX: "auto", marginTop: "0.5rem" }}>
+                        <table className="data-table" style={{ width: "100%" }}>
+                          <thead>
+                            <tr>
+                              <th>Nome (planilha)</th>
+                              <th>Turma</th>
+                              <th>Participou</th>
+                              <th>Geral</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previa.matches.map((m, i) => (
+                              <tr key={i}>
+                                <td>{m.nome_csv}</td>
+                                <td>{m.turma ?? "—"}</td>
+                                <td>{m.participou ? "Sim" : "Não"}</td>
+                                <td>{m.geral != null ? m.geral : "—"}</td>
+                                <td>
+                                  {m.resolvido
+                                    ? <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>inferido</span>
+                                    : m.encontrado
+                                      ? <span className="active-badge">ok</span>
+                                      : m.ambiguo
+                                        ? <span className="inactive-badge">ambíguo</span>
+                                        : <span className="inactive-badge">não encontrado</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  </>
                 )}
               </div>
-              {previa.disciplinas_detectadas.length > 0 && (
-                <span>Disciplinas detectadas: {previa.disciplinas_detectadas.join(", ")}</span>
-              )}
-            </div>
-
-            <div style={{ overflowX: "auto" }}>
-              <table className="data-table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th>Nome (planilha)</th>
-                    <th>Turma</th>
-                    <th>Participou</th>
-                    <th>Geral</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previa.matches.map((m, i) => (
-                    <tr key={i}>
-                      <td>{m.nome_csv}</td>
-                      <td>{m.turma ?? "—"}</td>
-                      <td>{m.participou ? "Sim" : "Não"}</td>
-                      <td>{m.geral != null ? m.geral : "—"}</td>
-                      <td>
-                        {m.resolvido
-                          ? <span className="active-badge" style={{ background: "var(--warning, #d97706)" }}>inferido</span>
-                          : m.encontrado
-                            ? <span className="active-badge">ok</span>
-                            : m.ambiguo
-                              ? <span className="inactive-badge">ambíguo</span>
-                              : <span className="inactive-badge">não encontrado</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {previa.resolvidos > 0 && (
+            ))}
+            {algumInferido && (
               <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
                 Alunos "inferidos" foram identificados pela turma com mais colegas presentes na mesma planilha.
               </p>
             )}
-            {(previa.nao_encontrados > 0 || previa.ambiguos > 0) && (
+            {algumIgnorado && (
               <p style={{ fontSize: "0.85rem", color: "var(--muted, #667085)" }}>
                 Alunos não encontrados ou ambíguos são ignorados para evitar gravar no estudante errado.
               </p>
@@ -1615,21 +1741,29 @@ export function ImportarProvaPaulista({ onAplicado }: { onAplicado: () => void }
               type="button"
               className="primary-action"
               style={{ alignSelf: "flex-start" }}
-              disabled={processando || previa.encontrados === 0}
+              disabled={processando || totalEncontrados === 0}
               onClick={() => void aplicar()}
             >
-              {processando ? "Importando..." : `Importar ${previa.encontrados} aluno(s)`}
+              {processando ? "Importando..." : `Importar ${totalEncontrados} aluno(s)`}
             </button>
           </>
         )}
 
-        {resultado && (
+        {resultados && (
           <div className="notice success">
             <strong>Importação concluída.</strong>
-            <span>{resultado.atualizados} aluno(s) atualizados em {resultado.turmas_atualizadas} turma(s).</span>
-            {resultado.nao_encontrados.length > 0 && (
-              <span>Não encontrados: {resultado.nao_encontrados.join(", ")}</span>
-            )}
+            <span>{totalAtualizados} aluno(s) atualizados a partir de {resultados.filter((r) => r.resultado).length} planilha(s).</span>
+            {resultados.map(({ nome, resultado, erro: erroArquivo }) => (
+              <span key={nome}>
+                {nome}:{" "}
+                {erroArquivo || !resultado
+                  ? <span style={{ color: "var(--danger, #ef4444)" }}>{erroArquivo ?? "falhou"}</span>
+                  : <>
+                      {resultado.atualizados} aluno(s) em {resultado.turmas_atualizadas} turma(s)
+                      {resultado.nao_encontrados.length > 0 && ` · não encontrados: ${resultado.nao_encontrados.join(", ")}`}
+                    </>}
+              </span>
+            ))}
           </div>
         )}
       </section>
