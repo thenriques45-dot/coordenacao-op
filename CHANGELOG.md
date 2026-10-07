@@ -1,6 +1,8 @@
 # Changelog
 
-## v4.6.0 - Importadores reordenáveis e Prova Paulista em lote
+## v4.5.2 - Importadores reordenáveis e Prova Paulista em lote
+
+Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças abaixo somadas ao fim de "outras mudanças".
 
 ### Importar dados
 - **Ordem dos importadores:** os cartões da tela Importar dados podem ser arrastados pelo ícone ⠿ e a ordem fica salva. A opção "Mais usados primeiro" organiza a tela pela quantidade de vezes que cada importador é aberto (contagem local, no computador). Empates seguem a ordem manual.
