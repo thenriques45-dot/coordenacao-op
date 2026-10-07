@@ -72,6 +72,15 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.6.0" date="2026-10-07">
+      <description>
+        <ul>
+          <li>Import cards can be reordered by drag and drop, or sorted by most used</li>
+          <li>Prova Paulista import accepts several spreadsheets at once</li>
+          <li>"Importar notas" renamed to "Importar mapões"; overall attendance now comes only from Aluno Presente</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.5.1" date="2026-10-07">
       <description>
         <ul>
