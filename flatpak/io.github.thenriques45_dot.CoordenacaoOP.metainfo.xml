@@ -48,7 +48,7 @@
     <screenshot type="default">
       <caption>Kanban board with deadline alerts</caption>
       <caption xml:lang="pt-BR">Quadro Kanban com avisos de prazo</caption>
-      <image>https://raw.githubusercontent.com/thenriques45-dot/coordenacao-op/v4.3.0/docs/imagens/flathub/quadro-kanban.png</image>
+      <image>https://raw.githubusercontent.com/thenriques45-dot/coordenacao-op/v4.5.0/docs/imagens/flathub/quadro-kanban.png</image>
     </screenshot>
   </screenshots>
 
@@ -72,10 +72,13 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
-    <release version="4.3.0" date="2026-10-06">
+    <release version="4.5.0" date="2026-10-07">
       <description>
         <ul>
+          <li>Printable diagnostic report for each class, and a diagnostic tab for each student</li>
+          <li>Describe a report in plain words and the AI assistant builds it</li>
           <li>Deadline alerts from the Kanban board now show up in an alert center inside the app</li>
+          <li>New imports for weekly attendance and SARESP results</li>
           <li>First release as a Flatpak</li>
         </ul>
       </description>

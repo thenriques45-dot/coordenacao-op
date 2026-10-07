@@ -1,6 +1,22 @@
 # Changelog
 
-## v4.3.0 - Central de avisos e versão Flatpak
+## v4.5.0 - Diagnóstico da turma, relatórios descritos com IA e central de avisos
+
+Reúne três conjuntos de novidades que entraram juntos (diagnóstico da turma, relatório descrito com IA e central de avisos), por isso a versão salta da 4.2.6 direto para a 4.5.0. As versões 4.3 e 4.4 não foram publicadas.
+
+### Diagnóstico da turma e do aluno
+- **Relatório diagnóstico da turma:** botão "Relatório diagnóstico" na tela da turma, ao lado das abas. Gera páginas A4 para entregar aos professores: panorama com indicadores e gráficos, leitura da turma (pontos de atenção, pontos positivos e sugestões de abordagem), frequência, ranking de fragilidades pedagógicas, mapa de calor de notas, evolução e queda na Prova Paulista, Avaliação Diagnóstica (AvD) e SARESP e destaques. As páginas e o tamanho das listas são escolhidos antes de imprimir; "Salvar como PDF" gera o arquivo.
+- **AvD:** página com os níveis da turma e as listas de alunos em ascensão (subiram de nível da 1ª para a 2ª AvD em ao menos um componente) e alunos desafio (caíram em ao menos um), com o nível e a aprendizagem equivalente de antes e depois.
+- **Aluno Presente e SARESP no diagnóstico:** a frequência usa o Aluno Presente quando importado (presença das duas últimas semanas e risco de reprovação por faltas), e o SARESP – Diagnóstico entra com a média da turma por disciplina e os alunos abaixo de 4.
+- **Aba Estatísticas:** passa a mostrar o diagnóstico completo da turma. O nome do aluno abre a ficha dele.
+- **Aba Diagnóstico na ficha do aluno:** o mesmo diagnóstico recortado para o aluno e comparado com a média da turma (notas, frequência, Prova Paulista, AvD, SARESP, pontos de atenção e sugestões), imprimível em duas páginas A4.
+
+### Relatórios descritos com IA
+- **Descrever relatório com IA:** card novo na Central de Relatórios. O pedido em português vira um relatório que abre no construtor, já na pré-visualização, para conferir antes de salvar. A IA responde um plano simples (campos, condições, ordenação, agrupamento, limite) que o app converte para a definição do relatório, e nomes de disciplina e série são casados sem diferenciar acentos ou maiúsculas.
+- Funciona com Gemini, Ollama e o modo prompt manual. A IA recebe só o catálogo de campos, as disciplinas e as séries, nunca dados de aluno.
+- **Validação de relatórios:** campo inexistente, campo sem disciplina, ordenação ou bloco sem destino, parâmetro não declarado, condição sem valor e coluna oculta fora do fim são apontados. Os problemas voltam à IA para uma segunda tentativa e, se continuarem, aparecem na tela.
+- **Windows:** corrigido o build, que falhava porque `centralAvisos.ts` e `CentralAvisos.tsx` tinham o mesmo nome num sistema de arquivos que ignora maiúsculas.
+
 
 ### Avisos de prazo dentro do app
 - **Central de avisos:** os alertas de prazo das tarefas do Kanban ("2 dias", "1 dia", "no dia") passam a aparecer dentro do app. Um sino no rodapé da barra lateral mostra quantos avisos ainda não foram lidos; clicar num aviso abre a tarefa no Kanban. Quando surge um aviso novo, ele aparece por alguns segundos no canto da tela. O texto diz quanto falta de fato: se o app ficou fechado alguns dias, o alerta "2 dias antes" aparece como "vence amanhã".
