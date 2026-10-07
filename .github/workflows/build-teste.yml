@@ -1,0 +1,93 @@
+name: Build de teste
+
+# Gera um AppImage do Linux e um executável portátil do Windows a cada PR
+# que mexe no app, para testar a mudança antes de mesclar. Não assina e não
+# publica nada: os arquivos ficam só como artefatos do run, por 14 dias.
+
+on:
+  pull_request:
+    paths:
+      - "modern-ui/**"
+      - ".github/workflows/build-teste.yml"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  linux-appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux Tauri dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libfuse2 \
+            patchelf
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      # Sem artefatos do updater, que exigiriam a chave de assinatura.
+      - name: Build
+        working-directory: modern-ui
+        run: npm run tauri build -- --bundles appimage --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: CoordenacaoOP-teste-linux-pr${{ github.event.pull_request.number || 'manual' }}
+          path: modern-ui/src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 14
+          if-no-files-found: error
+
+  windows-portatil:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: modern-ui/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: modern-ui
+        run: npm ci
+
+      # --no-bundle: só o .exe, sem instalador nem artefatos do updater
+      # (que exigiriam a chave de assinatura).
+      - name: Build
+        working-directory: modern-ui
+        run: npm run tauri build -- --no-bundle
+
+      - name: Upload
+        uses: actions/upload-artifact@v6
+        with:
+          name: CoordenacaoOP-teste-windows-pr${{ github.event.pull_request.number || 'manual' }}
+          path: modern-ui/src-tauri/target/release/*.exe
+          retention-days: 14
+          if-no-files-found: error

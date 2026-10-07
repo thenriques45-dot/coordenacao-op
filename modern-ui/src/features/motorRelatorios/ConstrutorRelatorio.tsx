@@ -328,11 +328,15 @@ function substituirVariaveisPreview(texto: string, bimestre: string): string {
 
 export function ConstrutorRelatorio({
   definicaoInicial,
+  pedidoIa,
   turmas,
   onVoltar,
   onSalvo,
 }: {
   definicaoInicial?: ReportDefinition;
+  /** Pedido escrito no "Descrever relatório", quando a definição veio da
+   * IA: abre direto na prévia, com um aviso pra conferir antes de salvar. */
+  pedidoIa?: string;
   turmas: { codigo: string; serie: string | null }[];
   onVoltar: () => void;
   onSalvo: () => void;
@@ -340,7 +344,8 @@ export function ConstrutorRelatorio({
   const [definicao, setDefinicao] = useState<ReportDefinition>(() => migrarParaBlocos(definicaoInicial ?? definicaoVazia()));
   const [campos, setCampos] = useState<CampoRelatorioInfo[]>([]);
   const [disciplinas, setDisciplinas] = useState<string[]>([]);
-  const [aba, setAba] = useState<"montar" | "preview">("montar");
+  const [aba, setAba] = useState<"montar" | "preview">(pedidoIa ? "preview" : "montar");
+  const [avisoIaVisivel, setAvisoIaVisivel] = useState(Boolean(pedidoIa));
   const [selecionado, setSelecionado] = useState<string | null>(definicao.blocos[0]?.id ?? null);
   const [bimestrePreview, setBimestrePreview] = useState("1");
   const [preview, setPreview] = useState<SecaoPreview[] | null>(null);
@@ -915,6 +920,20 @@ export function ConstrutorRelatorio({
           <button className="primary-action" onClick={salvar} disabled={processando}>Salvar</button>
         </div>
       </header>
+
+      {avisoIaVisivel && pedidoIa && (
+        <div className="cb-avisos">
+          <div className="notice warning cb-aviso-ia">
+            <span>
+              Montado pela IA a partir de: <em>"{pedidoIa}"</em>. Confira a prévia e os filtros em "Montar" antes de usar o
+              relatório.
+            </span>
+            <button type="button" className="cb-link-inline" onClick={() => setAvisoIaVisivel(false)}>
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
 
       {(mensagem || erro) && (
         <div className="cb-avisos">

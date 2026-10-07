@@ -17122,3 +17122,77 @@ th:nth-child(3) {
 .theme-dark .aviso-flutuante {
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
 }
+
+/* Descrever relatório com IA (Central de relatórios) */
+.assistente-relatorio-modal {
+  overflow-y: auto;
+}
+
+.assistente-relatorio-pedido {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-report-modal .assistente-relatorio-pedido textarea {
+  min-height: 110px;
+}
+
+.ai-report-modal .assistente-relatorio-resposta {
+  margin-top: 6px;
+  min-height: 120px;
+}
+
+.assistente-relatorio-exemplos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assistente-relatorio-exemplos button {
+  background: #f7f7f9;
+  border: 1px solid #d5dbe6;
+  border-radius: 999px;
+  color: #344054;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+}
+
+.assistente-relatorio-status {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.assistente-relatorio-erro {
+  background: #fde2e2;
+  border-color: #f5c2c2;
+  color: #a81c1c;
+  display: grid;
+  gap: 6px;
+}
+
+.assistente-relatorio-erro ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.cb-aviso-ia {
+  align-items: center;
+  display: flex;
+  font-weight: 400;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.theme-dark .assistente-relatorio-exemplos button {
+  background: #26232f;
+  border-color: #2c2935;
+  color: #ececf0;
+}
+
+.theme-dark .assistente-relatorio-erro {
+  background: #3a1d22;
+  border-color: #5a2a31;
+  color: #f4b4b4;
+}

@@ -43,6 +43,7 @@ import { QuadroKanban } from "./features/KanbanBoard";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { NovidadesWizard, normalizarNovidades, type EntradaNovidades } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
+import { AssistenteRelatorioIa } from "./features/motorRelatorios/AssistenteRelatorioIa";
 import { RepositorioRelatorios } from "./features/motorRelatorios/RepositorioRelatorios";
 import type { ReportDefinition } from "./features/motorRelatorios/tipos";
 import { TelaPEI } from "./features/PEI";
@@ -1030,6 +1031,10 @@ export function App() {
   const [tela, setTela] = useState<Tela>("dashboard");
   const [relatorioMotorPreselecionado, setRelatorioMotorPreselecionado] = useState<string | undefined>(undefined);
   const [definicaoParaEditar, setDefinicaoParaEditar] = useState<ReportDefinition | undefined>(undefined);
+  // Pedido escrito no "Descrever relatório" quando a definição em edição
+  // veio da IA — o construtor mostra um aviso pra conferir a prévia.
+  const [pedidoIaRelatorio, setPedidoIaRelatorio] = useState<string | undefined>(undefined);
+  const [assistenteRelatorioAberto, setAssistenteRelatorioAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const [buscaGlobalAberta, setBuscaGlobalAberta] = useState(false);
   const [nomeAlunoParaAbrir, setNomeAlunoParaAbrir] = useState<string | null>(null);
@@ -2014,18 +2019,38 @@ export function App() {
             onAbrirAtendimentos={() => navegarPara("relatorio-atendimentos")}
             onCriarRelatorio={() => {
               setDefinicaoParaEditar(undefined);
+              setPedidoIaRelatorio(undefined);
               navegarPara("construtor-relatorio");
             }}
+            onDescreverRelatorio={() => setAssistenteRelatorioAberto(true)}
             onAbrirRepositorio={() => navegarPara("repositorio-relatorios")}
             onEditarRelatorio={(definicaoId) => {
               invokeApp<ReportDefinition[]>("listar_definicoes_relatorio")
                 .then((lista) => {
                   const encontrada = lista.find((definicao) => definicao.id === definicaoId);
                   setDefinicaoParaEditar(encontrada);
+                  setPedidoIaRelatorio(undefined);
                   navegarPara("construtor-relatorio");
                 })
                 .catch(() => {});
             }}
+          />
+        )}
+        {tela === "relatorios" && assistenteRelatorioAberto && (
+          <AssistenteRelatorioIa
+            series={Array.from(new Set(turmas.map((turma) => turma.serie).filter((serie): serie is string => !!serie))).sort()}
+            onGerado={(definicao, pedido) => {
+              setAssistenteRelatorioAberto(false);
+              setDefinicaoParaEditar(definicao);
+              setPedidoIaRelatorio(pedido);
+              navegarPara("construtor-relatorio");
+            }}
+            onAbrirConfiguracoes={() => {
+              setAssistenteRelatorioAberto(false);
+              setConfigSecaoInicial("assistente");
+              navegarPara("configuracoes");
+            }}
+            onFechar={() => setAssistenteRelatorioAberto(false)}
           />
         )}
         {tela === "relatorio-atendimentos" && <RelatorioAtendimentos onVoltar={() => navegarPara("relatorios")} />}
@@ -2036,6 +2061,7 @@ export function App() {
         {tela === "construtor-relatorio" && (
           <ConstrutorRelatorio
             definicaoInicial={definicaoParaEditar}
+            pedidoIa={pedidoIaRelatorio}
             turmas={turmas.map((turma) => ({ codigo: turma.codigo, serie: turma.serie }))}
             onVoltar={() => navegarPara("relatorios")}
             onSalvo={() => navegarPara("relatorios")}

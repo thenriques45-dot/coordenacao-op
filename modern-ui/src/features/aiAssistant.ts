@@ -186,7 +186,16 @@ function normalizarAiSettings(dados: Partial<AiAssistantSettings>): AiAssistantS
   };
 }
 
-async function gerarTextoIa(settings: AiAssistantSettings, messages: Array<{ role: "system" | "user" | "assistant"; content: string }>) {
+export type MensagemIa = { role: "system" | "user" | "assistant"; content: string };
+
+/** Pede uma resposta em JSON ao provedor configurado (Gemini com
+ * `responseMimeType`, Ollama com `format: "json"`). Usado pelo "Descrever
+ * relatório", que precisa de uma estrutura, não de texto corrido. */
+export async function gerarJsonIa(settings: AiAssistantSettings, messages: MensagemIa[]) {
+  return gerarTextoIa(settings, messages, { json: true });
+}
+
+async function gerarTextoIa(settings: AiAssistantSettings, messages: MensagemIa[], opcoes: { json?: boolean } = {}) {
   const config = normalizarAiSettings(settings);
   if (!config.endpoint) throw new Error("Informe o endereço do provedor de IA.");
   if (!config.model) throw new Error("Informe o modelo de IA.");
@@ -196,8 +205,8 @@ async function gerarTextoIa(settings: AiAssistantSettings, messages: Array<{ rol
   if (config.provider === "manual-prompt") {
     throw new Error("O modo manual copia o prompt para uso em outra IA, sem geração automática no aplicativo.");
   }
-  if (config.provider === "ollama") return gerarComOllama(config, messages);
-  return gerarComGemini(config, messages);
+  if (config.provider === "ollama") return gerarComOllama(config, messages, opcoes);
+  return gerarComGemini(config, messages, opcoes);
 }
 
 function normalizarProvider(provider: unknown): AiProvider {
@@ -208,7 +217,7 @@ function normalizarProvider(provider: unknown): AiProvider {
   return defaultAiAssistantSettings.provider;
 }
 
-async function gerarComOllama(settings: AiAssistantSettings, messages: Array<{ role: string; content: string }>) {
+async function gerarComOllama(settings: AiAssistantSettings, messages: Array<{ role: string; content: string }>, opcoes: { json?: boolean }) {
   const resposta = await fetch(`${settings.endpoint}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -216,6 +225,7 @@ async function gerarComOllama(settings: AiAssistantSettings, messages: Array<{ r
       model: settings.model,
       messages,
       stream: false,
+      format: opcoes.json ? "json" : undefined,
       options: {
         temperature: settings.temperature,
       },
@@ -230,7 +240,7 @@ async function gerarComOllama(settings: AiAssistantSettings, messages: Array<{ r
   return texto.trim();
 }
 
-async function gerarComGemini(settings: AiAssistantSettings, messages: Array<{ role: string; content: string }>) {
+async function gerarComGemini(settings: AiAssistantSettings, messages: Array<{ role: string; content: string }>, opcoes: { json?: boolean }) {
   const system = messages.filter((message) => message.role === "system").map((message) => message.content).join("\n\n");
   const user = messages.filter((message) => message.role !== "system").map((message) => message.content).join("\n\n");
   const dados = await requisicaoJson(`${settings.endpoint}/v1beta/models/${encodeURIComponent(settings.model)}:generateContent?key=${encodeURIComponent(settings.apiKey)}`, {
@@ -241,6 +251,7 @@ async function gerarComGemini(settings: AiAssistantSettings, messages: Array<{ r
       contents: [{ role: "user", parts: [{ text: user }] }],
       generationConfig: {
         temperature: settings.temperature,
+        responseMimeType: opcoes.json ? "application/json" : undefined,
       },
     }),
   }) as {
