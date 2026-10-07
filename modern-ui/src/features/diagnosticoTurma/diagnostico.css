@@ -1021,12 +1021,41 @@
   }
 }
 
-.diag-secoes input {
-  height: auto;
-  margin: 0;
-  width: auto;
+/* O modal herda as regras de .kanban-task-modal (label em grid, input com
+   42px de altura e padding). Seletores mais específicos para os chips de
+   página e o seletor de tamanho ficarem em linha em qualquer WebView. */
+.diag-modal .diag-secoes label {
+  align-items: center;
+  color: #344054;
+  display: inline-flex;
+  gap: 6px;
+  line-height: 1.2;
+  padding: 6px 12px;
 }
 
-.diag-limite select {
+.diag-modal .diag-secoes label.ativo {
+  background: #eff4ff;
+}
+
+.diag-modal .diag-secoes input[type="checkbox"] {
+  accent-color: #2563eb;
+  flex: none;
+  height: 15px;
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  width: 15px;
+}
+
+.diag-modal .diag-limite {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+  justify-self: start;
+}
+
+.diag-modal .diag-limite select,
+.diag-tela-barra .diag-limite select {
+  min-height: 36px;
   width: auto;
 }
