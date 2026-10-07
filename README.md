@@ -2,6 +2,12 @@
   <img src="docs/imagens/logo_coordenacaoop_github.png" alt="Logotipo do CoordenacaoOP" width="720">
 </p>
 
+<p align="center">
+  <a href="https://thenriques45-dot.github.io/coordenacao-op/"><img src="https://img.shields.io/badge/Linux-Instalar%20pelo%20Flatpak-4A90D9?style=for-the-badge&logo=flatpak&logoColor=white" alt="Instalar no Linux pelo Flatpak"></a>
+  <a href="https://apps.microsoft.com/detail/9NB56ZCKQT6H"><img src="https://img.shields.io/badge/Windows-Microsoft%20Store-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Baixar na Microsoft Store"></a>
+  <a href="https://github.com/thenriques45-dot/coordenacao-op/releases/latest"><img src="https://img.shields.io/github/v/release/thenriques45-dot/coordenacao-op?style=for-the-badge&label=Vers%C3%A3o" alt="Última versão"></a>
+</p>
+
 # CoordenacaoOP
 
 Software de apoio à coordenação pedagógica para organizar turmas, importar dados, conduzir conselhos de classe e gerar documentos oficiais.
@@ -24,6 +30,10 @@ Software de apoio à coordenação pedagógica para organizar turmas, importar d
 O aplicativo foi pensado para uso prático no cotidiano da coordenação pedagógica, com foco em reduzir trabalho manual na preparação e no registro dos conselhos de classe.
 
 ## Como baixar
+
+**Linux:** a forma mais fácil é o Flatpak, que se atualiza sozinho pela loja de aplicativos (GNOME Software, Discover). Abra <https://thenriques45-dot.github.io/coordenacao-op/> e clique em **Instalar o CoordenacaoOP**.
+
+**Windows:** instale pela [Microsoft Store](https://apps.microsoft.com/detail/9NB56ZCKQT6H), que também cuida das atualizações.
 
 As versões prontas para uso ficam na página de Releases do GitHub:
 
