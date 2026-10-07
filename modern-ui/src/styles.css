@@ -2453,6 +2453,87 @@ h3 {
   text-align: left;
 }
 
+.import-menu-item {
+  position: relative;
+  display: flex;
+}
+
+.import-menu-item > .import-menu-card {
+  flex: 1;
+  padding-right: 48px;
+}
+
+.import-menu-item.arrastando > .import-menu-card {
+  box-shadow: 0 14px 30px rgba(16, 24, 40, 0.16);
+}
+
+.import-menu-alca {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #98a2b3;
+  cursor: grab;
+  display: flex;
+  justify-content: center;
+  padding: 4px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  touch-action: none;
+}
+
+.import-menu-alca:hover {
+  background: rgba(16, 24, 40, 0.06);
+  color: #52616a;
+}
+
+.import-menu-alca:active {
+  cursor: grabbing;
+}
+
+.import-menu-alca svg {
+  color: inherit;
+}
+
+.import-menu-ordem {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 18px;
+  color: #52616a;
+  font-size: 14px;
+}
+
+.import-menu-ordem small {
+  color: #667085;
+  font-size: 13px;
+}
+
+.import-menu-ordem-opcoes {
+  background: #ffffff;
+  border: 1px solid #eae8e3;
+  border-radius: 8px;
+  display: inline-flex;
+  padding: 3px;
+}
+
+.import-menu-ordem-opcoes button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #52616a;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+.import-menu-ordem-opcoes button.ativo {
+  background: #101828;
+  color: #ffffff;
+}
+
 .import-menu-card:hover {
   border-color: #b9c4d4;
   box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
@@ -7099,6 +7180,30 @@ th:nth-child(3) {
 .theme-dark .modal-panel,
 .theme-dark .settings-card,
 .theme-dark .report-generator-card,
+.theme-dark .import-menu-ordem-opcoes {
+  background: #1a1820;
+  border-color: #2c2935;
+}
+
+.theme-dark .import-menu-ordem-opcoes button {
+  color: #b4b2bd;
+}
+
+.theme-dark .import-menu-ordem-opcoes button.ativo {
+  background: #ececf0;
+  color: #1a1820;
+}
+
+.theme-dark .import-menu-ordem,
+.theme-dark .import-menu-ordem small {
+  color: #9a98a3;
+}
+
+.theme-dark .import-menu-alca:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ececf0;
+}
+
 .theme-dark .import-menu-card,
 .theme-dark .report-menu-card {
   background: #1a1820;
