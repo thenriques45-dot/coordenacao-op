@@ -1,5 +1,25 @@
 # Changelog
 
+## v4.5.3 - PDF no Flatpak, alunos por nível da AvD e ajustes de segurança
+
+Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças abaixo somadas ao fim de "outras mudanças".
+
+### Relatórios
+- **PDF sem fontes do sistema:** a geração de PDF (relatórios e PEI) continua preferindo as fontes instaladas (Calibri/Arial no Windows, DejaVu/Liberation no Linux), mas, se nenhuma for encontrada, usa a Liberation Sans embutida no app (licença SIL OFL 1.1). Antes o PDF falhava no Flatpak, cujo sandbox não expõe as fontes do sistema.
+- **Alunos por nível da AvD:** relatório pronto que filtra pelos níveis escolhidos na hora de gerar e monta um bloco por nível. Novos campos `avd_nivel` (nível da avaliação mais recente, sem o ano; "Proficiente" conta como Adequado) e `avd_nivel_escolhido` (Sim/Não). Os campos já leem `avd3` quando existir.
+
+### Privacidade
+- **Assistente de IA:** para provedores na internet (Gemini e prompt manual), o relatório pedagógico do aluno vai sem nome, RA, número de chamada, deficiências registradas, comentário da educação especial e códigos de escola/diretoria; o nome também sai do texto das tarefas. Só a IA local (Ollama) recebe os dados completos.
+
+### Segurança
+- **Fotos em .7z:** o pacote é lido em memória. Antes era descompactado numa pasta temporária sem conferir os nomes das entradas, e um .7z adulterado podia gravar arquivos fora dela.
+- **Anexos do Kanban e dos atendimentos:** programas e scripts não são mais abertos pelo anexo (o caminho do anexo viaja na sincronização do grupo).
+- **Relatórios importados:** a pasta de saída usa o identificador sanitizado, então um relatório baixado ou recebido com `../` no id não grava fora da pasta de relatórios.
+- **Link de leitura de respostas:** só são aceitos endereços `https://script.google.com/`, com tempo limite de conexão.
+- **Formulários do PEI e do Planejamento:** texto que começa com `=`, `+`, `-` ou `@` é gravado como texto, não como fórmula. Vale depois de reimplantar o Web App.
+- **WhatsApp:** um erro interno não trava mais todos os comandos do WhatsApp até reiniciar o app.
+- **Publicação:** a ação que monta o Flatpak (com a chave de assinatura) fica fixada numa versão.
+
 ## v4.5.2 - Importadores reordenáveis e Prova Paulista em lote
 
 Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças abaixo somadas ao fim de "outras mudanças".

@@ -433,6 +433,20 @@ const NOVIDADES_4_5_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.5.3": {
+    ...NOVIDADES_4_5_0,
+    outrasMudancas: [
+      ...(NOVIDADES_4_5_0.outrasMudancas ?? []),
+      "Corrigida a janela do \"Relatório diagnóstico\": as páginas a imprimir apareciam como bolhas grandes e desalinhadas. Agora ficam em linha, com a marcação ao lado do nome.",
+      "Importar dados: os importadores podem ser reordenados arrastando o cartão pelo ícone ⠿, e a ordem fica salva. A opção \"Mais usados primeiro\" organiza a tela sozinha, pela quantidade de vezes que você abre cada importador.",
+      "O Importar Prova Paulista aceita várias planilhas de uma vez, com um resumo de cada uma e um único botão para importar.",
+      "\"Importar notas\" agora se chama \"Importar mapões\" e traz notas, faltas por disciplina e aulas dadas. A frequência geral (% anual) passa a vir só do Aluno Presente.",
+      "Gerar PDF funciona em qualquer computador, inclusive no Linux pelo Flatpak: quando o sistema não tem uma fonte compatível, o app usa uma fonte própria (Liberation Sans).",
+      "Relatórios: novo relatório pronto \"Alunos por nível da AvD\". Você escolhe o componente e os níveis (por exemplo \"Abaixo do Básico, Básico\") e a lista sai com um bloco por nível, do mais baixo ao mais alto, usando a avaliação mais recente.",
+      "Assistente de IA: o relatório do aluno gerado pelo Gemini ou pelo prompt manual não leva mais nome, RA, deficiências nem o comentário da educação especial, e chama o aluno de \"o(a) estudante\". A IA local (Ollama) continua recebendo tudo, porque nada sai do computador.",
+      "Mais segurança: pacotes de fotos .7z, anexos sincronizados, relatórios importados e links de leitura de respostas passam a ser conferidos antes de usar, e o texto enviado pelos formulários do PEI e do Planejamento não vira mais fórmula na planilha.",
+    ],
+  },
   "4.5.2": {
     ...NOVIDADES_4_5_0,
     outrasMudancas: [
