@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, PoisonError};
 
 const GRAPH_BASE: &str = "https://graph.facebook.com/v21.0";
 const LIMITE_DIA_PADRAO: u32 = 250;
@@ -127,7 +127,7 @@ fn gravar(arquivo: &WhatsappApiArquivo) -> Result<(), String> {
 
 #[tauri::command]
 pub(crate) fn carregar_config_whatsapp_api() -> Result<WhatsappApiStatus, String> {
-    let _guard = ARQUIVO_LOCK.lock().unwrap();
+    let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
     Ok((&ler()).into())
 }
 
@@ -140,7 +140,7 @@ pub(crate) struct WhatsappApiInput {
 
 #[tauri::command]
 pub(crate) fn salvar_config_whatsapp_api(input: WhatsappApiInput) -> Result<WhatsappApiStatus, String> {
-    let _guard = ARQUIVO_LOCK.lock().unwrap();
+    let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
     let phone_number_id = input.phone_number_id.trim().to_string();
     let token = input.token.trim().to_string();
     if phone_number_id.is_empty() || token.is_empty() {
@@ -161,7 +161,7 @@ pub(crate) fn salvar_config_whatsapp_api(input: WhatsappApiInput) -> Result<What
 
 #[tauri::command]
 pub(crate) fn desativar_whatsapp_api() -> Result<WhatsappApiStatus, String> {
-    let _guard = ARQUIVO_LOCK.lock().unwrap();
+    let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
     let mut atual = ler();
     atual.ativo = false;
     gravar(&atual)?;
@@ -173,7 +173,7 @@ pub(crate) fn desativar_whatsapp_api() -> Result<WhatsappApiStatus, String> {
 #[tauri::command(async)]
 pub(crate) fn testar_conexao_whatsapp_api() -> Result<String, String> {
     let (phone_number_id, token) = {
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let a = ler();
         if !a.configurada() {
             return Err("Configure o Phone Number ID e o token antes de testar.".to_string());
@@ -207,7 +207,7 @@ pub(crate) fn testar_conexao_whatsapp_api() -> Result<String, String> {
         } else {
             format!("{numero} · {nome}")
         };
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let mut atual = ler();
         atual.numero_formatado = formatado.clone();
         atual.token_invalido = false;
@@ -216,7 +216,7 @@ pub(crate) fn testar_conexao_whatsapp_api() -> Result<String, String> {
     }
 
     if status.as_u16() == 401 || codigo_meta(&corpo) == Some(190) {
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let mut atual = ler();
         atual.token_invalido = true;
         atual.ativo = false;
@@ -270,7 +270,7 @@ pub(crate) struct EnvioApiResultado {
 #[tauri::command(async)]
 pub(crate) fn enviar_mensagem_whatsapp_api(input: EnvioApiInput) -> Result<EnvioApiResultado, String> {
     let (phone_number_id, token, limite) = {
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let a = ler();
         if !a.configurada() || !a.ativo || a.token_invalido {
             return Err("O envio automático não está ativo nesta máquina.".to_string());
@@ -321,7 +321,7 @@ pub(crate) fn enviar_mensagem_whatsapp_api(input: EnvioApiInput) -> Result<Envio
             .and_then(serde_json::Value::as_str)
             .unwrap_or("")
             .to_string();
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let mut atual = ler();
         let dia = hoje();
         *atual.uso.entry(dia).or_insert(0) += 1;
@@ -331,7 +331,7 @@ pub(crate) fn enviar_mensagem_whatsapp_api(input: EnvioApiInput) -> Result<Envio
     }
 
     if status.as_u16() == 401 || codigo_meta(&corpo) == Some(190) {
-        let _guard = ARQUIVO_LOCK.lock().unwrap();
+        let _guard = ARQUIVO_LOCK.lock().unwrap_or_else(PoisonError::into_inner);
         let mut atual = ler();
         atual.token_invalido = true;
         atual.ativo = false;

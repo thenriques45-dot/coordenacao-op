@@ -231,9 +231,23 @@ pub(crate) fn buscar_respostas_via_webapp(
     webapp_url: &str,
     token: &str,
 ) -> Result<Vec<Vec<String>>, String> {
+    // O link chega por colagem ou pela config compartilhada do grupo
+    // (sync): só aceitar endereços do Apps Script impede que um link
+    // adulterado mande o token de leitura para outro servidor.
+    if !webapp_url_permitida(webapp_url) {
+        return Err(
+            "Link do Web App inválido: ele precisa começar com https://script.google.com/. \
+             Peça o link de leitura de novo a quem publicou o formulário."
+                .to_string(),
+        );
+    }
     let separador = if webapp_url.contains('?') { "&" } else { "?" };
     let url = format!("{webapp_url}{separador}respostas={}", urlencoding_simples(token));
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|err| format!("Erro ao preparar a conexão com o Web App: {err}"))?;
     let resposta = client
         .get(&url)
         .send()
@@ -246,6 +260,10 @@ pub(crate) fn buscar_respostas_via_webapp(
         return Err(corpo.erro);
     }
     Ok(corpo.valores)
+}
+
+pub(crate) fn webapp_url_permitida(webapp_url: &str) -> bool {
+    webapp_url.trim().starts_with("https://script.google.com/")
 }
 
 /// Separa um link de leitura colado (formato "<webapp_url>?respostas=<token>",
@@ -267,4 +285,18 @@ pub(crate) fn separar_link_leitura(link: &str) -> Result<(String, String), Strin
             "Link inválido: não encontrei o parâmetro \"respostas\" no link.".to_string()
         })?;
     Ok((base.to_string(), token.to_string()))
+}
+
+#[cfg(test)]
+mod testes_webapp_url {
+    use super::webapp_url_permitida;
+
+    #[test]
+    fn so_aceita_enderecos_do_apps_script() {
+        assert!(webapp_url_permitida("https://script.google.com/macros/s/AKfy/exec"));
+        assert!(webapp_url_permitida("https://script.google.com/a/macros/escola.sp.gov.br/s/AKfy/exec"));
+        assert!(!webapp_url_permitida("http://script.google.com/macros/s/AKfy/exec"));
+        assert!(!webapp_url_permitida("https://script.google.com.evil.example/macros"));
+        assert!(!webapp_url_permitida("https://evil.example/?https://script.google.com/"));
+    }
 }

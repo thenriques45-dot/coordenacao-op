@@ -972,7 +972,8 @@ function escaparHtml(texto: string) {
   return texto
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function chipHtml(seg: Extract<SegmentoMensagem, { tipo: "var" }>) {

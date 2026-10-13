@@ -5,13 +5,12 @@
 
 use crate::*;
 
-use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     fs,
     io::Cursor,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use zip::ZipArchive;
 
@@ -269,28 +268,6 @@ pub(crate) fn mime_por_ext(ext: &str) -> &'static str {
     }
 }
 
-pub(crate) fn coletar_imagens_dir(
-    dir: &Path,
-    imagens: &mut Vec<(String, String, Vec<u8>)>,
-    todos: &mut Vec<String>,
-) {
-    if let Ok(entradas) = fs::read_dir(dir) {
-        for entrada in entradas.flatten() {
-            let caminho = entrada.path();
-            if caminho.is_dir() {
-                coletar_imagens_dir(&caminho, imagens, todos);
-            } else if let Some(nome) = caminho.file_name().and_then(|n| n.to_str()) {
-                todos.push(nome.to_string());
-                if let Ok(dados) = fs::read(&caminho) {
-                    if let Some((ext, conteudo)) = imagem_para_armazenar(nome, dados) {
-                        imagens.push((nome_base_arquivo(nome), ext, conteudo));
-                    }
-                }
-            }
-        }
-    }
-}
-
 // (nome_sem_ext, ext, bytes)
 pub(crate) type ImagemExtraida = (String, String, Vec<u8>);
 
@@ -303,21 +280,35 @@ pub(crate) fn extrair_imagens_arquivo(
     let mut imagens = Vec::new();
     let mut todos = Vec::new();
     if nome.to_ascii_lowercase().ends_with(".7z") {
-        let base = std::env::temp_dir().join(format!("coop_fotos_{}", Local::now().timestamp_millis()));
-        let arq = base.with_extension("7z");
-        fs::create_dir_all(&base).map_err(|e| e.to_string())?;
-        fs::write(&arq, bytes).map_err(|e| e.to_string())?;
-        let resultado = sevenz_rust::decompress_file(&arq, &base)
-            .map_err(|e| format!("Falha ao ler o arquivo .7z: {e}"));
-        if resultado.is_ok() {
-            coletar_imagens_dir(&base, &mut imagens, &mut todos);
-        }
-        let _ = fs::remove_dir_all(&base);
-        let _ = fs::remove_file(&arq);
-        resultado?;
+        // Lido em memória, como o .zip abaixo. Antes, o .7z era descompactado
+        // numa pasta temporária com `decompress_file`, que junta o nome de
+        // cada entrada ao destino sem checar: um .7z com entradas
+        // "../../algo" ou caminho absoluto gravava arquivos fora da pasta
+        // temporária (em qualquer lugar onde o usuário pode escrever).
+        let mut leitor = sevenz_rust::SevenZReader::new(
+            Cursor::new(bytes),
+            bytes.len() as u64,
+            sevenz_rust::Password::empty(),
+        )
+        .map_err(|e| format!("Falha ao ler o arquivo .7z: {e}"))?;
+        leitor
+            .for_each_entries(|entrada, conteudo| {
+                if entrada.is_directory() {
+                    return Ok(true);
+                }
+                let nome_entrada = entrada.name().to_string();
+                let rotulo = nome_entrada.rsplit(['/', '\\']).next().unwrap_or(&nome_entrada).to_string();
+                todos.push(rotulo);
+                let mut buf = Vec::new();
+                std::io::Read::read_to_end(conteudo, &mut buf).map_err(sevenz_rust::Error::io)?;
+                if let Some((ext, dados)) = imagem_para_armazenar(&nome_entrada, buf) {
+                    imagens.push((nome_base_arquivo(&nome_entrada), ext, dados));
+                }
+                Ok(true)
+            })
+            .map_err(|e| format!("Falha ao ler o arquivo .7z: {e}"))?;
     } else {
-        let cursor = Cursor::new(bytes.to_vec());
-        let mut zip = ZipArchive::new(cursor).map_err(|e| format!("Falha ao ler o arquivo .zip: {e}"))?;
+        let mut zip = ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("Falha ao ler o arquivo .zip: {e}"))?;
         for i in 0..zip.len() {
             let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
             if f.is_dir() {
@@ -532,4 +523,38 @@ pub(crate) fn remover_foto_aluno(matricula: String) -> Result<(), String> {
     let texto = serde_json::to_string_pretty(&Value::Object(mapa)).map_err(|e| e.to_string())?;
     let _ = escrever_json_atomicamente(&caminho_posicoes_foto()?, &texto);
     Ok(())
+}
+
+#[cfg(test)]
+mod testes_7z {
+    use super::extrair_imagens_arquivo;
+
+    fn pacote_7z(entradas: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut escritor = sevenz_rust::SevenZWriter::new(std::io::Cursor::new(Vec::new())).unwrap();
+        for (nome, dados) in entradas {
+            let mut entrada = sevenz_rust::SevenZArchiveEntry::new();
+            entrada.name = nome.to_string();
+            entrada.has_stream = true;
+            escritor.push_archive_entry(entrada, Some(*dados)).unwrap();
+        }
+        escritor.finish().unwrap().into_inner()
+    }
+
+    /// O .7z é lido em memória: entradas com "../" viram só rótulos e nada
+    /// é gravado em disco fora (nem dentro) da pasta temporária.
+    #[test]
+    fn le_7z_em_memoria_sem_gravar_entradas_com_caminho() {
+        let png: &[u8] = b"\x89PNG\r\n\x1a\n0000";
+        let alvo = std::env::temp_dir().join("coop_teste_7z_escapou.txt");
+        let _ = std::fs::remove_file(&alvo);
+        let nome_malicioso = format!("../../../../../../..{}", alvo.to_string_lossy());
+        let bytes = pacote_7z(&[("fotos/123.png", png), (&nome_malicioso, b"x")]);
+
+        let (imagens, todos) = extrair_imagens_arquivo("turma.7z", &bytes).unwrap();
+
+        assert_eq!(imagens.len(), 1);
+        assert_eq!(imagens[0].0, "123");
+        assert_eq!(todos.len(), 2);
+        assert!(!alvo.exists());
+    }
 }

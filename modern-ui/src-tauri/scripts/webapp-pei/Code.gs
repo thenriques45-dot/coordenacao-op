@@ -91,7 +91,7 @@ function obterDadosPei() {
 function registrarPei(dados) {
   var planilha = SpreadsheetApp.openById(PLANILHA_ID);
   var aba = planilha.getSheetByName(ABA_RESPOSTAS) || planilha.getSheets()[0];
-  aba.appendRow([
+  aba.appendRow(linhaSegura_([
     new Date(),
     dados.email || "",
     dados.professor || "",
@@ -104,7 +104,7 @@ function registrarPei(dados) {
     dados.estrategias || "",
     dados.instrumentos || "",
     dados.recursos || "",
-  ]);
+  ]));
 
   // Cópia por e-mail é melhor-esforço: se falhar, não deve derrubar o
   // envio — o registro já foi salvo na planilha. O motivo do erro volta
@@ -146,5 +146,16 @@ function enviarCopiaEmail_(dados) {
     to: dados.email,
     subject: "Confirmação — PEI enviado (" + (dados.nomeAluno || "") + ")",
     body: linhas.join("\n"),
+  });
+}
+
+// O Web App aceita envios de quem tem o link, e o appendRow transforma em
+// fórmula qualquer texto que comece com "=", "+", "-" ou "@". O apóstrofo
+// na frente faz a planilha guardar o texto como texto (ele não aparece na
+// célula nem volta na leitura), então nada digitado no formulário vira
+// fórmula quando o coordenador abre a planilha.
+function linhaSegura_(valores) {
+  return valores.map(function (valor) {
+    return typeof valor === "string" && /^[=+\-@]/.test(valor) ? "'" + valor : valor;
   });
 }
