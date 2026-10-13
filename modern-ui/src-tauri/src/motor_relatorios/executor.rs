@@ -563,6 +563,45 @@ mod testes {
         assert_eq!(secao.blocos[0].1[0].valores.len(), secao.colunas.len());
     }
 
+    /// "Alunos por nível da AvD": filtra pelos níveis escolhidos e monta um
+    /// bloco por nível, do mais baixo ao mais alto.
+    #[test]
+    fn alunos_por_nivel_avd_filtra_e_agrupa_por_nivel() {
+        use super::super::embutidos::definicao_alunos_por_nivel_avd;
+        let avd = |nivel: &str| json!({ "nivel": nivel, "aprendizagem_equivalente": "8º ano" });
+        let turma = turma_fixture(json!({
+            "codigo": "1ª Série A", "ano": 2026, "serie": "1ª Série", "periodo": "NOITE",
+            "alunos": {
+                "1": { "nome": "ALUNA AVANCADA", "ativo": true,
+                       "diagnostico_aprendizagem": { "matematica": { "avd1": avd("Avançado") } } },
+                "2": { "nome": "ALUNO BASICO", "ativo": true,
+                       "diagnostico_aprendizagem": { "matematica": { "avd1": avd("Abaixo do Básico"), "avd2": avd("Básico") } } },
+                "3": { "nome": "ALUNO ABAIXO", "ativo": true,
+                       "diagnostico_aprendizagem": { "matematica": { "avd2": avd("Abaixo do Básico") } } },
+                "4": { "nome": "ALUNO SEM AVD", "ativo": true }
+            }
+        }));
+        let turmas = vec![(PathBuf::from("turma.json"), turma)];
+        let definicao = definicao_alunos_por_nivel_avd();
+        let grupos = |escolha: &str| {
+            let mut informados = BTreeMap::new();
+            informados.insert("avd_niveis_filtro".to_string(), ValorExpressao::Texto(escolha.to_string()));
+            let parametros = resolver_parametros(&definicao, &informados);
+            let (secoes, ..) = montar_secoes(&definicao, &turmas, "3", 5.0, &parametros);
+            secoes[0]
+                .blocos
+                .iter()
+                .map(|(rotulo, linhas)| (rotulo.clone().unwrap_or_default(), linhas.len()))
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            grupos("Todos"),
+            [("Abaixo do Básico".to_string(), 1), ("Básico".to_string(), 1), ("Avançado".to_string(), 1)]
+        );
+        assert_eq!(grupos("Básico, Avançado"), [("Básico".to_string(), 1), ("Avançado".to_string(), 1)]);
+    }
+
     /// "Top Alunos" (ex-Top 60) agora aceita um parâmetro `quantidade_top`
     /// que sobrepõe o `limite_por_grupo` fixo da definição — prova que
     /// `limite_efetivo` realmente lê o parâmetro passado na hora de gerar,

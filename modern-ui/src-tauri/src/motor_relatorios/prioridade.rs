@@ -210,6 +210,107 @@ pub(crate) fn campo_avd_ano_equivalente(ctx: &ContextoLinha, parametro: Option<&
     ValorExpressao::Numero(ano.unwrap_or(99.0))
 }
 
+/// Os quatro níveis da AvD, na ordem do mais baixo ao mais alto. O BI às
+/// vezes escreve "Proficiente" no lugar de "Adequado" (mesma regra do
+/// diagnóstico da turma, em calculos.ts).
+pub(crate) const NIVEIS_AVD: [&str; 4] = ["Abaixo do Básico", "Básico", "Adequado", "Avançado"];
+
+pub(crate) const PARAM_NIVEIS_FILTRO: &str = "avd_niveis_filtro";
+pub(crate) const PADRAO_NIVEIS_FILTRO: &str = "Todos";
+
+fn nivel_padronizado(bruto: &str) -> Option<&'static str> {
+    let texto = normalizar_texto_basico(bruto);
+    if texto.starts_with("ABAIXO") {
+        Some(NIVEIS_AVD[0])
+    } else if texto.starts_with("BASIC") {
+        Some(NIVEIS_AVD[1])
+    } else if texto.starts_with("ADEQU") || texto.starts_with("PROFIC") {
+        Some(NIVEIS_AVD[2])
+    } else if texto.starts_with("AVANC") {
+        Some(NIVEIS_AVD[3])
+    } else {
+        None
+    }
+}
+
+/// Número da onda em chaves como "avd1", "avd2", "avd3"...
+fn numero_onda(chave: &str) -> Option<u32> {
+    chave.strip_prefix("avd")?.parse().ok()
+}
+
+/// Nível da avaliação mais recente que tem nível: a de maior número entre
+/// "avd1", "avd2", "avd3"... Não fica preso a duas avaliações, então uma
+/// 3ª AvD gravada como "avd3" já entra sozinha.
+fn nivel_mais_recente(ctx: &ContextoLinha, componente: Componente) -> Option<&'static str> {
+    let chave = match componente {
+        Componente::Matematica => "matematica",
+        Componente::Portugues => "portugues",
+    };
+    let ondas = ctx.aluno?.get("diagnostico_aprendizagem")?.get(chave)?.as_object()?;
+    let mut candidatas: Vec<(u32, &'static str)> = ondas
+        .iter()
+        .filter_map(|(onda, valor)| {
+            let nivel = valor.get("nivel").and_then(Value::as_str)?;
+            Some((numero_onda(onda)?, nivel_padronizado(nivel)?))
+        })
+        .collect();
+    candidatas.sort_by_key(|(numero, _)| *numero);
+    candidatas.last().map(|(_, nivel)| *nivel)
+}
+
+/// "Abaixo do Básico", "Básico", "Adequado" ou "Avançado", sem o ano
+/// equivalente: serve para filtrar e agrupar. Avaliação mais recente.
+pub(crate) fn campo_avd_nivel(ctx: &ContextoLinha, parametro: Option<&str>) -> ValorExpressao {
+    nivel_mais_recente(ctx, componente(ctx, parametro))
+        .map(|nivel| ValorExpressao::Texto(nivel.to_string()))
+        .unwrap_or(ValorExpressao::Nulo)
+}
+
+/// "Sim" quando o nível mais recente está entre os escolhidos no parâmetro
+/// de execução PARAM_NIVEIS_FILTRO ("Abaixo do Básico, Básico", "Básico e
+/// Avançado", "Todos"...). Sem nível na AvD, "Não".
+pub(crate) fn campo_avd_nivel_escolhido(ctx: &ContextoLinha, parametro: Option<&str>) -> ValorExpressao {
+    let Some(nivel) = nivel_mais_recente(ctx, componente(ctx, parametro)) else {
+        return ValorExpressao::Texto("Não".to_string());
+    };
+    let escolha = texto_parametro(ctx, PARAM_NIVEIS_FILTRO).unwrap_or_else(|| PADRAO_NIVEIS_FILTRO.to_string());
+    let escolhidos = niveis_escolhidos(&escolha);
+    let entra = escolhidos.is_empty() || escolhidos.contains(&nivel);
+    ValorExpressao::Texto(if entra { "Sim" } else { "Não" }.to_string())
+}
+
+/// Lê a lista de níveis digitada, com qualquer separador ("Abaixo do
+/// Básico, Básico", "Básico ou Avançado"). Nenhum nível reconhecido (ex.:
+/// "Todos") = todos.
+fn niveis_escolhidos(texto: &str) -> Vec<&'static str> {
+    let normalizado = normalizar_texto_basico(texto);
+    let palavras: Vec<&str> = normalizado.split_whitespace().collect();
+    let mut niveis = Vec::new();
+    let mut indice = 0;
+    while indice < palavras.len() {
+        let palavra = palavras[indice];
+        let nivel = if palavra.starts_with("ABAIXO") {
+            // "ABAIXO DO BASICO": o "BASICO" seguinte não é outro nível.
+            if palavras.get(indice + 1) == Some(&"DO") {
+                indice += 1;
+            }
+            if palavras.get(indice + 1).is_some_and(|seguinte| seguinte.starts_with("BASIC")) {
+                indice += 1;
+            }
+            Some(NIVEIS_AVD[0])
+        } else {
+            nivel_padronizado(palavra)
+        };
+        if let Some(nivel) = nivel {
+            if !niveis.contains(&nivel) {
+                niveis.push(nivel);
+            }
+        }
+        indice += 1;
+    }
+    niveis
+}
+
 pub(crate) fn campo_prova_paulista_media_componente(ctx: &ContextoLinha, parametro: Option<&str>) -> ValorExpressao {
     media_prova_paulista(ctx, componente(ctx, parametro))
         .map(|media| ValorExpressao::Numero((media * 10.0).round() / 10.0))
@@ -318,5 +419,52 @@ mod testes {
         parametros.insert(PARAM_COMPONENTE.to_string(), ValorExpressao::Texto("Matemática".into()));
         let (pontos, _, _) = avaliar_com(&parametros, Some("LP"));
         assert_eq!(pontos, ValorExpressao::Numero(1.0)); // só a frequência
+    }
+
+    #[test]
+    fn nivel_avd_usa_a_avaliacao_mais_recente_sem_o_ano() {
+        let turma: crate::TurmaArquivo = serde_json::from_value(serde_json::json!({ "codigo": "1ª Série A", "ano": 2026, "alunos": {} })).unwrap();
+        let aluno = serde_json::json!({
+            "diagnostico_aprendizagem": {
+                "matematica": {
+                    "avd1": { "nivel": "Abaixo do Básico", "aprendizagem_equivalente": "6º ano" },
+                    "avd2": { "nivel": "Básico", "aprendizagem_equivalente": "8º ano" },
+                    "avd3": { "nivel": "Proficiente", "aprendizagem_equivalente": "1ª série" }
+                },
+                "portugues": { "avd1": { "nivel": "Básico" }, "avd2": null }
+            }
+        });
+        let mut parametros = BTreeMap::new();
+        let nivel = |parametros: &BTreeMap<String, ValorExpressao>, componente: &str| {
+            let ctx = ContextoLinha {
+                turma: &turma,
+                matricula: None,
+                aluno: Some(&aluno),
+                bimestre: "3",
+                nota_minima: 5.0,
+                disciplina_contexto: None,
+                item: None,
+                parametros,
+            };
+            (campo_avd_nivel(&ctx, Some(componente)), campo_avd_nivel_escolhido(&ctx, Some(componente)))
+        };
+        // A 3ª AvD já entra, e "Proficiente" vira "Adequado".
+        assert_eq!(nivel(&parametros, "MAT"), (ValorExpressao::Texto("Adequado".into()), ValorExpressao::Texto("Sim".into())));
+        // A 2ª AvD de LP está vazia: vale a 1ª.
+        assert_eq!(nivel(&parametros, "LP").0, ValorExpressao::Texto("Básico".into()));
+
+        parametros.insert(PARAM_NIVEIS_FILTRO.to_string(), ValorExpressao::Texto("Abaixo do Básico".into()));
+        assert_eq!(nivel(&parametros, "LP").1, ValorExpressao::Texto("Não".into()), "Básico não é Abaixo do Básico");
+        parametros.insert(PARAM_NIVEIS_FILTRO.to_string(), ValorExpressao::Texto("abaixo do basico, Básico".into()));
+        assert_eq!(nivel(&parametros, "LP").1, ValorExpressao::Texto("Sim".into()));
+        assert_eq!(nivel(&parametros, "MAT").1, ValorExpressao::Texto("Não".into()));
+    }
+
+    #[test]
+    fn niveis_escolhidos_aceita_qualquer_separador() {
+        assert_eq!(niveis_escolhidos("Todos"), Vec::<&str>::new());
+        assert_eq!(niveis_escolhidos("Abaixo do Básico"), vec!["Abaixo do Básico"]);
+        assert_eq!(niveis_escolhidos("Abaixo do Básico ou Básico"), vec!["Abaixo do Básico", "Básico"]);
+        assert_eq!(niveis_escolhidos("Básico; Avançado e adequado"), vec!["Básico", "Avançado", "Adequado"]);
     }
 }
