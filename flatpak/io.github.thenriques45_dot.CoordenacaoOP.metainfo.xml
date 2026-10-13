@@ -72,6 +72,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.6.0" date="2026-10-13">
+      <description>
+        <ul>
+          <li>PDF export works without system fonts (bundled Liberation Sans), fixing PDF generation in the Flatpak</li>
+          <li>New built-in report: students grouped by AvD level</li>
+          <li>The AI assistant no longer sends student-identifying data to online providers</li>
+          <li>Security hardening for .7z photo imports, synced attachments, imported reports and web app links</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.5.2" date="2026-10-07">
       <description>
         <ul>
