@@ -156,14 +156,19 @@ export async function gerarRelatorioPedagogico(settings: AiAssistantSettings, in
     throw new Error("Ative o Assistente Pedagógico em Configurações antes de gerar relatórios.");
   }
 
+  // Só a IA local (Ollama) recebe os dados que identificam o aluno; para
+  // provedores na internet o prompt vai sem eles (ver montarPromptRelatorio).
+  const local = normalizarAiSettings(settings).provider === "ollama";
   return gerarTextoIa(settings, [
     { role: "system", content: INSTRUCOES_SISTEMA_PEDAGOGICO },
-    { role: "user", content: montarPromptRelatorio(input) },
+    { role: "user", content: montarPromptRelatorio(input, local) },
   ]);
 }
 
+/** Prompt do modo "Prompt manual": a pessoa cola em outra IA (na internet),
+ * então vai sem os dados que identificam o aluno. */
 export function montarPromptRelatorioPedagogico(input: AiStudentReportInput) {
-  return [INSTRUCOES_SISTEMA_PEDAGOGICO, "", montarPromptRelatorio(input)].join("\n");
+  return [INSTRUCOES_SISTEMA_PEDAGOGICO, "", montarPromptRelatorio(input, false)].join("\n");
 }
 
 function normalizarAiSettings(dados: Partial<AiAssistantSettings>): AiAssistantSettings {
@@ -289,7 +294,12 @@ async function requisicaoJson(url: string, init: { method: string; headers: Reco
   return dados;
 }
 
-function montarPromptRelatorio({ aluno, bimestre, turma, tarefas }: AiStudentReportInput) {
+// Dados do aluno para o prompt. Quando a IA não é local, saem nome, RA,
+// número de chamada, deficiências registradas, comentário da educação
+// especial e os códigos de escola/diretoria (LGPD: no plano gratuito do
+// Gemini, o Google pode usar o conteúdo enviado). O nome também é tirado
+// do texto das tarefas, e a IA é orientada a escrever "o(a) estudante".
+function montarPromptRelatorio({ aluno, bimestre, turma, tarefas }: AiStudentReportInput, local: boolean) {
   const disciplinas = aluno.disciplinas.map((disciplina) => {
     const media = disciplina.mediaConselho ?? disciplina.mediaOriginal;
     return {
@@ -302,29 +312,68 @@ function montarPromptRelatorio({ aluno, bimestre, turma, tarefas }: AiStudentRep
     };
   });
 
-  const dados = {
-    aluno: {
-      nome: aluno.nome,
-      ra: aluno.matricula ?? null,
-      numeroChamada: aluno.chamada ?? null,
-      turma: turma ?? null,
-      bimestre,
-      frequenciaPercentual: aluno.frequencia ?? null,
-      elegivelEducacaoEspecial: aluno.elegivel === true,
-      condicoesRegistradas: aluno.deficiencias ?? [],
-      comentarioEducacaoEspecial: aluno.comentarioEducacaoEspecial ?? null,
-      encaminhamentosSelecionados: aluno.encaminhamentos ?? [],
-      diagnosticoAvd: aluno.diagnosticoAprendizagem ?? null,
-      disciplinas,
-      tarefasRelacionadas: (tarefas ?? []).slice(0, 8),
-    },
-  };
+  const tarefasRelacionadas = (tarefas ?? []).slice(0, 8);
+  const diagnostico = aluno.diagnosticoAprendizagem ?? null;
+  const dados = local
+    ? {
+        aluno: {
+          nome: aluno.nome,
+          ra: aluno.matricula ?? null,
+          numeroChamada: aluno.chamada ?? null,
+          turma: turma ?? null,
+          bimestre,
+          frequenciaPercentual: aluno.frequencia ?? null,
+          elegivelEducacaoEspecial: aluno.elegivel === true,
+          condicoesRegistradas: aluno.deficiencias ?? [],
+          comentarioEducacaoEspecial: aluno.comentarioEducacaoEspecial ?? null,
+          encaminhamentosSelecionados: aluno.encaminhamentos ?? [],
+          diagnosticoAvd: diagnostico,
+          disciplinas,
+          tarefasRelacionadas,
+        },
+      }
+    : {
+        aluno: {
+          turma: turma ?? null,
+          bimestre,
+          frequenciaPercentual: aluno.frequencia ?? null,
+          elegivelEducacaoEspecial: aluno.elegivel === true,
+          encaminhamentosSelecionados: aluno.encaminhamentos ?? [],
+          diagnosticoAvd: diagnostico
+            ? { portugues: diagnostico.portugues, matematica: diagnostico.matematica, atualizado_em: diagnostico.atualizado_em }
+            : null,
+          disciplinas,
+          tarefasRelacionadas: tarefasRelacionadas.map((tarefa) => ({
+            ...tarefa,
+            titulo: semNomeDoAluno(tarefa.titulo, aluno.nome),
+            descricao: semNomeDoAluno(tarefa.descricao, aluno.nome),
+          })),
+        },
+      };
 
   return [
     "Gere um relatório pedagógico individual em formato de texto corrido com seções curtas.",
     "Inclua: síntese do desempenho, pontos de atenção, potencialidades observáveis pelos dados, intervenções pedagógicas sugeridas e encaminhamentos para acompanhamento.",
     "Não use listas muito longas. Não use linguagem médica. Não exponha que você é uma IA.",
+    ...(local ? [] : ["Os dados não trazem o nome do aluno: refira-se a ele como \"o(a) estudante\"."]),
     "Dados estruturados:",
     JSON.stringify(dados, null, 2),
   ].join("\n\n");
+}
+
+// Troca o nome completo e cada parte do nome com 3+ letras (exceto
+// partículas como "da", "dos") por "o(a) estudante" no texto livre das
+// tarefas, que costuma citar o aluno ("Conversar com a família do João").
+function semNomeDoAluno(texto: string, nome: string) {
+  if (!texto) return texto;
+  const escapar = (valor: string) => valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const partes = nome
+    .trim()
+    .split(/\s+/)
+    .filter((parte) => parte.length >= 3 && !["das", "dos", "del"].includes(parte.toLowerCase()));
+  const alvos = [nome.trim(), ...partes].filter(Boolean).map(escapar);
+  if (alvos.length === 0) return texto;
+  return texto
+    .replace(new RegExp(`(?<![\\p{L}])(?:${alvos.join("|")})(?![\\p{L}])`, "giu"), "o(a) estudante")
+    .replace(/o\(a\) estudante(?:\s+o\(a\) estudante)+/g, "o(a) estudante");
 }
