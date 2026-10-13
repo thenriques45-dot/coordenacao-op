@@ -327,6 +327,22 @@ pub(crate) const CAMPOS: &[CampoRelatorio] = &[
         extrator: super::prioridade::campo_avd2_nivel,
     },
     CampoRelatorio {
+        id: "avd_nivel",
+        rotulo: "AvD — Nível na Avaliação Mais Recente (sem o ano)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_avd_nivel,
+    },
+    CampoRelatorio {
+        id: "avd_nivel_escolhido",
+        rotulo: "AvD — Nível Está entre os Escolhidos (Sim/Não)",
+        categoria: CategoriaCampo::Notas,
+        tipo: TipoCampo::Texto,
+        requer_parametro: false,
+        extrator: super::prioridade::campo_avd_nivel_escolhido,
+    },
+    CampoRelatorio {
         id: "avd_ano_equivalente",
         rotulo: "AvD — Ano Equivalente (número, para ordenar)",
         categoria: CategoriaCampo::Notas,

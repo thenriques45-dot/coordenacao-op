@@ -568,6 +568,67 @@ pub(crate) fn definicao_alunos_prioritarios() -> ReportDefinition {
     }
 }
 
+/// Alunos de um ou mais níveis da AvD (avaliação mais recente), um bloco
+/// por nível do mais baixo ao mais alto. Componente e níveis são escolhidos
+/// na hora de gerar.
+pub(crate) fn definicao_alunos_por_nivel_avd() -> ReportDefinition {
+    use super::prioridade::{
+        NIVEIS_AVD, PADRAO_COMPONENTE, PADRAO_NIVEIS_FILTRO, PARAM_COMPONENTE, PARAM_NIVEIS_FILTRO,
+    };
+    ReportDefinition {
+        id: "alunos_por_nivel_avd".to_string(),
+        nome: "Alunos por nível da AvD".to_string(),
+        descricao: "Lista os alunos pelo nível na Avaliação Diagnóstica mais recente (Abaixo do Básico, Básico, \
+             Adequado ou Avançado), um bloco por nível. Escolha o componente e os níveis na hora de gerar: \
+             por exemplo \"Abaixo do Básico, Básico\" ou \"Todos\". Alunos sem AvD importada ficam de fora."
+            .to_string(),
+        autor: None,
+        embutido: true,
+        fonte: FiltroTurmas::default(),
+        parametros: vec![
+            DefinicaoParametro {
+                id: PARAM_COMPONENTE.to_string(),
+                rotulo: "Componente (Matemática ou Língua Portuguesa)".to_string(),
+                tipo: TipoParametro::Texto,
+                valor_padrao: ValorExpressao::Texto(PADRAO_COMPONENTE.to_string()),
+            },
+            DefinicaoParametro {
+                id: PARAM_NIVEIS_FILTRO.to_string(),
+                rotulo: "Níveis (Abaixo do Básico, Básico, Adequado, Avançado ou Todos)".to_string(),
+                tipo: TipoParametro::Texto,
+                valor_padrao: ValorExpressao::Texto(PADRAO_NIVEIS_FILTRO.to_string()),
+            },
+        ],
+        secoes: vec![SecaoRelatorio {
+            titulo: None,
+            fonte_linhas: FonteLinhas::PorAluno,
+            filtros: GrupoFiltros {
+                combinador: Combinador::E,
+                condicoes: vec![FiltroCondicao {
+                    campo: campo("avd_nivel_escolhido"),
+                    operador: Operador::Igual,
+                    valor: Some(literal_texto("Sim")),
+                }],
+            },
+            colunas: vec![
+                coluna("nome", "Aluno", campo("aluno_nome"), Some(3000), Alinhamento::Esquerda),
+                coluna("turma", "Turma", campo("turma_rotulo"), Some(1200), Alinhamento::Centro),
+                coluna("avd1", "1ª AvD", campo("avd1_nivel"), Some(1900), Alinhamento::Centro),
+                coluna("avd2", "2ª AvD", campo("avd2_nivel"), Some(1900), Alinhamento::Centro),
+            ],
+            ordenacao: vec![ordenacao("turma"), ordenacao("nome")],
+            agrupamento: AgrupamentoRelatorio {
+                campo: Some(campo("avd_nivel")),
+                limite_por_grupo: None,
+                limite_parametro: None,
+                ordem_grupos: Some(NIVEIS_AVD.iter().map(|nivel| nivel.to_string()).collect()),
+            },
+        }],
+        blocos: Vec::new(),
+        formato_saida: FormatoSaida::Docx,
+    }
+}
+
 pub(crate) fn definicoes_embutidas() -> Vec<ReportDefinition> {
     vec![
         definicao_top60(),
@@ -576,5 +637,6 @@ pub(crate) fn definicoes_embutidas() -> Vec<ReportDefinition> {
         definicao_elegiveis_recuperacao(),
         definicao_pendencia_lancamento(),
         definicao_alunos_prioritarios(),
+        definicao_alunos_por_nivel_avd(),
     ]
 }
