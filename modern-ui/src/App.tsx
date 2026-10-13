@@ -433,17 +433,32 @@ const NOVIDADES_4_5_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
-  "4.5.3": {
-    ...NOVIDADES_4_5_0,
+  "4.6.0": {
+    paginas: [
+      {
+        area: "Relatórios",
+        titulo: "Alunos por nível da AvD",
+        corpo:
+          "Um relatório pronto novo na Central de Relatórios. Na hora de gerar, escolha o componente e os níveis que quer ver, por exemplo \"Abaixo do Básico, Básico\" ou \"Todos\". A lista sai com um bloco por nível, do mais baixo ao mais alto, usando a avaliação mais recente de cada aluno.",
+        destaques: [
+          { icone: "filtro", titulo: "Só os níveis que importam", texto: "\"Básico\" não traz mais junto quem está \"Abaixo do Básico\": o nível agora vem separado do ano equivalente." },
+          { icone: "lista", titulo: "Um bloco por nível", texto: "Fica fácil montar grupos de recomposição ou entregar a lista aos professores." },
+        ],
+        irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
+      },
+      {
+        area: "Assistente de IA",
+        titulo: "Mais cuidado com os dados dos alunos",
+        corpo:
+          "Quando o relatório do aluno é gerado pelo Gemini ou pelo prompt manual, a IA não recebe mais nome, RA, número de chamada, deficiências nem o comentário da educação especial. O texto passa a chamar o aluno de \"o(a) estudante\". A IA local (Ollama) continua recebendo tudo, porque nada sai do computador.",
+        destaques: [
+          { icone: "aluno", titulo: "Sem identificar o aluno", texto: "Notas, faltas, AvD e encaminhamentos continuam indo, para o relatório seguir útil." },
+          { icone: "config", titulo: "Ollama sem mudança", texto: "Na IA local o relatório continua usando o nome do aluno." },
+        ],
+      },
+    ],
     outrasMudancas: [
-      ...(NOVIDADES_4_5_0.outrasMudancas ?? []),
-      "Corrigida a janela do \"Relatório diagnóstico\": as páginas a imprimir apareciam como bolhas grandes e desalinhadas. Agora ficam em linha, com a marcação ao lado do nome.",
-      "Importar dados: os importadores podem ser reordenados arrastando o cartão pelo ícone ⠿, e a ordem fica salva. A opção \"Mais usados primeiro\" organiza a tela sozinha, pela quantidade de vezes que você abre cada importador.",
-      "O Importar Prova Paulista aceita várias planilhas de uma vez, com um resumo de cada uma e um único botão para importar.",
-      "\"Importar notas\" agora se chama \"Importar mapões\" e traz notas, faltas por disciplina e aulas dadas. A frequência geral (% anual) passa a vir só do Aluno Presente.",
       "Gerar PDF funciona em qualquer computador, inclusive no Linux pelo Flatpak: quando o sistema não tem uma fonte compatível, o app usa uma fonte própria (Liberation Sans).",
-      "Relatórios: novo relatório pronto \"Alunos por nível da AvD\". Você escolhe o componente e os níveis (por exemplo \"Abaixo do Básico, Básico\") e a lista sai com um bloco por nível, do mais baixo ao mais alto, usando a avaliação mais recente.",
-      "Assistente de IA: o relatório do aluno gerado pelo Gemini ou pelo prompt manual não leva mais nome, RA, deficiências nem o comentário da educação especial, e chama o aluno de \"o(a) estudante\". A IA local (Ollama) continua recebendo tudo, porque nada sai do computador.",
       "Mais segurança: pacotes de fotos .7z, anexos sincronizados, relatórios importados e links de leitura de respostas passam a ser conferidos antes de usar, e o texto enviado pelos formulários do PEI e do Planejamento não vira mais fórmula na planilha.",
     ],
   },

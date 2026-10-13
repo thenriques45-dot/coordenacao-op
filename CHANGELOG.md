@@ -1,8 +1,6 @@
 # Changelog
 
-## v4.5.3 - PDF no Flatpak, alunos por nível da AvD e ajustes de segurança
-
-Versão de correção da 4.5.0. As novidades da 4.5.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças abaixo somadas ao fim de "outras mudanças".
+## v4.6.0 - Alunos por nível da AvD, privacidade no assistente de IA e PDF no Flatpak
 
 ### Relatórios
 - **PDF sem fontes do sistema:** a geração de PDF (relatórios e PEI) continua preferindo as fontes instaladas (Calibri/Arial no Windows, DejaVu/Liberation no Linux), mas, se nenhuma for encontrada, usa a Liberation Sans embutida no app (licença SIL OFL 1.1). Antes o PDF falhava no Flatpak, cujo sandbox não expõe as fontes do sistema.
