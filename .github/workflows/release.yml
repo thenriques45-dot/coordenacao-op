@@ -208,7 +208,10 @@ jobs:
           echo "fingerprint=$fpr" >> "$GITHUB_OUTPUT"
 
       - name: Build Flatpak
-        uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        # Fixado num commit (não em @master): este passo roda com a chave GPG
+        # que assina o repositório Flatpak carregada, então uma mudança no
+        # projeto de terceiros não pode entrar no build sem revisão.
+        uses: flathub-infra/flatpak-github-actions/flatpak-builder@933e9e8ca36e85046ebca8e211f0785c6becac40 # master em 2026-10-13
         with:
           manifest-path: flatpak/io.github.thenriques45_dot.CoordenacaoOP.yml
           branch: stable

@@ -172,6 +172,9 @@ pub(crate) fn abrir_anexo_kanban(caminho: String) -> Result<(), String> {
     if !arquivo.exists() || !arquivo.is_file() {
         return Err("Arquivo nao encontrado. Ele pode ter sido movido, renomeado ou apagado.".to_string());
     }
+    if extensao_executavel(&arquivo) {
+        return Err("Por seguranca, o aplicativo nao abre anexos que sao programas ou scripts. Abra a pasta do arquivo se precisar dele.".to_string());
+    }
     abrir_arquivo(&arquivo)
 }
 
@@ -227,6 +230,9 @@ pub(crate) fn abrir_anexo_atendimento(caminho: String) -> Result<(), String> {
     let arquivo = PathBuf::from(caminho);
     if !arquivo.exists() || !arquivo.is_file() {
         return Err("Arquivo nao encontrado. Ele pode ter sido movido, renomeado ou apagado.".to_string());
+    }
+    if extensao_executavel(&arquivo) {
+        return Err("Por seguranca, o aplicativo nao abre anexos que sao programas ou scripts. Abra a pasta do arquivo se precisar dele.".to_string());
     }
     abrir_arquivo(&arquivo)
 }
@@ -321,6 +327,24 @@ pub(crate) fn abrir_arquivo(arquivo: &Path) -> Result<(), String> {
             .map_err(|err| format!("Nao foi possivel abrir o documento: {err}"))?;
     }
     Ok(())
+}
+
+/// Anexos do Kanban e dos atendimentos guardam o caminho do arquivo, e esse
+/// caminho viaja na sincronização do grupo. Um caminho adulterado apontando
+/// para um programa faria o clique no anexo executá-lo, então extensões de
+/// programas e scripts nunca são abertas por aqui.
+fn extensao_executavel(arquivo: &Path) -> bool {
+    let ext = arquivo
+        .extension()
+        .and_then(|valor| valor.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    matches!(
+        ext.as_str(),
+        "exe" | "com" | "bat" | "cmd" | "ps1" | "psm1" | "vbs" | "vbe" | "js" | "jse" | "wsf" | "wsh"
+            | "hta" | "msi" | "msp" | "scr" | "pif" | "lnk" | "url" | "cpl" | "jar" | "reg" | "inf"
+            | "sh" | "desktop" | "appimage" | "run" | "command" | "app"
+    )
 }
 
 pub(crate) fn tipo_mime_por_caminho(caminho: &Path) -> String {

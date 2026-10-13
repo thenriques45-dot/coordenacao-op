@@ -445,7 +445,14 @@ fn agrupar_linhas(
 }
 
 fn pasta_saida_relatorio(id: &str) -> Result<PathBuf, String> {
-    Ok(data_dir().map_err(|err| err.to_string())?.join("relatorios").join(id))
+    // O id vem da definição, que pode ter sido baixada do repositório de
+    // relatórios ou importada de um .json de outra pessoa: sanitizado como
+    // no nome do arquivo da definição, para um id com "../" ou caminho
+    // absoluto não gravar o relatório fora da pasta de relatórios.
+    Ok(data_dir()
+        .map_err(|err| err.to_string())?
+        .join("relatorios")
+        .join(super::comandos::sanitizar_id_arquivo(id)))
 }
 
 fn nome_arquivo_relatorio(definicao: &ReportDefinition, bimestre: &str) -> String {
