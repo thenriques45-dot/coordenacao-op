@@ -609,11 +609,12 @@ const CANDIDATOS_FONTE_PDF: &[CandidatoFontePdf] = &[
     },
 ];
 
-/// Carrega uma família de fontes já instalada no sistema (Calibri/Arial no
-/// Windows, DejaVu/Liberation Sans no Linux) para o genpdf embutir no PDF.
-/// O projeto não embute nenhuma fonte TTF própria; se nenhum desses
-/// candidatos existir na máquina, a geração de PDF falha com uma mensagem
-/// clara em vez de silenciosamente sair errada.
+/// Carrega a família de fontes que o genpdf embute no PDF. Prefere uma
+/// fonte já instalada no sistema (Calibri/Arial no Windows, DejaVu/Liberation
+/// Sans no Linux) para manter a aparência de sempre; se nenhuma for achada,
+/// usa a Liberation Sans embutida no próprio executável (fontes/, licença
+/// SIL OFL 1.1). Sem esse fallback, o Flatpak não gerava PDF: o sandbox não
+/// expõe as fontes do sistema em /usr/share/fonts, só as do runtime.
 ///
 /// pub(crate) porque o exportador de PEI em PDF (pei.rs) reusa esta mesma
 /// lógica de fallback em vez de duplicar a lista de fontes candidatas.
@@ -640,11 +641,24 @@ pub(crate) fn carregar_familia_fonte_pdf() -> Result<genpdf::fonts::FontFamily<g
             bold_italic: carregar(&caminhos[3])?,
         });
     }
-    Err(
-        "Não encontrei nenhuma fonte compatível instalada no sistema para gerar PDF (Calibri, Arial, \
-         DejaVu Sans ou Liberation Sans). Gere em .docx, .xlsx ou .csv, ou instale uma dessas fontes."
-            .to_string(),
-    )
+    familia_fonte_pdf_embutida()
+}
+
+const FONTE_EMBUTIDA_REGULAR: &[u8] = include_bytes!("../../fontes/LiberationSans-Regular.ttf");
+const FONTE_EMBUTIDA_NEGRITO: &[u8] = include_bytes!("../../fontes/LiberationSans-Bold.ttf");
+const FONTE_EMBUTIDA_ITALICO: &[u8] = include_bytes!("../../fontes/LiberationSans-Italic.ttf");
+const FONTE_EMBUTIDA_NEGRITO_ITALICO: &[u8] = include_bytes!("../../fontes/LiberationSans-BoldItalic.ttf");
+
+fn familia_fonte_pdf_embutida() -> Result<genpdf::fonts::FontFamily<genpdf::fonts::FontData>, String> {
+    let carregar = |bytes: &[u8]| -> Result<genpdf::fonts::FontData, String> {
+        genpdf::fonts::FontData::new(bytes.to_vec(), None).map_err(|err| err.to_string())
+    };
+    Ok(genpdf::fonts::FontFamily {
+        regular: carregar(FONTE_EMBUTIDA_REGULAR)?,
+        bold: carregar(FONTE_EMBUTIDA_NEGRITO)?,
+        italic: carregar(FONTE_EMBUTIDA_ITALICO)?,
+        bold_italic: carregar(FONTE_EMBUTIDA_NEGRITO_ITALICO)?,
+    })
 }
 
 fn escrever_tabela_pdf(documento: &mut genpdf::Document, secao: &SecaoResultado) -> Result<(), String> {
@@ -876,5 +890,29 @@ mod testes_espacador {
             let esperado = format!("A\n\n{}B\n\n", "\n".repeat(linhas as usize));
             assert_eq!(corpo, esperado, "esperava {linhas} linha(s) em branco entre A e B");
         }
+    }
+}
+
+#[cfg(test)]
+mod testes_fonte_pdf {
+    use super::*;
+
+    /// A fonte embutida é o que garante PDF onde o sistema não expõe fontes
+    /// (Flatpak, Fedora sem Liberation/DejaVu): ela precisa carregar e
+    /// renderizar texto com acentos.
+    #[test]
+    fn fonte_embutida_gera_pdf_com_acentos() {
+        use genpdf::elements::Paragraph;
+        use genpdf::style::Effect;
+        use genpdf::Element as _;
+
+        let familia = familia_fonte_pdf_embutida().expect("fonte embutida deve carregar");
+        let mut documento = genpdf::Document::new(familia);
+        documento.push(Paragraph::new("Coordenação pedagógica — avaliação"));
+        documento.push(Paragraph::new("Negrito ação").styled(Effect::Bold));
+        documento.push(Paragraph::new("Itálico ação").styled(Effect::Italic));
+        let mut saida = Vec::new();
+        documento.render(&mut saida).expect("PDF deve ser gerado");
+        assert!(saida.starts_with(b"%PDF"));
     }
 }
