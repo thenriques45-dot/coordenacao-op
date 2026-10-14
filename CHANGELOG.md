@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.6.1 - Relatórios salvos na pasta certa na versão da Microsoft Store
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com a correção abaixo somada ao fim de "outras mudanças".
+
+### Correções
+- **Versão da Microsoft Store:** o Windows desvia as gravações dos apps da Store em `%APPDATA%` para a pasta privada do pacote. O app mostrava `C:\Users\<usuário>\AppData\Roaming\CoordenacaoOP\...`, que não existia fora dele, e o Explorer e o Word não achavam os relatórios. Agora os dados ficam direto na pasta real do pacote (`%LOCALAPPDATA%\Packages\<pacote>\LocalCache\Roaming\CoordenacaoOP`), onde já estavam, e o caminho mostrado e os botões "Abrir relatório" e "Abrir pasta" funcionam. Na primeira abertura, arquivos que só existiam na pasta `%APPDATA%\CoordenacaoOP` de verdade (de outra instalação) são copiados para lá, sem sobrescrever nada.
+
 ## v4.6.0 - Alunos por nível da AvD, privacidade no assistente de IA e PDF no Flatpak
 
 ### Relatórios

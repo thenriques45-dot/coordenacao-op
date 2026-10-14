@@ -432,36 +432,45 @@ const NOVIDADES_4_5_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_6_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Relatórios",
+      titulo: "Alunos por nível da AvD",
+      corpo:
+        "Um relatório pronto novo na Central de Relatórios. Na hora de gerar, escolha o componente e os níveis que quer ver, por exemplo \"Abaixo do Básico, Básico\" ou \"Todos\". A lista sai com um bloco por nível, do mais baixo ao mais alto, usando a avaliação mais recente de cada aluno.",
+      destaques: [
+        { icone: "filtro", titulo: "Só os níveis que importam", texto: "\"Básico\" não traz mais junto quem está \"Abaixo do Básico\": o nível agora vem separado do ano equivalente." },
+        { icone: "lista", titulo: "Um bloco por nível", texto: "Fica fácil montar grupos de recomposição ou entregar a lista aos professores." },
+      ],
+      irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
+    },
+    {
+      area: "Assistente de IA",
+      titulo: "Mais cuidado com os dados dos alunos",
+      corpo:
+        "Quando o relatório do aluno é gerado pelo Gemini ou pelo prompt manual, a IA não recebe mais nome, RA, número de chamada, deficiências nem o comentário da educação especial. O texto passa a chamar o aluno de \"o(a) estudante\". A IA local (Ollama) continua recebendo tudo, porque nada sai do computador.",
+      destaques: [
+        { icone: "aluno", titulo: "Sem identificar o aluno", texto: "Notas, faltas, AvD e encaminhamentos continuam indo, para o relatório seguir útil." },
+        { icone: "config", titulo: "Ollama sem mudança", texto: "Na IA local o relatório continua usando o nome do aluno." },
+      ],
+    },
+  ],
+  outrasMudancas: [
+    "Gerar PDF funciona em qualquer computador, inclusive no Linux pelo Flatpak: quando o sistema não tem uma fonte compatível, o app usa uma fonte própria (Liberation Sans).",
+    "Mais segurança: pacotes de fotos .7z, anexos sincronizados, relatórios importados e links de leitura de respostas passam a ser conferidos antes de usar, e o texto enviado pelos formulários do PEI e do Planejamento não vira mais fórmula na planilha.",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
-  "4.6.0": {
-    paginas: [
-      {
-        area: "Relatórios",
-        titulo: "Alunos por nível da AvD",
-        corpo:
-          "Um relatório pronto novo na Central de Relatórios. Na hora de gerar, escolha o componente e os níveis que quer ver, por exemplo \"Abaixo do Básico, Básico\" ou \"Todos\". A lista sai com um bloco por nível, do mais baixo ao mais alto, usando a avaliação mais recente de cada aluno.",
-        destaques: [
-          { icone: "filtro", titulo: "Só os níveis que importam", texto: "\"Básico\" não traz mais junto quem está \"Abaixo do Básico\": o nível agora vem separado do ano equivalente." },
-          { icone: "lista", titulo: "Um bloco por nível", texto: "Fica fácil montar grupos de recomposição ou entregar a lista aos professores." },
-        ],
-        irPara: { rotulo: "Abrir Relatórios", tela: "relatorios" },
-      },
-      {
-        area: "Assistente de IA",
-        titulo: "Mais cuidado com os dados dos alunos",
-        corpo:
-          "Quando o relatório do aluno é gerado pelo Gemini ou pelo prompt manual, a IA não recebe mais nome, RA, número de chamada, deficiências nem o comentário da educação especial. O texto passa a chamar o aluno de \"o(a) estudante\". A IA local (Ollama) continua recebendo tudo, porque nada sai do computador.",
-        destaques: [
-          { icone: "aluno", titulo: "Sem identificar o aluno", texto: "Notas, faltas, AvD e encaminhamentos continuam indo, para o relatório seguir útil." },
-          { icone: "config", titulo: "Ollama sem mudança", texto: "Na IA local o relatório continua usando o nome do aluno." },
-        ],
-      },
-    ],
+  "4.6.1": {
+    ...NOVIDADES_4_6_0,
     outrasMudancas: [
-      "Gerar PDF funciona em qualquer computador, inclusive no Linux pelo Flatpak: quando o sistema não tem uma fonte compatível, o app usa uma fonte própria (Liberation Sans).",
-      "Mais segurança: pacotes de fotos .7z, anexos sincronizados, relatórios importados e links de leitura de respostas passam a ser conferidos antes de usar, e o texto enviado pelos formulários do PEI e do Planejamento não vira mais fórmula na planilha.",
+      ...(NOVIDADES_4_6_0.outrasMudancas ?? []),
+      "Corrigido na versão da Microsoft Store: relatórios e outros arquivos gerados ficavam numa pasta escondida pelo Windows, e o caminho mostrado (em AppData\\Roaming) não existia. Agora o app usa a pasta real e os botões \"Abrir relatório\" e \"Abrir pasta\" funcionam.",
     ],
   },
+  "4.6.0": NOVIDADES_4_6_0,
   "4.5.2": {
     ...NOVIDADES_4_5_0,
     outrasMudancas: [
