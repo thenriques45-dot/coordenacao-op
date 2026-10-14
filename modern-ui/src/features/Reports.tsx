@@ -1,6 +1,7 @@
 import { AlertTriangle, BarChart3, ClipboardList, FileText, FileWarning, FolderGit2, RefreshCw, Sparkles, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invokeApp } from "./appBridge";
+import { CampoParametro, type OpcoesParametro } from "./motorRelatorios/CampoParametro";
 
 type TurmaResumoRelatorio = {
   codigo: string;
@@ -763,6 +764,7 @@ type DefinicaoParametro = {
   rotulo: string;
   tipo: "numero" | "texto";
   valor_padrao: ValorExpressaoDTO;
+  opcoes?: string[];
 };
 
 type ReportDefinition = {
@@ -781,6 +783,19 @@ type RelatorioGenericoResultado = {
   linhas: number;
   grupos: number;
 };
+
+function parametrosParaEnvio(
+  parametros: DefinicaoParametro[],
+  valores: Record<string, string>
+): Record<string, ValorExpressaoDTO> {
+  const resultado: Record<string, ValorExpressaoDTO> = {};
+  for (const parametro of parametros) {
+    const texto = valores[parametro.id] ?? valorPadraoTexto(parametro.valor_padrao);
+    resultado[parametro.id] =
+      parametro.tipo === "numero" ? { tipo: "numero", valor: Number(texto) || 0 } : { tipo: "texto", valor: texto };
+  }
+  return resultado;
+}
 
 function valorPadraoTexto(valor: ValorExpressaoDTO): string {
   if (valor.tipo === "numero") return String(valor.valor);
@@ -824,6 +839,7 @@ export function MotorRelatorios({
   const [selecionadaId, setSelecionadaId] = useState("");
   const [bimestre, setBimestre] = useState("4");
   const [valoresParametros, setValoresParametros] = useState<Record<string, string>>({});
+  const [opcoesParametros, setOpcoesParametros] = useState<Record<string, OpcoesParametro>>({});
   const [carregando, setCarregando] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [resultado, setResultado] = useState<RelatorioGenericoResultado | null>(null);
@@ -861,18 +877,29 @@ export function MotorRelatorios({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selecionadaId]);
 
+  useEffect(() => {
+    if (!definicaoSelecionada) return;
+    let ativo = true;
+    invokeApp<Record<string, OpcoesParametro>>("listar_opcoes_parametros_relatorio", {
+      input: { definicao: definicaoSelecionada, bimestre, parametros: parametrosParaEnvio(parametrosUsados, valoresParametros) },
+    })
+      .then((opcoes) => ativo && setOpcoesParametros(opcoes))
+      .catch(() => ativo && setOpcoesParametros({}));
+    return () => {
+      ativo = false;
+    };
+    // Recalcula ao trocar de relatório ou bimestre; os valores escolhidos só
+    // mudam as listas de campos que dependem de outro parâmetro.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definicaoSelecionada, bimestre]);
+
   function gerarRelatorio() {
     if (!definicaoSelecionada) return;
     setProcessando(true);
     setErro("");
     setMensagem("");
     setResultado(null);
-    const parametros: Record<string, ValorExpressaoDTO> = {};
-    for (const parametro of parametrosUsados) {
-      const texto = valoresParametros[parametro.id] ?? valorPadraoTexto(parametro.valor_padrao);
-      parametros[parametro.id] =
-        parametro.tipo === "numero" ? { tipo: "numero", valor: Number(texto) || 0 } : { tipo: "texto", valor: texto };
-    }
+    const parametros = parametrosParaEnvio(parametrosUsados, valoresParametros);
     invokeApp<RelatorioGenericoResultado>("executar_relatorio_generico", {
       input: { definicao: definicaoSelecionada, bimestre, parametros },
     })
@@ -946,12 +973,11 @@ export function MotorRelatorios({
           {parametrosUsados.map((parametro) => (
             <label key={parametro.id}>
               {parametro.rotulo}
-              <input
-                type={parametro.tipo === "numero" ? "number" : "text"}
-                value={valoresParametros[parametro.id] ?? ""}
-                onChange={(event) =>
-                  setValoresParametros((atual) => ({ ...atual, [parametro.id]: event.target.value }))
-                }
+              <CampoParametro
+                tipo={parametro.tipo}
+                valor={valoresParametros[parametro.id] ?? ""}
+                opcoes={opcoesParametros[parametro.id]}
+                onMudar={(valor) => setValoresParametros((atual) => ({ ...atual, [parametro.id]: valor }))}
               />
             </label>
           ))}

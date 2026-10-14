@@ -30,6 +30,10 @@ pub(crate) const PADRAO_PROVA_PAULISTA: f64 = 5.0;
 pub(crate) const PADRAO_SARESP: f64 = 4.0;
 pub(crate) const PADRAO_PONTOS: f64 = 2.5;
 
+/// Escolhas das listas suspensas na hora de gerar.
+pub(crate) const COMPONENTES_AVD: [&str; 2] = ["Matemática", "Língua Portuguesa"];
+pub(crate) const OPCOES_NIVEL_AVD: [&str; 2] = ["Abaixo do Básico", "Abaixo do Básico ou Básico"];
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Componente {
     Matematica,
@@ -217,6 +221,15 @@ pub(crate) const NIVEIS_AVD: [&str; 4] = ["Abaixo do Básico", "Básico", "Adequ
 
 pub(crate) const PARAM_NIVEIS_FILTRO: &str = "avd_niveis_filtro";
 pub(crate) const PADRAO_NIVEIS_FILTRO: &str = "Todos";
+pub(crate) const OPCOES_NIVEIS_FILTRO: [&str; 7] = [
+    "Todos",
+    "Abaixo do Básico",
+    "Básico",
+    "Adequado",
+    "Avançado",
+    "Abaixo do Básico, Básico",
+    "Adequado, Avançado",
+];
 
 fn nivel_padronizado(bruto: &str) -> Option<&'static str> {
     let texto = normalizar_texto_basico(bruto);

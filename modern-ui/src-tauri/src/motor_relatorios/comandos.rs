@@ -13,7 +13,7 @@ use crate::*;
 use super::campos::{CategoriaCampo, TipoCampo, CAMPOS};
 use super::definicao::{BlocoRelatorio, ConteudoBloco, ReportDefinition};
 use super::embutidos::definicoes_embutidas;
-use super::executor::{executar_relatorio, RelatorioGenericoResultado, SecaoPreview};
+use super::executor::{executar_relatorio, OpcoesParametro, RelatorioGenericoResultado, SecaoPreview};
 use super::expressoes::ValorExpressao;
 
 /// DTO do registro de campos pro construtor visual — a struct real
@@ -247,6 +247,16 @@ pub(crate) fn pre_visualizar_relatorio(input: PreVisualizarRelatorioInput) -> Re
         &input.parametros,
         LIMITE_PADRAO_PREVISUALIZACAO,
     )
+}
+
+/// Valores para as listas suspensas dos parâmetros (tela de gerar e
+/// construtor). `parametros` são os valores já escolhidos, pra campos que
+/// dependem de outro parâmetro (ex.: nível da AvD pelo componente).
+#[tauri::command(async)]
+pub(crate) fn listar_opcoes_parametros_relatorio(
+    input: PreVisualizarRelatorioInput,
+) -> Result<BTreeMap<String, OpcoesParametro>, String> {
+    super::executor::opcoes_parametros(&input.definicao, &input.bimestre, &input.parametros)
 }
 
 #[tauri::command(async)]

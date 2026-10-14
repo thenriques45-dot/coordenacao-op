@@ -72,6 +72,13 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.6.2" date="2026-10-14">
+      <description>
+        <ul>
+          <li>Reports: text parameters are now drop-down lists with the values found in your data, plus an "All" option</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.6.1" date="2026-10-14">
       <description>
         <ul>
