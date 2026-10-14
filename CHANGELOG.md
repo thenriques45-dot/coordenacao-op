@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.6.2 - Parâmetros dos relatórios em listas para escolher
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 e desta versão somadas ao fim de "outras mudanças".
+
+### Relatórios
+- **Parâmetros em listas suspensas:** na hora de gerar e no bloco "Parâmetros" do construtor, cada parâmetro de texto usado num filtro (igual, diferente ou contém) vira uma lista com os valores que o campo tem nos dados importados, como as séries das turmas ou os níveis da AvD. A lista começa com "Todos", que desliga aquele filtro. Antes era preciso digitar o valor exatamente, e um erro de digitação gerava um relatório vazio sem aviso.
+- Os relatórios prontos "Alunos por nível da AvD" e "Alunos prioritários (AvD)" ganham listas fixas para o componente e os níveis.
+- Um valor salvo que não existe mais nos dados aparece como "(não encontrado nos dados)", em vez de sumir. Parâmetros de número continuam sendo digitados.
+
 ## v4.6.1 - Relatórios salvos na pasta certa na versão da Microsoft Store
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com a correção abaixo somada ao fim de "outras mudanças".
