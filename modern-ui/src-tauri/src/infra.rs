@@ -172,6 +172,17 @@ pub(crate) fn app_base_dir() -> io::Result<PathBuf> {
         return Ok(base);
     }
 
+    // Na versão da Microsoft Store (MSIX) o Windows desvia em silêncio as
+    // gravações em %APPDATA% para a pasta privada do pacote. O app enxergava
+    // os arquivos, mas o caminho que mostrava (e passava ao Explorer e ao
+    // Word) não existia de verdade fora dele: o relatório "não era salvo".
+    // Usando direto a pasta real do pacote, o caminho mostrado é o verdadeiro.
+    if let Some(base) = pasta_dados_store() {
+        trazer_dados_da_visao_virtualizada(&base);
+        preparar_base_portatil(&base)?;
+        return Ok(base);
+    }
+
     // No Flatpak o executável fica em /app (só leitura) e a pasta de trabalho
     // costuma ser a pasta pessoal: as regras de modo portátil abaixo gravariam
     // os dados soltos no $HOME. Vai direto para a pasta do sandbox
@@ -266,6 +277,96 @@ pub(crate) fn pasta_dados_usuario() -> io::Result<PathBuf> {
     }
 
     Ok(env::current_dir()?.join("coordenacaoop-dados"))
+}
+
+/// `%LOCALAPPDATA%\Packages\<família do pacote>\LocalCache\Roaming\CoordenacaoOP`:
+/// é para lá que o Windows já mandava as gravações em `%APPDATA%\CoordenacaoOP`
+/// feitas pela versão da Store, então os dados existentes continuam no lugar.
+/// `None` fora da Store ou se o app não estiver rodando como pacote.
+#[cfg(all(target_os = "windows", feature = "store"))]
+fn pasta_dados_store() -> Option<PathBuf> {
+    let familia = familia_pacote_msix()?;
+    let local = env::var_os("LOCALAPPDATA")?;
+    Some(
+        PathBuf::from(local)
+            .join("Packages")
+            .join(familia)
+            .join("LocalCache")
+            .join("Roaming")
+            .join("CoordenacaoOP"),
+    )
+}
+
+#[cfg(not(all(target_os = "windows", feature = "store")))]
+fn pasta_dados_store() -> Option<PathBuf> {
+    None
+}
+
+#[cfg(all(target_os = "windows", feature = "store"))]
+fn familia_pacote_msix() -> Option<String> {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetCurrentPackageFamilyName(tamanho: *mut u32, nome: *mut u16) -> i32;
+    }
+    const ERROR_INSUFFICIENT_BUFFER: i32 = 122;
+
+    let mut tamanho: u32 = 0;
+    // Sem pacote a chamada devolve APPMODEL_ERROR_NO_PACKAGE.
+    let erro = unsafe { GetCurrentPackageFamilyName(&mut tamanho, std::ptr::null_mut()) };
+    if erro != ERROR_INSUFFICIENT_BUFFER || tamanho == 0 {
+        return None;
+    }
+    let mut nome = vec![0u16; tamanho as usize];
+    let erro = unsafe { GetCurrentPackageFamilyName(&mut tamanho, nome.as_mut_ptr()) };
+    if erro != 0 {
+        return None;
+    }
+    let fim = nome.iter().position(|&c| c == 0).unwrap_or(nome.len());
+    let familia = String::from_utf16_lossy(&nome[..fim]);
+    (!familia.is_empty()).then_some(familia)
+}
+
+/// Até a 4.6.0 a versão da Store lia `%APPDATA%\CoordenacaoOP` pela visão
+/// mesclada do Windows (pasta real + pasta do pacote). Quem tinha dados ali de
+/// outra instalação via esses arquivos mesmo sem cópia na pasta do pacote; uma
+/// vez só, copia o que falta para não perdê-los ao usar o caminho real.
+#[cfg(all(target_os = "windows", feature = "store"))]
+fn trazer_dados_da_visao_virtualizada(base: &Path) {
+    let marcador = base.join(".appdata_mesclado");
+    if marcador.exists() {
+        return;
+    }
+    let Some(appdata) = env::var_os("APPDATA") else {
+        return;
+    };
+    let origem = PathBuf::from(appdata).join("CoordenacaoOP");
+    if origem.is_dir() && caminhos_diferentes(&origem, base) {
+        if copiar_arquivos_faltantes(&origem, base).is_err() {
+            return;
+        }
+    }
+    if fs::create_dir_all(base).is_ok() {
+        let _ = fs::write(marcador, b"ok");
+    }
+}
+
+#[cfg(not(all(target_os = "windows", feature = "store")))]
+fn trazer_dados_da_visao_virtualizada(_base: &Path) {}
+
+/// Copia de `origem` para `destino` só os arquivos que ainda não existem lá,
+/// sem sobrescrever nada.
+#[cfg_attr(not(all(target_os = "windows", feature = "store")), allow(dead_code))]
+pub(crate) fn copiar_arquivos_faltantes(origem: &Path, destino: &Path) -> io::Result<()> {
+    if origem.is_dir() {
+        fs::create_dir_all(destino)?;
+        for entrada in fs::read_dir(origem)? {
+            let entrada = entrada?;
+            copiar_arquivos_faltantes(&entrada.path(), &destino.join(entrada.file_name()))?;
+        }
+    } else if !destino.exists() {
+        fs::copy(origem, destino)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn data_dir() -> io::Result<PathBuf> {
@@ -411,6 +512,28 @@ pub(crate) fn caminhos_diferentes(a: &Path, b: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn copiar_arquivos_faltantes_nao_sobrescreve() {
+        let raiz = env::temp_dir().join(format!("coordop_faltantes_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&raiz);
+        let origem = raiz.join("origem");
+        let destino = raiz.join("destino");
+        fs::create_dir_all(origem.join("dados").join("relatorios")).unwrap();
+        fs::write(origem.join("dados").join("a.json"), "velho").unwrap();
+        fs::write(origem.join("dados").join("relatorios").join("r.docx"), "r").unwrap();
+        fs::create_dir_all(destino.join("dados")).unwrap();
+        fs::write(destino.join("dados").join("a.json"), "novo").unwrap();
+
+        copiar_arquivos_faltantes(&origem, &destino).unwrap();
+
+        assert_eq!(fs::read_to_string(destino.join("dados").join("a.json")).unwrap(), "novo");
+        assert_eq!(
+            fs::read_to_string(destino.join("dados").join("relatorios").join("r.docx")).unwrap(),
+            "r"
+        );
+        let _ = fs::remove_dir_all(&raiz);
+    }
 
     #[test]
     fn json_com_zeros_no_fim_volta_a_ser_lido() {
