@@ -177,6 +177,11 @@ pub(crate) struct DefinicaoParametro {
     pub(crate) rotulo: String,
     pub(crate) tipo: TipoParametro,
     pub(crate) valor_padrao: ValorExpressao,
+    /// Escolhas fixas para a lista suspensa na hora de gerar (ex.: os
+    /// componentes da AvD). Vazia = a UI monta a lista com os valores que
+    /// existem nos dados (ver `executor::opcoes_parametros`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) opcoes: Vec<String>,
 }
 
 /// Uma tabela dentro do relatório. A maioria dos relatórios tem uma seção

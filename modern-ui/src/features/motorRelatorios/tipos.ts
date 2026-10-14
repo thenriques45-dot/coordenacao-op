@@ -100,6 +100,8 @@ export type DefinicaoParametro = {
   rotulo: string;
   tipo: TipoParametro;
   valor_padrao: ValorExpressao;
+  // Escolhas fixas da lista suspensa (só os relatórios embutidos usam hoje).
+  opcoes?: string[];
 };
 
 export type SecaoRelatorio = {

@@ -17,7 +17,7 @@ use crate::*;
 use super::campos::ContextoLinha;
 use super::colecoes;
 use super::definicao::{
-    AgrupamentoRelatorio, Combinador, ColunaRelatorio, FiltroTurmas, FonteLinhas, FormatoSaida, GrupoFiltros,
+    AgrupamentoRelatorio, Combinador, ColunaRelatorio, FiltroCondicao, FiltroTurmas, FonteLinhas, FormatoSaida, GrupoFiltros,
     OrdenacaoRelatorio, ReportDefinition, SecaoRelatorio,
 };
 use super::expressoes::{avaliar, avaliar_condicao, ValorExpressao};
@@ -214,10 +214,7 @@ pub(crate) fn pre_visualizar_relatorio(
 }
 
 /// Gera as linhas cruas de uma seção, turma por turma, ramificando pela
-/// `fonte_linhas`: um aluno por linha (padrão), um aluno×item de uma
-/// coleção nomeada (fan-out), ou uma linha agregada por turma×disciplina
-/// esperada pela carga horária (varre todos os alunos pra contar, não
-/// representa um aluno específico).
+/// `fonte_linhas` (ver `percorrer_contextos`).
 fn gerar_linhas_secao(
     secao: &SecaoRelatorio,
     turmas: &[(PathBuf, TurmaArquivo)],
@@ -227,7 +224,26 @@ fn gerar_linhas_secao(
     parametros: &BTreeMap<String, ValorExpressao>,
 ) -> Vec<LinhaRelatorio> {
     let mut linhas = Vec::new();
+    percorrer_contextos(secao, turmas, fonte, bimestre, nota_minima, parametros, |contexto| {
+        processar_linha(secao, contexto, &mut linhas)
+    });
+    linhas
+}
 
+/// Chama `visitar` uma vez por linha crua da seção, antes dos filtros: um
+/// aluno por linha (padrão), um aluno×item de uma coleção nomeada
+/// (fan-out), ou uma linha agregada por turma×disciplina esperada pela
+/// carga horária (varre todos os alunos pra contar, não representa um
+/// aluno específico).
+fn percorrer_contextos(
+    secao: &SecaoRelatorio,
+    turmas: &[(PathBuf, TurmaArquivo)],
+    fonte: &FiltroTurmas,
+    bimestre: &str,
+    nota_minima: f64,
+    parametros: &BTreeMap<String, ValorExpressao>,
+    mut visitar: impl FnMut(&ContextoLinha),
+) {
     for (_, turma) in turmas {
         if !turma_passa_fonte(turma, fonte) {
             continue;
@@ -240,7 +256,7 @@ fn gerar_linhas_secao(
                     if !aluno.get("ativo").and_then(Value::as_bool).unwrap_or(true) {
                         continue;
                     }
-                    let contexto = ContextoLinha {
+                    visitar(&ContextoLinha {
                         turma,
                         matricula: Some(matricula),
                         aluno: Some(aluno),
@@ -249,8 +265,7 @@ fn gerar_linhas_secao(
                         disciplina_contexto: None,
                         item: None,
                         parametros,
-                    };
-                    processar_linha(secao, &contexto, &mut linhas);
+                    });
                 }
             }
             FonteLinhas::PorAlunoEItem { colecao } => {
@@ -260,7 +275,7 @@ fn gerar_linhas_secao(
                         continue;
                     }
                     for item in colecoes::gerar_colecao(colecao, turma, aluno, bimestre, parametros) {
-                        let contexto = ContextoLinha {
+                        visitar(&ContextoLinha {
                             turma,
                             matricula: Some(matricula),
                             aluno: Some(aluno),
@@ -269,8 +284,7 @@ fn gerar_linhas_secao(
                             disciplina_contexto: None,
                             item: Some(&item),
                             parametros,
-                        };
-                        processar_linha(secao, &contexto, &mut linhas);
+                        });
                     }
                 }
             }
@@ -281,7 +295,7 @@ fn gerar_linhas_secao(
                         continue;
                     };
                     for disciplina in disciplinas.keys() {
-                        let contexto = ContextoLinha {
+                        visitar(&ContextoLinha {
                             turma,
                             matricula: None,
                             aluno: None,
@@ -290,15 +304,109 @@ fn gerar_linhas_secao(
                             disciplina_contexto: Some(disciplina),
                             item: None,
                             parametros,
-                        };
-                        processar_linha(secao, &contexto, &mut linhas);
+                        });
                     }
                 }
             }
         }
     }
+}
 
-    linhas
+/// Escolhas de cada parâmetro de texto para a lista suspensa da tela de
+/// gerar e do construtor.
+#[derive(Serialize, Debug, PartialEq)]
+pub(crate) struct OpcoesParametro {
+    pub(crate) valores: Vec<String>,
+    /// Oferecer "Todos" (valor vazio): o filtro que usa o parâmetro deixa
+    /// de valer, ver `filtro_desligado`.
+    pub(crate) permite_todos: bool,
+}
+
+/// Para cada parâmetro de texto: as `opcoes` fixas da definição, ou então os
+/// valores distintos que o campo comparado com o parâmetro (num filtro
+/// "igual", "diferente" ou "contém") tem nos dados de hoje. Parâmetros sem
+/// nenhum desses ficam de fora e a UI continua com o campo de texto livre.
+pub(crate) fn opcoes_parametros(
+    definicao: &ReportDefinition,
+    bimestre: &str,
+    parametros_entrada: &BTreeMap<String, ValorExpressao>,
+) -> Result<BTreeMap<String, OpcoesParametro>, String> {
+    let _dados = travar_dados();
+    let bimestre = normalizar_bimestre(bimestre);
+    let nota_minima = obter_nota_minima_configurada();
+    let turmas = carregar_turmas_com_caminho()?;
+    let parametros = resolver_parametros(definicao, parametros_entrada);
+    Ok(calcular_opcoes_parametros(definicao, &turmas, &bimestre, nota_minima, &parametros))
+}
+
+fn calcular_opcoes_parametros(
+    definicao: &ReportDefinition,
+    turmas: &[(PathBuf, TurmaArquivo)],
+    bimestre: &str,
+    nota_minima: f64,
+    parametros: &BTreeMap<String, ValorExpressao>,
+) -> BTreeMap<String, OpcoesParametro> {
+    use super::definicao::{Operador, TipoParametro};
+    use super::expressoes::ExpressaoNo;
+
+    let mut resultado = BTreeMap::new();
+    for parametro in &definicao.parametros {
+        if !matches!(parametro.tipo, TipoParametro::Texto) {
+            continue;
+        }
+        if !parametro.opcoes.is_empty() {
+            resultado.insert(
+                parametro.id.clone(),
+                OpcoesParametro { valores: parametro.opcoes.clone(), permite_todos: false },
+            );
+            continue;
+        }
+        let mut valores: Vec<String> = Vec::new();
+        let mut usado_em_filtro = false;
+        for secao in &definicao.secoes {
+            let campos: Vec<&ExpressaoNo> = secao
+                .filtros
+                .condicoes
+                .iter()
+                .filter(|condicao| {
+                    matches!(condicao.operador, Operador::Igual | Operador::Diferente | Operador::Contem)
+                        && matches!(&condicao.valor, Some(ExpressaoNo::Parametro { id }) if *id == parametro.id)
+                })
+                .map(|condicao| &condicao.campo)
+                .collect();
+            if campos.is_empty() {
+                continue;
+            }
+            usado_em_filtro = true;
+            percorrer_contextos(secao, turmas, &definicao.fonte, bimestre, nota_minima, parametros, |contexto| {
+                for campo in &campos {
+                    let valor = avaliar(campo, contexto);
+                    if valor.eh_nulo_ou_vazio() {
+                        continue;
+                    }
+                    let texto = valor.como_texto().trim().to_string();
+                    if !texto.is_empty() && !valores.contains(&texto) {
+                        valores.push(texto);
+                    }
+                }
+            });
+        }
+        if usado_em_filtro {
+            valores.sort_by(|a, b| chave_ordem_opcao(a).cmp(&chave_ordem_opcao(b)));
+            resultado.insert(parametro.id.clone(), OpcoesParametro { valores, permite_todos: true });
+        }
+    }
+    resultado
+}
+
+/// Níveis da AvD na ordem do mais baixo ao mais alto; o resto em ordem
+/// alfabética sem acento/caixa ("1ª Série" antes de "2ª Série").
+fn chave_ordem_opcao(valor: &str) -> (usize, String) {
+    let posicao_nivel = super::prioridade::NIVEIS_AVD
+        .iter()
+        .position(|nivel| *nivel == valor)
+        .unwrap_or(usize::MAX);
+    (posicao_nivel, normalizar_texto_basico(valor))
 }
 
 fn processar_linha(secao: &SecaoRelatorio, contexto: &ContextoLinha, linhas: &mut Vec<LinhaRelatorio>) {
@@ -344,13 +452,29 @@ fn turma_passa_fonte(turma: &TurmaArquivo, fonte: &FiltroTurmas) -> bool {
 }
 
 fn passa_filtros(filtros: &GrupoFiltros, contexto: &ContextoLinha) -> bool {
-    if filtros.condicoes.is_empty() {
+    let mut condicoes = filtros
+        .condicoes
+        .iter()
+        .filter(|condicao| !filtro_desligado(condicao, contexto.parametros))
+        .peekable();
+    if condicoes.peek().is_none() {
         return true;
     }
     match filtros.combinador {
-        Combinador::E => filtros.condicoes.iter().all(|condicao| avaliar_condicao(condicao, contexto)),
-        Combinador::Ou => filtros.condicoes.iter().any(|condicao| avaliar_condicao(condicao, contexto)),
+        Combinador::E => condicoes.all(|condicao| avaliar_condicao(condicao, contexto)),
+        Combinador::Ou => condicoes.any(|condicao| avaliar_condicao(condicao, contexto)),
     }
+}
+
+/// "Todos" na lista suspensa manda o parâmetro vazio: um filtro que compara
+/// direto com um parâmetro de texto vazio deixa de valer, em vez de procurar
+/// alunos com aquele campo em branco.
+fn filtro_desligado(condicao: &FiltroCondicao, parametros: &BTreeMap<String, ValorExpressao>) -> bool {
+    use super::expressoes::ExpressaoNo;
+    let Some(ExpressaoNo::Parametro { id }) = &condicao.valor else {
+        return false;
+    };
+    matches!(parametros.get(id), Some(ValorExpressao::Texto(texto)) if texto.trim().is_empty())
 }
 
 fn ordenar_linhas(linhas: &mut [LinhaRelatorio], ordenacao: &[OrdenacaoRelatorio]) {
@@ -479,7 +603,7 @@ fn nome_arquivo_relatorio(definicao: &ReportDefinition, bimestre: &str) -> Strin
 #[cfg(test)]
 mod testes {
     use super::*;
-    use super::super::definicao::{Alinhamento, FiltroCondicao, Operador};
+    use super::super::definicao::{Alinhamento, Operador};
     use super::super::embutidos::definicao_top60;
     use super::super::expressoes::ExpressaoNo;
     use serde_json::json;
@@ -607,6 +731,105 @@ mod testes {
             [("Abaixo do Básico".to_string(), 1), ("Básico".to_string(), 1), ("Avançado".to_string(), 1)]
         );
         assert_eq!(grupos("Básico, Avançado"), [("Básico".to_string(), 1), ("Avançado".to_string(), 1)]);
+    }
+
+    /// Relatório montado no construtor com dois filtros "igual a parâmetro"
+    /// (série e nível da AvD), como o "Proficiência AvD por Turma".
+    fn definicao_serie_e_nivel_por_parametro() -> ReportDefinition {
+        use super::super::definicao::{DefinicaoParametro, TipoParametro};
+        use super::super::embutidos::definicao_alunos_por_nivel_avd;
+        let mut definicao = definicao_alunos_por_nivel_avd();
+        let parametro_texto = |id: &str| DefinicaoParametro {
+            id: id.to_string(),
+            rotulo: id.to_string(),
+            tipo: TipoParametro::Texto,
+            valor_padrao: ValorExpressao::Texto(String::new()),
+            opcoes: Vec::new(),
+        };
+        definicao.parametros = vec![parametro_texto("serie"), parametro_texto("nivel")];
+        definicao.secoes[0].agrupamento = AgrupamentoRelatorio::default();
+        definicao.secoes[0].filtros = GrupoFiltros {
+            combinador: Combinador::E,
+            condicoes: vec![
+                FiltroCondicao {
+                    campo: campo("turma_serie"),
+                    operador: Operador::Igual,
+                    valor: Some(ExpressaoNo::Parametro { id: "serie".to_string() }),
+                },
+                FiltroCondicao {
+                    campo: campo("avd_nivel"),
+                    operador: Operador::Igual,
+                    valor: Some(ExpressaoNo::Parametro { id: "nivel".to_string() }),
+                },
+            ],
+        };
+        definicao
+    }
+
+    fn turmas_serie_e_nivel() -> Vec<(PathBuf, TurmaArquivo)> {
+        let avd = |nivel: &str| json!({ "matematica": { "avd1": { "nivel": nivel } } });
+        vec![
+            (
+                PathBuf::from("a.json"),
+                turma_fixture(json!({
+                    "codigo": "2ª Série A", "ano": 2026, "serie": "2ª Série", "periodo": "MANHA",
+                    "alunos": {
+                        "1": { "nome": "A", "ativo": true, "diagnostico_aprendizagem": avd("Avançado") },
+                        "2": { "nome": "B", "ativo": true, "diagnostico_aprendizagem": avd("Básico") }
+                    }
+                })),
+            ),
+            (
+                PathBuf::from("b.json"),
+                turma_fixture(json!({
+                    "codigo": "1ª Série A", "ano": 2026, "serie": "1ª Série", "periodo": "NOITE",
+                    "alunos": {
+                        "3": { "nome": "C", "ativo": true, "diagnostico_aprendizagem": avd("Abaixo do Básico") },
+                        "4": { "nome": "D", "ativo": true, "diagnostico_aprendizagem": avd("Básico") },
+                        "5": { "nome": "E", "ativo": true }
+                    }
+                })),
+            ),
+        ]
+    }
+
+    #[test]
+    fn opcoes_dos_parametros_vem_dos_dados_e_das_opcoes_fixas() {
+        let turmas = turmas_serie_e_nivel();
+        let definicao = definicao_serie_e_nivel_por_parametro();
+        let parametros = resolver_parametros(&definicao, &BTreeMap::new());
+        let opcoes = calcular_opcoes_parametros(&definicao, &turmas, "3", 5.0, &parametros);
+
+        assert_eq!(
+            opcoes["serie"],
+            OpcoesParametro { valores: vec!["1ª Série".to_string(), "2ª Série".to_string()], permite_todos: true }
+        );
+        // Níveis na ordem do mais baixo ao mais alto; aluno sem AvD não vira opção vazia.
+        assert_eq!(opcoes["nivel"].valores, ["Abaixo do Básico", "Básico", "Avançado"]);
+
+        let embutido = super::super::embutidos::definicao_alunos_por_nivel_avd();
+        let parametros = resolver_parametros(&embutido, &BTreeMap::new());
+        let opcoes = calcular_opcoes_parametros(&embutido, &turmas, "3", 5.0, &parametros);
+        assert_eq!(opcoes["prioridade_componente"].valores, ["Matemática", "Língua Portuguesa"]);
+        assert!(!opcoes["avd_niveis_filtro"].permite_todos);
+    }
+
+    #[test]
+    fn parametro_vazio_desliga_o_filtro() {
+        let turmas = turmas_serie_e_nivel();
+        let definicao = definicao_serie_e_nivel_por_parametro();
+        let total = |serie: &str, nivel: &str| {
+            let mut informados = BTreeMap::new();
+            informados.insert("serie".to_string(), ValorExpressao::Texto(serie.to_string()));
+            informados.insert("nivel".to_string(), ValorExpressao::Texto(nivel.to_string()));
+            let parametros = resolver_parametros(&definicao, &informados);
+            montar_secoes(&definicao, &turmas, "3", 5.0, &parametros).1
+        };
+
+        assert_eq!(total("1ª Série", "Abaixo do Básico"), 1);
+        assert_eq!(total("1ª Série", ""), 3, "\"Todos\" no nível: todos os alunos da 1ª Série");
+        assert_eq!(total("", "Básico"), 2, "\"Todos\" na série: os Básicos das duas séries");
+        assert_eq!(total("", ""), 5);
     }
 
     /// "Top Alunos" (ex-Top 60) agora aceita um parâmetro `quantidade_top`

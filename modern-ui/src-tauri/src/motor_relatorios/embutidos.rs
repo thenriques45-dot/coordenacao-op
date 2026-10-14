@@ -126,6 +126,7 @@ pub(crate) fn definicao_top60() -> ReportDefinition {
             rotulo: "Quantos alunos por período (Top N)".to_string(),
             tipo: TipoParametro::Numero,
             valor_padrao: ValorExpressao::Numero(60.0),
+            opcoes: Vec::new(),
         }],
         secoes: secao_unica(
             GrupoFiltros {
@@ -444,6 +445,7 @@ pub(crate) fn definicao_elegiveis_recuperacao() -> ReportDefinition {
             rotulo: "Limiar de notas vermelhas para elegibilidade (%)".to_string(),
             tipo: TipoParametro::Numero,
             valor_padrao: ValorExpressao::Numero(50.0),
+            opcoes: Vec::new(),
         }],
         secoes: vec![secao_elegiveis, secao_sugestoes],
         blocos: Vec::new(),
@@ -497,17 +499,19 @@ pub(crate) fn definicao_pendencia_lancamento() -> ReportDefinition {
 /// parâmetros, escolhidos na hora de gerar.
 pub(crate) fn definicao_alunos_prioritarios() -> ReportDefinition {
     use super::prioridade::*;
-    let parametro_texto = |id: &str, rotulo: &str, padrao: &str| DefinicaoParametro {
+    let parametro_texto = |id: &str, rotulo: &str, padrao: &str, opcoes: &[&str]| DefinicaoParametro {
         id: id.to_string(),
         rotulo: rotulo.to_string(),
         tipo: TipoParametro::Texto,
         valor_padrao: ValorExpressao::Texto(padrao.to_string()),
+        opcoes: opcoes.iter().map(|opcao| opcao.to_string()).collect(),
     };
     let parametro_numero = |id: &str, rotulo: &str, padrao: f64| DefinicaoParametro {
         id: id.to_string(),
         rotulo: rotulo.to_string(),
         tipo: TipoParametro::Numero,
         valor_padrao: ValorExpressao::Numero(padrao),
+        opcoes: Vec::new(),
     };
     ReportDefinition {
         id: "alunos_prioritarios".to_string(),
@@ -522,12 +526,8 @@ pub(crate) fn definicao_alunos_prioritarios() -> ReportDefinition {
         embutido: true,
         fonte: FiltroTurmas::default(),
         parametros: vec![
-            parametro_texto(PARAM_COMPONENTE, "Componente (Matemática ou Língua Portuguesa)", PADRAO_COMPONENTE),
-            parametro_texto(
-                PARAM_NIVEL_AVD,
-                "Nível da AvD (Abaixo do Básico, ou Abaixo do Básico ou Básico)",
-                PADRAO_NIVEL_AVD,
-            ),
+            parametro_texto(PARAM_COMPONENTE, "Componente", PADRAO_COMPONENTE, &COMPONENTES_AVD),
+            parametro_texto(PARAM_NIVEL_AVD, "Nível da AvD", PADRAO_NIVEL_AVD, &OPCOES_NIVEL_AVD),
             parametro_numero(PARAM_FREQUENCIA, "Frequência abaixo de (%)", PADRAO_FREQUENCIA),
             parametro_numero(PARAM_PROVA_PAULISTA, "Prova Paulista: média abaixo de (0 a 10)", PADRAO_PROVA_PAULISTA),
             parametro_numero(PARAM_SARESP, "SARESP: nota abaixo de (0 a 10)", PADRAO_SARESP),
@@ -573,7 +573,8 @@ pub(crate) fn definicao_alunos_prioritarios() -> ReportDefinition {
 /// na hora de gerar.
 pub(crate) fn definicao_alunos_por_nivel_avd() -> ReportDefinition {
     use super::prioridade::{
-        NIVEIS_AVD, PADRAO_COMPONENTE, PADRAO_NIVEIS_FILTRO, PARAM_COMPONENTE, PARAM_NIVEIS_FILTRO,
+        COMPONENTES_AVD, NIVEIS_AVD, OPCOES_NIVEIS_FILTRO, PADRAO_COMPONENTE, PADRAO_NIVEIS_FILTRO, PARAM_COMPONENTE,
+        PARAM_NIVEIS_FILTRO,
     };
     ReportDefinition {
         id: "alunos_por_nivel_avd".to_string(),
@@ -588,15 +589,17 @@ pub(crate) fn definicao_alunos_por_nivel_avd() -> ReportDefinition {
         parametros: vec![
             DefinicaoParametro {
                 id: PARAM_COMPONENTE.to_string(),
-                rotulo: "Componente (Matemática ou Língua Portuguesa)".to_string(),
+                rotulo: "Componente".to_string(),
                 tipo: TipoParametro::Texto,
                 valor_padrao: ValorExpressao::Texto(PADRAO_COMPONENTE.to_string()),
+                opcoes: COMPONENTES_AVD.iter().map(|opcao| opcao.to_string()).collect(),
             },
             DefinicaoParametro {
                 id: PARAM_NIVEIS_FILTRO.to_string(),
-                rotulo: "Níveis (Abaixo do Básico, Básico, Adequado, Avançado ou Todos)".to_string(),
+                rotulo: "Níveis".to_string(),
                 tipo: TipoParametro::Texto,
                 valor_padrao: ValorExpressao::Texto(PADRAO_NIVEIS_FILTRO.to_string()),
+                opcoes: OPCOES_NIVEIS_FILTRO.iter().map(|opcao| opcao.to_string()).collect(),
             },
         ],
         secoes: vec![SecaoRelatorio {

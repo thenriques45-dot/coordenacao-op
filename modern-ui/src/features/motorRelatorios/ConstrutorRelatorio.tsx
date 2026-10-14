@@ -37,6 +37,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp } from "../appBridge";
 import { ListaOrdenavel } from "../ListaOrdenavel";
+import { CampoParametro, type OpcoesParametro } from "./CampoParametro";
 import { EditorExpressao } from "./EditorExpressao";
 import {
   Alinhamento,
@@ -354,6 +355,7 @@ export function ConstrutorRelatorio({
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const [rascunhoSalvoEm, setRascunhoSalvoEm] = useState<string | null>(null);
+  const [opcoesParametros, setOpcoesParametros] = useState<Record<string, OpcoesParametro>>({});
   const [loginGithub, setLoginGithub] = useState<string | null>(null);
   const [publicacao, setPublicacao] = useState<EstadoPublicacao>({ fase: "inativo" });
 
@@ -384,6 +386,29 @@ export function ConstrutorRelatorio({
     }, 2500);
     return () => clearTimeout(temporizador);
   }, [definicao]);
+
+  // Listas suspensas dos parâmetros: só depende de quais filtros usam cada
+  // parâmetro (e da fonte de turmas), então espera a edição assentar.
+  const chaveOpcoes = JSON.stringify([definicao.parametros, definicao.secoes.map((s) => [s.fonte_linhas, s.filtros]), definicao.fonte]);
+  useEffect(() => {
+    if (!definicao.parametros.some((p) => p.tipo === "texto")) {
+      setOpcoesParametros({});
+      return;
+    }
+    let ativo = true;
+    const temporizador = setTimeout(() => {
+      invokeApp<Record<string, OpcoesParametro>>("listar_opcoes_parametros_relatorio", {
+        input: { definicao, bimestre: bimestrePreview, parametros: {} },
+      })
+        .then((opcoes) => ativo && setOpcoesParametros(opcoes))
+        .catch(() => ativo && setOpcoesParametros({}));
+    }, 600);
+    return () => {
+      ativo = false;
+      clearTimeout(temporizador);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveOpcoes, bimestrePreview]);
 
   const editavel = definicao.blocos.length > 0;
   const seriesConhecidas = Array.from(new Set(turmas.map((t) => t.serie).filter((s): s is string => !!s))).sort();
@@ -1121,6 +1146,7 @@ export function ConstrutorRelatorio({
                 alternarLimiteEditavel={alternarLimiteEditavel}
                 atualizarSecao={atualizarSecao}
                 parametros={definicao.parametros}
+                opcoesParametros={opcoesParametros}
                 adicionarParametro={adicionarParametro}
                 mudarParametro={mudarParametro}
                 removerParametro={removerParametro}
@@ -1265,6 +1291,7 @@ function InspetorBloco({
   alternarLimiteEditavel,
   atualizarSecao,
   parametros,
+  opcoesParametros,
   adicionarParametro,
   mudarParametro,
   removerParametro,
@@ -1294,6 +1321,7 @@ function InspetorBloco({
   alternarLimiteEditavel: (indiceSecao: number) => void;
   atualizarSecao: (indiceSecao: number, mudanca: Partial<SecaoRelatorio>) => void;
   parametros: DefinicaoParametro[];
+  opcoesParametros: Record<string, OpcoesParametro>;
   adicionarParametro: () => void;
   mudarParametro: (indice: number, mudanca: Partial<DefinicaoParametro>) => void;
   removerParametro: (indice: number) => void;
@@ -1556,16 +1584,17 @@ function InspetorBloco({
                             value={parametro.rotulo}
                             onChange={(e) => mudarParametro(indiceParametro, { rotulo: e.target.value })}
                           />
-                          <input
-                            type={parametro.tipo === "numero" ? "number" : "text"}
+                          <CampoParametro
+                            tipo={parametro.tipo}
                             placeholder="Valor padrão"
-                            value={valorExpressaoParaTexto(parametro.valor_padrao)}
-                            onChange={(e) =>
+                            valor={valorExpressaoParaTexto(parametro.valor_padrao)}
+                            opcoes={opcoesParametros[parametro.id]}
+                            onMudar={(valor) =>
                               mudarParametro(indiceParametro, {
                                 valor_padrao:
                                   parametro.tipo === "numero"
-                                    ? { tipo: "numero", valor: Number(e.target.value) || 0 }
-                                    : { tipo: "texto", valor: e.target.value },
+                                    ? { tipo: "numero", valor: Number(valor) || 0 }
+                                    : { tipo: "texto", valor },
                               })
                             }
                           />
@@ -1630,13 +1659,14 @@ function InspetorBloco({
                       <option value="numero">Número</option>
                       <option value="texto">Texto</option>
                     </select>
-                    <input
-                      type={parametro.tipo === "numero" ? "number" : "text"}
+                    <CampoParametro
+                      tipo={parametro.tipo}
                       placeholder="Valor padrão"
-                      value={valorExpressaoParaTexto(parametro.valor_padrao)}
-                      onChange={(e) =>
+                      valor={valorExpressaoParaTexto(parametro.valor_padrao)}
+                      opcoes={opcoesParametros[parametro.id]}
+                      onMudar={(valor) =>
                         mudarParametro(indice, {
-                          valor_padrao: parametro.tipo === "numero" ? { tipo: "numero", valor: Number(e.target.value) || 0 } : { tipo: "texto", valor: e.target.value },
+                          valor_padrao: parametro.tipo === "numero" ? { tipo: "numero", valor: Number(valor) || 0 } : { tipo: "texto", valor },
                         })
                       }
                     />
