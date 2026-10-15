@@ -1,0 +1,187 @@
+{
+  "id": "relatorio_mv7e9iok_11",
+  "nome": "Proficiência AvD por Turma",
+  "descricao": "Mostra o nível de proficiência AvD dos alunos, organizado por turma.",
+  "autor": "thenriques45-dot",
+  "embutido": false,
+  "fonte": {
+    "series": [],
+    "periodos": [],
+    "ciclos": [],
+    "codigos": []
+  },
+  "parametros": [
+    {
+      "id": "parametro_mv8dlmn1_2",
+      "rotulo": "Série",
+      "tipo": "texto",
+      "valor_padrao": {
+        "tipo": "texto",
+        "valor": ""
+      }
+    },
+    {
+      "id": "parametro_mv8dm5z1_3",
+      "rotulo": "AvD — Nível na Avaliação Mais Recente (sem o ano)",
+      "tipo": "texto",
+      "valor_padrao": {
+        "tipo": "texto",
+        "valor": "Abaixo do Básico"
+      }
+    }
+  ],
+  "secoes": [
+    {
+      "titulo": null,
+      "fonte_linhas": {
+        "tipo": "por_aluno"
+      },
+      "filtros": {
+        "combinador": "e",
+        "condicoes": [
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "avd_nivel",
+              "parametro": null
+            },
+            "operador": "igual",
+            "valor": {
+              "tipo": "parametro",
+              "id": "parametro_mv8dm5z1_3"
+            }
+          },
+          {
+            "campo": {
+              "tipo": "campo",
+              "campo_id": "turma_serie",
+              "parametro": null
+            },
+            "operador": "igual",
+            "valor": {
+              "tipo": "parametro",
+              "id": "parametro_mv8dlmn1_2"
+            }
+          }
+        ]
+      },
+      "colunas": [
+        {
+          "id": "aluno_numero_chamada",
+          "rotulo": "Nº Chamada",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_numero_chamada",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro",
+          "oculta": false
+        },
+        {
+          "id": "aluno_nome",
+          "rotulo": "Nome do Aluno",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "aluno_nome",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda",
+          "oculta": false
+        },
+        {
+          "id": "turma_rotulo",
+          "rotulo": "Turma",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "turma_rotulo",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda",
+          "oculta": false
+        },
+        {
+          "id": "avd_nivel",
+          "rotulo": "Nível de Proficiência AvD",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "avd_nivel",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "esquerda",
+          "oculta": false
+        },
+        {
+          "id": "ordem_avd_ano_equivalente",
+          "rotulo": "AvD — Ano Equivalente (número, para ordenar)",
+          "expressao": {
+            "tipo": "campo",
+            "campo_id": "avd_ano_equivalente",
+            "parametro": null
+          },
+          "largura": null,
+          "alinhamento": "centro",
+          "oculta": true
+        }
+      ],
+      "ordenacao": [
+        {
+          "coluna_id": "avd_nivel",
+          "decrescente": false
+        },
+        {
+          "coluna_id": "aluno_nome",
+          "decrescente": false
+        }
+      ],
+      "agrupamento": {
+        "campo": {
+          "tipo": "campo",
+          "campo_id": "turma_rotulo",
+          "parametro": null
+        },
+        "limite_por_grupo": null,
+        "limite_parametro": null,
+        "ordem_grupos": null
+      }
+    }
+  ],
+  "blocos": [
+    {
+      "id": "blk_mv7e9iok_7",
+      "ativo": true,
+      "tipo": "cabecalho"
+    },
+    {
+      "id": "blk_mv7e9iok_8",
+      "ativo": true,
+      "tipo": "titulo",
+      "tamanho": 14,
+      "cor": "#800080"
+    },
+    {
+      "id": "blk_mv7e9iok_9",
+      "ativo": true,
+      "tipo": "texto",
+      "titulo": null,
+      "corpo": "Este relatório apresenta o nível de proficiência AvD de cada aluno, classificado por turma e ordenado pelo nível de proficiência (do menor para o maior ano equivalente).",
+      "tamanho_titulo": 14,
+      "tamanho_corpo": 11
+    },
+    {
+      "id": "blk_mv7e9iok_10",
+      "ativo": true,
+      "tipo": "tabela",
+      "secao_index": 0
+    },
+    {
+      "id": "blk_mv8dlh9i_1",
+      "ativo": true,
+      "tipo": "parametros"
+    }
+  ],
+  "formato_saida": "docx"
+}
