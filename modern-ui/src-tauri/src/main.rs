@@ -1013,6 +1013,25 @@ mod tests {
         assert_eq!(disciplinas[0].faltas, Some(3.0));
     }
 
+    // Regressão: disciplina que só existe na carga horária da turma (vinda de
+    // outro aluno casado num mapão de outra série) não vira linha no boletim
+    // de quem não tem lançamento nela.
+    #[test]
+    fn extrair_disciplinas_ignora_disciplina_so_da_carga_horaria() {
+        let info = json!({
+            "medias": { "1": { "MATEMATICA": 6.0 } },
+            "frequencia": { "1": { "MATEMATICA": 2 } }
+        });
+        let carga = json!({ "1": { "MATEMATICA": 40, "ARTE": 20, "EDUCACAO FISICA": 20 } })
+            .as_object()
+            .unwrap()
+            .clone();
+        let disciplinas = extrair_disciplinas(&info, "1", &carga);
+        let nomes: Vec<&str> = disciplinas.iter().map(|d| d.nome.as_str()).collect();
+        assert_eq!(nomes, vec!["MATEMATICA"]);
+        assert_eq!(disciplinas[0].total_aulas, Some(40.0));
+    }
+
     // Regressão: com um bimestre mais recente selecionado e ainda sem
     // lançamento, o boletim do aluno deve continuar listando as disciplinas
     // com notas dos bimestres anteriores (o rol de disciplinas é do ano, não

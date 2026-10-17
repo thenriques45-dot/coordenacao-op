@@ -2286,10 +2286,17 @@ pub(crate) fn extrair_disciplinas(
     let mut nomes = BTreeSet::new();
 
     // O rol de disciplinas é um fato do ano letivo, não do bimestre: reúne os
-    // nomes de todos os bimestres (médias, frequência, ajustes e carga horária)
-    // para que o boletim do aluno mostre sempre as notas já lançadas — 1º/2º —
-    // mesmo com um bimestre mais recente selecionado e ainda sem lançamento.
+    // nomes de todos os bimestres (médias, frequência e ajustes) para que o
+    // boletim do aluno mostre sempre as notas já lançadas — 1º/2º — mesmo com
+    // um bimestre mais recente selecionado e ainda sem lançamento.
     // Os valores de cada coluna continuam presos ao `bimestre` recebido.
+    // A carga horária NÃO entra no rol: é um campo da turma inteira e fica
+    // preenchida para a sala toda assim que um único aluno dela é casado num
+    // mapão de outra turma (ex.: aluno de 3ª série com progressão parcial em
+    // Arte da 2ª série). Usá-la aqui fazia Arte, Educação Física etc.
+    // aparecerem, sem nota e com 100% de frequência, para todos os alunos da
+    // 3ª série. Mesmo critério de frequencia_bruta_disciplina (motor de
+    // relatórios): o aluno cursa a disciplina se tem lançamento próprio nela.
     // Agrupa por grafia normalizada: grafias antigas (ex.: "Orientação de
     // Estudo - Matemática" vs sem hífen), enquanto não passam pela "Manutenção
     // de dados", não devem virar duas linhas na tela.
@@ -2299,11 +2306,6 @@ pub(crate) fn extrair_disciplinas(
                 for nome in mapa.keys() {
                     nomes.insert(normalizar_texto_basico(nome));
                 }
-            }
-        }
-        if let Some(mapa) = carga_horaria.get(periodo).and_then(Value::as_object) {
-            for nome in mapa.keys() {
-                nomes.insert(normalizar_texto_basico(nome));
             }
         }
     }
