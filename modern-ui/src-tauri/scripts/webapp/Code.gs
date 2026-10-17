@@ -86,6 +86,22 @@ function normalizarNome_(texto) {
   return resultado.trim().replace(/\s+/g, " ");
 }
 
+// Chave para casar o nome curado do componente com o nome da disciplina nas
+// turmas reais. Além de acento/caixa (normalizarNome_), ignora o que muda de
+// redação sem mudar a disciplina — mesma regra de normalizarDisciplina em
+// Planejamento.tsx: pontuação/hífen (o app já grava as disciplinas do mapão
+// sem ela), o conector "em" (o mapão traz "Orientação de Estudo - Língua
+// Portuguesa"; o nome curado é "Orientação de Estudo em Língua Portuguesa")
+// e um sufixo de ano/série no fim ("... - 9º Ano").
+function chaveDisciplina_(texto) {
+  return normalizarNome_(texto)
+    .replace(/\s*-?\s*\d+\s*[ºª°OA]?\s*(ANO|SERIE)$/, "")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .replace(/\bEM\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function ehBlocoReal_(aulas, verificaPlaceholder) {
   if (!aulas || aulas.length === 0) return false;
   if (verificaPlaceholder && aulas.length === 1 && aulas[0].indexOf("[Aguardando dados") === 0) {
@@ -157,10 +173,10 @@ function obterDadosSegmento(segmento) {
   // (fallback: mantém visível até alguém preencher o currículo).
   var componentesPorUnidade = {};
   config.unidades.forEach(function (unidade) {
-    var reais = (config.disciplinasReaisPorUnidade[unidade] || []).map(normalizarNome_);
-    var extras = (config.componentesExtras[unidade] || []).map(normalizarNome_);
+    var reais = (config.disciplinasReaisPorUnidade[unidade] || []).map(chaveDisciplina_);
+    var extras = (config.componentesExtras[unidade] || []).map(chaveDisciplina_);
     componentesPorUnidade[unidade] = config.componentesCurados.filter(function (componente) {
-      var normalizado = normalizarNome_(componente);
+      var normalizado = chaveDisciplina_(componente);
       if (reais.indexOf(normalizado) !== -1) return true;
       if (extras.indexOf(normalizado) !== -1) return true;
       var escopo = config.escopos[componente];

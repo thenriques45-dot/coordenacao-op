@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.6.3 - Orientação de Estudo de volta no formulário de Planejamento
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1, da 4.6.2 e desta versão somadas ao fim de "outras mudanças".
+
+### Planejamento
+- **Disciplinas faltando no formulário:** o formulário de Planejamento (Web App) só mostra numa série/ano os componentes que existem nas turmas importadas, e comparava os nomes ao pé da letra. O mapão traz "Orientação de Estudo - Língua Portuguesa" e o formulário chama o componente de "Orientação de Estudo em Língua Portuguesa"; por causa do "em" e do hífen, as duas Orientações de Estudo nunca apareciam. Agora a comparação ignora hífen, pontuação, o "em" e um sufixo de ano/série no fim, como a tela de Planejamento do app já fazia. Para valer no link que os professores usam, clique em "Atualizar turmas / republicar" na tela de Planejamento depois de atualizar o app.
+
 ## v4.6.2 - Parâmetros dos relatórios em listas para escolher
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 e desta versão somadas ao fim de "outras mudanças".
