@@ -519,7 +519,12 @@ export function GestaoTurma({
   const bimestreAtualTurma = bimestreParaNumero(turmaDetalhe?.bimestre);
   const disciplinas = useMemo(() => Array.from(new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunosAtivos]);
   const mediaGeral = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma).mediaGeral;
-  const total = alunosAtivos.length || 1;
+  const frequenciasAtivos = alunosAtivos
+    .map((aluno) => aluno.frequencia)
+    .filter((valor): valor is number => typeof valor === "number" && Number.isFinite(valor));
+  const frequenciaMedia = frequenciasAtivos.length
+    ? frequenciasAtivos.reduce((soma, valor) => soma + valor, 0) / frequenciasAtivos.length
+    : null;
 
   // Diagnóstico da turma: alimenta a aba Estatísticas, o relatório imprimível
   // e a aba Diagnóstico da ficha de cada aluno.
@@ -706,7 +711,7 @@ export function GestaoTurma({
         <div className="class-metric-row">
           <CouncilMetric icon={<Users size={21} />} value={`${turma?.alunos_ativos ?? alunosAtivos.length}/${turma?.total_alunos ?? alunos.length}`} label="Alunos/Total" />
           <CouncilMetric icon={<TrendingUp size={21} />} value={formatarMediaGlobal(mediaGeral)} label="Média Geral" tone="green" />
-          <CouncilMetric icon={<CalendarClock size={21} />} value={formatarPercentual(mediaGeral === null ? null : alunos.reduce((soma, aluno) => soma + (aluno.frequencia ?? 0), 0) / total)} label="Frequência Média" />
+          <CouncilMetric icon={<CalendarClock size={21} />} value={formatarPercentual(frequenciaMedia)} label="Frequência Média" />
           <CouncilMetric icon={<BookOpen size={21} />} value={String(disciplinas.length)} label="Disciplinas" />
         </div>
       </section>
