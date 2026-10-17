@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.6.4 - Correções no boletim, no Planejamento e na frequência média
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1, da 4.6.2, da 4.6.3 e desta versão somadas ao fim de "outras mudanças".
+
+### Turmas
+- **Frequência Média acima de 100%:** o cabeçalho da turma somava a frequência de todos os alunos (inclusive transferidos e inativos), mas dividia só pelo número de ativos. Agora a média considera só os alunos ativos que têm frequência registrada.
+- **Disciplinas a mais no boletim do aluno:** a lista de disciplinas do boletim usava as aulas dadas da turma inteira. Bastava um aluno da turma aparecer no mapão de outra turma/série para todos os colegas ganharem aquelas disciplinas (ex.: Arte, Educação Física, Filosofia e Sociologia nas 3ª séries), sem nota e com 100% de frequência. Agora o boletim mostra só as disciplinas com lançamento do próprio aluno.
+- **Histórico de mensagens em lote apagado:** importar mapão, Aluno Presente, AvD ou SARESP regravava o arquivo da turma sem o histórico de disparos em lote. Agora ele é mantido.
+
+### Planejamento e PEI
+- **Disciplinas de expansão aparecendo:** as disciplinas de mapão de expansão (Aprofundamentos, Atualidades etc.) deixavam de ser reconhecidas quando já estavam nas aulas dadas da turma (importações antigas ou sincronização com outro computador) e apareciam como se precisassem de Plano de Ensino/PEI. Agora o app anota à parte o que veio do mapão regular e do de expansão; somem as que só vêm do de expansão. Para corrigir as turmas que já estavam no app, reimporte os mapões de um bimestre, o regular e o de expansão (em qualquer ordem).
+
 ## v4.6.3 - Orientação de Estudo de volta no formulário de Planejamento
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1, da 4.6.2 e desta versão somadas ao fim de "outras mudanças".
