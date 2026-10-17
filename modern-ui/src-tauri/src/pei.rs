@@ -599,15 +599,13 @@ pub(crate) fn listar_alunos_elegiveis_com_disciplinas() -> Result<Vec<AlunoElegi
         // mapão de expansão (turma não seriada — ver
         // importador_mapao::mapao_eh_expansao). Mesma exclusão que
         // turmas::listar_disciplinas_turma já aplica ao Planejamento.
-        let expansao_da_turma: std::collections::HashSet<&str> = turma
-            .disciplinas_expansao
-            .as_deref()
-            .unwrap_or_default()
-            .iter()
-            .map(String::as_str)
-            .collect();
+        let expansao_da_turma = disciplinas_so_de_expansao(
+            turma.disciplinas_expansao.as_deref(),
+            turma.disciplinas_regulares.as_deref(),
+        );
         let exclui_disciplina = |nome: &str| -> bool {
-            disciplina_e_de_apoio_sem_documento(nome) || expansao_da_turma.contains(nome)
+            disciplina_e_de_apoio_sem_documento(nome)
+                || expansao_da_turma.contains(&normalizar_texto_basico(nome))
         };
 
         // Coleta disciplinas por bimestre a partir da carga horária.

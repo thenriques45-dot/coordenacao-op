@@ -872,6 +872,22 @@ mod tests {
         assert!(mapao_eh_expansao(&linhas, linhas.len()));
     }
 
+    // Disciplina de expansão some do Planejamento mesmo já estando na carga
+    // horária; a que também veio de mapão regular (Língua Inglesa) fica.
+    #[test]
+    fn disciplinas_so_de_expansao_descarta_as_que_tambem_sao_regulares() {
+        let expansao = vec![
+            "APROFUNDAMENTO DE FILOSOFIA".to_string(),
+            "LINGUA INGLESA".to_string(),
+        ];
+        let regulares = vec!["Língua Inglesa".to_string(), "MATEMATICA".to_string()];
+        let so = disciplinas_so_de_expansao(Some(expansao.as_slice()), Some(regulares.as_slice()));
+        assert_eq!(so.into_iter().collect::<Vec<_>>(), vec!["APROFUNDAMENTO DE FILOSOFIA"]);
+        // Arquivo antigo, sem lista de regulares: vale a lista de expansão.
+        assert_eq!(disciplinas_so_de_expansao(Some(expansao.as_slice()), None).len(), 2);
+        assert!(disciplinas_so_de_expansao(None, Some(regulares.as_slice())).is_empty());
+    }
+
     #[test]
     fn mapao_regular_nao_e_marcado_como_expansao() {
         let linhas: Vec<Vec<Data>> = vec![
@@ -1011,6 +1027,40 @@ mod tests {
         assert_eq!(disciplinas[0].nome, "ORIENTACAO DE ESTUDO MATEMATICA");
         assert_eq!(disciplinas[0].media_original, Some(6.0));
         assert_eq!(disciplinas[0].faltas, Some(3.0));
+    }
+
+    // Regressão: importar mapão (que regrava a turma pela struct) apagava
+    // campos que a struct não conhece, como o histórico de disparos em lote.
+    #[test]
+    fn turma_arquivo_preserva_campos_desconhecidos() {
+        let original = json!({
+            "codigo": "3ª Série A",
+            "ano": 2026,
+            "disparos_lote": [{ "id": "x1", "atualizado_em": "2026-10-01T10:00:00-03:00" }]
+        });
+        let turma: TurmaArquivo = serde_json::from_value(original).unwrap();
+        let regravada = serde_json::to_value(&turma).unwrap();
+        assert_eq!(regravada["disparos_lote"][0]["id"], "x1");
+        assert_eq!(regravada["codigo"], "3ª Série A");
+    }
+
+    // Regressão: disciplina que só existe na carga horária da turma (vinda de
+    // outro aluno casado num mapão de outra série) não vira linha no boletim
+    // de quem não tem lançamento nela.
+    #[test]
+    fn extrair_disciplinas_ignora_disciplina_so_da_carga_horaria() {
+        let info = json!({
+            "medias": { "1": { "MATEMATICA": 6.0 } },
+            "frequencia": { "1": { "MATEMATICA": 2 } }
+        });
+        let carga = json!({ "1": { "MATEMATICA": 40, "ARTE": 20, "EDUCACAO FISICA": 20 } })
+            .as_object()
+            .unwrap()
+            .clone();
+        let disciplinas = extrair_disciplinas(&info, "1", &carga);
+        let nomes: Vec<&str> = disciplinas.iter().map(|d| d.nome.as_str()).collect();
+        assert_eq!(nomes, vec!["MATEMATICA"]);
+        assert_eq!(disciplinas[0].total_aulas, Some(40.0));
     }
 
     // Regressão: com um bimestre mais recente selecionado e ainda sem

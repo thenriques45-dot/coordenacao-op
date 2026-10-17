@@ -841,6 +841,27 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
         }
     }
 
+    // Listas de disciplinas vistas em mapão de expansão/regular: união das
+    // duas máquinas. Sem isso, a carga horária (que vem do incoming) trazia
+    // as disciplinas de expansão importadas na outra máquina sem a marcação,
+    // e elas apareciam no Planejamento.
+    for campo in ["disciplinas_expansao", "disciplinas_regulares"] {
+        let Some(inc_lista) = incoming.get(campo).and_then(Value::as_array) else { continue };
+        let local_valor = res_obj
+            .entry(campo.to_string())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if !local_valor.is_array() {
+            *local_valor = Value::Array(Vec::new());
+        }
+        if let Some(local_lista) = local_valor.as_array_mut() {
+            for item in inc_lista {
+                if !local_lista.contains(item) {
+                    local_lista.push(item.clone());
+                }
+            }
+        }
+    }
+
     mesclar_conselhos_turma(res_obj, incoming);
     mesclar_disparos_lote(res_obj, incoming);
 

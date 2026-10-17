@@ -236,11 +236,16 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
     // ninguém escreve Plano de Ensino pra elas — não entram na lista que
     // alimenta o Planejamento nem o dropdown de componente curricular do
     // Web App. Ver importador_mapao::mapao_eh_expansao.
-    if let Some(expansao) = dados.get("disciplinas_expansao").and_then(Value::as_array) {
-        for nome in expansao.iter().filter_map(Value::as_str) {
-            set.remove(nome);
-        }
-    }
+    let lista = |campo: &str| -> Option<Vec<String>> {
+        dados.get(campo).and_then(Value::as_array).map(|itens| {
+            itens.iter().filter_map(Value::as_str).map(str::to_string).collect()
+        })
+    };
+    let so_expansao = disciplinas_so_de_expansao(
+        lista("disciplinas_expansao").as_deref(),
+        lista("disciplinas_regulares").as_deref(),
+    );
+    set.retain(|nome| !so_expansao.contains(&normalizar_texto_basico(nome)));
     // Itinerário/tutoria (Projeto de Vida, Redação e Leitura, Orientação de
     // Estudo) nunca tem Plano de Ensino de professor, independente de vir de
     // mapão regular ou de expansão — ver disciplina_e_de_apoio_sem_documento.
@@ -2286,10 +2291,17 @@ pub(crate) fn extrair_disciplinas(
     let mut nomes = BTreeSet::new();
 
     // O rol de disciplinas é um fato do ano letivo, não do bimestre: reúne os
-    // nomes de todos os bimestres (médias, frequência, ajustes e carga horária)
-    // para que o boletim do aluno mostre sempre as notas já lançadas — 1º/2º —
-    // mesmo com um bimestre mais recente selecionado e ainda sem lançamento.
+    // nomes de todos os bimestres (médias, frequência e ajustes) para que o
+    // boletim do aluno mostre sempre as notas já lançadas — 1º/2º — mesmo com
+    // um bimestre mais recente selecionado e ainda sem lançamento.
     // Os valores de cada coluna continuam presos ao `bimestre` recebido.
+    // A carga horária NÃO entra no rol: é um campo da turma inteira e fica
+    // preenchida para a sala toda assim que um único aluno dela é casado num
+    // mapão de outra turma (ex.: aluno de 3ª série com progressão parcial em
+    // Arte da 2ª série). Usá-la aqui fazia Arte, Educação Física etc.
+    // aparecerem, sem nota e com 100% de frequência, para todos os alunos da
+    // 3ª série. Mesmo critério de frequencia_bruta_disciplina (motor de
+    // relatórios): o aluno cursa a disciplina se tem lançamento próprio nela.
     // Agrupa por grafia normalizada: grafias antigas (ex.: "Orientação de
     // Estudo - Matemática" vs sem hífen), enquanto não passam pela "Manutenção
     // de dados", não devem virar duas linhas na tela.
@@ -2299,11 +2311,6 @@ pub(crate) fn extrair_disciplinas(
                 for nome in mapa.keys() {
                     nomes.insert(normalizar_texto_basico(nome));
                 }
-            }
-        }
-        if let Some(mapa) = carga_horaria.get(periodo).and_then(Value::as_object) {
-            for nome in mapa.keys() {
-                nomes.insert(normalizar_texto_basico(nome));
             }
         }
     }

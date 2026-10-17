@@ -118,16 +118,24 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
                 // normalizar_texto_basico (ignora acento/caixa) justamente
                 // pra pegar esses casos; comparação exata deixava a grafia
                 // de expansão passar como se fosse uma disciplina nova.
+                //
+                // Quem decide se a disciplina é "regular" não é mais a carga
+                // horária: ela também recebe as disciplinas de expansão (do
+                // primeiro aluno casado em diante, e de importações antigas),
+                // então a checagem por carga deixava de marcar as disciplinas
+                // de expansão e elas apareciam no Planejamento. Agora cada
+                // lado só registra o que viu (expansão em
+                // `disciplinas_expansao`, regular em `disciplinas_regulares`)
+                // e a exclusão é calculada na leitura por
+                // disciplinas_so_de_expansao — a ordem de importação não importa.
                 let ja_e_regular = ja_existe_disciplina_regular(turma.carga_horaria.as_ref(), &disciplina.nome);
-                if eh_expansao {
-                    if !ja_e_regular {
-                        let marcadas = turma.disciplinas_expansao.get_or_insert_with(Vec::new);
-                        if !marcadas.contains(&disciplina.nome) {
-                            marcadas.push(disciplina.nome.clone());
-                        }
-                    }
-                } else if let Some(marcadas) = turma.disciplinas_expansao.as_mut() {
-                    marcadas.retain(|nome| nome != &disciplina.nome);
+                let marcadas = if eh_expansao {
+                    turma.disciplinas_expansao.get_or_insert_with(Vec::new)
+                } else {
+                    turma.disciplinas_regulares.get_or_insert_with(Vec::new)
+                };
+                if !marcadas.contains(&disciplina.nome) {
+                    marcadas.push(disciplina.nome.clone());
                 }
                 if let Some(valor) = media {
                     inserir_valor_bimestre(info, "medias", &bimestre, &disciplina.nome, valor, device_id);
@@ -1235,6 +1243,28 @@ pub(crate) fn normalizar_disciplina_mapao(valor: &str) -> String {
 // (Planejamento) e listar_alunos_elegiveis_com_disciplinas (PEI).
 pub(crate) fn disciplina_e_de_apoio_sem_documento(nome: &str) -> bool {
     normalizar_texto_basico(nome) == "PROJETO DE VIDA"
+}
+
+// Disciplinas da turma que só vieram de mapão de expansão (sem Plano de
+// Ensino/PEI de professor), em grafia normalizada. Uma disciplina que também
+// veio de um mapão regular fica de fora (é regular). Sem
+// `disciplinas_regulares` (arquivo de antes da 4.6.4 que ainda não recebeu
+// um mapão regular) vale a lista de expansão inteira, como antes.
+pub(crate) fn disciplinas_so_de_expansao(
+    expansao: Option<&[String]>,
+    regulares: Option<&[String]>,
+) -> BTreeSet<String> {
+    let regulares = regulares
+        .unwrap_or_default()
+        .iter()
+        .map(|nome| normalizar_texto_basico(nome))
+        .collect::<BTreeSet<_>>();
+    expansao
+        .unwrap_or_default()
+        .iter()
+        .map(|nome| normalizar_texto_basico(nome))
+        .filter(|nome| !regulares.contains(nome))
+        .collect()
 }
 
 // Existe, em `carga_horaria` (qualquer bimestre), alguma disciplina cuja
