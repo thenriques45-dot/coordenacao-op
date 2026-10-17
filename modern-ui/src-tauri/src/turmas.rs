@@ -236,11 +236,16 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
     // ninguém escreve Plano de Ensino pra elas — não entram na lista que
     // alimenta o Planejamento nem o dropdown de componente curricular do
     // Web App. Ver importador_mapao::mapao_eh_expansao.
-    if let Some(expansao) = dados.get("disciplinas_expansao").and_then(Value::as_array) {
-        for nome in expansao.iter().filter_map(Value::as_str) {
-            set.remove(nome);
-        }
-    }
+    let lista = |campo: &str| -> Option<Vec<String>> {
+        dados.get(campo).and_then(Value::as_array).map(|itens| {
+            itens.iter().filter_map(Value::as_str).map(str::to_string).collect()
+        })
+    };
+    let so_expansao = disciplinas_so_de_expansao(
+        lista("disciplinas_expansao").as_deref(),
+        lista("disciplinas_regulares").as_deref(),
+    );
+    set.retain(|nome| !so_expansao.contains(&normalizar_texto_basico(nome)));
     // Itinerário/tutoria (Projeto de Vida, Redação e Leitura, Orientação de
     // Estudo) nunca tem Plano de Ensino de professor, independente de vir de
     // mapão regular ou de expansão — ver disciplina_e_de_apoio_sem_documento.

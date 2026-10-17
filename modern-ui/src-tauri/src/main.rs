@@ -872,6 +872,22 @@ mod tests {
         assert!(mapao_eh_expansao(&linhas, linhas.len()));
     }
 
+    // Disciplina de expansão some do Planejamento mesmo já estando na carga
+    // horária; a que também veio de mapão regular (Língua Inglesa) fica.
+    #[test]
+    fn disciplinas_so_de_expansao_descarta_as_que_tambem_sao_regulares() {
+        let expansao = vec![
+            "APROFUNDAMENTO DE FILOSOFIA".to_string(),
+            "LINGUA INGLESA".to_string(),
+        ];
+        let regulares = vec!["Língua Inglesa".to_string(), "MATEMATICA".to_string()];
+        let so = disciplinas_so_de_expansao(Some(expansao.as_slice()), Some(regulares.as_slice()));
+        assert_eq!(so.into_iter().collect::<Vec<_>>(), vec!["APROFUNDAMENTO DE FILOSOFIA"]);
+        // Arquivo antigo, sem lista de regulares: vale a lista de expansão.
+        assert_eq!(disciplinas_so_de_expansao(Some(expansao.as_slice()), None).len(), 2);
+        assert!(disciplinas_so_de_expansao(None, Some(regulares.as_slice())).is_empty());
+    }
+
     #[test]
     fn mapao_regular_nao_e_marcado_como_expansao() {
         let linhas: Vec<Vec<Data>> = vec![
