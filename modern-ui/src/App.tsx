@@ -463,6 +463,15 @@ const NOVIDADES_4_6_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.6.3": {
+    ...NOVIDADES_4_6_0,
+    outrasMudancas: [
+      ...(NOVIDADES_4_6_0.outrasMudancas ?? []),
+      "Corrigido na versão da Microsoft Store: relatórios e outros arquivos gerados ficavam numa pasta escondida pelo Windows, e o caminho mostrado (em AppData\\Roaming) não existia. Agora o app usa a pasta real e os botões \"Abrir relatório\" e \"Abrir pasta\" funcionam.",
+      "Nos relatórios, os parâmetros de texto (série, nível da AvD, componente...) viram listas para escolher, com os valores que existem nos seus dados e a opção \"Todos\". Vale na hora de gerar e no construtor de relatórios, e acaba com relatório vazio por erro de digitação.",
+      "Corrigido o formulário de Planejamento: as disciplinas de Orientação de Estudo (e outras com nome escrito de outro jeito no mapão) não apareciam para os professores. Depois de atualizar o app, clique em \"Atualizar turmas / republicar\" na tela de Planejamento para o link passar a mostrá-las.",
+    ],
+  },
   "4.6.2": {
     ...NOVIDADES_4_6_0,
     outrasMudancas: [
