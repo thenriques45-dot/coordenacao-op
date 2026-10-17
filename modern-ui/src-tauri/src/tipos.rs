@@ -622,6 +622,12 @@ pub(crate) struct TurmaArquivo {
     // antes da 4.6.4 (até o próximo mapão regular ser importado).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) disciplinas_regulares: Option<Vec<String>>,
+    // Todo campo do arquivo que não tem nome acima (ex.: `disparos_lote`,
+    // gravado por atendimentos_lote.rs direto no JSON). Sem isto, quem lê e
+    // regrava a turma por esta struct (importação de mapão, Aluno Presente,
+    // AvD, SARESP) apagava esses campos do arquivo.
+    #[serde(flatten)]
+    pub(crate) outros_campos: serde_json::Map<String, Value>,
 }
 
 #[derive(Deserialize)]

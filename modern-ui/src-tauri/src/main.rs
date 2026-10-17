@@ -1029,6 +1029,21 @@ mod tests {
         assert_eq!(disciplinas[0].faltas, Some(3.0));
     }
 
+    // Regressão: importar mapão (que regrava a turma pela struct) apagava
+    // campos que a struct não conhece, como o histórico de disparos em lote.
+    #[test]
+    fn turma_arquivo_preserva_campos_desconhecidos() {
+        let original = json!({
+            "codigo": "3ª Série A",
+            "ano": 2026,
+            "disparos_lote": [{ "id": "x1", "atualizado_em": "2026-10-01T10:00:00-03:00" }]
+        });
+        let turma: TurmaArquivo = serde_json::from_value(original).unwrap();
+        let regravada = serde_json::to_value(&turma).unwrap();
+        assert_eq!(regravada["disparos_lote"][0]["id"], "x1");
+        assert_eq!(regravada["codigo"], "3ª Série A");
+    }
+
     // Regressão: disciplina que só existe na carga horária da turma (vinda de
     // outro aluno casado num mapão de outra série) não vira linha no boletim
     // de quem não tem lançamento nela.
