@@ -72,6 +72,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.6.5" date="2026-10-20">
+      <description>
+        <ul>
+          <li>Council USB drive: data is reintegrated again instead of being reported as already done</li>
+          <li>Preparing a council drive no longer drops a council that was not reintegrated yet</li>
+          <li>The app running from the council drive no longer joins the shared folder sync</li>
+          <li>Highlighted students recorded on the drive now show up after reintegration and sync</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.6.4" date="2026-10-17">
       <description>
         <ul>
