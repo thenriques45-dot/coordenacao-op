@@ -1,5 +1,18 @@
 # Changelog
 
+## v4.6.5 - Pendrive do conselho: reintegração corrigida
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 à 4.6.4 e desta versão somadas ao fim de "outras mudanças".
+
+### Conselho de classe (pendrive)
+- **"Já foi reintegrado" sem os dados chegarem:** o app aberto pelo pendrive encontrava a própria pasta e oferecia "Reintegrar". Ao clicar, ele mesclava o pendrive com ele mesmo e o marcava como reintegrado, sem trazer nada para o computador. Agora o app do pendrive não oferece mais isso. Um pendrive com turmas gravadas depois da reintegração volta a ser oferecido, e a aba "Reintegrar dados" permite reintegrar de novo (com backup antes).
+- **Conselho anterior perdido ao preparar outro:** preparar um pendrive por cima de um conselho ainda não reintegrado tirava essas turmas da lista do pendrive. Agora o app pede para reintegrar antes.
+- **App do pendrive sincronizando sozinho:** aberto no mesmo computador, o app do pendrive entrava na sincronização com a pasta compartilhada e trocava os controles do pendrive entre as máquinas. Agora ele não sincroniza; os dados voltam pela reintegração.
+- **Destaques invisíveis depois da reintegração:** destaques gravados com categorias ("Aluno Destaque", "Aluno Superação") recriadas no pendrive não apareciam no computador. Agora a reintegração casa as categorias pelo nome e acrescenta as que faltam.
+
+### Sincronização
+- Destaques, perfil da turma, ajustes de média e encaminhamentos feitos em outro computador passam a chegar pela sincronização nos bimestres que este computador ainda não registrou.
+
 ## v4.6.4 - Correções no boletim, no Planejamento e na frequência média
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1, da 4.6.2, da 4.6.3 e desta versão somadas ao fim de "outras mudanças".

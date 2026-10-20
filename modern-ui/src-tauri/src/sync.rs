@@ -114,11 +114,25 @@ pub(crate) fn carregar_estados_sincronizacao(
     Ok(payloads)
 }
 
+// O app do pendrive de conselho não participa da sincronização institucional
+// (ver rodando_do_pendrive_de_conselho): os dados voltam pela reintegração.
+fn sem_sincronizacao_no_pendrive() -> SyncInstitutionalResultado {
+    SyncInstitutionalResultado {
+        caminho: None,
+        arquivos: 0,
+        atualizado_em: String::new(),
+        backup_seguranca: None,
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn publicar_dados_institucionais_sincronizacao(
     input: SyncInstitutionalInput,
 ) -> Result<SyncInstitutionalResultado, String> {
     let _dados = travar_dados();
+    if rodando_do_pendrive_de_conselho() {
+        return Ok(sem_sincronizacao_no_pendrive());
+    }
     let raiz = validar_pasta_sincronizacao(&input.pasta)?;
     let estado = raiz.join("state");
     fs::create_dir_all(&estado).map_err(|err| err.to_string())?;
@@ -207,6 +221,9 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
     pasta: String,
 ) -> Result<SyncInstitutionalResultado, String> {
     let _dados = travar_dados();
+    if rodando_do_pendrive_de_conselho() {
+        return Ok(sem_sincronizacao_no_pendrive());
+    }
     let raiz = validar_pasta_sincronizacao(&pasta)?;
     let origem = raiz.join("state").join("institutional-data");
     let origem_dados = origem.join("dados");
@@ -258,9 +275,14 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
     // quadro kanban e o calendário vazios depois de cada pull. Peers em versão
     // antiga ainda publicam o espelho DELES; copiar o local por cima garante
     // que o de fora nunca vença. Ver eh_estado_ui_da_maquina.
-    let estado_ui_local = destino.join("estado_ui.json");
-    if estado_ui_local.is_file() {
-        fs::copy(&estado_ui_local, temporario.join("estado_ui.json")).map_err(|err| err.to_string())?;
+    for nome in std::iter::once("estado_ui.json").chain(ARQUIVOS_PENDRIVE_DA_MAQUINA) {
+        let local = destino.join(nome);
+        let recebido = temporario.join(nome);
+        if local.is_file() {
+            fs::copy(&local, &recebido).map_err(|err| err.to_string())?;
+        } else if recebido.is_file() && nome != "estado_ui.json" {
+            fs::remove_file(&recebido).map_err(|err| err.to_string())?;
+        }
     }
 
     // Remove cópias de conflito criadas pelo OneDrive dentro do estado recebido
@@ -435,6 +457,18 @@ pub(crate) fn eh_estado_ui_da_maquina(nome: &str) -> bool {
         || (nome.starts_with("estado_ui-") && nome.ends_with(".json"))
 }
 
+/// O controle do pendrive de conselho também é desta máquina: o manifesto
+/// (`conselho_pendrive.json`, só existe no pendrive) e a lista de check-outs
+/// (`conselhos_externos.json`). Pela sincronização institucional, o manifesto
+/// de um pendrive ia parar no computador e o de outro conselho voltava por
+/// cima do que estava no pendrive, e a reintegração não trazia mais as turmas.
+pub(crate) const ARQUIVOS_PENDRIVE_DA_MAQUINA: [&str; 2] =
+    [NOME_MANIFESTO_PENDRIVE, "conselhos_externos.json"];
+
+pub(crate) fn eh_arquivo_da_maquina(nome: &str) -> bool {
+    eh_estado_ui_da_maquina(nome) || ARQUIVOS_PENDRIVE_DA_MAQUINA.contains(&nome)
+}
+
 /// Copia `dados/` para a sincronização institucional pulando, na raiz, os
 /// arquivos que são locais da máquina (ver `eh_estado_ui_da_maquina`).
 /// Só a raiz é filtrada: subpastas (fotos, persistidos, relatórios) vão
@@ -448,7 +482,7 @@ pub(crate) fn copiar_dados_institucionais(
     for entrada in fs::read_dir(origem)? {
         let entrada = entrada?;
         let nome = entrada.file_name();
-        if eh_estado_ui_da_maquina(&nome.to_string_lossy()) {
+        if eh_arquivo_da_maquina(&nome.to_string_lossy()) {
             continue;
         }
         copiar_recursivamente_contando(&entrada.path(), &destino.join(&nome), total)?;
@@ -717,7 +751,35 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
 
     // Campos de conselho e encaminhamentos: local sempre vence (edições intencionais)
     // ajustes_medias_conselho, encaminhamentos_conselho, deliberados_conselho,
-    // lideranca_sala, deficiencias, comentario_educacao_especial — não tocamos
+    // lideranca_sala, deficiencias, comentario_educacao_especial — não tocamos,
+    // exceto para trazer o bimestre que o local nunca registrou (ver
+    // completar_bimestres_ausentes).
+    for campo in ["ajustes_medias_conselho", "encaminhamentos_conselho", "deliberados_conselho"] {
+        completar_bimestres_ausentes(local_obj, inc_obj, campo);
+    }
+}
+
+/// Copia do incoming os bimestres que o local não tem em `campo` (mapa por
+/// bimestre, sem data de edição). O local continua vencendo em todo bimestre
+/// que ele já tem — inclusive vazio, que é como fica uma marcação desfeita.
+/// Sem isto, um conselho feito em outra máquina chegava pela sincronização
+/// sem destaques, perfil da turma, ajustes de média e encaminhamentos: a
+/// turma já existia aqui, e esses campos nunca vinham.
+pub(crate) fn completar_bimestres_ausentes(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &serde_json::Map<String, Value>,
+    campo: &str,
+) {
+    let Some(inc_mapa) = incoming.get(campo).and_then(Value::as_object) else { return; };
+    let local_valor = local
+        .entry(campo.to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let Some(local_mapa) = local_valor.as_object_mut() else { return; };
+    for (bimestre, valor) in inc_mapa {
+        if !local_mapa.contains_key(bimestre) {
+            local_mapa.insert(bimestre.clone(), valor.clone());
+        }
+    }
 }
 
 /// Mesma forma de mesclar_medias, mas chaveada por data de importação em
@@ -859,6 +921,13 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
                     local_lista.push(item.clone());
                 }
             }
+        }
+    }
+
+    // Destaques e perfil da turma, gravados por bimestre no Conselho.
+    if let Some(inc_obj) = incoming.as_object() {
+        for campo in ["alunos_destaque", "perfil_turma"] {
+            completar_bimestres_ausentes(res_obj, inc_obj, campo);
         }
     }
 
@@ -1337,7 +1406,7 @@ pub(crate) fn assinatura_diretorio(pasta: &Path) -> io::Result<String> {
         // Arquivo local da máquina na raiz: fora da assinatura, senão ela muda
         // a cada 45 s e a publicação nunca converge (ver
         // eh_estado_ui_da_maquina). O `!contains('/')` restringe à raiz.
-        if !relativo.contains('/') && eh_estado_ui_da_maquina(&relativo) {
+        if !relativo.contains('/') && eh_arquivo_da_maquina(&relativo) {
             return Ok(());
         }
         let bytes = fs::read(caminho)?;
@@ -1651,6 +1720,36 @@ mod testes {
         });
         mesclar_aluno(&mut local, &incoming);
         assert_eq!(local["expansao_online"]["snapshots"]["2026-08-25"]["progresso"], json!(85.0));
+    }
+
+    #[test]
+    fn destaques_e_ajustes_de_outra_maquina_chegam_sem_apagar_os_locais() {
+        let local = json!({
+            "codigo": "6A",
+            "alunos_destaque": {"2": {"destaque": "ANA"}, "3": {}},
+            "alunos": {"1": {"ajustes_medias_conselho": {"2": {"MAT": 5}}}}
+        });
+        let incoming = json!({
+            "codigo": "6A",
+            "alunos_destaque": {"2": {"destaque": "BIA"}, "3": {"destaque": "CAIO"}},
+            "perfil_turma": {"3": {"engajamento": "alto"}},
+            "alunos": {"1": {"ajustes_medias_conselho": {"2": {"MAT": 6}, "3": {"MAT": 7}}}}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        assert_eq!(r["alunos_destaque"]["2"]["destaque"], json!("ANA"));
+        // Bimestre vazio no local é marcação desfeita: continua vazio.
+        assert_eq!(r["alunos_destaque"]["3"], json!({}));
+        assert_eq!(r["perfil_turma"]["3"]["engajamento"], json!("alto"));
+        assert_eq!(r["alunos"]["1"]["ajustes_medias_conselho"]["2"]["MAT"], json!(5));
+        assert_eq!(r["alunos"]["1"]["ajustes_medias_conselho"]["3"]["MAT"], json!(7));
+    }
+
+    #[test]
+    fn arquivos_do_pendrive_de_conselho_nao_vao_para_a_sincronizacao() {
+        assert!(eh_arquivo_da_maquina("conselho_pendrive.json"));
+        assert!(eh_arquivo_da_maquina("conselhos_externos.json"));
+        assert!(eh_arquivo_da_maquina("estado_ui.json"));
+        assert!(!eh_arquivo_da_maquina("persistidos"));
     }
 
     /// O merge precisa ser simétrico: a reintegração de pendrive
