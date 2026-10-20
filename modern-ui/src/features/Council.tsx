@@ -1496,9 +1496,26 @@ export function PendriveConselhoModal({
     if (typeof escolha !== "string" || !escolha) return;
     setOcupado(true);
     try {
-      const resultado = await invokeApp<ResultadoReintegracaoPendrive>("reintegrar_pendrive_conselho", {
-        pasta: escolha,
-      });
+      let resultado: ResultadoReintegracaoPendrive;
+      try {
+        resultado = await invokeApp<ResultadoReintegracaoPendrive>("reintegrar_pendrive_conselho", {
+          pasta: escolha,
+        });
+      } catch (err) {
+        // Reintegrar de novo é seguro: um backup é criado antes e a mesclagem
+        // de dados já reintegrados não muda nada.
+        const mensagem = String(err);
+        if (
+          !mensagem.includes("já foi reintegrado") ||
+          !window.confirm(`${mensagem}\n\nReintegrar de novo mesmo assim? Um backup de segurança é criado antes.`)
+        ) {
+          throw err;
+        }
+        resultado = await invokeApp<ResultadoReintegracaoPendrive>("reintegrar_pendrive_conselho", {
+          pasta: escolha,
+          forcar: true,
+        });
+      }
       setReintegracao(resultado);
       invokeApp<ConselhoExterno[]>("listar_conselhos_externos").then(setExternos).catch(() => {});
       aoAtualizarDados();

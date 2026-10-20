@@ -6,18 +6,21 @@
 
 use crate::*;
 
-use chrono::Local;
+use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     collections::BTreeSet,
     env, fs, io,
     path::{Path, PathBuf},
+    time::SystemTime,
 };
 
 pub(crate) const NOME_PASTA_PENDRIVE: &str = "CoordenacaoOP-Conselho";
 pub(crate) const NOME_MANIFESTO_PENDRIVE: &str = "conselho_pendrive.json";
 pub(crate) const TIPO_MANIFESTO_PENDRIVE: &str = "coordenacaoop-conselho-pendrive";
+// A interface reconhece este começo do erro para oferecer "reintegrar de novo".
+const PREFIXO_JA_REINTEGRADO: &str = "Este conselho já foi reintegrado";
 
 #[derive(Deserialize)]
 pub(crate) struct PrepararPendriveConselhoInput {
@@ -81,6 +84,82 @@ fn salvar_conselhos_externos(externos: &[ConselhoExterno]) -> Result<(), String>
     escrever_json_atomicamente(&caminho, &texto).map_err(|err| err.to_string())
 }
 
+// O app aberto do próprio pendrive (modo portátil) enxerga o pendrive como
+// uma unidade qualquer e oferecia reintegrá-lo: a "reintegração" mesclava os
+// arquivos com eles mesmos e marcava o pendrive como reintegrado, sem trazer
+// nada para o computador — e o conselho feito depois disso ficava preso lá.
+fn e_a_propria_instalacao(base_dados: &Path) -> bool {
+    data_dir()
+        .map(|local| mesmos_caminhos(base_dados, &local))
+        .unwrap_or(false)
+}
+
+// Este processo é o app portátil de um pendrive de conselho: o manifesto está
+// nos dados e os dados ficam ao lado do executável. Rodando no mesmo
+// computador do app instalado, ele herda do WebView a configuração de
+// sincronização institucional e trocava dados com a pasta compartilhada por
+// conta própria — o que levou o manifesto de um pendrive para o computador e
+// trouxe o de outro conselho por cima do que estava no pendrive.
+pub(crate) fn rodando_do_pendrive_de_conselho() -> bool {
+    let Ok(base) = app_base_dir() else {
+        return false;
+    };
+    if !base.join("dados").join(NOME_MANIFESTO_PENDRIVE).is_file() {
+        return false;
+    }
+    env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+        .map(|pasta_exe| mesmos_caminhos(&pasta_exe, &base))
+        .unwrap_or(false)
+}
+
+// Um pendrive marcado como reintegrado mas com turmas gravadas depois disso
+// ainda tem dados que não chegaram: não pode ser tratado como encerrado.
+fn editado_apos_reintegracao(base_dados: &Path, manifesto: &Value, quando: &str) -> bool {
+    let Ok(reintegrado) = DateTime::parse_from_rfc3339(quando) else {
+        return false;
+    };
+    let reintegrado = SystemTime::from(reintegrado);
+    manifesto
+        .get("turmas")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| item.get("caminho_relativo").and_then(Value::as_str))
+        .filter_map(|rel| fs::metadata(base_dados.join("persistidos").join(rel)).ok())
+        .filter_map(|meta| meta.modified().ok())
+        .any(|modificado| modificado > reintegrado)
+}
+
+// Reintegração concluída e sem edições posteriores no pendrive.
+fn reintegracao_encerrada(base_dados: &Path, manifesto: &Value) -> bool {
+    match manifesto.get("reintegrado_em").and_then(Value::as_str) {
+        Some(quando) if !quando.is_empty() => {
+            !editado_apos_reintegracao(base_dados, manifesto, quando)
+        }
+        _ => false,
+    }
+}
+
+// Rótulos das turmas de um conselho preparado nesta pasta e ainda pendente.
+fn turmas_pendentes_no_pendrive(pend_dados: &Path) -> Option<String> {
+    let texto = fs::read_to_string(pend_dados.join(NOME_MANIFESTO_PENDRIVE)).ok()?;
+    let manifesto: Value = serde_json::from_str(&texto).ok()?;
+    if manifesto.get("tipo").and_then(Value::as_str) != Some(TIPO_MANIFESTO_PENDRIVE)
+        || reintegracao_encerrada(pend_dados, &manifesto)
+    {
+        return None;
+    }
+    let rotulos: Vec<&str> = manifesto
+        .get("turmas")
+        .and_then(Value::as_array)?
+        .iter()
+        .filter_map(|item| item.get("rotulo").and_then(Value::as_str))
+        .collect();
+    (!rotulos.is_empty()).then(|| rotulos.join(", "))
+}
+
 fn nome_dispositivo() -> String {
     env::var("COMPUTERNAME")
         .or_else(|_| env::var("HOSTNAME"))
@@ -105,9 +184,19 @@ pub(crate) fn preparar_pendrive_conselho(
         return Err("A pasta escolhida não permite gravação. Verifique o pendrive.".to_string());
     }
 
+    let pend_dados = pasta.join("dados");
+    // Preparar por cima apagava do manifesto as turmas de um conselho anterior
+    // ainda não reintegrado: os dados continuavam no pendrive, mas a
+    // reintegração deixava de trazê-los.
+    if let Some(pendentes) = turmas_pendentes_no_pendrive(&pend_dados) {
+        return Err(format!(
+            "Este pendrive ainda tem um conselho não reintegrado ({pendentes}). Reintegre \
+             esse conselho antes de preparar outro, ou use outra pasta."
+        ));
+    }
+
     let raiz = raiz_turmas()?;
     let raiz_canonica = raiz.canonicalize().map_err(|err| err.to_string())?;
-    let pend_dados = pasta.join("dados");
     let pend_persistidos = pend_dados.join("persistidos");
     fs::create_dir_all(&pend_persistidos).map_err(|err| err.to_string())?;
 
@@ -242,6 +331,7 @@ pub(crate) fn preparar_pendrive_conselho(
 #[tauri::command(async)]
 pub(crate) fn reintegrar_pendrive_conselho(
     pasta: String,
+    forcar: Option<bool>,
 ) -> Result<ResultadoReintegracaoPendrive, String> {
     let _dados = travar_dados();
     let pasta = PathBuf::from(pasta.trim());
@@ -260,16 +350,25 @@ pub(crate) fn reintegrar_pendrive_conselho(
         .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| "Manifesto em local inválido.".to_string())?;
+    if e_a_propria_instalacao(&base_dados) {
+        return Err(
+            "Este é o Coordenação OP do próprio pendrive. Para reintegrar o conselho, abra o \
+             app instalado no seu computador com o pendrive conectado."
+                .to_string(),
+        );
+    }
 
     let texto = fs::read_to_string(&manifesto_path).map_err(|err| err.to_string())?;
     let mut manifesto: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
     if manifesto.get("tipo").and_then(Value::as_str) != Some(TIPO_MANIFESTO_PENDRIVE) {
         return Err("Esta pasta não contém um conselho preparado por este app.".to_string());
     }
-    if let Some(quando) = manifesto.get("reintegrado_em").and_then(Value::as_str) {
-        if !quando.is_empty() {
-            return Err(format!("Este conselho já foi reintegrado em {quando}."));
-        }
+    if !forcar.unwrap_or(false) && reintegracao_encerrada(&base_dados, &manifesto) {
+        let quando = manifesto
+            .get("reintegrado_em")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        return Err(format!("{PREFIXO_JA_REINTEGRADO} em {quando}."));
     }
     let bimestre = manifesto
         .get("bimestre")
@@ -402,7 +501,11 @@ pub(crate) fn detectar_pendrives_conselho() -> Vec<PendriveConselhoDetectado> {
         if !vistos.insert(pasta.to_string_lossy().to_lowercase()) {
             continue;
         }
-        let manifesto_path = pasta.join("dados").join(NOME_MANIFESTO_PENDRIVE);
+        let base_dados = pasta.join("dados");
+        if e_a_propria_instalacao(&base_dados) {
+            continue;
+        }
+        let manifesto_path = base_dados.join(NOME_MANIFESTO_PENDRIVE);
         let Ok(texto) = fs::read_to_string(&manifesto_path) else {
             continue;
         };
@@ -412,12 +515,7 @@ pub(crate) fn detectar_pendrives_conselho() -> Vec<PendriveConselhoDetectado> {
         if manifesto.get("tipo").and_then(Value::as_str) != Some(TIPO_MANIFESTO_PENDRIVE) {
             continue;
         }
-        if manifesto
-            .get("reintegrado_em")
-            .and_then(Value::as_str)
-            .map(|quando| !quando.is_empty())
-            .unwrap_or(false)
-        {
+        if reintegracao_encerrada(&base_dados, &manifesto) {
             continue;
         }
         let turmas = manifesto
@@ -472,4 +570,33 @@ pub(crate) fn cancelar_conselho_externo(
     });
     salvar_conselhos_externos(&externos)?;
     Ok(externos)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn turma_gravada_depois_da_reintegracao_reabre_o_pendrive() {
+        let base = env::temp_dir().join(format!("coordop_pendrive_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(base.join("persistidos").join("2026")).unwrap();
+        fs::write(base.join("persistidos").join("2026").join("turma_A.json"), "{}").unwrap();
+
+        let mut manifesto = serde_json::json!({
+            "tipo": TIPO_MANIFESTO_PENDRIVE,
+            "turmas": [{"caminho_relativo": "2026/turma_A.json", "rotulo": "A"}],
+        });
+        assert!(!reintegracao_encerrada(&base, &manifesto));
+
+        // Reintegrado depois da última gravação: encerrado.
+        manifesto["reintegrado_em"] = Value::from("2999-01-01T00:00:00-03:00");
+        assert!(reintegracao_encerrada(&base, &manifesto));
+
+        // Turma gravada depois da reintegração (conselho feito depois): pendente.
+        manifesto["reintegrado_em"] = Value::from("2001-01-01T00:00:00-03:00");
+        assert!(!reintegracao_encerrada(&base, &manifesto));
+
+        let _ = fs::remove_dir_all(&base);
+    }
 }
