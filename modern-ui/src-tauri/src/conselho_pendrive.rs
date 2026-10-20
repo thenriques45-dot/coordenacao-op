@@ -10,7 +10,7 @@ use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     env, fs, io,
     path::{Path, PathBuf},
     time::SystemTime,
@@ -402,6 +402,7 @@ pub(crate) fn reintegrar_pendrive_conselho(
     let raiz = raiz_turmas()?;
     let mut avisos = Vec::new();
     let mut mescladas = 0usize;
+    let ids_destaque = conciliar_criterios_destaque(&base_dados, &mut avisos);
     for (rel, rotulo) in &turmas_manifesto {
         let origem = base_dados.join("persistidos").join(rel);
         if !origem.exists() {
@@ -413,8 +414,9 @@ pub(crate) fn reintegrar_pendrive_conselho(
         garantir_caminho_em_pasta(&destino, &raiz)?;
 
         let texto_pendrive = fs::read_to_string(&origem).map_err(|err| err.to_string())?;
-        let valor_pendrive: Value =
+        let mut valor_pendrive: Value =
             serde_json::from_str(&texto_pendrive).map_err(|err| err.to_string())?;
+        renomear_ids_destaque(&mut valor_pendrive, &ids_destaque);
         if destino.exists() {
             let texto_local = fs::read_to_string(&destino).map_err(|err| err.to_string())?;
             let valor_local: Value =
@@ -477,6 +479,81 @@ pub(crate) fn reintegrar_pendrive_conselho(
         backup_seguranca,
         avisos,
     })
+}
+
+// Os destaques de cada turma são gravados pelo id da categoria ("Aluno
+// Destaque", "Aluno Superação"), e o id nasce quando a categoria é criada.
+// Categorias recriadas no app do pendrive ganhavam ids que este computador não
+// conhece, e os destaques reintegrados ficavam invisíveis aqui. Devolve o
+// mapa id do pendrive → id local: por título quando a categoria já existe
+// aqui, e acrescenta à configuração local as que não existem.
+fn conciliar_criterios_destaque(
+    base_dados: &Path,
+    avisos: &mut Vec<String>,
+) -> BTreeMap<String, String> {
+    let mut mapa = BTreeMap::new();
+    let Some(config_pendrive) = base_dados
+        .parent()
+        .map(|pasta| pasta.join("config").join("configuracoes.json"))
+        .and_then(|caminho| fs::read_to_string(caminho).ok())
+        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+    else {
+        return mapa;
+    };
+    let criterios_pendrive: Vec<CriterioDestaque> = config_pendrive
+        .get("aluno_destaque_criterios")
+        .cloned()
+        .and_then(|valor| serde_json::from_value(valor).ok())
+        .unwrap_or_default();
+    if criterios_pendrive.is_empty() {
+        return mapa;
+    }
+
+    let mut config = ler_configuracoes();
+    let titulo = |texto: &str| texto.trim().to_lowercase();
+    let mut acrescentou = false;
+    for criterio in criterios_pendrive {
+        if config.aluno_destaque_criterios.iter().any(|local| local.id == criterio.id) {
+            continue;
+        }
+        match config
+            .aluno_destaque_criterios
+            .iter()
+            .find(|local| titulo(&local.titulo) == titulo(&criterio.titulo))
+        {
+            Some(local) => {
+                mapa.insert(criterio.id, local.id.clone());
+            }
+            None => {
+                config.aluno_destaque_criterios.push(criterio);
+                acrescentou = true;
+            }
+        }
+    }
+    if acrescentou {
+        config.aluno_destaque_ativo = true;
+        if let Err(err) = salvar_configuracoes_arquivo(&config) {
+            avisos.push(format!("Não salvei as categorias de destaque do pendrive: {err}"));
+        }
+    }
+    mapa
+}
+
+fn renomear_ids_destaque(turma: &mut Value, mapa: &BTreeMap<String, String>) {
+    if mapa.is_empty() {
+        return;
+    }
+    let Some(por_bimestre) = turma.get_mut("alunos_destaque").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for nomes in por_bimestre.values_mut() {
+        let Some(nomes) = nomes.as_object_mut() else { continue };
+        let renomeados: serde_json::Map<String, Value> = std::mem::take(nomes)
+            .into_iter()
+            .map(|(id, nome)| (mapa.get(&id).cloned().unwrap_or(id), nome))
+            .collect();
+        *nomes = renomeados;
+    }
 }
 
 // Procura conselhos preparados e ainda não reintegrados: nas pastas registradas
@@ -598,5 +675,17 @@ mod tests {
         assert!(!reintegracao_encerrada(&base, &manifesto));
 
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn destaques_com_id_do_pendrive_passam_para_o_id_local() {
+        let mut turma = serde_json::json!({
+            "alunos_destaque": {"3": {"destaque_pendrive": "ANA", "destaque_local": "BIA"}}
+        });
+        let mapa = BTreeMap::from([("destaque_pendrive".to_string(), "destaque_aqui".to_string())]);
+        renomear_ids_destaque(&mut turma, &mapa);
+        assert_eq!(turma["alunos_destaque"]["3"]["destaque_aqui"], "ANA");
+        assert_eq!(turma["alunos_destaque"]["3"]["destaque_local"], "BIA");
+        assert!(turma["alunos_destaque"]["3"].get("destaque_pendrive").is_none());
     }
 }
