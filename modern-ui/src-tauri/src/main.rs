@@ -1010,6 +1010,26 @@ mod tests {
         assert_eq!(grupos["ORIENTACAO DE ESTUDO MATEMATICA"].len(), 2);
     }
 
+    // Caso real (1ª Série C, 3º bim): conselho subiu Biologia de 4 para 5,
+    // mas o mapão importado ainda tinha 4. A ficha do aluno mostrava só o 5,
+    // parecendo que o mapão já estava corrigido. O histórico precisa levar
+    // a nota do mapão junto para a tela avisar a diferença.
+    #[test]
+    fn extrair_disciplinas_historico_leva_nota_do_mapao() {
+        let info = json!({
+            "medias": { "2": { "BIOLOGIA": 8.0 }, "3": { "BIOLOGIA": {"v": 4.0} } },
+            "ajustes_medias_conselho": {
+                "3": { "BIOLOGIA": { "media_ajustada": 5.0, "media_original": 4.0 } }
+            }
+        });
+        let carga = serde_json::Map::new();
+        let disciplinas = extrair_disciplinas(&info, "3", &carga);
+        let historico = &disciplinas[0].historico_bimestres;
+        assert_eq!(historico.len(), 2);
+        assert_eq!((historico[0].media, historico[0].media_mapao), (8.0, Some(8.0)));
+        assert_eq!((historico[1].media, historico[1].media_mapao), (5.0, Some(4.0)));
+    }
+
     // extrair_disciplinas não pode gerar duas linhas quando a grafia antiga
     // sobreviveu em algum dos mapas (aqui: só em `frequencia`).
     #[test]
