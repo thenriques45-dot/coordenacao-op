@@ -2189,27 +2189,29 @@ function AvatarCropper({
   function recortar() {
     const img = imagemRef.current;
     if (!img) return;
-    const tamanho = 256;
+    // 128 px em JPEG: a foto vai para o roster de todos os colegas do grupo
+    // (localStorage) e aparece no máximo com 56 px na tela. O PNG de 256 px de
+    // antes passava de 150 mil caracteres e estourava a cota do localStorage.
+    const tamanho = 128;
     const canvas = document.createElement("canvas");
     canvas.width = tamanho;
     canvas.height = tamanho;
     const contexto = canvas.getContext("2d");
     if (!contexto) return;
 
-    contexto.clearRect(0, 0, tamanho, tamanho);
-    contexto.save();
-    contexto.beginPath();
-    contexto.arc(tamanho / 2, tamanho / 2, tamanho / 2, 0, Math.PI * 2);
-    contexto.clip();
+    // JPEG não tem transparência: fundo branco; o círculo fica por conta do CSS.
+    contexto.fillStyle = "#ffffff";
+    contexto.fillRect(0, 0, tamanho, tamanho);
 
     const base = Math.max(tamanho / img.naturalWidth, tamanho / img.naturalHeight) * zoom;
     const largura = img.naturalWidth * base;
     const altura = img.naturalHeight * base;
-    const x = (tamanho - largura) / 2 + offsetX;
-    const y = (tamanho - altura) / 2 + offsetY;
+    // Os deslocamentos vêm em pixels da prévia (240 px, ver .avatar-cropper-preview).
+    const escalaPrevia = tamanho / 240;
+    const x = (tamanho - largura) / 2 + offsetX * escalaPrevia;
+    const y = (tamanho - altura) / 2 + offsetY * escalaPrevia;
     contexto.drawImage(img, x, y, largura, altura);
-    contexto.restore();
-    onSalvar(canvas.toDataURL("image/png"));
+    onSalvar(canvas.toDataURL("image/jpeg", 0.85));
   }
 
   const transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px)) scale(${zoom})`;

@@ -2359,19 +2359,24 @@ pub(crate) fn extrair_disciplinas(
             let historico_bimestres = ["1", "2", "3", "4"]
                 .into_iter()
                 .filter_map(|periodo| {
+                    // A nota do mapão vai junto da nota vigente: quando o
+                    // conselho ajustou e o mapão ainda não foi corrigido, a
+                    // ficha do aluno mostra as duas, senão parece que o
+                    // mapão já traz a nota do conselho.
+                    let media_mapao =
+                        valor_disciplina(objeto_bimestre(info, "medias", periodo), &nome)
+                            .and_then(valor_para_f64);
                     let media_periodo = valor_disciplina(
                         objeto_bimestre(info, "ajustes_medias_conselho", periodo),
                         &nome,
                     )
                     .and_then(|ajuste| ajuste.get("media_ajustada"))
                     .and_then(valor_para_f64)
-                    .or_else(|| {
-                        valor_disciplina(objeto_bimestre(info, "medias", periodo), &nome)
-                            .and_then(valor_para_f64)
-                    })?;
+                    .or(media_mapao)?;
                     Some(NotaBimestre {
                         bimestre: periodo.to_string(),
                         media: media_periodo,
+                        media_mapao,
                     })
                 })
                 .collect::<Vec<_>>();

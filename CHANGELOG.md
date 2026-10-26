@@ -1,5 +1,15 @@
 # Changelog
 
+## v4.6.6 - Sincronização do grupo destravada
+
+Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 à 4.6.5 e desta versão somadas ao fim de "outras mudanças".
+
+### Sincronização
+- **"QuotaExceededError" e sincronização automática parada:** a lista de colegas do grupo guardava a foto de perfil de cada instalação em tamanho grande (PNG de 256 px), repassada entre todos. Em grupos maiores isso enchia o espaço interno do app (localStorage). Agora as fotos são salvas como JPEG de 128 px, as já guardadas ou recebidas de colegas em versões antigas são reduzidas na primeira sincronização e, se ainda faltar espaço, a lista é gravada sem fotos em vez de travar a sincronização.
+
+### Conselho de classe
+- **Ficha do aluno:** quando a nota do conselho difere da do mapão (ou o mapão não tem nota), a célula mostra "mapão: X" em vermelho, para não parecer que o mapão já foi corrigido.
+
 ## v4.6.5 - Pendrive do conselho: reintegração corrigida
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 à 4.6.4 e desta versão somadas ao fim de "outras mudanças".

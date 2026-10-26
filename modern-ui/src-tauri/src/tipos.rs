@@ -587,6 +587,7 @@ pub(crate) struct DisciplinaDetalhe {
 pub(crate) struct NotaBimestre {
     pub(crate) bimestre: String,
     pub(crate) media: f64,
+    pub(crate) media_mapao: Option<f64>,
 }
 
 #[derive(Deserialize, Serialize)]

@@ -44,7 +44,13 @@ export async function hidratarEstadoUi() {
       const valorEspelho = estado[chave];
       const valorLocal = localStorage.getItem(chave);
       if (valorLocal === null && typeof valorEspelho === "string") {
-        localStorage.setItem(chave, valorEspelho);
+        // Uma chave grande demais (ex.: roster com fotos antigas) estourando a
+        // cota não pode impedir a restauração das demais.
+        try {
+          localStorage.setItem(chave, valorEspelho);
+        } catch {
+          continue;
+        }
       } else if (valorLocal !== null && valorEspelho === undefined) {
         semearNoEspelho[chave] = valorLocal;
       }
