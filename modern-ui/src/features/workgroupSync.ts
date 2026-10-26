@@ -241,6 +241,73 @@ export function agruparMembrosPorPessoa(membros: WorkgroupSyncMember[]): Workgro
   return grupos.map((g) => ({ ...g.principal, dispositivos: Array.from(g.dispositivos) }));
 }
 
+// Fotos de perfil acima disto não cabem no roster. O recorte atual gera ~5–10
+// mil caracteres; as versões até a 4.6.5 gravavam um PNG de 256 px que passava
+// de 150 mil — e o roster guarda uma foto por `userId` (cada reinstalação ou
+// dual boot conta como um), repassada de colega em colega. Num grupo grande
+// isso estourava a cota do localStorage (~5 milhões de caracteres, dividida
+// com o Kanban, o calendário e os caches do PEI/Planejamento) e travava a
+// sincronização inteira com QuotaExceededError.
+const LIMITE_AVATAR = 30_000;
+const LADO_AVATAR = 128;
+
+const avataresReduzidos = new Map<string, string | undefined>();
+
+// Redesenha uma foto grande como JPEG de 128 px. Fotos já pequenas passam
+// direto; se não der pra decodificar, a foto é descartada (o app mostra as
+// iniciais no lugar).
+export async function reduzirAvatar(dataUrl: string | undefined): Promise<string | undefined> {
+  if (!dataUrl || dataUrl.length <= LIMITE_AVATAR) return dataUrl;
+  if (avataresReduzidos.has(dataUrl)) return avataresReduzidos.get(dataUrl);
+  let reduzido: string | undefined;
+  try {
+    if (!dataUrl.startsWith("data:image/")) throw new Error("não é imagem");
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    reduzido = desenharAvatar(img, LADO_AVATAR);
+    if (reduzido.length > LIMITE_AVATAR) reduzido = undefined;
+  } catch {
+    reduzido = undefined;
+  }
+  avataresReduzidos.set(dataUrl, reduzido);
+  return reduzido;
+}
+
+// Recorta o centro da imagem em quadrado e grava em JPEG com fundo branco
+// (JPEG não tem transparência; a interface já exibe as fotos em círculo).
+function desenharAvatar(img: CanvasImageSource & { naturalWidth: number; naturalHeight: number }, lado: number): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = lado;
+  canvas.height = lado;
+  const contexto = canvas.getContext("2d");
+  if (!contexto) throw new Error("canvas indisponível");
+  contexto.fillStyle = "#ffffff";
+  contexto.fillRect(0, 0, lado, lado);
+  const escala = Math.max(lado / img.naturalWidth, lado / img.naturalHeight);
+  const largura = img.naturalWidth * escala;
+  const altura = img.naturalHeight * escala;
+  contexto.drawImage(img, (lado - largura) / 2, (lado - altura) / 2, largura, altura);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+async function membroComAvatarReduzido<T extends { avatarDataUrl?: string }>(membro: T): Promise<T> {
+  const avatarDataUrl = await reduzirAvatar(membro.avatarDataUrl);
+  return avatarDataUrl === membro.avatarDataUrl ? membro : { ...membro, avatarDataUrl };
+}
+
+// Reduz as fotos grandes que já estão no roster (gravadas por versões
+// anteriores) — é o que libera a cota em quem já está travado.
+async function reduzirAvataresSalvos() {
+  const membros = carregarMembrosSincronizacao();
+  if (!membros.some((membro) => (membro.avatarDataUrl?.length ?? 0) > LIMITE_AVATAR)) return;
+  salvarMembrosSincronizacao(await Promise.all(membros.map(membroComAvatarReduzido)));
+}
+
+function gravarMembros(membros: WorkgroupSyncMember[]) {
+  localStorage.setItem(WORKGROUP_SYNC_MEMBERS_KEY, JSON.stringify(membros));
+}
+
 function salvarMembrosSincronizacao(membros: WorkgroupSyncMember[]) {
   const porId = new Map<string, WorkgroupSyncMember>();
   membros.forEach((membro) => {
@@ -249,10 +316,24 @@ function salvarMembrosSincronizacao(membros: WorkgroupSyncMember[]) {
     const tsNovo = Date.parse(membro.updatedAt ?? "") || 0;
     const tsAnterior = Date.parse(anterior?.updatedAt ?? "") || 0;
     if (!anterior || tsNovo >= tsAnterior) {
-      porId.set(membro.userId, membro);
+      // Foto grande que ainda não passou por reduzirAvatar fica de fora; a
+      // próxima sincronização traz a versão reduzida.
+      const avatarGrande = (membro.avatarDataUrl?.length ?? 0) > LIMITE_AVATAR;
+      porId.set(membro.userId, avatarGrande ? { ...membro, avatarDataUrl: undefined } : membro);
     }
   });
-  localStorage.setItem(WORKGROUP_SYNC_MEMBERS_KEY, JSON.stringify(Array.from(porId.values())));
+  const lista = Array.from(porId.values());
+  // O roster só serve pra mostrar nome e foto dos colegas: se mesmo assim não
+  // couber, grava sem as fotos em vez de derrubar a sincronização.
+  try {
+    gravarMembros(lista);
+  } catch {
+    try {
+      gravarMembros(lista.map((membro) => ({ ...membro, avatarDataUrl: undefined })));
+    } catch {
+      // Sem espaço nem para os nomes: mantém o roster anterior.
+    }
+  }
 }
 
 export function registrarMembroSincronizacao(perfil: WorkgroupSyncMember | WorkgroupSyncProfile) {
@@ -343,8 +424,10 @@ async function adotarEquipeGestoraRecebida(recebida: EquipeGestora | null | unde
   }
 }
 
-export async function montarPayloadSincronizacao(perfil: WorkgroupSyncProfile): Promise<WorkgroupSyncPayload> {
+export async function montarPayloadSincronizacao(perfilOriginal: WorkgroupSyncProfile): Promise<WorkgroupSyncPayload> {
   const tombstones = carregarTombstones();
+  await reduzirAvataresSalvos();
+  const perfil = await membroComAvatarReduzido(perfilOriginal);
   registrarMembroSincronizacao(perfil);
   const [planejamentoConfig, peiConfig, equipeGestora] = await Promise.all([
     buscarConfigWebAppParaSync("carregar_config_planejamento"),
@@ -488,11 +571,14 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   // aqui é exibida na primeira, sem ter o status reescrito (ver
   // `colunaDaTarefa` em management.ts).
 
-  registrarMembroSincronizacao({
-    ...payload.profile,
-    updatedAt: payload.generatedAt,
-  });
-  (payload.profiles ?? []).forEach(registrarMembroSincronizacao);
+  // Antes de qualquer outra gravação: reduzir as fotos é o que libera espaço
+  // no localStorage pra o Kanban e o calendário logo abaixo.
+  await reduzirAvataresSalvos();
+  const [perfilRemetente, ...perfisRecebidos] = await Promise.all(
+    [{ ...payload.profile, updatedAt: payload.generatedAt }, ...(payload.profiles ?? [])].map(membroComAvatarReduzido),
+  );
+  registrarMembroSincronizacao(perfilRemetente);
+  perfisRecebidos.forEach(registrarMembroSincronizacao);
   localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
   localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
   salvarTombstones(tombstones);
