@@ -109,6 +109,7 @@ type Disciplina = {
 type NotaBimestre = {
   bimestre: string;
   media: number;
+  media_mapao?: number | null;
 };
 
 type OpcaoCriterioPerfil = {

@@ -60,6 +60,7 @@ function normalizarTiposAtendimento(tipos: string[]) {
 type NotaBimestre = {
   bimestre: string;
   media: number;
+  media_mapao?: number | null;
 };
 
 type AtribuicaoNota = {
@@ -2044,15 +2045,27 @@ function AlunoDetalheGestao({
                     </td>
                     {[1, 2, 3, 4].map((indice) => {
                       const eAtual = indice === bimestreAtual;
-                      const notaBim = eAtual
-                        ? nota
-                        : (disciplina.historicoBimestres ?? []).find(
-                            (hb) => Number.parseInt(hb.bimestre, 10) === indice
-                          )?.media ?? null;
-                      const tooltip = eAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
+                      const historico = (disciplina.historicoBimestres ?? []).find(
+                        (hb) => Number.parseInt(hb.bimestre, 10) === indice
+                      );
+                      const notaBim = eAtual ? nota : historico?.media ?? null;
+                      const notaMapao = eAtual ? disciplina.mediaOriginal : historico?.media_mapao ?? null;
+                      // Nota do conselho diferente da do mapão: mostra as duas,
+                      // senão parece que o mapão já foi corrigido.
+                      const divergeMapao =
+                        typeof notaBim === "number" && notaBim !== notaMapao &&
+                        (typeof notaMapao !== "number" || Math.abs(notaBim - notaMapao) >= 0.05);
+                      const atribuicao = eAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
+                      const avisoMapao = divergeMapao
+                        ? `Nota do conselho: ${formatarNota(notaBim)}. No mapão importado: ${formatarNota(notaMapao)}.`
+                        : null;
+                      const tooltip = [avisoMapao, atribuicao].filter(Boolean).join("\n") || null;
                       return (
                         <td key={indice} className={classeTextoNota(notaBim)} title={tooltip ?? undefined}>
                           {formatarNota(notaBim)}
+                          {divergeMapao && (
+                            <span className="grade-mapao-diff">mapão: {formatarNota(notaMapao)}</span>
+                          )}
                         </td>
                       );
                     })}
