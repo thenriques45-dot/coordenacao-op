@@ -198,8 +198,11 @@ pub(crate) fn salvar_perfil_turma(caminho: String, bimestre: String, apontamento
             .entry("perfil_turma")
             .or_insert_with(|| Value::Object(serde_json::Map::new()));
         if let Some(obj) = perfil_turma.as_object_mut() {
-            obj.insert(bimestre, apontamentos);
+            obj.insert(bimestre.clone(), apontamentos);
         }
+    }
+    if let Some(objeto) = dados.as_object_mut() {
+        marcar_bimestre_editado(objeto, "perfil_turma", &bimestre);
     }
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
@@ -233,8 +236,11 @@ pub(crate) fn salvar_alunos_destaque(caminho: String, bimestre: String, nomes: V
             .entry("alunos_destaque")
             .or_insert_with(|| Value::Object(serde_json::Map::new()));
         if let Some(obj) = alunos_destaque.as_object_mut() {
-            obj.insert(bimestre, nomes);
+            obj.insert(bimestre.clone(), nomes);
         }
+    }
+    if let Some(objeto) = dados.as_object_mut() {
+        marcar_bimestre_editado(objeto, "alunos_destaque", &bimestre);
     }
     let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())

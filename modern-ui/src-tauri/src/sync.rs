@@ -929,6 +929,95 @@ pub(crate) fn completar_bimestres_ausentes(
     }
 }
 
+/// Campo irmão de `campo` com a data da última edição de cada bimestre
+/// (`perfil_turma_editado_em`, `alunos_destaque_editado_em`). Gravado no
+/// próprio arquivo, e não tirado da data do arquivo, que muda ao passar
+/// pela nuvem.
+pub(crate) fn campo_editado_em(campo: &str) -> String {
+    format!("{campo}_editado_em")
+}
+
+/// Grava em `dados` a data de edição de `campo` no `bimestre`.
+pub(crate) fn marcar_bimestre_editado(dados: &mut serde_json::Map<String, Value>, campo: &str, bimestre: &str) {
+    let datas = dados
+        .entry(campo_editado_em(campo))
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !datas.is_object() {
+        *datas = Value::Object(serde_json::Map::new());
+    }
+    if let Some(datas) = datas.as_object_mut() {
+        datas.insert(bimestre.to_string(), Value::from(Local::now().to_rfc3339()));
+    }
+}
+
+/// Mescla `campo` (mapa por bimestre) bimestre a bimestre: vence a edição
+/// mais recente, pela data em `<campo>_editado_em`. Sem data dos dois lados
+/// (arquivos de antes da 4.6.7), o local vence em todo bimestre que já tem,
+/// inclusive vazio, que é como fica uma marcação desfeita; o incoming só
+/// completa os bimestres que faltam aqui. Antes não havia data nenhuma: um
+/// bimestre que já existia aqui nunca era atualizado por outra máquina, e o
+/// perfil da turma preenchido no conselho de um colega não chegava.
+pub(crate) fn mesclar_bimestres_por_edicao(
+    local: &mut serde_json::Map<String, Value>,
+    incoming: &serde_json::Map<String, Value>,
+    campo: &str,
+) {
+    let Some(inc_mapa) = incoming.get(campo).and_then(Value::as_object) else { return; };
+    let campo_datas = campo_editado_em(campo);
+    let inc_datas = incoming.get(&campo_datas).and_then(Value::as_object);
+    let data_de = |datas: Option<&serde_json::Map<String, Value>>, bimestre: &str| -> String {
+        datas
+            .and_then(|datas| datas.get(bimestre))
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    };
+
+    let mut vencidos: Vec<(String, Value, String)> = Vec::new();
+    {
+        let local_mapa = local.get(campo).and_then(Value::as_object);
+        let local_datas = local.get(&campo_datas).and_then(Value::as_object);
+        for (bimestre, valor) in inc_mapa {
+            let em_inc = data_de(inc_datas, bimestre);
+            let vence = match local_mapa.and_then(|mapa| mapa.get(bimestre)) {
+                None => true,
+                Some(_) => em_inc > data_de(local_datas, bimestre),
+            };
+            if vence {
+                vencidos.push((bimestre.clone(), valor.clone(), em_inc));
+            }
+        }
+    }
+    if vencidos.is_empty() {
+        return;
+    }
+
+    let local_valor = local
+        .entry(campo.to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !local_valor.is_object() {
+        *local_valor = Value::Object(serde_json::Map::new());
+    }
+    if let Some(local_mapa) = local_valor.as_object_mut() {
+        for (bimestre, valor, _) in &vencidos {
+            local_mapa.insert(bimestre.clone(), valor.clone());
+        }
+    }
+    let datas = local
+        .entry(campo_datas)
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    if !datas.is_object() {
+        *datas = Value::Object(serde_json::Map::new());
+    }
+    if let Some(datas) = datas.as_object_mut() {
+        for (bimestre, _, em) in vencidos {
+            if !em.is_empty() {
+                datas.insert(bimestre, Value::from(em));
+            }
+        }
+    }
+}
+
 /// Mesma forma de mesclar_medias, mas chaveada por data de importação em
 /// vez de bimestre×disciplina — cada snapshot já carrega seu próprio
 /// bimestre (ver importador_expansoes.rs), então uma chave só basta.
@@ -1074,7 +1163,7 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
     // Destaques e perfil da turma, gravados por bimestre no Conselho.
     if let Some(inc_obj) = incoming.as_object() {
         for campo in ["alunos_destaque", "perfil_turma"] {
-            completar_bimestres_ausentes(res_obj, inc_obj, campo);
+            mesclar_bimestres_por_edicao(res_obj, inc_obj, campo);
         }
     }
 
@@ -1889,6 +1978,40 @@ mod testes {
         assert_eq!(r["perfil_turma"]["3"]["engajamento"], json!("alto"));
         assert_eq!(r["alunos"]["1"]["ajustes_medias_conselho"]["2"]["MAT"], json!(5));
         assert_eq!(r["alunos"]["1"]["ajustes_medias_conselho"]["3"]["MAT"], json!(7));
+    }
+
+    #[test]
+    fn perfil_e_destaques_ficam_com_a_edicao_mais_recente() {
+        let local = json!({
+            "codigo": "6A",
+            "perfil_turma": {"3": {}, "2": {"engajamento": "baixo"}},
+            "perfil_turma_editado_em": {"2": "2026-10-27T10:00:00-03:00"},
+            "alunos_destaque": {"3": {"destaque": "ANA"}},
+            "alunos_destaque_editado_em": {"3": "2026-10-27T12:00:00-03:00"}
+        });
+        let incoming = json!({
+            "codigo": "6A",
+            "perfil_turma": {"3": {"engajamento": "alto"}, "2": {"engajamento": "medio"}},
+            "perfil_turma_editado_em": {"3": "2026-10-26T21:09:00-03:00", "2": "2026-10-26T09:00:00-03:00"},
+            "alunos_destaque": {"3": {"destaque": "BIA"}},
+            "alunos_destaque_editado_em": {"3": "2026-10-27T11:00:00-03:00"}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        // Bimestre vazio aqui, sem data: o perfil preenchido no colega chega.
+        assert_eq!(r["perfil_turma"]["3"]["engajamento"], json!("alto"));
+        assert_eq!(r["perfil_turma_editado_em"]["3"], json!("2026-10-26T21:09:00-03:00"));
+        // Edição local mais recente continua.
+        assert_eq!(r["perfil_turma"]["2"]["engajamento"], json!("baixo"));
+        assert_eq!(r["alunos_destaque"]["3"]["destaque"], json!("ANA"));
+        assert_eq!(r["alunos_destaque_editado_em"]["3"], json!("2026-10-27T12:00:00-03:00"));
+    }
+
+    #[test]
+    fn marcar_bimestre_editado_grava_a_data_no_proprio_arquivo() {
+        let mut dados = serde_json::Map::new();
+        marcar_bimestre_editado(&mut dados, "perfil_turma", "3");
+        let data = dados["perfil_turma_editado_em"]["3"].as_str().unwrap();
+        assert!(chrono::DateTime::parse_from_rfc3339(data).is_ok());
     }
 
     #[test]
