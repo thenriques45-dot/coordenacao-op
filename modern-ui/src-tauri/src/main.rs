@@ -1545,21 +1545,70 @@ mod tests {
     }
 
     #[test]
-    fn troca_institucional_substitui_sem_deixar_sobras() {
-        let estado = pasta_temporaria("estado-troca");
-        let destino = estado.join("institutional-data");
-        let temporario = estado.join("institutional-data.123.tmp");
-        fs::create_dir_all(destino.join("dados")).unwrap();
-        fs::write(destino.join("manifest.json"), "velho").unwrap();
-        fs::create_dir_all(temporario.join("dados")).unwrap();
-        fs::write(temporario.join("manifest.json"), "novo").unwrap();
+    fn espelho_institucional_copia_so_o_que_mudou_e_apaga_o_que_saiu() {
+        let origem = pasta_temporaria("espelho_origem");
+        let destino = pasta_temporaria("espelho_destino");
+        fs::create_dir_all(origem.join("persistidos").join("2026")).unwrap();
+        fs::write(origem.join("persistidos").join("2026").join("turma_6A.json"), "{\"v\":1}").unwrap();
+        fs::write(origem.join("persistidos").join("2026").join("turma_7A.json"), "{\"v\":1}").unwrap();
+        fs::write(origem.join("estado_ui.json"), "espelho").unwrap();
 
-        trocar_diretorio_institucional(&temporario, &destino).unwrap();
+        let inventario = inventariar_dados_institucionais(&origem).unwrap();
+        assert_eq!(inventario.len(), 2, "o espelho da máquina não vai para o grupo");
+        assert_eq!(espelhar_dados_institucionais(&origem, &destino, &inventario, &std::collections::BTreeMap::new()).unwrap(), 2);
 
-        assert_eq!(fs::read_to_string(destino.join("manifest.json")).unwrap(), "novo");
-        let restantes: Vec<_> = fs::read_dir(&estado).unwrap().flatten().map(|e| e.file_name()).collect();
-        assert_eq!(restantes, vec![std::ffi::OsString::from("institutional-data")]);
+        // Muda uma turma, apaga a outra: só a que mudou é copiada de novo.
+        fs::write(origem.join("persistidos").join("2026").join("turma_6A.json"), "{\"v\":22}").unwrap();
+        fs::remove_file(origem.join("persistidos").join("2026").join("turma_7A.json")).unwrap();
+        fs::write(destino.join("sobra.json"), "de outra publicação").unwrap();
+        let novo = inventariar_dados_institucionais(&origem).unwrap();
+        assert_eq!(espelhar_dados_institucionais(&origem, &destino, &novo, &inventario).unwrap(), 1);
+        assert_eq!(
+            fs::read_to_string(destino.join("persistidos").join("2026").join("turma_6A.json")).unwrap(),
+            "{\"v\":22}"
+        );
+        assert!(!destino.join("persistidos").join("2026").join("turma_7A.json").exists());
+        assert!(!destino.join("sobra.json").exists());
 
-        fs::remove_dir_all(&estado).unwrap();
+        // Nada mudou: nada é copiado.
+        assert_eq!(espelhar_dados_institucionais(&origem, &destino, &novo, &novo).unwrap(), 0);
+
+        fs::remove_dir_all(&origem).unwrap();
+        fs::remove_dir_all(&destino).unwrap();
+    }
+
+    #[test]
+    fn puxar_espera_os_arquivos_do_manifesto_chegarem() {
+        let recebido = pasta_temporaria("recebido_incompleto");
+        fs::create_dir_all(recebido.join("persistidos")).unwrap();
+        let caminho = recebido.join("persistidos").join("turma_6A.json");
+        fs::write(&caminho, "{\"conselhos\":{}}").unwrap();
+
+        let publicado = br#"{"conselhos":{"3":{"gerar_ata":true,"gerar_relatorio":true}}}"#;
+        let manifesto = json!({
+            "atualizado_em": "2026-10-26T21:22:48-03:00",
+            "conteudo": {"persistidos/turma_6A.json": descrever_conteudo(publicado)},
+        });
+        assert_eq!(arquivos_ainda_chegando(&manifesto, &recebido), 1, "turma ainda na versão antiga");
+        fs::write(&caminho, publicado).unwrap();
+        assert_eq!(arquivos_ainda_chegando(&manifesto, &recebido), 0);
+
+        // Manifesto de versões antigas: só a assinatura, conferida pelo tamanho.
+        let antigo = json!({
+            "assinatura": format!("persistidos/turma_6A.json:{}:abc|persistidos/turma_7A.json:10:def", publicado.len()),
+        });
+        assert_eq!(arquivos_ainda_chegando(&antigo, &recebido), 1, "turma_7A ainda não chegou");
+
+        fs::remove_dir_all(&recebido).unwrap();
+    }
+
+    #[test]
+    fn publicacao_incompleta_so_e_esperada_por_um_tempo() {
+        let agora = chrono::DateTime::parse_from_rfc3339("2026-10-26T22:00:00-03:00")
+            .unwrap()
+            .with_timezone(&chrono::Local);
+        assert!(publicacao_recente("2026-10-26T21:22:48-03:00", agora));
+        assert!(!publicacao_recente("2026-10-26T20:30:00-03:00", agora));
+        assert!(!publicacao_recente("", agora));
     }
 }

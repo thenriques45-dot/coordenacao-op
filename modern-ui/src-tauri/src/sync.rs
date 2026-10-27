@@ -165,25 +165,16 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
         });
     }
 
+    // Sobras das publicações por troca de pasta (até a 4.6.6) e de
+    // publicações interrompidas.
     limpar_temporarios_institucionais_antigos(&estado, Local::now().timestamp_millis());
 
-    let temporario = estado.join(format!(
-        "institutional-data.{}.tmp",
-        Local::now().timestamp_millis()
-    ));
-    let mut total = 0;
+    let inventario = inventariar_dados_institucionais(&origem).map_err(|err| err.to_string())?;
+    let anterior = conteudo_do_manifesto(manifesto_atual.as_ref());
+    let total = inventario.len();
     let atualizado_em = Local::now().to_rfc3339();
     let montagem = (|| -> io::Result<()> {
-        if temporario.exists() {
-            fs::remove_dir_all(&temporario)?;
-        }
-        fs::create_dir_all(&temporario)?;
-
-        if origem.exists() {
-            copiar_dados_institucionais(&origem, &temporario.join("dados"), &mut total)?;
-        } else {
-            fs::create_dir_all(temporario.join("dados"))?;
-        }
+        espelhar_dados_institucionais(&origem, &destino.join("dados"), &inventario, &anterior)?;
 
         let manifesto = serde_json::json!({
             "app": "CoordenacaoOP",
@@ -194,18 +185,22 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
             "atualizado_em": atualizado_em,
             "assinatura": assinatura,
             "total_arquivos": total,
+            "conteudo": inventario,
         });
-        fs::write(temporario.join("manifest.json"), serde_json::to_vec_pretty(&manifesto)?)?;
-
-        trocar_diretorio_institucional(&temporario, &destino)
+        // O manifesto vai por último: quem o lê com a data nova sabe, pelo
+        // `conteudo`, quais arquivos ainda precisa esperar chegar.
+        let manifesto_tmp = destino.join(format!("manifest.{}.tmp", Local::now().timestamp_millis()));
+        fs::write(&manifesto_tmp, serde_json::to_vec_pretty(&manifesto)?)?;
+        if let Err(err) = fs::rename(&manifesto_tmp, destino.join("manifest.json")) {
+            let _ = fs::remove_file(&manifesto_tmp);
+            return Err(err);
+        }
+        Ok(())
     })();
-    if let Err(err) = montagem {
-        // Sem isto, cada publicação que falhava (OneDrive travando arquivos no
-        // Windows, app fechado no meio) deixava uma cópia inteira dos dados
-        // na pasta do grupo.
-        let _ = fs::remove_dir_all(&temporario);
-        return Err(err.to_string());
-    }
+    // Se falhar no meio (OneDrive travando um arquivo), o manifesto antigo
+    // continua lá: os colegas veem arquivos que não batem com ele e esperam,
+    // e a próxima publicação daqui completa o que faltou.
+    montagem.map_err(|err| err.to_string())?;
     salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
 
     Ok(SyncInstitutionalResultado {
@@ -236,10 +231,11 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
         });
     }
 
-    let manifesto = origem.join("manifest.json");
-    let atualizado_em = fs::read_to_string(&manifesto)
+    let manifesto = fs::read_to_string(origem.join("manifest.json"))
         .ok()
-        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok());
+    let atualizado_em = manifesto
+        .as_ref()
         .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string))
         .unwrap_or_else(|| Local::now().to_rfc3339());
 
@@ -250,6 +246,21 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
             atualizado_em,
             backup_seguranca: None,
         });
+    }
+
+    // O OneDrive baixa a pasta do grupo arquivo por arquivo, e o manifesto
+    // novo pode chegar antes das turmas. Mesclar nessa hora trazia as turmas
+    // de antes (conselho sem finalizar, sem perfil da turma) e, como o
+    // marcador era salvo, esta máquina não puxava de novo. Sem salvar o
+    // marcador, a próxima tentativa confere de novo.
+    if let Some(manifesto) = &manifesto {
+        let faltando = arquivos_ainda_chegando(manifesto, &origem_dados);
+        if faltando > 0 && publicacao_recente(&atualizado_em, Local::now()) {
+            return Err(format!(
+                "Os dados do grupo ainda estão chegando pela pasta compartilhada ({faltando} arquivo(s) incompleto(s)). \
+                 O app tenta de novo sozinho em alguns minutos."
+            ));
+        }
     }
 
     let destino = data_dir().map_err(|err| err.to_string())?;
@@ -490,28 +501,6 @@ pub(crate) fn copiar_dados_institucionais(
     Ok(())
 }
 
-/// Põe `temporario` no lugar de `destino` sem deixar o grupo sem dados: a
-/// versão atual é afastada por rename (em vez de `remove_dir_all`, que no
-/// Windows falhava no meio com o OneDrive travando arquivos e deixava
-/// `destino` pela metade) e volta ao lugar se a troca falhar.
-pub(crate) fn trocar_diretorio_institucional(temporario: &Path, destino: &Path) -> io::Result<()> {
-    if !destino.exists() {
-        return fs::rename(temporario, destino);
-    }
-    let antigo = destino.with_file_name(format!(
-        "institutional-data.{}.old.tmp",
-        Local::now().timestamp_millis()
-    ));
-    fs::rename(destino, &antigo)?;
-    if let Err(err) = fs::rename(temporario, destino) {
-        let _ = fs::rename(&antigo, destino);
-        return Err(err);
-    }
-    // Se falhar agora (arquivo travado), a faxina da próxima publicação apaga.
-    let _ = fs::remove_dir_all(&antigo);
-    Ok(())
-}
-
 /// Idade a partir da qual um `institutional-data.<ms>[.old].tmp` é tido como
 /// sobra. Mais novo que isso pode ser a publicação em andamento de outro
 /// coordenador.
@@ -542,6 +531,164 @@ pub(crate) fn limpar_temporarios_institucionais_antigos(estado: &Path, agora_ms:
             let _ = fs::remove_dir_all(entrada.path());
         }
     }
+}
+
+/// Caminho relativo (com `/`) de cada arquivo debaixo de `pasta`.
+fn listar_arquivos_relativos(pasta: &Path) -> io::Result<Vec<String>> {
+    fn visitar(caminho: &Path, raiz: &Path, saida: &mut Vec<String>) -> io::Result<()> {
+        if caminho.is_dir() {
+            for entrada in fs::read_dir(caminho)? {
+                visitar(&entrada?.path(), raiz, saida)?;
+            }
+        } else if caminho.is_file() {
+            let relativo = caminho
+                .strip_prefix(raiz)
+                .unwrap_or(caminho)
+                .to_string_lossy()
+                .replace('\\', "/");
+            saida.push(relativo);
+        }
+        Ok(())
+    }
+    let mut saida = Vec::new();
+    if pasta.exists() {
+        visitar(pasta, pasta, &mut saida)?;
+    }
+    Ok(saida)
+}
+
+// FNV-1a de 64 bits: o hasher da std pode mudar entre versões do Rust, e o
+// manifesto é lido por instalações compiladas em épocas diferentes.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+pub(crate) fn descrever_conteudo(bytes: &[u8]) -> String {
+    format!("{}:{:016x}", bytes.len(), fnv1a(bytes))
+}
+
+fn tamanho_da_descricao(descricao: &str) -> Option<u64> {
+    descricao.split(':').next().and_then(|tamanho| tamanho.parse().ok())
+}
+
+/// Caminho relativo -> "tamanho:fnv" de cada arquivo de `dados/` que vai para
+/// o grupo (os arquivos da máquina, na raiz, ficam de fora). Vai no manifesto
+/// como `conteudo` e serve para duas coisas: publicar só o que mudou e, do
+/// outro lado, saber se a pasta compartilhada já terminou de chegar.
+pub(crate) fn inventariar_dados_institucionais(pasta: &Path) -> io::Result<BTreeMap<String, String>> {
+    let mut inventario = BTreeMap::new();
+    for relativo in listar_arquivos_relativos(pasta)? {
+        if !relativo.contains('/') && eh_arquivo_da_maquina(&relativo) {
+            continue;
+        }
+        let bytes = fs::read(pasta.join(&relativo))?;
+        inventario.insert(relativo, descrever_conteudo(&bytes));
+    }
+    Ok(inventario)
+}
+
+fn conteudo_do_manifesto(manifesto: Option<&Value>) -> BTreeMap<String, String> {
+    manifesto
+        .and_then(|dados| dados.get("conteudo"))
+        .and_then(Value::as_object)
+        .map(|conteudo| {
+            conteudo
+                .iter()
+                .filter_map(|(caminho, descricao)| Some((caminho.clone(), descricao.as_str()?.to_string())))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Atualiza `destino` (a cópia de `dados/` na pasta do grupo) para ficar
+/// igual a `inventario`, copiando só o que mudou desde a publicação
+/// anterior e apagando o que não existe mais. Antes, cada publicação
+/// regravava a pasta inteira (1.800 arquivos numa escola real): o OneDrive
+/// dos colegas levava muito tempo para baixar tudo de novo, e quem puxava
+/// no meio do caminho ficava com turmas de antes (conselhos sem finalizar,
+/// sem perfil da turma).
+pub(crate) fn espelhar_dados_institucionais(
+    origem: &Path,
+    destino: &Path,
+    inventario: &BTreeMap<String, String>,
+    anterior: &BTreeMap<String, String>,
+) -> io::Result<usize> {
+    fs::create_dir_all(destino)?;
+    let mut copiados = 0;
+    for (relativo, descricao) in inventario {
+        let alvo = destino.join(relativo);
+        let ja_esta_la = anterior.get(relativo) == Some(descricao)
+            && fs::metadata(&alvo)
+                .map(|meta| meta.is_file() && Some(meta.len()) == tamanho_da_descricao(descricao))
+                .unwrap_or(false);
+        if ja_esta_la {
+            continue;
+        }
+        if let Some(pai) = alvo.parent() {
+            fs::create_dir_all(pai)?;
+        }
+        fs::copy(origem.join(relativo), &alvo)?;
+        copiados += 1;
+    }
+    for relativo in listar_arquivos_relativos(destino)? {
+        if !inventario.contains_key(&relativo) {
+            fs::remove_file(destino.join(&relativo))?;
+        }
+    }
+    Ok(copiados)
+}
+
+/// Por quanto tempo uma publicação incompleta na pasta do grupo é esperada.
+/// Passado isso, ela é aplicada como estiver, para um arquivo que nunca
+/// chega não travar a sincronização desta máquina para sempre.
+const ESPERA_MAXIMA_PUBLICACAO_INCOMPLETA_MS: i64 = 60 * 60 * 1000;
+
+/// Quantos arquivos do manifesto ainda não chegaram (ou chegaram pela metade)
+/// em `origem_dados`. Manifestos novos trazem `conteudo` (tamanho + hash);
+/// os das versões até a 4.6.6 só trazem a `assinatura`, da qual dá para
+/// conferir o tamanho.
+pub(crate) fn arquivos_ainda_chegando(manifesto: &Value, origem_dados: &Path) -> usize {
+    let conteudo = conteudo_do_manifesto(Some(manifesto));
+    if !conteudo.is_empty() {
+        return conteudo
+            .iter()
+            .filter(|(relativo, descricao)| {
+                fs::read(origem_dados.join(relativo))
+                    .map(|bytes| &descrever_conteudo(&bytes) != *descricao)
+                    .unwrap_or(true)
+            })
+            .count();
+    }
+    let Some(assinatura) = manifesto.get("assinatura").and_then(Value::as_str) else {
+        return 0;
+    };
+    assinatura
+        .split('|')
+        .filter(|parte| !parte.is_empty())
+        .filter(|parte| {
+            let mut pedacos = parte.rsplitn(3, ':');
+            let (Some(_hash), Some(tamanho), Some(relativo)) = (pedacos.next(), pedacos.next(), pedacos.next()) else {
+                return false;
+            };
+            let Ok(tamanho) = tamanho.parse::<u64>() else {
+                return false;
+            };
+            fs::metadata(origem_dados.join(relativo))
+                .map(|meta| meta.len() != tamanho)
+                .unwrap_or(true)
+        })
+        .count()
+}
+
+pub(crate) fn publicacao_recente(atualizado_em: &str, agora: chrono::DateTime<Local>) -> bool {
+    chrono::DateTime::parse_from_rfc3339(atualizado_em)
+        .map(|publicada| (agora.timestamp_millis() - publicada.timestamp_millis()) < ESPERA_MAXIMA_PUBLICACAO_INCOMPLETA_MS)
+        .unwrap_or(false)
 }
 
 pub(crate) fn copiar_recursivamente_contando(
