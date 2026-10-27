@@ -61,6 +61,13 @@ export type WorkgroupSyncMember = {
 export type WorkgroupSyncPayload = {
   tipo: "coordenacaoop-workgroup-state";
   versao: 1;
+  /**
+   * 2 = esta instalação publica turmas e alunos no próprio manifesto
+   * (state/institutional/<userId>.json). Ausente = versão até a 4.6.6, que
+   * só lê state/institutional-data/; enquanto alguém assim sincronizar, as
+   * versões novas continuam publicando lá também.
+   */
+  formatoSincronizacao?: number;
   generatedAt: string;
   profile: {
     userId: string;
@@ -437,6 +444,7 @@ export async function montarPayloadSincronizacao(perfilOriginal: WorkgroupSyncPr
   return {
     tipo: "coordenacaoop-workgroup-state",
     versao: 1,
+    formatoSincronizacao: 2,
     generatedAt: new Date().toISOString(),
     profile: {
       userId: perfil.userId,

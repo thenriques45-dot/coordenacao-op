@@ -1422,6 +1422,7 @@ export function App() {
         if (sincronizarDadosInstitucionais) {
           const dadosInstitucionais = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
             pasta: perfilSync.syncFolder,
+            deviceId: perfilSync.userId,
           });
           const recebeuDadosInstitucionais = Boolean(dadosInstitucionais.caminho);
           if (recebeuDadosInstitucionais && !cancelado) {

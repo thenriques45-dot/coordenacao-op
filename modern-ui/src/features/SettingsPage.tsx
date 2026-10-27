@@ -1079,7 +1079,10 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
-      const resultado = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", { pasta: perfilSync.syncFolder });
+      const resultado = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
+        pasta: perfilSync.syncFolder,
+        deviceId: perfilSync.userId,
+      });
       if (!resultado.caminho) {
         setMensagem("Ainda não há turmas e alunos publicados nesta pasta de sincronização.");
         return;

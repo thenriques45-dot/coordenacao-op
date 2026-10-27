@@ -125,6 +125,225 @@ fn sem_sincronizacao_no_pendrive() -> SyncInstitutionalResultado {
     }
 }
 
+// Formato 2 da sincronização institucional (a partir da 4.6.7): nenhum
+// arquivo da pasta do grupo tem dois donos.
+//
+// - `state/institutional/<device_id>.json`: o manifesto DESTE computador
+//   (caminho relativo -> "tamanho:fnv" de cada arquivo de `dados/`). Só ele
+//   grava esse arquivo.
+// - `state/blobs/<fnv>-<tamanho>`: o conteúdo dos arquivos, nomeado pelo
+//   próprio conteúdo. Um blob nunca é reescrito: se dois computadores têm o
+//   mesmo arquivo, gravam o mesmo nome com os mesmos bytes, e o grupo guarda
+//   uma cópia só (as fotos não ficam repetidas por computador).
+//
+// Até a 4.6.6 todos regravavam a mesma `state/institutional-data/`, e o
+// OneDrive criava uma cópia de conflito a cada colisão
+// (`institutional-data-NOMEPC`). Aquela pasta continua sendo lida, e só é
+// gravada enquanto algum colega ativo ainda está numa versão antiga (ver
+// precisa_publicar_pasta_antiga).
+pub(crate) const FORMATO_SINCRONIZACAO_INSTITUCIONAL: u64 = 2;
+const TIPO_MANIFESTO_DISPOSITIVO: &str = "coordenacaoop-institutional-manifest";
+
+/// Manifesto de um computador que não publica há mais que isso é de uma
+/// instalação aposentada: não é mais puxado, e os blobs só dele podem ser
+/// apagados.
+const VALIDADE_MANIFESTO_DISPOSITIVO_MS: i64 = 90 * 24 * 60 * 60 * 1000;
+
+/// Um colega numa versão antiga que sincronizou neste intervalo ainda
+/// depende da pasta `institutional-data`.
+const JANELA_COLEGA_VERSAO_ANTIGA_MS: i64 = 14 * 24 * 60 * 60 * 1000;
+
+/// Blob sem nenhum manifesto apontando para ele é apagado só depois disso:
+/// o manifesto novo de um colega pode ainda estar chegando pela nuvem.
+const IDADE_BLOB_SEM_USO_MS: i64 = 3 * 24 * 60 * 60 * 1000;
+
+pub(crate) fn nome_do_blob(descricao: &str) -> String {
+    let (tamanho, hash) = descricao.split_once(':').unwrap_or((descricao, ""));
+    format!("{}-{}", nome_arquivo_seguro(hash), nome_arquivo_seguro(tamanho))
+}
+
+fn manifesto_do_dispositivo_path(estado: &Path, device_id: &str) -> PathBuf {
+    estado
+        .join("institutional")
+        .join(format!("{}.json", nome_arquivo_seguro(device_id)))
+}
+
+fn ler_json(caminho: &Path) -> Option<Value> {
+    fs::read(caminho)
+        .ok()
+        .and_then(|bytes| serde_json::from_str::<Value>(sem_lixo_no_fim(&String::from_utf8_lossy(&bytes))).ok())
+}
+
+fn milissegundos_rfc3339(valor: &str) -> Option<i64> {
+    chrono::DateTime::parse_from_rfc3339(valor)
+        .ok()
+        .map(|data| data.timestamp_millis())
+}
+
+fn gravar_atomico(destino: &Path, conteudo: &[u8]) -> io::Result<()> {
+    if let Some(pai) = destino.parent() {
+        fs::create_dir_all(pai)?;
+    }
+    let nome = destino.file_name().and_then(|n| n.to_str()).unwrap_or("arquivo");
+    let tmp = destino.with_file_name(format!("{nome}.{}.tmp", Local::now().timestamp_millis()));
+    fs::write(&tmp, conteudo)?;
+    if let Err(err) = fs::rename(&tmp, destino) {
+        let _ = fs::remove_file(&tmp);
+        return Err(err);
+    }
+    Ok(())
+}
+
+/// Grava em `state/blobs/` o que ainda não está lá. Devolve quantos foram
+/// gravados.
+pub(crate) fn gravar_blobs(
+    origem: &Path,
+    blobs: &Path,
+    inventario: &BTreeMap<String, String>,
+) -> io::Result<usize> {
+    fs::create_dir_all(blobs)?;
+    let mut gravados = 0;
+    for (relativo, descricao) in inventario {
+        let alvo = blobs.join(nome_do_blob(descricao));
+        let ja_esta_la = fs::metadata(&alvo)
+            .map(|meta| meta.is_file() && Some(meta.len()) == tamanho_da_descricao(descricao))
+            .unwrap_or(false);
+        if ja_esta_la {
+            continue;
+        }
+        let bytes = fs::read(origem.join(relativo))?;
+        // O arquivo pode ter mudado entre o inventário e agora; um blob com
+        // nome que não bate com o conteúdo enganaria os colegas.
+        if &descrever_conteudo(&bytes) != descricao {
+            return Err(io::Error::other(format!(
+                "{relativo} mudou durante a publicação; tenta de novo no próximo ciclo"
+            )));
+        }
+        gravar_atomico(&alvo, &bytes)?;
+        gravados += 1;
+    }
+    Ok(gravados)
+}
+
+/// Um manifesto de computador lido da pasta do grupo.
+pub(crate) struct ManifestoDispositivo {
+    pub(crate) device_id: String,
+    pub(crate) atualizado_em: String,
+    pub(crate) conteudo: BTreeMap<String, String>,
+}
+
+/// Lê `state/institutional/*.json`, sem cópias de conflito, sem o próprio
+/// computador (quando `proprio` é informado) e sem instalações aposentadas.
+pub(crate) fn listar_manifestos_dispositivos(
+    estado: &Path,
+    proprio: Option<&str>,
+    agora_ms: i64,
+) -> Vec<ManifestoDispositivo> {
+    let pasta = estado.join("institutional");
+    let Ok(entradas) = fs::read_dir(&pasta) else {
+        return Vec::new();
+    };
+    let proprio = proprio.map(|id| format!("{}.json", nome_arquivo_seguro(id)));
+    let mut caminhos: Vec<PathBuf> = entradas
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.extension().and_then(|e| e.to_str()) == Some("json")
+                && p.file_name().and_then(|n| n.to_str()) != proprio.as_deref()
+                && !eh_copia_de_conflito_sync(p)
+        })
+        .collect();
+    caminhos.sort();
+    caminhos
+        .into_iter()
+        .filter_map(|caminho| {
+            let manifesto = ler_json(&caminho)?;
+            if manifesto.get("tipo").and_then(Value::as_str) != Some(TIPO_MANIFESTO_DISPOSITIVO) {
+                return None;
+            }
+            let atualizado_em = manifesto.get("atualizado_em")?.as_str()?.to_string();
+            let publicado_ms = milissegundos_rfc3339(&atualizado_em)?;
+            if agora_ms - publicado_ms > VALIDADE_MANIFESTO_DISPOSITIVO_MS {
+                return None;
+            }
+            let device_id = manifesto
+                .get("device_id")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .unwrap_or_else(|| {
+                    caminho.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string()
+                });
+            Some(ManifestoDispositivo {
+                device_id,
+                atualizado_em,
+                conteudo: conteudo_do_manifesto(Some(&manifesto)),
+            })
+        })
+        .collect()
+}
+
+/// Algum colega (outro computador) ainda numa versão que só conhece
+/// `institutional-data` sincronizou nas últimas duas semanas? Quem está na
+/// versão nova anota `formatoSincronizacao` no próprio estado em
+/// `state/peers/`; quem não anota é antigo.
+pub(crate) fn precisa_publicar_pasta_antiga(estado: &Path, device_id: &str, agora_ms: i64) -> bool {
+    let peers = estado.join("peers");
+    let Ok(entradas) = fs::read_dir(&peers) else {
+        return false;
+    };
+    let proprio = format!("{}.json", nome_arquivo_seguro(device_id));
+    entradas.flatten().map(|e| e.path()).any(|caminho| {
+        if caminho.extension().and_then(|e| e.to_str()) != Some("json")
+            || caminho.file_name().and_then(|n| n.to_str()) == Some(proprio.as_str())
+            || eh_copia_de_conflito_sync(&caminho)
+        {
+            return false;
+        }
+        let Some(payload) = ler_json(&caminho) else {
+            return false;
+        };
+        let formato = payload.get("formatoSincronizacao").and_then(Value::as_u64).unwrap_or(1);
+        let gerado_ms = payload
+            .get("generatedAt")
+            .and_then(Value::as_str)
+            .and_then(milissegundos_rfc3339)
+            .unwrap_or(0);
+        formato < FORMATO_SINCRONIZACAO_INSTITUCIONAL && agora_ms - gerado_ms <= JANELA_COLEGA_VERSAO_ANTIGA_MS
+    })
+}
+
+/// Apaga blobs que nenhum manifesto em uso aponta e que já têm alguns dias.
+/// Apagar não gera cópia de conflito, e um blob apagado por engano é
+/// regravado pelo dono na próxima publicação (gravar_blobs confere se está
+/// lá).
+pub(crate) fn limpar_blobs_sem_uso(estado: &Path, proprio: &BTreeMap<String, String>, agora_ms: i64) {
+    let blobs = estado.join("blobs");
+    let Ok(entradas) = fs::read_dir(&blobs) else {
+        return;
+    };
+    let mut em_uso: std::collections::BTreeSet<String> =
+        proprio.values().map(|descricao| nome_do_blob(descricao)).collect();
+    for manifesto in listar_manifestos_dispositivos(estado, None, agora_ms) {
+        em_uso.extend(manifesto.conteudo.values().map(|descricao| nome_do_blob(descricao)));
+    }
+    for entrada in entradas.flatten() {
+        let nome = entrada.file_name().to_string_lossy().to_string();
+        if em_uso.contains(&nome) {
+            continue;
+        }
+        let idade_ms = entrada
+            .metadata()
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(|modificado| modificado.elapsed().ok())
+            .map(|idade| idade.as_millis() as i64)
+            .unwrap_or(0);
+        if idade_ms >= IDADE_BLOB_SEM_USO_MS && entrada.path().is_file() {
+            let _ = fs::remove_file(entrada.path());
+        }
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn publicar_dados_institucionais_sincronizacao(
     input: SyncInstitutionalInput,
@@ -136,13 +355,67 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
     let raiz = validar_pasta_sincronizacao(&input.pasta)?;
     let estado = raiz.join("state");
     fs::create_dir_all(&estado).map_err(|err| err.to_string())?;
-
     let origem = data_dir().map_err(|err| err.to_string())?;
+    let agora_ms = Local::now().timestamp_millis();
+
+    let inventario = inventariar_dados_institucionais(&origem).map_err(|err| err.to_string())?;
+    let total = inventario.len();
+    let manifesto_path = manifesto_do_dispositivo_path(&estado, &input.device_id);
+    let manifesto_atual = ler_json(&manifesto_path);
+    let atual_igual = manifesto_atual.is_some() && conteudo_do_manifesto(manifesto_atual.as_ref()) == inventario;
+
+    let atualizado_em = if atual_igual {
+        manifesto_atual
+            .as_ref()
+            .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_string()
+    } else {
+        // Blobs primeiro, manifesto por último: quem lê o manifesto novo
+        // sabe quais blobs esperar.
+        gravar_blobs(&origem, &estado.join("blobs"), &inventario).map_err(|err| err.to_string())?;
+        let atualizado_em = Local::now().to_rfc3339();
+        let manifesto = serde_json::json!({
+            "app": "CoordenacaoOP",
+            "tipo": TIPO_MANIFESTO_DISPOSITIVO,
+            "formato": FORMATO_SINCRONIZACAO_INSTITUCIONAL,
+            "versao_app": env!("CARGO_PKG_VERSION"),
+            "device_id": input.device_id,
+            "atualizado_em": atualizado_em,
+            "total_arquivos": total,
+            "conteudo": inventario,
+        });
+        let bytes = serde_json::to_vec_pretty(&manifesto).map_err(|err| err.to_string())?;
+        gravar_atomico(&manifesto_path, &bytes).map_err(|err| err.to_string())?;
+        atualizado_em
+    };
+
+    if precisa_publicar_pasta_antiga(&estado, &input.device_id, agora_ms) {
+        publicar_pasta_antiga(&estado, &origem, &input.device_id, &inventario)?;
+    }
+    limpar_blobs_sem_uso(&estado, &inventario, agora_ms);
+
+    Ok(SyncInstitutionalResultado {
+        caminho: Some(manifesto_path.to_string_lossy().to_string()),
+        arquivos: total,
+        atualizado_em,
+        backup_seguranca: None,
+    })
+}
+
+/// Publicação no formato da 4.6.6 (`state/institutional-data/`), para os
+/// colegas que ainda não atualizaram. O marcador da pasta antiga fica com a
+/// data desta publicação, para este computador não puxar de volta o que
+/// acabou de publicar.
+fn publicar_pasta_antiga(
+    estado: &Path,
+    origem: &Path,
+    device_id: &str,
+    inventario: &BTreeMap<String, String>,
+) -> Result<(), String> {
     let destino = estado.join("institutional-data");
-    let assinatura = assinatura_diretorio(&origem).map_err(|err| err.to_string())?;
-    let manifesto_atual = fs::read_to_string(destino.join("manifest.json"))
-        .ok()
-        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok());
+    let assinatura = assinatura_diretorio(origem).map_err(|err| err.to_string())?;
+    let manifesto_atual = ler_json(&destino.join("manifest.json"));
     if manifesto_atual
         .as_ref()
         .and_then(|dados| dados.get("assinatura").and_then(Value::as_str))
@@ -157,72 +430,157 @@ pub(crate) fn publicar_dados_institucionais_sincronizacao(
             salvar_marcador_sincronizacao_institucional(&atualizado_em)
                 .map_err(|err| err.to_string())?;
         }
-        return Ok(SyncInstitutionalResultado {
-            caminho: Some(destino.to_string_lossy().to_string()),
-            arquivos: contar_arquivos_recursivamente(&origem).map_err(|err| err.to_string())?,
-            atualizado_em,
-            backup_seguranca: None,
-        });
+        return Ok(());
     }
 
     // Sobras das publicações por troca de pasta (até a 4.6.6) e de
     // publicações interrompidas.
-    limpar_temporarios_institucionais_antigos(&estado, Local::now().timestamp_millis());
+    limpar_temporarios_institucionais_antigos(estado, Local::now().timestamp_millis());
 
-    let inventario = inventariar_dados_institucionais(&origem).map_err(|err| err.to_string())?;
     let anterior = conteudo_do_manifesto(manifesto_atual.as_ref());
-    let total = inventario.len();
     let atualizado_em = Local::now().to_rfc3339();
     let montagem = (|| -> io::Result<()> {
-        espelhar_dados_institucionais(&origem, &destino.join("dados"), &inventario, &anterior)?;
-
+        espelhar_dados_institucionais(origem, &destino.join("dados"), inventario, &anterior)?;
         let manifesto = serde_json::json!({
             "app": "CoordenacaoOP",
             "tipo": "coordenacaoop-institutional-data",
             "formato": 1,
             "versao_app": env!("CARGO_PKG_VERSION"),
-            "device_id": input.device_id,
+            "device_id": device_id,
             "atualizado_em": atualizado_em,
             "assinatura": assinatura,
-            "total_arquivos": total,
+            "total_arquivos": inventario.len(),
             "conteudo": inventario,
         });
         // O manifesto vai por último: quem o lê com a data nova sabe, pelo
         // `conteudo`, quais arquivos ainda precisa esperar chegar.
-        let manifesto_tmp = destino.join(format!("manifest.{}.tmp", Local::now().timestamp_millis()));
-        fs::write(&manifesto_tmp, serde_json::to_vec_pretty(&manifesto)?)?;
-        if let Err(err) = fs::rename(&manifesto_tmp, destino.join("manifest.json")) {
-            let _ = fs::remove_file(&manifesto_tmp);
-            return Err(err);
-        }
-        Ok(())
+        gravar_atomico(&destino.join("manifest.json"), &serde_json::to_vec_pretty(&manifesto)?)
     })();
     // Se falhar no meio (OneDrive travando um arquivo), o manifesto antigo
     // continua lá: os colegas veem arquivos que não batem com ele e esperam,
     // e a próxima publicação daqui completa o que faltou.
     montagem.map_err(|err| err.to_string())?;
-    salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
+    salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())
+}
 
-    Ok(SyncInstitutionalResultado {
-        caminho: Some(destino.to_string_lossy().to_string()),
-        arquivos: total,
-        atualizado_em,
-        backup_seguranca: None,
-    })
+/// De onde vêm os dados de um pull: o manifesto de um colega (formato 2) ou
+/// a pasta antiga `institutional-data`.
+enum OrigemDados {
+    Dispositivo(ManifestoDispositivo),
+    PastaAntiga { atualizado_em: String, manifesto: Option<Value> },
+}
+
+impl OrigemDados {
+    fn atualizado_em(&self) -> &str {
+        match self {
+            OrigemDados::Dispositivo(manifesto) => &manifesto.atualizado_em,
+            OrigemDados::PastaAntiga { atualizado_em, .. } => atualizado_em,
+        }
+    }
+}
+
+fn marcadores_dispositivos_path() -> io::Result<PathBuf> {
+    Ok(config_dir()?.join("sync_institutional_dispositivos.json"))
+}
+
+/// device_id -> `atualizado_em` do último manifesto daquele colega já
+/// mesclado aqui.
+fn ler_marcadores_dispositivos() -> BTreeMap<String, String> {
+    marcadores_dispositivos_path()
+        .ok()
+        .and_then(|path| ler_json(&path))
+        .and_then(|valor| serde_json::from_value(valor).ok())
+        .unwrap_or_default()
+}
+
+fn salvar_marcadores_dispositivos(marcadores: &BTreeMap<String, String>) -> io::Result<()> {
+    let bytes = serde_json::to_vec_pretty(marcadores).map_err(|e| io::Error::other(e.to_string()))?;
+    gravar_atomico(&marcadores_dispositivos_path()?, &bytes)
+}
+
+/// Monta em `temporario` os arquivos do manifesto de um colega, tirados de
+/// `state/blobs/`. Devolve os que ainda não chegaram (ou chegaram pela
+/// metade); esses ficam de fora.
+pub(crate) fn materializar_manifesto(
+    conteudo: &BTreeMap<String, String>,
+    blobs: &Path,
+    temporario: &Path,
+    total: &mut usize,
+) -> io::Result<Vec<String>> {
+    fs::create_dir_all(temporario)?;
+    let mut faltando = Vec::new();
+    for (relativo, descricao) in conteudo {
+        if !relativo.contains('/') && eh_arquivo_da_maquina(relativo) {
+            continue;
+        }
+        let Ok(bytes) = fs::read(blobs.join(nome_do_blob(descricao))) else {
+            faltando.push(relativo.clone());
+            continue;
+        };
+        if &descrever_conteudo(&bytes) != descricao {
+            faltando.push(relativo.clone());
+            continue;
+        }
+        let alvo = temporario.join(relativo);
+        if let Some(pai) = alvo.parent() {
+            fs::create_dir_all(pai)?;
+        }
+        fs::write(alvo, bytes)?;
+        *total += 1;
+    }
+    Ok(faltando)
 }
 
 #[tauri::command(async)]
 pub(crate) fn carregar_dados_institucionais_sincronizacao(
     pasta: String,
+    device_id: Option<String>,
 ) -> Result<SyncInstitutionalResultado, String> {
     let _dados = travar_dados();
     if rodando_do_pendrive_de_conselho() {
         return Ok(sem_sincronizacao_no_pendrive());
     }
     let raiz = validar_pasta_sincronizacao(&pasta)?;
-    let origem = raiz.join("state").join("institutional-data");
-    let origem_dados = origem.join("dados");
-    if !origem_dados.exists() {
+    let estado = raiz.join("state");
+    let agora = Local::now();
+    let agora_ms = agora.timestamp_millis();
+
+    let dispositivos = listar_manifestos_dispositivos(&estado, device_id.as_deref(), agora_ms);
+    let mut marcadores = ler_marcadores_dispositivos();
+    let mut origens: Vec<OrigemDados> = Vec::new();
+
+    let antiga = estado.join("institutional-data");
+    let tem_pasta_antiga = antiga.join("dados").exists();
+    if tem_pasta_antiga {
+        let manifesto = ler_json(&antiga.join("manifest.json"));
+        let atualizado_em = manifesto
+            .as_ref()
+            .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string))
+            .unwrap_or_else(|| agora.to_rfc3339());
+        // Se quem publicou a pasta antiga já está no formato novo (ela é só a
+        // cópia de cortesia para os colegas desatualizados), o manifesto dele
+        // já traz os mesmos dados.
+        let publicado_por = manifesto
+            .as_ref()
+            .and_then(|dados| dados.get("device_id").and_then(Value::as_str))
+            .map(str::to_string);
+        let publicado_por_formato_novo = publicado_por.as_deref().is_some_and(|autor| {
+            Some(autor) == device_id.as_deref() || dispositivos.iter().any(|d| d.device_id == autor)
+        });
+        if !publicado_por_formato_novo
+            && ler_marcador_sincronizacao_institucional().as_deref() != Some(atualizado_em.as_str())
+        {
+            origens.push(OrigemDados::PastaAntiga { atualizado_em, manifesto });
+        }
+    }
+    let tem_dispositivos = !dispositivos.is_empty();
+    for manifesto in dispositivos {
+        if marcadores.get(&manifesto.device_id) != Some(&manifesto.atualizado_em) {
+            origens.push(OrigemDados::Dispositivo(manifesto));
+        }
+    }
+
+    if !tem_pasta_antiga && !tem_dispositivos {
         return Ok(SyncInstitutionalResultado {
             caminho: None,
             arquivos: 0,
@@ -230,57 +588,136 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
             backup_seguranca: None,
         });
     }
-
-    let manifesto = fs::read_to_string(origem.join("manifest.json"))
-        .ok()
-        .and_then(|texto| serde_json::from_str::<Value>(&texto).ok());
-    let atualizado_em = manifesto
-        .as_ref()
-        .and_then(|dados| dados.get("atualizado_em").and_then(Value::as_str).map(str::to_string))
-        .unwrap_or_else(|| Local::now().to_rfc3339());
-
-    if ler_marcador_sincronizacao_institucional().as_deref() == Some(atualizado_em.as_str()) {
+    if origens.is_empty() {
         return Ok(SyncInstitutionalResultado {
-            caminho: Some(origem.to_string_lossy().to_string()),
-            arquivos: contar_arquivos_recursivamente(&origem_dados).map_err(|err| err.to_string())?,
-            atualizado_em,
+            caminho: Some(estado.to_string_lossy().to_string()),
+            arquivos: 0,
+            atualizado_em: ler_marcador_sincronizacao_institucional().unwrap_or_default(),
             backup_seguranca: None,
         });
     }
-
-    // O OneDrive baixa a pasta do grupo arquivo por arquivo, e o manifesto
-    // novo pode chegar antes das turmas. Mesclar nessa hora trazia as turmas
-    // de antes (conselho sem finalizar, sem perfil da turma) e, como o
-    // marcador era salvo, esta máquina não puxava de novo. Sem salvar o
-    // marcador, a próxima tentativa confere de novo.
-    if let Some(manifesto) = &manifesto {
-        let faltando = arquivos_ainda_chegando(manifesto, &origem_dados);
-        if faltando > 0 && publicacao_recente(&atualizado_em, Local::now()) {
-            return Err(format!(
-                "Os dados do grupo ainda estão chegando pela pasta compartilhada ({faltando} arquivo(s) incompleto(s)). \
-                 O app tenta de novo sozinho em alguns minutos."
-            ));
-        }
-    }
+    // Do mais antigo para o mais novo: nos arquivos em que o recebido vence
+    // por inteiro, fica o do colega que publicou por último.
+    origens.sort_by_key(|origem| milissegundos_rfc3339(origem.atualizado_em()).unwrap_or(0));
 
     let destino = data_dir().map_err(|err| err.to_string())?;
-
-    let seguranca = exportar_backup_interno()
-        .map_err(|err| format!("Não foi possível criar backup de segurança antes da sincronização: {err}"))?
-        .caminho;
     let base = app_base_dir().map_err(|err| err.to_string())?;
-    let ts = Local::now().timestamp_millis();
-    let temporario = base.join(format!("dados_sync_tmp_{ts}"));
-    let backup_destino = base.join(format!("dados_sync_old_{ts}"));
-    if temporario.exists() {
-        fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
+    let mut seguranca = None;
+    let mut total = 0;
+    let mut atualizado_em = String::new();
+    let mut ainda_chegando = 0;
+    let mut inventario_local: Option<BTreeMap<String, String>> = None;
+
+    for (indice, origem) in origens.iter().enumerate() {
+        let ts = agora_ms + indice as i64;
+        let temporario = base.join(format!("dados_sync_tmp_{ts}"));
+        if temporario.exists() {
+            fs::remove_dir_all(&temporario).map_err(|err| err.to_string())?;
+        }
+        let recente = publicacao_recente(origem.atualizado_em(), agora);
+
+        // O OneDrive baixa a pasta do grupo arquivo por arquivo, e o manifesto
+        // novo pode chegar antes das turmas. Mesclar nessa hora trazia as turmas
+        // de antes (conselho sem finalizar, sem perfil da turma) e, como o
+        // marcador era salvo, esta máquina não puxava de novo. Sem salvar o
+        // marcador, a próxima tentativa confere de novo.
+        let faltando = match origem {
+            OrigemDados::PastaAntiga { manifesto, .. } => {
+                let faltando = manifesto
+                    .as_ref()
+                    .map(|manifesto| arquivos_ainda_chegando(manifesto, &antiga.join("dados")))
+                    .unwrap_or(0);
+                if faltando == 0 || !recente {
+                    copiar_dados_institucionais(&antiga.join("dados"), &temporario, &mut total)
+                        .map_err(|err| err.to_string())?;
+                }
+                faltando
+            }
+            OrigemDados::Dispositivo(manifesto) => {
+                // Depois que o grupo converge, o manifesto do colega costuma
+                // ser igual ao que já temos: marca como visto sem refazer o
+                // pull inteiro (cópia de `dados/` e backup).
+                if inventario_local.is_none() {
+                    inventario_local = Some(inventariar_dados_institucionais(&destino).map_err(|err| err.to_string())?);
+                }
+                let nada_novo = inventario_local.as_ref().is_some_and(|local| {
+                    manifesto.conteudo.iter().all(|(relativo, descricao)| {
+                        (!relativo.contains('/') && eh_arquivo_da_maquina(relativo))
+                            || local.get(relativo) == Some(descricao)
+                    })
+                });
+                if nada_novo {
+                    marcadores.insert(manifesto.device_id.clone(), manifesto.atualizado_em.clone());
+                    salvar_marcadores_dispositivos(&marcadores).map_err(|err| err.to_string())?;
+                    continue;
+                }
+                let mut copiados = 0;
+                let faltando = materializar_manifesto(&manifesto.conteudo, &estado.join("blobs"), &temporario, &mut copiados)
+                    .map_err(|err| err.to_string())?;
+                if faltando.is_empty() || !recente {
+                    total += copiados;
+                    // Blob que não chegou nem depois da espera: fica a versão
+                    // desta máquina, em vez de o arquivo sumir daqui.
+                    for relativo in &faltando {
+                        let local = destino.join(relativo);
+                        if local.is_file() {
+                            let alvo = temporario.join(relativo);
+                            if let Some(pai) = alvo.parent() {
+                                fs::create_dir_all(pai).map_err(|err| err.to_string())?;
+                            }
+                            fs::copy(&local, &alvo).map_err(|err| err.to_string())?;
+                        }
+                    }
+                }
+                faltando.len()
+            }
+        };
+        if faltando > 0 && recente {
+            ainda_chegando += faltando;
+            let _ = fs::remove_dir_all(&temporario);
+            continue;
+        }
+
+        if seguranca.is_none() {
+            seguranca = Some(
+                exportar_backup_interno()
+                    .map_err(|err| format!("Não foi possível criar backup de segurança antes da sincronização: {err}"))?
+                    .caminho,
+            );
+        }
+        aplicar_dados_recebidos(&temporario, &destino, &base.join(format!("dados_sync_old_{ts}")))
+            .map_err(|err| err.to_string())?;
+        inventario_local = None;
+        match origem {
+            OrigemDados::PastaAntiga { atualizado_em, .. } => {
+                salvar_marcador_sincronizacao_institucional(atualizado_em).map_err(|err| err.to_string())?;
+            }
+            OrigemDados::Dispositivo(manifesto) => {
+                marcadores.insert(manifesto.device_id.clone(), manifesto.atualizado_em.clone());
+                salvar_marcadores_dispositivos(&marcadores).map_err(|err| err.to_string())?;
+            }
+        }
+        atualizado_em = origem.atualizado_em().to_string();
     }
 
-    // Copia dados do peer para o temporário
-    let mut total = 0;
-    copiar_dados_institucionais(&origem_dados, &temporario, &mut total)
-        .map_err(|err| err.to_string())?;
+    if seguranca.is_none() && ainda_chegando > 0 {
+        return Err(format!(
+            "Os dados do grupo ainda estão chegando pela pasta compartilhada ({ainda_chegando} arquivo(s) incompleto(s)). \
+             O app tenta de novo sozinho em alguns minutos."
+        ));
+    }
 
+    Ok(SyncInstitutionalResultado {
+        caminho: Some(estado.to_string_lossy().to_string()),
+        arquivos: total,
+        atualizado_em,
+        backup_seguranca: seguranca.flatten(),
+    })
+}
+
+/// Mescla o que chegou de um colega (já montado em `temporario`) com
+/// `dados/` desta máquina e põe o resultado no lugar de `dados/`.
+fn aplicar_dados_recebidos(temporario: &Path, destino: &Path, backup_destino: &Path) -> io::Result<()> {
     // `dados/` é substituído inteiro pelo temporário logo abaixo, então o
     // espelho desta máquina precisa ser levado junto — senão o app volta com o
     // quadro kanban e o calendário vazios depois de cada pull. Peers em versão
@@ -290,23 +727,18 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
         let local = destino.join(nome);
         let recebido = temporario.join(nome);
         if local.is_file() {
-            fs::copy(&local, &recebido).map_err(|err| err.to_string())?;
+            fs::copy(&local, &recebido)?;
         } else if recebido.is_file() && nome != "estado_ui.json" {
-            fs::remove_file(&recebido).map_err(|err| err.to_string())?;
+            fs::remove_file(&recebido)?;
         }
     }
 
     // Remove cópias de conflito criadas pelo OneDrive dentro do estado recebido
     // (ex.: "turma_X-NomePC.json"), que viravam turmas duplicadas na listagem.
-    remover_copias_de_conflito_sync(&temporario.join("persistidos"))
-        .map_err(|err| err.to_string())?;
+    remover_copias_de_conflito_sync(&temporario.join("persistidos"))?;
 
     // Merge: preserva turmas criadas localmente e mescla campos por timestamp
-    mesclar_diretorio_persistidos(
-        &destino.join("persistidos"),
-        &temporario.join("persistidos"),
-    )
-    .map_err(|err| err.to_string())?;
+    mesclar_diretorio_persistidos(&destino.join("persistidos"), &temporario.join("persistidos"))?;
 
     // O merge acima casa arquivos pelo nome exato. Se um peer com versão mais
     // antiga do app gravou o código da turma sem formatação ("2a SERIE A") e
@@ -315,12 +747,10 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
     // une — a turma passava a aparecer duplicada na listagem. Aqui agrupamos
     // por ano + código normalizado (ignorando acentos/maiúsculas) e mesclamos
     // qualquer grupo com mais de um arquivo.
-    desduplicar_turmas_por_codigo(&temporario.join("persistidos"))
-        .map_err(|err| err.to_string())?;
+    desduplicar_turmas_por_codigo(&temporario.join("persistidos"))?;
 
     // Une as fotos locais às recebidas (sem perder fotos só locais).
-    mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))
-        .map_err(|err| err.to_string())?;
+    mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))?;
 
     // Preserva planilha_automatica_id/apps_script_projeto_id/
     // apps_script_deployment_id do PEI/Planejamento quando só existem
@@ -329,36 +759,25 @@ pub(crate) fn carregar_dados_institucionais_sincronizacao(
     // grupo, sem esses IDs — ver WebAppConfigSync em workgroupSync.ts)
     // sobrescrevia esses campos com vazio nesta máquina, mesmo sendo ela a
     // dona original do Web App. Ver mesclar_config_webapp.
-    mesclar_config_webapp(&destino.join("pei").join("config.json"), &temporario.join("pei").join("config.json"))
-        .map_err(|err| err.to_string())?;
+    mesclar_config_webapp(&destino.join("pei").join("config.json"), &temporario.join("pei").join("config.json"))?;
     mesclar_config_webapp(
         &destino.join("planejamento").join("config.json"),
         &temporario.join("planejamento").join("config.json"),
-    )
-    .map_err(|err| err.to_string())?;
+    )?;
 
     // Renomeia o diretório atual para backup antes de colocar o novo no lugar.
     // Se o segundo rename falhar, o original é restaurado — sem perda de dados.
     if destino.exists() {
-        fs::rename(&destino, &backup_destino).map_err(|err| err.to_string())?;
+        fs::rename(destino, backup_destino)?;
     }
-    if let Err(err) = fs::rename(&temporario, &destino) {
+    if let Err(err) = fs::rename(temporario, destino) {
         if backup_destino.exists() {
-            let _ = fs::rename(&backup_destino, &destino);
+            let _ = fs::rename(backup_destino, destino);
         }
-        return Err(err.to_string());
+        return Err(err);
     }
-    let _ = fs::remove_dir_all(&backup_destino);
-    preparar_base_portatil(&app_base_dir().map_err(|err| err.to_string())?)
-        .map_err(|err| err.to_string())?;
-    salvar_marcador_sincronizacao_institucional(&atualizado_em).map_err(|err| err.to_string())?;
-
-    Ok(SyncInstitutionalResultado {
-        caminho: Some(origem.to_string_lossy().to_string()),
-        arquivos: total,
-        atualizado_em,
-        backup_seguranca: seguranca,
-    })
+    let _ = fs::remove_dir_all(backup_destino);
+    preparar_base_portatil(&app_base_dir()?)
 }
 
 pub(crate) fn validar_pasta_sincronizacao(pasta: &str) -> Result<PathBuf, String> {
@@ -1273,12 +1692,22 @@ pub(crate) fn mesclar_conselhos_turma(
     }
 }
 
+/// rclone bisync: "turma_X.conflict1.json".
+fn eh_conflito_do_rclone(stem: &str) -> bool {
+    stem.rsplit_once('.').is_some_and(|(_, sufixo)| {
+        sufixo
+            .strip_prefix("conflict")
+            .is_some_and(|numero| !numero.is_empty() && numero.chars().all(|c| c.is_ascii_digit()))
+    })
+}
+
 // Cópias de conflito criadas por serviços de sincronização de arquivos (OneDrive,
 // Google Drive) recebem sufixo com o nome do dispositivo: "turma_X-NomePC.json" ou
 // "turma_X-NomePC-2.json". Se remover sufixos "-token" do nome resultar em um
 // arquivo que também existe na mesma pasta, este é uma cópia de conflito, não uma turma.
-// O Syncthing usa outro padrão, inconfundível por si só:
-// "turma_X.sync-conflict-20260930-153012-ABCDEFG.json".
+// O Syncthing e o rclone usam outro padrão, inconfundível por si só:
+// "turma_X.sync-conflict-20260930-153012-ABCDEFG.json", "turma_X.conflict1.json".
+// O Google Drive para computador numera: "turma_X (1).json".
 pub(crate) fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
     let Some(pasta) = caminho.parent() else {
         return false;
@@ -1286,8 +1715,19 @@ pub(crate) fn eh_copia_de_conflito_sync(caminho: &Path) -> bool {
     let Some(stem) = caminho.file_stem().and_then(|s| s.to_str()) else {
         return false;
     };
-    if stem.contains(".sync-conflict-") {
+    if stem.contains(".sync-conflict-") || eh_conflito_do_rclone(stem) {
         return true;
+    }
+    // Google Drive para computador: "turma_X (1).json".
+    if let Some((nome, numero)) = stem.strip_suffix(')').and_then(|resto| resto.rsplit_once(" (")) {
+        let extensao = caminho.extension().and_then(|e| e.to_str()).unwrap_or("json");
+        if !nome.is_empty()
+            && !numero.is_empty()
+            && numero.chars().all(|c| c.is_ascii_digit())
+            && pasta.join(format!("{nome}.{extensao}")).is_file()
+        {
+            return true;
+        }
     }
     let mut base = stem;
     while let Some(pos) = base.rfind('-') {
@@ -1606,19 +2046,6 @@ pub(crate) fn mesclar_diretorio_fotos(local_dir: &Path, temp_dir: &Path) -> io::
         }
     }
     Ok(())
-}
-
-pub(crate) fn contar_arquivos_recursivamente(pasta: &Path) -> io::Result<usize> {
-    if pasta.is_file() {
-        return Ok(1);
-    }
-    let mut total = 0;
-    if pasta.is_dir() {
-        for entrada in fs::read_dir(pasta)? {
-            total += contar_arquivos_recursivamente(&entrada?.path())?;
-        }
-    }
-    Ok(total)
 }
 
 pub(crate) fn assinatura_diretorio(pasta: &Path) -> io::Result<String> {
@@ -2052,5 +2479,190 @@ mod testes {
         };
         assert_eq!(datas_de(&a_recebe_b), vec!["2026-08-25", "2026-09-08"]);
         assert_eq!(datas_de(&b_recebe_a), vec!["2026-08-25", "2026-09-08"]);
+    }
+}
+
+#[cfg(test)]
+mod testes_pasta_por_dispositivo {
+    use super::*;
+    use serde_json::json;
+
+    fn pasta_de_teste(nome: &str) -> PathBuf {
+        let pasta = env::temp_dir().join(format!("coordop_{nome}_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&pasta);
+        fs::create_dir_all(&pasta).unwrap();
+        pasta
+    }
+
+    fn gravar(caminho: &Path, conteudo: &str) {
+        fs::create_dir_all(caminho.parent().unwrap()).unwrap();
+        fs::write(caminho, conteudo).unwrap();
+    }
+
+    fn turma(codigo: &str) -> String {
+        json!({ "ano": 2026, "codigo": codigo, "alunos": [] }).to_string()
+    }
+
+    fn entrada(pasta: &str, device_id: &str) -> SyncInstitutionalInput {
+        SyncInstitutionalInput { pasta: pasta.to_string(), device_id: device_id.to_string() }
+    }
+
+    /// Três computadores numa mesma pasta: A e B na versão nova, C ainda
+    /// numa versão antiga que só conhece `institutional-data`.
+    #[test]
+    fn cada_computador_grava_so_o_proprio_manifesto_e_todos_convergem() {
+        let raiz = pasta_de_teste("grupo");
+        let grupo = raiz.join("nuvem");
+        fs::create_dir_all(&grupo).unwrap();
+        let pasta = grupo.to_string_lossy().to_string();
+        let casa_a = raiz.join("a");
+        let casa_b = raiz.join("b");
+        let foto = "foto-igual-nos-dois";
+        gravar(&casa_a.join("dados/persistidos/turma_6o Ano A.json"), &turma("6º Ano A"));
+        gravar(&casa_a.join("dados/fotos/123.jpg"), foto);
+        gravar(&casa_b.join("dados/persistidos/turma_7o Ano B.json"), &turma("7º Ano B"));
+        gravar(&casa_b.join("dados/fotos/123.jpg"), foto);
+
+        let usar = |casa: &Path| BASE_DE_TESTE.with(|base| *base.borrow_mut() = Some(casa.to_path_buf()));
+
+        usar(&casa_a);
+        publicar_dados_institucionais_sincronizacao(entrada(&pasta, "A")).unwrap();
+        usar(&casa_b);
+        carregar_dados_institucionais_sincronizacao(pasta.clone(), Some("B".into())).unwrap();
+        publicar_dados_institucionais_sincronizacao(entrada(&pasta, "B")).unwrap();
+        usar(&casa_a);
+        carregar_dados_institucionais_sincronizacao(pasta.clone(), Some("A".into())).unwrap();
+
+        for casa in [&casa_a, &casa_b] {
+            assert!(casa.join("dados/persistidos/turma_6o Ano A.json").is_file());
+            assert!(casa.join("dados/persistidos/turma_7o Ano B.json").is_file());
+        }
+        let estado = grupo.join("state");
+        assert!(estado.join("institutional/A.json").is_file());
+        assert!(estado.join("institutional/B.json").is_file());
+        // Ninguém na versão antiga: a pasta compartilhada antiga nem nasce.
+        assert!(!estado.join("institutional-data").exists());
+        // A foto igual nos dois computadores vira um blob só.
+        let blobs_da_foto = fs::read_dir(estado.join("blobs"))
+            .unwrap()
+            .flatten()
+            .filter(|e| fs::read(e.path()).unwrap() == foto.as_bytes())
+            .count();
+        assert_eq!(blobs_da_foto, 1);
+
+        // C, numa versão antiga, sincronizou agora há pouco.
+        gravar(
+            &estado.join("peers/C.json"),
+            &json!({ "tipo": "coordenacaoop-workgroup-state", "versao": 1, "generatedAt": Local::now().to_rfc3339() })
+                .to_string(),
+        );
+        // A muda algo e publica: vai também para a pasta antiga, para C ver.
+        usar(&casa_a);
+        gravar(&casa_a.join("dados/persistidos/turma_8o Ano C.json"), &turma("8º Ano C"));
+        publicar_dados_institucionais_sincronizacao(entrada(&pasta, "A")).unwrap();
+        assert!(estado.join("institutional-data/dados/persistidos/turma_8o Ano C.json").is_file());
+
+        // B não puxa a pasta antiga publicada por A (o manifesto de A já traz
+        // o mesmo), e recebe a turma nova pelo manifesto de A.
+        usar(&casa_b);
+        carregar_dados_institucionais_sincronizacao(pasta.clone(), Some("B".into())).unwrap();
+        assert!(casa_b.join("dados/persistidos/turma_8o Ano C.json").is_file());
+
+        // C publica do jeito antigo; os dois da versão nova recebem.
+        let dados_antigos = estado.join("institutional-data/dados");
+        gravar(&dados_antigos.join("persistidos/turma_9o Ano D.json"), &turma("9º Ano D"));
+        let conteudo = inventariar_dados_institucionais(&dados_antigos).unwrap();
+        let depois = (Local::now() + chrono::Duration::seconds(5)).to_rfc3339();
+        gravar(
+            &estado.join("institutional-data/manifest.json"),
+            &json!({ "tipo": "coordenacaoop-institutional-data", "device_id": "C", "atualizado_em": depois, "conteudo": conteudo })
+                .to_string(),
+        );
+        carregar_dados_institucionais_sincronizacao(pasta.clone(), Some("B".into())).unwrap();
+        assert!(casa_b.join("dados/persistidos/turma_9o Ano D.json").is_file());
+        usar(&casa_a);
+        carregar_dados_institucionais_sincronizacao(pasta.clone(), Some("A".into())).unwrap();
+        assert!(casa_a.join("dados/persistidos/turma_9o Ano D.json").is_file());
+
+        BASE_DE_TESTE.with(|base| *base.borrow_mut() = None);
+        let _ = fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn manifesto_com_blob_ainda_chegando_nao_e_montado() {
+        let raiz = pasta_de_teste("blob_chegando");
+        let origem = raiz.join("dados");
+        gravar(&origem.join("persistidos/turma_x.json"), "{}");
+        gravar(&origem.join("fotos/1.jpg"), "foto");
+        let inventario = inventariar_dados_institucionais(&origem).unwrap();
+        let blobs = raiz.join("blobs");
+        gravar_blobs(&origem, &blobs, &inventario).unwrap();
+        // Um blob chegou pela metade.
+        fs::write(blobs.join(nome_do_blob(&inventario["fotos/1.jpg"])), "fo").unwrap();
+        let mut total = 0;
+        let faltando = materializar_manifesto(&inventario, &blobs, &raiz.join("montado"), &mut total).unwrap();
+        assert_eq!(faltando, vec!["fotos/1.jpg".to_string()]);
+        assert_eq!(total, 1);
+        let _ = fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn manifestos_proprio_aposentado_e_de_conflito_ficam_de_fora() {
+        let raiz = pasta_de_teste("manifestos");
+        let agora = Local::now();
+        let manifesto = |id: &str, quando: chrono::DateTime<Local>| {
+            json!({ "tipo": TIPO_MANIFESTO_DISPOSITIVO, "device_id": id, "atualizado_em": quando.to_rfc3339(), "conteudo": {} })
+                .to_string()
+        };
+        gravar(&raiz.join("institutional/eu.json"), &manifesto("eu", agora));
+        gravar(&raiz.join("institutional/colega.json"), &manifesto("colega", agora));
+        gravar(&raiz.join("institutional/colega-DESKTOP-1.json"), &manifesto("colega", agora));
+        gravar(&raiz.join("institutional/colega (1).json"), &manifesto("colega", agora));
+        gravar(
+            &raiz.join("institutional/velho.json"),
+            &manifesto("velho", agora - chrono::Duration::days(120)),
+        );
+        let ids: Vec<String> = listar_manifestos_dispositivos(&raiz, Some("eu"), agora.timestamp_millis())
+            .into_iter()
+            .map(|m| m.device_id)
+            .collect();
+        assert_eq!(ids, vec!["colega".to_string()]);
+        let _ = fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn pasta_antiga_so_e_gravada_com_colega_desatualizado_ativo() {
+        let raiz = pasta_de_teste("colega_antigo");
+        let agora = Local::now();
+        let estado_de = |formato: Option<u64>, quando: chrono::DateTime<Local>| {
+            let mut payload = json!({ "generatedAt": quando.to_rfc3339() });
+            if let Some(formato) = formato {
+                payload["formatoSincronizacao"] = json!(formato);
+            }
+            payload.to_string()
+        };
+        gravar(&raiz.join("peers/eu.json"), &estado_de(None, agora));
+        gravar(&raiz.join("peers/novo.json"), &estado_de(Some(2), agora));
+        gravar(&raiz.join("peers/aposentado.json"), &estado_de(None, agora - chrono::Duration::days(30)));
+        assert!(!precisa_publicar_pasta_antiga(&raiz, "eu", agora.timestamp_millis()));
+        gravar(&raiz.join("peers/antigo.json"), &estado_de(None, agora - chrono::Duration::days(2)));
+        assert!(precisa_publicar_pasta_antiga(&raiz, "eu", agora.timestamp_millis()));
+        let _ = fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn copias_de_conflito_do_google_drive_e_do_rclone_sao_reconhecidas() {
+        let raiz = pasta_de_teste("conflitos_nuvem");
+        gravar(&raiz.join("turma_6A.json"), "{}");
+        for nome in ["turma_6A (1).json", "turma_6A.conflict1.json", "turma_6A.conflict12.json"] {
+            gravar(&raiz.join(nome), "{}");
+            assert!(eh_copia_de_conflito_sync(&raiz.join(nome)), "{nome}");
+        }
+        // Parênteses de verdade no nome, sem o original ao lado, não é conflito.
+        gravar(&raiz.join("turma_EJA (noite).json"), "{}");
+        assert!(!eh_copia_de_conflito_sync(&raiz.join("turma_EJA (noite).json")));
+        gravar(&raiz.join("turma_7B (2).json"), "{}");
+        assert!(!eh_copia_de_conflito_sync(&raiz.join("turma_7B (2).json")));
+        let _ = fs::remove_dir_all(&raiz);
     }
 }

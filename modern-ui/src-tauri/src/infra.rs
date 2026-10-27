@@ -165,7 +165,20 @@ pub(crate) fn salvar_indice<T: Serialize>(pasta_base: &Path, registros: &[T]) {
     }
 }
 
+// Nos testes, cada thread pode simular um computador diferente sem mexer no
+// COORDENACAOOP_HOME, que é do processo inteiro e atrapalharia os outros
+// testes rodando em paralelo.
+#[cfg(test)]
+thread_local! {
+    pub(crate) static BASE_DE_TESTE: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
 pub(crate) fn app_base_dir() -> io::Result<PathBuf> {
+    #[cfg(test)]
+    if let Some(base) = BASE_DE_TESTE.with(|base| base.borrow().clone()) {
+        preparar_base_portatil(&base)?;
+        return Ok(base);
+    }
     if let Ok(base) = env::var("COORDENACAOOP_HOME") {
         let base = PathBuf::from(base);
         preparar_base_portatil(&base)?;
