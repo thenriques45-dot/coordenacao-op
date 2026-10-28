@@ -27,6 +27,8 @@ use std::{
 const CODE_GRUPO_GS: &str = include_str!("../scripts/grupo-google/Code.gs");
 const APPSSCRIPT_GRUPO_JSON: &str = include_str!("../scripts/grupo-google/appsscript.json");
 const PREFIXO_CODIGO: &str = "COP1-";
+/// Igual a VERSAO no Code.gs.
+const VERSAO_CARTEIRO: u64 = 2;
 /// Tamanho máximo (antes do base64) de cada envio ou recebimento. O Apps
 /// Script aceita bem mais, mas pedidos menores falham menos e mostram
 /// progresso.
@@ -194,14 +196,16 @@ fn criar_grupo_google_bloqueante() -> Result<GrupoGoogleStatus, String> {
     status_grupo_google()
 }
 
-fn trocar_codigo_grupo_google_bloqueante() -> Result<GrupoGoogleStatus, String> {
+/// Republica o carteiro com a versão deste app, com um segredo novo
+/// (`novo_codigo`) ou o mesmo.
+fn republicar_carteiro_bloqueante(novo_codigo: bool) -> Result<GrupoGoogleStatus, String> {
     let mut config = carregar_config_grupo().ok_or("Este computador não está em nenhum grupo do Google.")?;
     if config.script_id.is_empty() || config.deployment_id.is_empty() {
-        return Err("Só quem criou o grupo pode trocar o código.".to_string());
+        return Err("Só quem criou o grupo pode fazer isso.".to_string());
     }
     let access_token = obter_access_token()?;
     let client = cliente_http()?;
-    let token = gerar_bytes_aleatorios_base64url(32);
+    let token = if novo_codigo { gerar_bytes_aleatorios_base64url(32) } else { config.token.clone() };
     let versao = publicar_carteiro(&client, &access_token, &config.script_id, &token)?;
     let (_, url) = atualizar_deployment(&client, &access_token, &config.script_id, &config.deployment_id, versao)?;
     config.url = url;
@@ -224,9 +228,18 @@ pub(crate) fn criar_grupo_google() -> Result<GrupoGoogleStatus, String> {
 
 #[tauri::command(async)]
 pub(crate) fn trocar_codigo_grupo_google() -> Result<GrupoGoogleStatus, String> {
-    std::thread::spawn(trocar_codigo_grupo_google_bloqueante)
+    std::thread::spawn(|| republicar_carteiro_bloqueante(true))
         .join()
         .map_err(|_| "Falha interna ao trocar o código do grupo.".to_string())?
+}
+
+/// Quem criou o grupo leva o carteiro para a versão deste app (o script
+/// publicado não se atualiza sozinho quando o app atualiza).
+#[tauri::command(async)]
+pub(crate) fn atualizar_script_grupo_google() -> Result<GrupoGoogleStatus, String> {
+    std::thread::spawn(|| republicar_carteiro_bloqueante(false))
+        .join()
+        .map_err(|_| "Falha interna ao atualizar o script do grupo.".to_string())?
 }
 
 #[tauri::command(async)]
@@ -426,6 +439,16 @@ fn trocar_com_grupo_google_bloqueante(device_id: String) -> Result<TrocaGrupoGoo
     let client = cliente_http()?;
 
     let indice = chamar_carteiro(&client, &config, serde_json::json!({ "a": "indice" }))?;
+    // O script publicado não acompanha as atualizações do app. Quem criou o
+    // grupo é avisado para republicá-lo (os colegas não têm como).
+    let versao_carteiro = indice.get("versao").and_then(Value::as_u64).unwrap_or(1);
+    if !config.script_id.is_empty() && versao_carteiro < VERSAO_CARTEIRO {
+        return Err(
+            "O script do grupo no Google é de uma versão anterior do app. Em Configurações > Sincronização, \
+             clique em \"Atualizar script do grupo\"."
+                .to_string(),
+        );
+    }
     let remotos: BTreeMap<String, String> = indice
         .get("arquivos")
         .cloned()

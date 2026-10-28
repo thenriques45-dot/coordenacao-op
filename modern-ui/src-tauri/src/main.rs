@@ -263,6 +263,7 @@ fn main() {
             grupo_google::sair_grupo_google,
             grupo_google::status_grupo_google,
             grupo_google::trocar_codigo_grupo_google,
+            grupo_google::atualizar_script_grupo_google,
             grupo_google::trocar_com_grupo_google,
             backup::exportar_backup,
             backup::exportar_backup_seletivo,

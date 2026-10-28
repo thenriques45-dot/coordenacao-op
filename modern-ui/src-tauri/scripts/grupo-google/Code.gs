@@ -8,12 +8,12 @@
 // Cada arquivo tem um dono só (o manifesto e o estado de cada computador) ou
 // é gravado uma vez e nunca reescrito (blobs, nomeados pelo conteúdo), então
 // não existe gravação concorrente no mesmo arquivo. O índice (caminho ->
-// arquivo no Drive) é a única coisa compartilhada e só é alterado sob trava.
+// arquivo no Drive, nas propriedades do script) só é alterado sob trava.
 //
 // Gerado pelo app: não edite à mão (a próxima republicação sobrescreve).
 
 var TOKEN = "__TOKEN__";
-var VERSAO = 1;
+var VERSAO = 2;
 var NOME_PASTA = "CoordenacaoOP — Grupo de sincronização";
 
 var CAMINHO_PERMITIDO = /^(state\/(institutional|peers)\/[A-Za-z0-9_-]+\.json|devices\/[A-Za-z0-9_-]+\.json|state\/blobs\/[0-9a-f]+-[0-9]+)$/;
@@ -64,24 +64,39 @@ function pasta_() {
     }
   }
   var pasta = DriveApp.createFolder(NOME_PASTA);
-  var indice = pasta.createFile("indice.json", JSON.stringify({ arquivos: {}, blobs: {} }), "application/json");
   propriedades.setProperty("PASTA_ID", pasta.getId());
-  propriedades.setProperty("INDICE_ID", indice.getId());
   return pasta;
 }
 
+// O índice (caminho -> arquivo no Drive) fica nas propriedades do script,
+// uma entrada por arquivo: "a:<caminho>" para manifestos e estados,
+// "b:<nome>" para blobs. A versão 1 o guardava num arquivo do Drive, e a
+// leitura logo depois de outro computador gravar às vezes vinha antiga:
+// quem gravava em seguida apagava do índice o que o outro tinha mandado.
+// As propriedades são lidas sempre atualizadas.
 function lerIndice_() {
-  pasta_();
-  var id = PropertiesService.getScriptProperties().getProperty("INDICE_ID");
-  var indice = JSON.parse(DriveApp.getFileById(id).getBlob().getDataAsString());
-  indice.arquivos = indice.arquivos || {};
-  indice.blobs = indice.blobs || {};
+  var todas = PropertiesService.getScriptProperties().getProperties();
+  var indice = { arquivos: {}, blobs: {} };
+  Object.keys(todas).forEach(function (chave) {
+    if (chave.indexOf("a:") === 0) indice.arquivos[chave.substring(2)] = JSON.parse(todas[chave]);
+    else if (chave.indexOf("b:") === 0) indice.blobs[chave.substring(2)] = lerBlob_(todas[chave]);
+  });
   return indice;
 }
 
-function gravarIndice_(indice) {
-  var id = PropertiesService.getScriptProperties().getProperty("INDICE_ID");
-  DriveApp.getFileById(id).setContent(JSON.stringify(indice));
+// Blobs são a maioria das entradas, e as propriedades têm limite de 500 KB
+// no total: "id|em" em vez de JSON.
+function lerBlob_(valor) {
+  var partes = String(valor).split("|");
+  return { id: partes[0], em: Number(partes[1]) || 0 };
+}
+
+function gravarEntrada_(chave, entrada) {
+  PropertiesService.getScriptProperties().setProperty(chave, JSON.stringify(entrada));
+}
+
+function apagarEntrada_(chave) {
+  PropertiesService.getScriptProperties().deleteProperty(chave);
 }
 
 function indiceResumido_() {
@@ -90,7 +105,7 @@ function indiceResumido_() {
   Object.keys(indice.arquivos).forEach(function (caminho) {
     arquivos[caminho] = indice.arquivos[caminho].d;
   });
-  return { arquivos: arquivos, blobs: Object.keys(indice.blobs) };
+  return { versao: VERSAO, arquivos: arquivos, blobs: Object.keys(indice.blobs) };
 }
 
 function entrada_(indice, caminho) {
@@ -124,11 +139,11 @@ function enviar_(arquivos) {
         var nomeBlob = caminho.substring(PREFIXO_BLOB.length);
         if (indice.blobs[nomeBlob]) return;
         var blob = pasta.createFile(Utilities.newBlob(Utilities.base64Decode(item.b), "application/octet-stream", nome));
-        indice.blobs[nomeBlob] = { id: blob.getId(), em: Date.now() };
+        PropertiesService.getScriptProperties().setProperty("b:" + nomeBlob, blob.getId() + "|" + Date.now());
       } else {
         var anterior = indice.arquivos[caminho];
         var novo = pasta.createFile(Utilities.newBlob(Utilities.base64Decode(item.b), "application/json", nome));
-        indice.arquivos[caminho] = { id: novo.getId(), d: String(item.d || ""), em: Date.now() };
+        gravarEntrada_("a:" + caminho, { id: novo.getId(), d: String(item.d || ""), em: Date.now() });
         if (anterior) {
           try {
             DriveApp.getFileById(anterior.id).setTrashed(true);
@@ -139,7 +154,6 @@ function enviar_(arquivos) {
       }
       gravados += 1;
     });
-    gravarIndice_(indice);
     return { ok: true, gravados: gravados };
   } finally {
     trava.releaseLock();
@@ -178,10 +192,9 @@ function limpar_(idadeMinimaMs) {
       } catch (err) {
         // Já apagado.
       }
-      delete indice.blobs[nome];
+      apagarEntrada_("b:" + nome);
       apagados += 1;
     });
-    gravarIndice_(indice);
     return { ok: true, apagados: apagados };
   } finally {
     trava.releaseLock();

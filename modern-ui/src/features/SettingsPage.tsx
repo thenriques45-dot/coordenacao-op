@@ -931,6 +931,13 @@ export function Configuracoes({
     });
   }
 
+  function atualizarScriptGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      setGrupoGoogle(await invokeApp<GrupoGoogleStatus>("atualizar_script_grupo_google"));
+      setMensagem("Script do grupo atualizado para a versão deste app. O código do grupo continua o mesmo.");
+    });
+  }
+
   function sairGrupoGoogle() {
     return acaoGrupoGoogle(async () => {
       await invokeApp("sair_grupo_google");
@@ -1084,6 +1091,7 @@ export function Configuracoes({
           payload,
         },
       });
+      await trocarComGrupoGoogle();
       onPerfilSyncChange({ ...perfilSync, syncEnabled: true, onboarding: "enabled", lastPublishedAt: resultado.atualizado_em });
       setMensagem(`Estado do Quadro de Gestão publicado em: ${resultado.caminho}`);
     } catch (err) {
@@ -1091,6 +1099,14 @@ export function Configuracoes({
     } finally {
       setProcessando(false);
     }
+  }
+
+  // Grupo pelo Google: a pasta do grupo é uma cópia local, e os botões
+  // manuais precisam trocá-la com o Google na hora (o ciclo automático faz
+  // isso sozinho a cada 45 s).
+  async function trocarComGrupoGoogle() {
+    if (perfilSync.syncMode !== "google") return;
+    await invokeApp("trocar_com_grupo_google", { deviceId: perfilSync.userId });
   }
 
   async function atualizarDoGrupo() {
@@ -1101,6 +1117,7 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
+      await trocarComGrupoGoogle();
       // Lê o estado de CADA coordenador (arquivo por dispositivo), não o
       // arquivo único legado — este último é sobrescrito por qualquer
       // publicação de qualquer coordenador, então "puxar" a partir dele
@@ -1143,6 +1160,7 @@ export function Configuracoes({
           device_id: perfilSync.userId,
         },
       });
+      await trocarComGrupoGoogle();
       onPerfilSyncChange({
         ...perfilSync,
         syncEnabled: true,
@@ -1165,6 +1183,7 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
+      await trocarComGrupoGoogle();
       const resultado = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
         pasta: perfilSync.syncFolder,
         deviceId: perfilSync.userId,
@@ -1723,6 +1742,7 @@ export function Configuracoes({
                     <button type="button" onClick={() => invokeApp("abrir_url", { url: grupoGoogle.url }).catch((err) => setErro(String(err)))} disabled={processando}>
                       Autorizar no Google
                     </button>
+                    <button type="button" onClick={atualizarScriptGrupoGoogle} disabled={processando}>Atualizar script do grupo</button>
                     <button type="button" onClick={trocarCodigoGrupoGoogle} disabled={processando}>Trocar código</button>
                   </>
                 )}
