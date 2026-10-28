@@ -10,6 +10,9 @@ Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparec
 ### Conselho de classe (pendrive)
 - **Tela do pendrive travada no Linux:** o caminho longo do backup no Flatpak alargava a janela do pendrive, que rolava para os lados e não para baixo. Agora a tela volta a rolar para baixo.
 
+### Conselho de classe
+- **"← Voltar para Conselho":** a tela de conselho de cada turma ganhou um link no topo para voltar à lista de conselhos (fica escondido durante a reunião).
+
 ## v4.7.0 - Novo modelo de sincronização do grupo
 
 ### Sincronização
