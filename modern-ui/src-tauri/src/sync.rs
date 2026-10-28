@@ -125,7 +125,7 @@ fn sem_sincronizacao_no_pendrive() -> SyncInstitutionalResultado {
     }
 }
 
-// Formato 2 da sincronização institucional (a partir da 4.6.7): nenhum
+// Formato 2 da sincronização institucional (a partir da 4.7.0): nenhum
 // arquivo da pasta do grupo tem dois donos.
 //
 // - `state/institutional/<device_id>.json`: o manifesto DESTE computador
@@ -1371,7 +1371,7 @@ pub(crate) fn marcar_bimestre_editado(dados: &mut serde_json::Map<String, Value>
 
 /// Mescla `campo` (mapa por bimestre) bimestre a bimestre: vence a edição
 /// mais recente, pela data em `<campo>_editado_em`. Sem data dos dois lados
-/// (arquivos de antes da 4.6.7), o local vence em todo bimestre que já tem,
+/// (arquivos de antes da 4.7.0), o local vence em todo bimestre que já tem,
 /// inclusive vazio, que é como fica uma marcação desfeita; o incoming só
 /// completa os bimestres que faltam aqui. Antes não havia data nenhuma: um
 /// bimestre que já existia aqui nunca era atualizado por outra máquina, e o

@@ -463,7 +463,41 @@ const NOVIDADES_4_6_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_7_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Sincronização",
+      titulo: "Grupo pelo Google: sincronize sem OneDrive",
+      corpo:
+        "Um novo jeito de sincronizar o grupo, para quem não tem uma pasta compartilhada no computador (por exemplo, no Linux). Um coordenador clica em \"Criar grupo no Google\", em Configurações › Sincronização, e entra com a própria conta Google. Os arquivos do grupo ficam numa pasta do Drive dele. Os colegas só colam o código do grupo e o app troca os dados sozinho, sem instalar nada e sem login no Google.",
+      destaques: [
+        { icone: "equipe", titulo: "Windows e Linux juntos", texto: "Todos usam o mesmo grupo, em qualquer sistema, sem OneDrive nem Google Drive instalado." },
+        { icone: "config", titulo: "Código é senha", texto: "Quem tem o código acessa os dados do grupo. Quem criou o grupo pode trocar o código a qualquer momento." },
+        { icone: "envio", titulo: "Só o que mudou", texto: "Cada computador envia e recebe apenas os arquivos alterados desde a última vez." },
+      ],
+      irPara: { rotulo: "Abrir Configurações", tela: "configuracoes" },
+    },
+    {
+      area: "Sincronização",
+      titulo: "Fim das cópias de conflito na pasta do grupo",
+      corpo:
+        "Antes, todos os computadores regravavam a mesma pasta de turmas e alunos, e o OneDrive criava uma cópia de conflito a cada colisão (pastas \"institutional-data-NOMEPC\"). Agora cada computador grava só o próprio arquivo e o app junta o de todos. Vale para o OneDrive, o grupo pelo Google ou qualquer outra pasta compartilhada.",
+      destaques: [
+        { icone: "documento", titulo: "Fotos guardadas uma vez", texto: "Arquivos iguais em vários computadores viram um só na pasta do grupo." },
+        { icone: "aluno", titulo: "Colegas desatualizados continuam", texto: "Enquanto alguém do grupo estiver numa versão antiga, o app também publica do jeito antigo para essa pessoa." },
+      ],
+    },
+  ],
+  outrasMudancas: [
+    "Conselho de classe: o contador da reunião parava ao salvar um ajuste, encaminhamento ou deliberação. Agora ele só reinicia ao trocar de turma ou bimestre.",
+    "Sincronização: um colega que puxava os dados enquanto a pasta compartilhada ainda estava chegando recebia turmas de antes (conselho sem finalizar, sem perfil da turma). Agora o app espera os arquivos chegarem por inteiro.",
+    "Sincronização: no perfil da turma e nos alunos destaque, vale a edição mais recente entre os computadores, e não mais sempre a deste computador.",
+    "Cópias de conflito do Google Drive (\"arquivo (1).json\") e do rclone também são reconhecidas e ignoradas.",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.7.0": NOVIDADES_4_7_0,
   "4.6.6": {
     ...NOVIDADES_4_6_0,
     outrasMudancas: [

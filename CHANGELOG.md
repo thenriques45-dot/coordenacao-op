@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.7.0 - Novo modelo de sincronização do grupo
+
+### Sincronização
+- **Grupo pelo Google:** quem não tem uma pasta compartilhada no computador (por exemplo, no Linux) pode sincronizar pelo Google. Um coordenador cria o grupo em Configurações › Sincronização › "Grupo pelo Google": o app publica um Apps Script na conta Google dele, e os arquivos do grupo ficam numa pasta do Drive dessa pessoa (é preciso autorizar o acesso ao Drive uma vez no navegador). Os colegas entram colando o código do grupo, sem login no Google. O código funciona como senha e pode ser trocado por quem criou o grupo.
+- **Cada computador grava só o próprio arquivo:** turmas, alunos e fotos deixam de ser regravados por todos na mesma pasta `state/institutional-data`, o que fazia o OneDrive criar cópias de conflito. Cada computador publica só o próprio manifesto (`state/institutional/`), e o conteúdo fica em `state/blobs/`, gravado uma vez e nunca reescrito. Arquivos iguais em vários computadores viram um só. A pasta antiga continua sendo lida, e só é gravada enquanto algum colega do grupo ainda estiver numa versão anterior.
+- **Publicação pela metade:** um colega que puxava os dados enquanto a pasta compartilhada ainda estava chegando recebia turmas de antes. Agora o app confere os arquivos e espera.
+- **Perfil da turma e destaques:** vale a edição mais recente entre os computadores.
+- Cópias de conflito do Google Drive (`arquivo (1).json`) e do rclone (`arquivo.conflict1.json`) também são reconhecidas.
+
+### Conselho de classe
+- **Contador da reunião:** parava ao salvar um ajuste, encaminhamento ou deliberação. Agora só reinicia ao trocar de turma ou bimestre.
+
 ## v4.6.6 - Sincronização do grupo destravada
 
 Versão de correção da 4.6.0. As novidades da 4.6.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.6.1 à 4.6.5 e desta versão somadas ao fim de "outras mudanças".
