@@ -4,7 +4,7 @@
 // de client_secret nem de um servidor local escutando uma porta — o usuário
 // só confirma um código de uso único numa aba do navegador. Mesmo espírito
 // de segurança do fluxo do Google (token guardado no cofre de credenciais
-// do sistema operacional via `keyring`, nunca em texto puro): o client_id
+// do sistema operacional via `keyring`; ver cofre.rs para o Linux sem cofre): o client_id
 // de um OAuth App do GitHub também não é tratado como confidencial pela
 // própria documentação do GitHub para este tipo de fluxo.
 //
@@ -93,13 +93,8 @@ fn consultar_token_uma_vez(client: &reqwest::blocking::Client, device_code: &str
     }
 }
 
-fn entrada_keyring() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(KEYRING_SERVICE, KEYRING_CONTA)
-        .map_err(|err| format!("Erro ao acessar o armazenamento seguro de credenciais: {err}"))
-}
-
 fn salvar_token(token: &str) -> Result<(), String> {
-    entrada_keyring()?.set_password(token).map_err(|err| format!("Erro ao salvar o token do GitHub: {err}"))
+    cofre::salvar(KEYRING_SERVICE, KEYRING_CONTA, token).map_err(|err| format!("Erro ao salvar o token do GitHub: {err}"))
 }
 
 /// Só o token salvo, sem checar se ele ainda é aceito pelo GitHub — quem
@@ -110,7 +105,7 @@ fn salvar_token(token: &str) -> Result<(), String> {
 /// que `token_github_valido` (usado só pro check leve de UI) conflava numa
 /// mensagem só de "faça login".
 pub(crate) fn carregar_token() -> Option<String> {
-    entrada_keyring().ok()?.get_password().ok()
+    cofre::carregar(KEYRING_SERVICE, KEYRING_CONTA)
 }
 
 #[derive(Deserialize)]
@@ -250,8 +245,5 @@ pub(crate) fn concluir_login_github(device_code: String, interval: u64, expires_
 /// quer trocar de usuário do GitHub.
 #[tauri::command(async)]
 pub(crate) fn esquecer_login_github() -> Result<(), String> {
-    match entrada_keyring()?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(err) => Err(format!("Erro ao remover a sessão salva do GitHub: {err}")),
-    }
+    cofre::apagar(KEYRING_SERVICE, KEYRING_CONTA).map_err(|err| format!("Erro ao remover a sessão salva do GitHub: {err}"))
 }

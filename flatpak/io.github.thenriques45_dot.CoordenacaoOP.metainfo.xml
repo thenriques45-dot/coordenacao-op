@@ -72,6 +72,13 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.7.1" date="2026-10-28">
+      <description>
+        <ul>
+          <li>Fixed creating a Google sync group on Linux when the system password store (Secret Service) is missing or unreachable</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.7.0" date="2026-10-28">
       <description>
         <ul>

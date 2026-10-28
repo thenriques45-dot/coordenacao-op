@@ -33,6 +33,9 @@ finish-args:
   # Ícone na bandeja do sistema.
   - --talk-name=org.kde.StatusNotifierWatcher
   - --filesystem=xdg-run/tray-icon:create
+  # Cofre de senhas do sistema (GNOME Keyring/KWallet) para os logins Google
+  # e GitHub. Sem ele o app usa o arquivo de reserva (ver cofre.rs).
+  - --talk-name=org.freedesktop.secrets
 
 modules:
   # Ícone na bandeja: o runtime GNOME não traz a libayatana-appindicator e o

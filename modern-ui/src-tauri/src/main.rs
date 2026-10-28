@@ -6,6 +6,7 @@ mod atendimentos_lote;
 mod apps_script_webapp_conteudo;
 mod apps_script_webapp_pei_conteudo;
 mod backup;
+mod cofre;
 mod config;
 mod conselho_pendrive;
 mod diagnosticos;

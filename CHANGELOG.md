@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.7.1 - Grupo pelo Google no Linux sem cofre de senhas
+
+Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com esta correção somada ao fim de "outras mudanças".
+
+### Sincronização
+- **"Erro ao salvar o token de acesso contínuo: ... org.freedesktop.DBus.Error.ServiceUnknown":** no Linux, criar o grupo pelo Google falhava quando o app não alcançava o cofre de senhas do sistema (Secret Service: GNOME Keyring, KWallet). O Flatpak não tinha permissão para falar com o cofre, e há sistemas sem cofre nenhum. Agora o Flatpak tem essa permissão e, quando não há cofre, o login do Google e do GitHub fica num arquivo legível só pelo próprio usuário (`~/.config/coordenacaoop-credenciais`, ou a pasta privada do app no Flatpak), fora da pasta de dados, dos backups e da sincronização. Se o cofre voltar a funcionar, o arquivo é apagado no próximo login.
+
 ## v4.7.0 - Novo modelo de sincronização do grupo
 
 ### Sincronização
