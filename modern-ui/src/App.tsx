@@ -1382,7 +1382,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!tauriDisponivel || !perfilSync.syncEnabled || !perfilSync.syncFolder) return;
+    const pelaGoogle = perfilSync.syncMode === "google";
+    if (!tauriDisponivel || !perfilSync.syncEnabled || (!perfilSync.syncFolder && !pelaGoogle)) return;
     let cancelado = false;
     let sincronizando = false;
     let ciclos = 0;
@@ -1391,8 +1392,13 @@ export function App() {
       if (sincronizando || cancelado) return;
       sincronizando = true;
       try {
+        // Grupo pelo Google: sobe o que este computador publicou no ciclo
+        // anterior e baixa o dos colegas para a cópia local da pasta do grupo.
+        const pasta = pelaGoogle
+          ? (await invokeApp<{ pasta: string }>("trocar_com_grupo_google", { deviceId: perfilSync.userId })).pasta
+          : perfilSync.syncFolder;
         const remotos = await invokeApp<WorkgroupSyncPayload[]>("carregar_estados_sincronizacao", {
-          pasta: perfilSync.syncFolder,
+          pasta,
           deviceId: perfilSync.userId,
         });
         const recebeu = remotos.length > 0;
@@ -1404,7 +1410,7 @@ export function App() {
         const payload = await montarPayloadSincronizacao(perfilSync);
         const resultado = await invokeApp<SyncStateResultado>("publicar_estado_sincronizacao", {
           input: {
-            pasta: perfilSync.syncFolder,
+            pasta,
             device_id: perfilSync.userId,
             payload,
           },
@@ -1421,7 +1427,7 @@ export function App() {
         const sincronizarDadosInstitucionais = ciclos === 0 || ciclos % 20 === 0;
         if (sincronizarDadosInstitucionais) {
           const dadosInstitucionais = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
-            pasta: perfilSync.syncFolder,
+            pasta,
             deviceId: perfilSync.userId,
           });
           const recebeuDadosInstitucionais = Boolean(dadosInstitucionais.caminho);
@@ -1430,7 +1436,7 @@ export function App() {
           }
           const publicacaoDados = await invokeApp<SyncInstitutionalResultado>("publicar_dados_institucionais_sincronizacao", {
             input: {
-              pasta: perfilSync.syncFolder,
+              pasta,
               device_id: perfilSync.userId,
             },
           });
@@ -1473,6 +1479,7 @@ export function App() {
   }, [
     perfilSync.syncEnabled,
     perfilSync.syncFolder,
+    perfilSync.syncMode,
     perfilSync.userId,
     perfilSync.displayName,
     perfilSync.role,

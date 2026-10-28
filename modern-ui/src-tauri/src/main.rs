@@ -14,6 +14,7 @@ mod docx;
 mod fotos;
 mod github_oauth;
 mod google_oauth;
+mod grupo_google;
 mod ia;
 mod importador_alunos;
 mod importador_expansoes;
@@ -39,7 +40,7 @@ mod whatsapp_api;
 #[allow(unused_imports)]
 pub(crate) use {
     aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
-    conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, ia::*, importador_alunos::*,
+    conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, grupo_google::*, ia::*, importador_alunos::*,
     importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
@@ -257,6 +258,12 @@ fn main() {
             sync::carregar_estados_sincronizacao,
             sync::publicar_dados_institucionais_sincronizacao,
             sync::carregar_dados_institucionais_sincronizacao,
+            grupo_google::criar_grupo_google,
+            grupo_google::entrar_grupo_google,
+            grupo_google::sair_grupo_google,
+            grupo_google::status_grupo_google,
+            grupo_google::trocar_codigo_grupo_google,
+            grupo_google::trocar_com_grupo_google,
             backup::exportar_backup,
             backup::exportar_backup_seletivo,
             backup::importar_backup,

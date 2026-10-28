@@ -38,6 +38,12 @@ export type WorkgroupSyncProfile = {
   avatarDataUrl?: string;
   syncEnabled: boolean;
   syncFolder: string;
+  /**
+   * "google": o grupo troca arquivos por um Apps Script na conta de quem o
+   * criou (ver grupo_google.rs); `syncFolder` aponta para a cópia local da
+   * pasta do grupo. Ausente = pasta compartilhada (OneDrive etc.).
+   */
+  syncMode?: "pasta" | "google";
   onboarding: "pending" | "enabled" | "dismissed";
   createdAt: string;
   updatedAt: string;

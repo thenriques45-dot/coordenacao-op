@@ -108,7 +108,7 @@ fn tratar_resposta_erro(
     Err(format!("{contexto}: erro {status}. Detalhe: {texto}"))
 }
 
-fn criar_projeto(
+pub(crate) fn criar_projeto(
     client: &reqwest::blocking::Client,
     access_token: &str,
     titulo: &str,
@@ -128,7 +128,7 @@ fn criar_projeto(
     Ok(corpo.script_id)
 }
 
-fn subir_conteudo(
+pub(crate) fn subir_conteudo(
     client: &reqwest::blocking::Client,
     access_token: &str,
     script_id: &str,
@@ -154,7 +154,7 @@ fn subir_conteudo(
     Ok(())
 }
 
-fn criar_versao(
+pub(crate) fn criar_versao(
     client: &reqwest::blocking::Client,
     access_token: &str,
     script_id: &str,
@@ -186,7 +186,7 @@ fn extrair_url_webapp(resposta: DeploymentResponse) -> Result<(String, String), 
 
 /// Cria uma implantação NOVA (primeira vez) — usada só quando não há
 /// `apps_script_deployment_id` salvo ainda.
-fn criar_deployment(
+pub(crate) fn criar_deployment(
     client: &reqwest::blocking::Client,
     access_token: &str,
     script_id: &str,
@@ -212,7 +212,7 @@ fn criar_deployment(
 /// Atualiza uma implantação EXISTENTE para apontar para a nova versão,
 /// mantendo a mesma URL pública (o professor não precisa de um link novo a
 /// cada vez que o coordenador republica).
-fn atualizar_deployment(
+pub(crate) fn atualizar_deployment(
     client: &reqwest::blocking::Client,
     access_token: &str,
     script_id: &str,
