@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { open as abrirDialogoArquivo } from "@tauri-apps/plugin-dialog";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { invokeApp } from "./appBridge";
 import { AssistenteConfigConselho } from "./ConselhoConfigWizard";
 import type { ConfiguracoesApp, OpcaoEncaminhamento } from "./SettingsPage";
@@ -405,12 +405,29 @@ export function Council({
     setVisaoPerfil(perfilTurmaDisponivel);
   }, [turmaSelecionada?.caminho, bimestreSelecionado, perfilTurmaDisponivel]);
 
+  // Qualquer salvamento durante a reunião (ajuste, encaminhamento, deliberação)
+  // devolve a turma com o tempo gravado no último salvamento automático. Se isso
+  // zerasse o início da reunião, o contador parava. Só reiniciamos o contador
+  // quando a turma ou o bimestre mudam, ou quando não há reunião em andamento.
+  const chaveTempoReuniaoRef = useRef("");
+  const reuniaoEmAndamentoRef = useRef(false);
+  reuniaoEmAndamentoRef.current = modoReuniao && inicioReuniao !== null;
+  const ultimoTempoSalvoRef = useRef(0);
+  const salvandoTempoRef = useRef(false);
+
   useEffect(() => {
+    const chave = `${turmaSelecionada?.caminho ?? ""}|${turmaDetalhe?.bimestre ?? ""}`;
+    const mesmaTurma = chave === chaveTempoReuniaoRef.current;
+    chaveTempoReuniaoRef.current = chave;
+    if (mesmaTurma && reuniaoEmAndamentoRef.current) {
+      return;
+    }
     const acumulado = turmaDetalhe?.tempo_conselho_segundos ?? 0;
+    ultimoTempoSalvoRef.current = acumulado;
     setTempoBaseReuniao(acumulado);
     setTempoReuniao(acumulado);
     setInicioReuniao(null);
-  }, [turmaDetalhe?.bimestre, turmaDetalhe?.tempo_conselho_segundos]);
+  }, [turmaSelecionada?.caminho, turmaDetalhe?.bimestre, turmaDetalhe?.tempo_conselho_segundos]);
 
   useEffect(() => {
     setFinalizacaoAberta(false);
@@ -424,12 +441,20 @@ export function Council({
     const timer = window.setInterval(() => {
       const total = tempoBaseReuniao + Math.floor((Date.now() - inicioReuniao) / 1000);
       setTempoReuniao(total);
-      if (turmaSelecionada && turmaDetalhe && total % 15 === 0) {
+      // Salva a cada 15 s ou mais. Com gravação lenta (pendrive) um tique pode
+      // atrasar e pular o múltiplo exato de 15, e não convém empilhar gravações.
+      if (turmaSelecionada && turmaDetalhe && !salvandoTempoRef.current && total - ultimoTempoSalvoRef.current >= 15) {
+        salvandoTempoRef.current = true;
+        ultimoTempoSalvoRef.current = total;
         invokeApp("salvar_tempo_conselho", {
           caminho: turmaSelecionada.caminho,
           bimestre: turmaDetalhe.bimestre,
           tempoSegundos: total,
-        }).catch(() => {});
+        })
+          .catch(() => {})
+          .finally(() => {
+            salvandoTempoRef.current = false;
+          });
       }
     }, 1000);
     return () => window.clearInterval(timer);
@@ -486,6 +511,7 @@ export function Council({
   function ativarModoReuniao() {
     const agora = Date.now();
     const acumulado = turmaDetalhe?.tempo_conselho_segundos ?? tempoReuniao;
+    ultimoTempoSalvoRef.current = acumulado;
     setTempoBaseReuniao(acumulado);
     setInicioReuniao(agora);
     setTempoReuniao(acumulado);
