@@ -2076,6 +2076,7 @@ export function App() {
             modoReuniao={modoReuniao}
             setModoReuniao={setModoReuniao}
             aoAtualizarDados={recarregarDadosTurmas}
+            onVoltar={() => navegarPara("conselhos")}
           />
         )}
         {tela === "turmas" && (
