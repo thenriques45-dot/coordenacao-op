@@ -228,6 +228,14 @@ type SyncInstitutionalResultado = {
   backup_seguranca: string | null;
 };
 
+type GrupoGoogleStatus = {
+  configurado: boolean;
+  criador: boolean;
+  codigo: string;
+  url: string;
+  pasta: string;
+};
+
 type DiagnosticoIaLocal = {
   ollama_instalado: boolean;
   servidor_ativo: boolean;
@@ -460,6 +468,8 @@ export function Configuracoes({
   const [acaoIa, setAcaoIa] = useState<"iniciar" | "baixar" | "testar" | null>(null);
   const [mostrarIaAvancado, setMostrarIaAvancado] = useState(false);
   const [secaoConfig, setSecaoConfig] = useState<SettingsSection>(secaoInicial ?? "visao-geral");
+  const [grupoGoogle, setGrupoGoogle] = useState<GrupoGoogleStatus | null>(null);
+  const [codigoGrupoDigitado, setCodigoGrupoDigitado] = useState("");
   const [autostartAtivo, setAutostartAtivo] = useState(false);
   const [busca, setBusca] = useState("");
   const [buscaFoco, setBuscaFoco] = useState(false);
@@ -854,12 +864,95 @@ export function Configuracoes({
         title: "Escolher pasta compartilhada do grupo de trabalho",
       });
       if (typeof selecionado === "string") {
-        onPerfilSyncChange({ ...perfilSync, syncFolder: selecionado });
+        onPerfilSyncChange({ ...perfilSync, syncFolder: selecionado, syncMode: "pasta" });
         setMensagem("Pasta de sincronização atualizada.");
       }
     } catch (err) {
       setErro(`Não foi possível selecionar a pasta: ${String(err)}`);
     }
+  }
+
+  useEffect(() => {
+    if (secaoConfig !== "sincronizacao" || !tauriDisponivel) return;
+    invokeApp<GrupoGoogleStatus>("status_grupo_google").then(setGrupoGoogle).catch(() => {});
+  }, [secaoConfig]);
+
+  function usarGrupoGoogle(status: GrupoGoogleStatus) {
+    setGrupoGoogle(status);
+    onPerfilSyncChange({
+      ...perfilSync,
+      syncEnabled: true,
+      onboarding: "enabled",
+      syncMode: "google",
+      syncFolder: status.pasta,
+    });
+  }
+
+  async function acaoGrupoGoogle(acao: () => Promise<void>) {
+    setProcessando(true);
+    setMensagem("");
+    setErro("");
+    try {
+      await acao();
+    } catch (err) {
+      setErro(String(err));
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  function criarGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      const status = await invokeApp<GrupoGoogleStatus>("criar_grupo_google");
+      usarGrupoGoogle(status);
+      // O script roda com a conta de quem criou o grupo: o Google só deixa
+      // ele usar o Drive depois que essa pessoa autoriza, uma vez, no navegador.
+      await invokeApp("abrir_url", { url: status.url });
+      setMensagem(
+        "Grupo criado. No navegador que abriu, entre com a sua conta e autorize o acesso ao Drive (pode aparecer o aviso \"app não verificado\": é o seu próprio script; clique em Avançado e continue). Depois copie o código do grupo e envie aos colegas."
+      );
+    });
+  }
+
+  function entrarGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      const status = await invokeApp<GrupoGoogleStatus>("entrar_grupo_google", { codigo: codigoGrupoDigitado });
+      usarGrupoGoogle(status);
+      setCodigoGrupoDigitado("");
+      setMensagem("Pronto: este computador agora sincroniza com o grupo pelo Google.");
+    });
+  }
+
+  function trocarCodigoGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      const status = await invokeApp<GrupoGoogleStatus>("trocar_codigo_grupo_google");
+      setGrupoGoogle(status);
+      setMensagem("Código trocado. O código antigo deixou de funcionar: envie o novo aos colegas.");
+    });
+  }
+
+  function atualizarScriptGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      setGrupoGoogle(await invokeApp<GrupoGoogleStatus>("atualizar_script_grupo_google"));
+      setMensagem("Script do grupo atualizado para a versão deste app. O código do grupo continua o mesmo.");
+    });
+  }
+
+  function sairGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      await invokeApp("sair_grupo_google");
+      setGrupoGoogle(await invokeApp<GrupoGoogleStatus>("status_grupo_google"));
+      onPerfilSyncChange({ ...perfilSync, syncMode: "pasta", syncFolder: "" });
+      setMensagem("Este computador saiu do grupo do Google. Os dados locais continuam aqui.");
+    });
+  }
+
+  function copiarCodigoGrupoGoogle() {
+    if (!grupoGoogle?.codigo) return;
+    navigator.clipboard
+      .writeText(grupoGoogle.codigo)
+      .then(() => setMensagem("Código do grupo copiado. Trate-o como uma senha."))
+      .catch((err) => setErro(String(err)));
   }
 
   function atualizarPerfilSync(campo: keyof WorkgroupSyncProfile, valor: string | boolean) {
@@ -998,6 +1091,7 @@ export function Configuracoes({
           payload,
         },
       });
+      await trocarComGrupoGoogle();
       onPerfilSyncChange({ ...perfilSync, syncEnabled: true, onboarding: "enabled", lastPublishedAt: resultado.atualizado_em });
       setMensagem(`Estado do Quadro de Gestão publicado em: ${resultado.caminho}`);
     } catch (err) {
@@ -1005,6 +1099,14 @@ export function Configuracoes({
     } finally {
       setProcessando(false);
     }
+  }
+
+  // Grupo pelo Google: a pasta do grupo é uma cópia local, e os botões
+  // manuais precisam trocá-la com o Google na hora (o ciclo automático faz
+  // isso sozinho a cada 45 s).
+  async function trocarComGrupoGoogle() {
+    if (perfilSync.syncMode !== "google") return;
+    await invokeApp("trocar_com_grupo_google", { deviceId: perfilSync.userId });
   }
 
   async function atualizarDoGrupo() {
@@ -1015,6 +1117,7 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
+      await trocarComGrupoGoogle();
       // Lê o estado de CADA coordenador (arquivo por dispositivo), não o
       // arquivo único legado — este último é sobrescrito por qualquer
       // publicação de qualquer coordenador, então "puxar" a partir dele
@@ -1057,6 +1160,7 @@ export function Configuracoes({
           device_id: perfilSync.userId,
         },
       });
+      await trocarComGrupoGoogle();
       onPerfilSyncChange({
         ...perfilSync,
         syncEnabled: true,
@@ -1079,7 +1183,11 @@ export function Configuracoes({
       if (!perfilSync.syncFolder) {
         throw new Error("Escolha a pasta compartilhada antes de atualizar.");
       }
-      const resultado = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", { pasta: perfilSync.syncFolder });
+      await trocarComGrupoGoogle();
+      const resultado = await invokeApp<SyncInstitutionalResultado>("carregar_dados_institucionais_sincronizacao", {
+        pasta: perfilSync.syncFolder,
+        deviceId: perfilSync.userId,
+      });
       if (!resultado.caminho) {
         setMensagem("Ainda não há turmas e alunos publicados nesta pasta de sincronização.");
         return;
@@ -1590,7 +1698,9 @@ export function Configuracoes({
             <span>Pasta compartilhada</span>
             <p>Use uma pasta OneDrive compartilhada exclusivamente para o CoordenacaoOP.</p>
             <button type="button" onClick={escolherPastaSincronizacao}>Escolher pasta</button>
-            <span className="settings-version">{perfilSync.syncFolder || "Nenhuma pasta selecionada."}</span>
+            <span className="settings-version">
+              {perfilSync.syncMode === "google" ? "Usando o grupo pelo Google (abaixo)." : perfilSync.syncFolder || "Nenhuma pasta selecionada."}
+            </span>
           </div>
           <div className="sync-actions-row">
             <button type="button" onClick={publicarEstadoGrupo} disabled={processando || !perfilSync.syncFolder}>Publicar estado</button>
@@ -1606,6 +1716,56 @@ export function Configuracoes({
             <div className="notice error">
               A sincronização automática falhou em {perfilSync.lastSyncErrorAt ? new Date(perfilSync.lastSyncErrorAt).toLocaleString("pt-BR") : "uma tentativa recente"}: {perfilSync.lastSyncError}
             </div>
+          )}
+        </article>
+        <article className="settings-card" id="cfg-sync-google">
+          <h2>Grupo pelo Google</h2>
+          <p>
+            Para quem não tem uma pasta compartilhada no computador (por exemplo, no Linux). Quem cria o grupo publica um script na
+            própria conta Google, e os arquivos do grupo ficam numa pasta do Drive dessa pessoa. Os colegas só colam o código do grupo,
+            sem login no Google. Trate o código como uma senha.
+          </p>
+          {grupoGoogle?.configurado ? (
+            <>
+              <span className="settings-version">
+                {perfilSync.syncMode === "google"
+                  ? "Este computador sincroniza pelo grupo do Google."
+                  : "Este computador tem um grupo do Google configurado, mas está usando a pasta compartilhada."}
+              </span>
+              <div className="sync-actions-row">
+                <button type="button" onClick={copiarCodigoGrupoGoogle} disabled={processando}>Copiar código do grupo</button>
+                {perfilSync.syncMode !== "google" && (
+                  <button type="button" onClick={() => grupoGoogle && usarGrupoGoogle(grupoGoogle)} disabled={processando}>Usar o grupo do Google</button>
+                )}
+                {grupoGoogle.criador && (
+                  <>
+                    <button type="button" onClick={() => invokeApp("abrir_url", { url: grupoGoogle.url }).catch((err) => setErro(String(err)))} disabled={processando}>
+                      Autorizar no Google
+                    </button>
+                    <button type="button" onClick={atualizarScriptGrupoGoogle} disabled={processando}>Atualizar script do grupo</button>
+                    <button type="button" onClick={trocarCodigoGrupoGoogle} disabled={processando}>Trocar código</button>
+                  </>
+                )}
+                <button type="button" onClick={sairGrupoGoogle} disabled={processando}>Sair do grupo</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sync-actions-row">
+                <button type="button" onClick={criarGrupoGoogle} disabled={processando}>Criar grupo no Google</button>
+              </div>
+              <label>
+                Entrar num grupo existente
+                <input
+                  value={codigoGrupoDigitado}
+                  onChange={(event) => setCodigoGrupoDigitado(event.target.value)}
+                  placeholder="Cole aqui o código do grupo (começa com COP1-)"
+                />
+              </label>
+              <div className="sync-actions-row">
+                <button type="button" onClick={entrarGrupoGoogle} disabled={processando || !codigoGrupoDigitado.trim()}>Entrar no grupo</button>
+              </div>
+            </>
           )}
         </article>
         <article className="settings-card" id="cfg-sync-institucional">
