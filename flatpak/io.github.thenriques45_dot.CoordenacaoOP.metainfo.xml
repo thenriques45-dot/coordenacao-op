@@ -76,6 +76,7 @@
       <description>
         <ul>
           <li>Fixed creating a Google sync group on Linux when the system password store (Secret Service) is missing or unreachable</li>
+          <li>Fixed the class council USB drive screen not scrolling down</li>
         </ul>
       </description>
     </release>
