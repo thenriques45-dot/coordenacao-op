@@ -11,7 +11,8 @@
 // sem dependências novas) captura o redirect com o código de autorização;
 // o código é trocado por um access_token (curta duração) e um refresh_token
 // (guardado no cofre de credenciais do sistema operacional via `keyring`,
-// nunca em texto puro, pois dá acesso contínuo à conta do coordenador).
+// pois dá acesso contínuo à conta do coordenador; ver cofre.rs para o Linux
+// sem cofre).
 
 use crate::*;
 
@@ -257,19 +258,13 @@ fn renovar_access_token(refresh_token: &str) -> Result<String, String> {
     Ok(token.access_token)
 }
 
-fn entrada_keyring() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(KEYRING_SERVICE, KEYRING_CONTA)
-        .map_err(|err| format!("Erro ao acessar o armazenamento seguro de credenciais: {err}"))
-}
-
 fn salvar_refresh_token(token: &str) -> Result<(), String> {
-    entrada_keyring()?
-        .set_password(token)
+    cofre::salvar(KEYRING_SERVICE, KEYRING_CONTA, token)
         .map_err(|err| format!("Erro ao salvar o token de acesso contínuo: {err}"))
 }
 
 fn carregar_refresh_token() -> Option<String> {
-    entrada_keyring().ok()?.get_password().ok()
+    cofre::carregar(KEYRING_SERVICE, KEYRING_CONTA)
 }
 
 // ── Fluxo interativo completo (abre navegador, aguarda callback) ──────────

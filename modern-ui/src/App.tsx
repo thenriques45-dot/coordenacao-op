@@ -497,6 +497,15 @@ const NOVIDADES_4_7_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.7.1": {
+    ...NOVIDADES_4_7_0,
+    outrasMudancas: [
+      ...(NOVIDADES_4_7_0.outrasMudancas ?? []),
+      "Corrigido no Linux: criar o grupo pelo Google (ou entrar no GitHub) dava \"Erro ao salvar o token de acesso contínuo\" quando o computador não tinha o cofre de senhas do sistema disponível. Agora o app usa o cofre quando ele existe e, se não existir, guarda o login num arquivo que só o seu usuário pode ler.",
+      "Pendrive do conselho: a tela volta a rolar para baixo no Linux.",
+      "Conselho de classe: a tela de cada turma ganhou o link \"← Voltar para Conselho\" no topo (escondido durante a reunião).",
+    ],
+  },
   "4.7.0": NOVIDADES_4_7_0,
   "4.6.6": {
     ...NOVIDADES_4_6_0,
@@ -2068,6 +2077,7 @@ export function App() {
             modoReuniao={modoReuniao}
             setModoReuniao={setModoReuniao}
             aoAtualizarDados={recarregarDadosTurmas}
+            onVoltar={() => navegarPara("conselhos")}
           />
         )}
         {tela === "turmas" && (

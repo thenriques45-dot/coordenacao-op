@@ -345,6 +345,7 @@ export function Council({
   modoReuniao,
   setModoReuniao,
   aoAtualizarDados,
+  onVoltar,
 }: {
   aluno: Aluno;
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string; encaminhamento_opcoes?: OpcaoEncaminhamento[]; perfil_turma_ativo?: boolean; perfil_turma_criterios?: CriterioPerfil[]; aluno_destaque_ativo?: boolean; aluno_destaque_criterios?: CriterioDestaque[] };
@@ -364,6 +365,7 @@ export function Council({
   modoReuniao: boolean;
   setModoReuniao: (ativo: boolean) => void;
   aoAtualizarDados: () => void;
+  onVoltar: () => void;
 }) {
   const [disciplinaEditando, setDisciplinaEditando] = useState<string | null>(null);
   const [disciplinaHistoricoAberta, setDisciplinaHistoricoAberta] = useState<string | null>(null);
@@ -641,6 +643,9 @@ export function Council({
 
   return (
     <>
+      {!modoReuniao && (
+        <button className="back-link" onClick={onVoltar}>← Voltar para Conselho</button>
+      )}
       <header className={`topbar council-topbar ${modoReuniao ? "meeting-topbar" : ""}`}>
         <div>
           <span className="eyebrow">{turmaLabel}</span>

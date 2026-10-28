@@ -9538,11 +9538,17 @@ th:nth-child(3) {
   border-color: var(--accent);
 }
 
+/* minmax(0, 1fr): sem isso a coluna da grade cresce até caber o caminho do
+   backup (texto longo sem espaços, comum no Flatpak) e o modal passa a rolar
+   para os lados em vez de para baixo. */
 .pendrive-conselho-modal {
+  grid-template-columns: minmax(0, 1fr);
   max-width: 560px;
   width: 92vw;
   max-height: 86vh;
+  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .pendrive-conselho-corpo {
