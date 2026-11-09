@@ -28,7 +28,7 @@ const CODE_GRUPO_GS: &str = include_str!("../scripts/grupo-google/Code.gs");
 const APPSSCRIPT_GRUPO_JSON: &str = include_str!("../scripts/grupo-google/appsscript.json");
 const PREFIXO_CODIGO: &str = "COP1-";
 /// Igual a VERSAO no Code.gs.
-const VERSAO_CARTEIRO: u64 = 2;
+const VERSAO_CARTEIRO: u64 = 3;
 /// Tamanho máximo (antes do base64) de cada envio ou recebimento. O Apps
 /// Script aceita bem mais, mas pedidos menores falham menos e mostram
 /// progresso.
@@ -178,7 +178,7 @@ fn publicar_carteiro(
         access_token,
         script_id,
         vec![
-            ("Code", "SERVER_JS", CODE_GRUPO_GS.replace("__TOKEN__", token)),
+            ("Code", "SERVER_JS", CODE_GRUPO_GS.replace("__TOKEN__", token).replace("__SCRIPT_ID__", script_id)),
             ("appsscript", "JSON", APPSSCRIPT_GRUPO_JSON.to_string()),
         ],
     )?;
@@ -240,6 +240,80 @@ pub(crate) fn atualizar_script_grupo_google() -> Result<GrupoGoogleStatus, Strin
     std::thread::spawn(|| republicar_carteiro_bloqueante(false))
         .join()
         .map_err(|_| "Falha interna ao atualizar o script do grupo.".to_string())?
+}
+
+/// Tira o ID do script de um link do editor
+/// (script.google.com/home/projects/<id>/edit ou .../d/<id>/edit) ou do
+/// próprio ID colado.
+pub(crate) fn extrair_script_id(referencia: &str) -> Option<String> {
+    let limpo = referencia.trim();
+    let partes: Vec<&str> = limpo.split(['/', '?', '#']).collect();
+    let candidato = partes
+        .iter()
+        .position(|parte| *parte == "projects" || *parte == "d")
+        .and_then(|i| partes.get(i + 1).copied())
+        .unwrap_or(limpo);
+    let valido = candidato.len() >= 20 && candidato.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    valido.then(|| candidato.to_string())
+}
+
+/// ID da implantação no endereço do carteiro
+/// (script.google.com/macros/s/<id>/exec, ou /a/macros/<domínio>/s/<id>/exec).
+pub(crate) fn deployment_id_da_url(url: &str) -> Option<String> {
+    let partes: Vec<&str> = url.split('/').collect();
+    let i = partes.iter().position(|parte| *parte == "macros")?;
+    let j = i + partes[i..].iter().position(|parte| *parte == "s")?;
+    partes.get(j + 1).filter(|id| !id.is_empty()).map(|id| id.to_string())
+}
+
+/// Num computador que entrou pelo código, quem criou o grupo volta a poder
+/// atualizar o script e trocar o código. Confere, com o login no Google, que
+/// o script é desta pessoa e é o mesmo do código, e já o republica na versão
+/// deste app (com o mesmo segredo: os colegas não percebem nada).
+fn recuperar_organizacao_bloqueante(referencia: String) -> Result<GrupoGoogleStatus, String> {
+    let mut config = carregar_config_grupo()
+        .ok_or("Primeiro entre no grupo com o código (COP1-) e depois recupere a organização.")?;
+    let client = cliente_http()?;
+    let script_id = if referencia.trim().is_empty() {
+        // Scripts publicados a partir desta versão informam o próprio ID.
+        let info = chamar_carteiro(&client, &config, serde_json::json!({ "a": "info" }))?;
+        info.get("scriptId")
+            .and_then(Value::as_str)
+            .and_then(extrair_script_id)
+            .ok_or(
+                "O script do grupo é de uma versão anterior e não informa o próprio endereço. Abra \
+                 script.google.com com a conta que criou o grupo, abra o projeto \"Grupo de sincronização — \
+                 CoordenacaoOP\", copie o link da barra de endereço e cole no campo.",
+            )?
+    } else {
+        extrair_script_id(&referencia).ok_or(
+            "Não reconheci o link do script. Cole o endereço do projeto aberto em script.google.com \
+             (algo como https://script.google.com/home/projects/.../edit).",
+        )?
+    };
+    let deployment_id = deployment_id_da_url(&config.url)
+        .ok_or("O endereço do grupo no código não tem o formato esperado do Google.")?;
+    let access_token = obter_access_token()?;
+    obter_deployment(&client, &access_token, &script_id, &deployment_id).map_err(|err| {
+        format!(
+            "Não deu para confirmar que esse script é o do grupo. Confira se entrou no Google com a mesma \
+             conta que criou o grupo e se o link é do projeto \"Grupo de sincronização — CoordenacaoOP\". ({err})"
+        )
+    })?;
+    let versao = publicar_carteiro(&client, &access_token, &script_id, &config.token)?;
+    let (_, url) = atualizar_deployment(&client, &access_token, &script_id, &deployment_id, versao)?;
+    config.url = url;
+    config.script_id = script_id;
+    config.deployment_id = deployment_id;
+    salvar_config_grupo(&config)?;
+    status_grupo_google()
+}
+
+#[tauri::command(async)]
+pub(crate) fn recuperar_organizacao_grupo_google(referencia: String) -> Result<GrupoGoogleStatus, String> {
+    std::thread::spawn(move || recuperar_organizacao_bloqueante(referencia))
+        .join()
+        .map_err(|_| "Falha interna ao recuperar a organização do grupo.".to_string())?
 }
 
 #[tauri::command(async)]
@@ -538,6 +612,26 @@ mod testes {
         assert!(ler_codigo_grupo("COP1-abc").is_err());
         let fora_do_google = montar_codigo_grupo("https://exemplo.com/exec", &gerar_bytes_aleatorios_base64url(32));
         assert!(ler_codigo_grupo(&fora_do_google).is_err());
+    }
+
+    #[test]
+    fn le_script_e_implantacao_dos_links_do_google() {
+        let id = "1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcdefghijk";
+        for colado in [
+            format!("https://script.google.com/home/projects/{id}/edit"),
+            format!("https://script.google.com/d/{id}/edit?usp=sharing"),
+            format!("  {id} "),
+        ] {
+            assert_eq!(extrair_script_id(&colado).as_deref(), Some(id), "{colado}");
+        }
+        assert_eq!(extrair_script_id("https://script.google.com/home"), None);
+        assert_eq!(extrair_script_id("abc"), None);
+        assert_eq!(deployment_id_da_url("https://script.google.com/macros/s/AKfy123/exec").as_deref(), Some("AKfy123"));
+        assert_eq!(
+            deployment_id_da_url("https://script.google.com/a/macros/prof.educacao.sp.gov.br/s/AKfy123/exec").as_deref(),
+            Some("AKfy123")
+        );
+        assert_eq!(deployment_id_da_url("https://script.google.com/home"), None);
     }
 
     #[test]

@@ -289,14 +289,20 @@ export function useWebAppConfig<TConfig extends ConfigWebAppBase, TRegistro>(
     statusImportarLink,
     configuradoPorOutro,
     membroConfigurador,
-    // Só oferece "essa configuração é minha" quando o nome de exibição de
-    // quem configurou bate (por inteiro ou por prefixo) com o do perfil
-    // local atual — evita que alguém reivindique a configuração de outra
-    // pessoa por engano.
+    // Oferece "essa configuração é minha" quando o nome de exibição de quem
+    // configurou bate (por inteiro ou por prefixo) com o do perfil local
+    // atual — evita que alguém reivindique a configuração de outra pessoa
+    // por engano. Quando quem configurou não está mais na lista do grupo
+    // (perfil de uma instalação apagada, que não sincroniza mais), não há
+    // nome para comparar nem colega ativo a quem a configuração pertença:
+    // também oferece, e o card pergunta se foi a própria pessoa.
     podeReivindicar:
       configuradoPorOutro
-      && !!membroConfigurador?.displayName?.trim()
-      && nomesCompativeis(membroConfigurador.displayName, garantirPerfilPersistido().displayName),
+      && (
+        !membroConfigurador
+        || (!!membroConfigurador.displayName?.trim()
+          && nomesCompativeis(membroConfigurador.displayName, garantirPerfilPersistido().displayName))
+      ),
     reivindicando,
     reivindicar,
     salvarConfig,

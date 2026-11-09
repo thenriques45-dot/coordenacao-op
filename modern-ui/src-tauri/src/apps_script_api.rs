@@ -209,6 +209,23 @@ pub(crate) fn criar_deployment(
     extrair_url_webapp(corpo)
 }
 
+/// Lê uma implantação: só funciona para quem tem acesso ao projeto, então
+/// serve para conferir que o script é de quem está logado.
+pub(crate) fn obter_deployment(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    script_id: &str,
+    deployment_id: &str,
+) -> Result<(), String> {
+    let resposta = client
+        .get(format!("{BASE_APPS_SCRIPT_API}/projects/{script_id}/deployments/{deployment_id}"))
+        .bearer_auth(access_token)
+        .send()
+        .map_err(|err| format!("Erro ao consultar a implantação: {err}"))?;
+    tratar_resposta_erro(resposta, "Erro ao consultar a implantação")?;
+    Ok(())
+}
+
 /// Atualiza uma implantação EXISTENTE para apontar para a nova versão,
 /// mantendo a mesma URL pública (o professor não precisa de um link novo a
 /// cada vez que o coordenador republica).

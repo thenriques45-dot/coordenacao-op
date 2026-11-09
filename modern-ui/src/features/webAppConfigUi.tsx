@@ -41,8 +41,9 @@ type ConfiguradoPorOutroBannerProps = {
   // Reatribui a config pro perfil local atual (mesmo UUID de quem
   // configurou originalmente não bate mais — reinstalação, formatação de
   // PC, limpeza de perfil). Só existe quando o nome de exibição bate com o
-  // do usuário atual — ver `Planejamento.tsx`/`PEI.tsx`. `undefined` some
-  // com o botão inteiro.
+  // do usuário atual ou quando quem configurou não está mais no grupo — ver
+  // `podeReivindicar` em useWebAppConfig.ts. `undefined` some com o botão
+  // inteiro.
   onReivindicar?: () => void;
   reivindicando?: boolean;
 };
@@ -72,7 +73,9 @@ export function ConfiguradoPorOutroBanner({
       <p style={{ margin: 0, flex: 1, minWidth: "220px", fontSize: "0.88rem" }}>
         <strong>{membro?.displayName || "Outro coordenador da equipe"}</strong> já configurou o {rotulo}{" "}
         automático para a escola — não é preciso criar um novo.
-        {onReivindicar && " Esse nome é o seu de um perfil antigo (reinstalação, formatação)?"}
+        {onReivindicar && (membro?.displayName?.trim()
+          ? " Esse nome é o seu de um perfil antigo (reinstalação, formatação)?"
+          : " Quem configurou não está mais no grupo. Foi você, numa instalação anterior do app (reinstalação, formatação)?")}
       </p>
       <button type="button" className="primary-action" onClick={onCarregarAgora} disabled={carregando}>
         <RefreshCw size={14} /> {carregando ? "Carregando..." : "Carregar agora"}
