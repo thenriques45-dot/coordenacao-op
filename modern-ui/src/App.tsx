@@ -505,6 +505,7 @@ const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
       "Pendrive do conselho: a tela volta a rolar para baixo no Linux.",
       "Conselho de classe: a tela de cada turma ganhou o link \"← Voltar para Conselho\" no topo (escondido durante a reunião).",
       "Planejamento: disciplinas que aparecem só em notas soltas de algum aluno (por exemplo, aprofundamentos e itinerários de outra turma) deixam de virar linhas a mais na tela e no formulário. Quando a turma já tem o mapão regular importado, valem só as disciplinas dele.",
+      "Planejamento: ao corrigir o nome de um componente na planilha de respostas (ex.: \"Redação e Leitra\" → \"Redação e Leitura\"), a versão com o nome antigo deixa de aparecer como linha duplicada depois de carregar de novo.",
     ],
   },
   "4.7.1": {

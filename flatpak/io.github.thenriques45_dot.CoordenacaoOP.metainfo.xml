@@ -76,6 +76,7 @@
       <description>
         <ul>
           <li>Fixed the planning screen listing subjects that only appear as stray grades of a few students (for example, another class's elective subjects)</li>
+          <li>Fixed a teaching plan staying duplicated after its subject name was corrected in the responses spreadsheet</li>
         </ul>
       </description>
     </release>
