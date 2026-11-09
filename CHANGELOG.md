@@ -1,5 +1,12 @@
 # Changelog
 
+## v4.7.2 - Planejamento sem disciplinas de outra turma
+
+Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as correções da 4.7.1 e desta versão somadas ao fim de "outras mudanças".
+
+### Planejamento
+- **Disciplinas de outra turma na lista:** uma nota solta de um aluno (por exemplo, notas de 2º bimestre de "Aprofundamento de Filosofia" e "Atualidades" numa aluna da 2ª B, vindas do mapão de expansão de outra turma importado antes da 4.6.4) virava uma linha a mais no Planejamento e no formulário dos professores. Agora, quando a turma já tem o mapão regular importado, só as disciplinas dele entram. As notas da aluna continuam guardadas.
+
 ## v4.7.1 - Grupo pelo Google no Linux sem cofre de senhas
 
 Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com estas correções somadas ao fim de "outras mudanças".
