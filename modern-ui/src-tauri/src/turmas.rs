@@ -202,6 +202,10 @@ pub(crate) fn listar_turmas() -> Result<Vec<TurmaResumo>, String> {
     Ok(turmas)
 }
 
+fn normalizar_lista(nomes: &[String]) -> BTreeSet<String> {
+    nomes.iter().map(|nome| normalizar_texto_basico(nome)).collect()
+}
+
 // Lista os componentes (disciplinas) de uma turma a partir do mapão importado.
 #[tauri::command]
 pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, String> {
@@ -209,6 +213,10 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
     validar_caminho_turma(&caminho)?;
     let texto = fs::read_to_string(&caminho).map_err(|e| e.to_string())?;
     let dados: Value = serde_json::from_str(sem_lixo_no_fim(&texto)).map_err(|e| e.to_string())?;
+    Ok(disciplinas_planejaveis(&dados))
+}
+
+fn disciplinas_planejaveis(dados: &Value) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
 
     if let Some(carga) = dados.get("carga_horaria").and_then(Value::as_object) {
@@ -246,11 +254,21 @@ pub(crate) fn listar_disciplinas_turma(caminho: String) -> Result<Vec<String>, S
         lista("disciplinas_regulares").as_deref(),
     );
     set.retain(|nome| !so_expansao.contains(&normalizar_texto_basico(nome)));
+    // Quando a turma já sabe quais são as disciplinas do mapão regular, só
+    // elas entram. Uma nota solta de outra disciplina num aluno (ex.: aluno da
+    // 2ª B com notas de 2º bim. de "Aprofundamento de Filosofia",
+    // "Atualidades"… vindas do mapão de expansão de outra turma, importado
+    // antes da 4.6.4, quando ainda não se marcava `disciplinas_expansao`)
+    // virava uma linha a mais no Planejamento e no formulário.
+    if let Some(regulares) = lista("disciplinas_regulares").filter(|r| !r.is_empty()) {
+        let regulares = normalizar_lista(&regulares);
+        set.retain(|nome| regulares.contains(&normalizar_texto_basico(nome)));
+    }
     // Itinerário/tutoria (Projeto de Vida, Redação e Leitura, Orientação de
     // Estudo) nunca tem Plano de Ensino de professor, independente de vir de
     // mapão regular ou de expansão — ver disciplina_e_de_apoio_sem_documento.
     set.retain(|nome| !disciplina_e_de_apoio_sem_documento(nome));
-    Ok(set.into_iter().collect())
+    set.into_iter().collect()
 }
 
 #[tauri::command]
@@ -2448,3 +2466,53 @@ pub(crate) fn objeto_bimestre<'a>(
 }
 
 // ── PEI ──────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod testes_disciplinas_planejaveis {
+    use super::*;
+    use serde_json::json;
+
+    // Caso real da 2ª B (09/11/2026): uma aluna tinha notas de 2º bimestre de
+    // disciplinas de expansão de outra turma, sem `disciplinas_expansao`
+    // marcado. Elas não podem virar linhas do Planejamento.
+    #[test]
+    fn nota_solta_fora_das_regulares_nao_entra() {
+        let dados = json!({
+            "disciplinas_regulares": ["BIOLOGIA", "LINGUA INGLESA", "REDACAO E LEITURA"],
+            "disciplinas_expansao": ["ARTE E MIDIAS DIGITAIS", "LINGUA INGLESA", "PROJETO DE VIDA"],
+            "carga_horaria": {"3": {"BIOLOGIA": 2, "ARTE E MIDIAS DIGITAIS": 2, "LINGUA INGLESA": 2, "REDACAO E LEITURA": 2}},
+            "alunos": {
+                "1": {"medias": {"2": {
+                    "BIOLOGIA": {"v": 5.0},
+                    "APROFUNDAMENTO DE FILOSOFIA": {"v": 8.0},
+                    "ATUALIDADES": {"v": 5.0}
+                }}}
+            }
+        });
+        assert_eq!(
+            disciplinas_planejaveis(&dados),
+            vec!["BIOLOGIA", "LINGUA INGLESA", "REDACAO E LEITURA"]
+        );
+    }
+
+    // Arquivo de antes da 4.6.4 (sem `disciplinas_regulares`): continua
+    // listando tudo o que veio do mapão, como antes.
+    #[test]
+    fn sem_regulares_mantem_comportamento_antigo() {
+        let dados = json!({
+            "carga_horaria": {"1": {"MATEMATICA": 4}},
+            "alunos": {"1": {"medias": {"1": {"MATEMATICA": {"v": 7.0}, "ARTE": {"v": 6.0}}}}}
+        });
+        assert_eq!(disciplinas_planejaveis(&dados), vec!["ARTE", "MATEMATICA"]);
+    }
+
+    // As regulares podem ter grafia diferente (acento/caixa) da carga.
+    #[test]
+    fn regulares_comparadas_sem_acento_nem_caixa() {
+        let dados = json!({
+            "disciplinas_regulares": ["Língua Portuguesa"],
+            "carga_horaria": {"1": {"LINGUA PORTUGUESA": 5}}
+        });
+        assert_eq!(disciplinas_planejaveis(&dados), vec!["LINGUA PORTUGUESA"]);
+    }
+}

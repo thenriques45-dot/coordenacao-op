@@ -75,6 +75,7 @@
     <release version="4.7.2" date="2026-11-09">
       <description>
         <ul>
+          <li>Fixed the planning screen listing subjects that only appear as stray grades of a few students (for example, another class's elective subjects)</li>
           <li>The creator of a Google sync group can recover the organizer role on a new or reinstalled computer</li>
           <li>Automatic lesson plan and PEI settings made by a profile that is no longer in the group can be claimed again</li>
         </ul>
