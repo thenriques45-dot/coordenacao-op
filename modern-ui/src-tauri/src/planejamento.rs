@@ -7,7 +7,7 @@ use crate::*;
 
 use chrono::{Datelike, Local};
 use std::{
-    collections::BTreeMap, fs,
+    collections::{BTreeMap, BTreeSet}, fs,
     path::Path,
 };
 
@@ -712,6 +712,33 @@ pub(crate) fn abrir_planejamento_docx(turma: String, disciplina: String, bimestr
     abrir_arquivo(&caminho)
 }
 
+// Chaves do índice que são a mesma resposta de um registro desta leva com
+// outro nome de componente: mesma turma, bimestre e professor e o mesmo
+// conteúdo do plano, só a disciplina escrita diferente.
+fn registros_renomeados(
+    indice: &BTreeMap<String, RegistroPlanejamento>,
+    novos: &[RegistroPlanejamento],
+) -> Vec<String> {
+    let chaves_novas: BTreeSet<String> = novos.iter().map(chave_registro_planejamento).collect();
+    indice
+        .iter()
+        .filter(|(chave, _)| !chaves_novas.contains(*chave))
+        .filter(|(_, antigo)| {
+            novos.iter().any(|novo| {
+                novo.disciplina != antigo.disciplina
+                    && novo.turma == antigo.turma
+                    && novo.bimestre == antigo.bimestre
+                    && novo.professor == antigo.professor
+                    && novo.unidade_tematica == antigo.unidade_tematica
+                    && novo.objetos_conhecimento == antigo.objetos_conhecimento
+                    && novo.habilidades == antigo.habilidades
+                    && novo.estrategias == antigo.estrategias
+            })
+        })
+        .map(|(chave, _)| chave.clone())
+        .collect()
+}
+
 fn chave_registro_planejamento(r: &RegistroPlanejamento) -> String {
     format!("{}|{}|{}", r.turma, r.disciplina, r.bimestre)
 }
@@ -749,6 +776,19 @@ pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> 
         .into_iter()
         .map(|r| (chave_registro_planejamento(&r), r))
         .collect();
+
+    // Resposta cujo componente foi corrigido na planilha (ex.: "Redação e
+    // Leitra" → "Redação e Leitura"): a chave muda, então sem isto o registro
+    // antigo ficava para sempre no índice e virava uma linha duplicada na
+    // tela. Sai do índice (e o .docx antigo é apagado).
+    for antigo in registros_renomeados(&indice, &registros) {
+        if let Some(r) = indice.remove(&antigo) {
+            let caminho = pasta_base
+                .join(sanitizar_segmento(&r.turma))
+                .join(format!("{}_{}.docx", sanitizar_segmento(&r.disciplina), sanitizar_segmento(&r.bimestre)));
+            let _ = fs::remove_file(caminho);
+        }
+    }
 
     let mut arquivos = 0usize;
     let mut pulados = 0usize;
@@ -798,4 +838,38 @@ pub(crate) fn gerar_planejamentos_lote(registros: Vec<RegistroPlanejamento>) -> 
         erros,
         registros: registros_indice,
     })
+}
+
+#[cfg(test)]
+mod testes_registros_renomeados {
+    use super::*;
+
+    fn registro(disciplina: &str, habilidades: &str) -> RegistroPlanejamento {
+        RegistroPlanejamento {
+            professor: "Ana".into(),
+            disciplina: disciplina.into(),
+            turma: "7º A".into(),
+            bimestre: "3".into(),
+            habilidades: habilidades.into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn componente_corrigido_na_planilha_sai_do_indice() {
+        let antigo = registro("Redação e Leitra", "EF07LP01");
+        let indice: BTreeMap<String, RegistroPlanejamento> =
+            [(chave_registro_planejamento(&antigo), antigo)].into_iter().collect();
+        let novos = vec![registro("Redação e Leitura", "EF07LP01")];
+        assert_eq!(registros_renomeados(&indice, &novos), vec!["7º A|Redação e Leitra|3".to_string()]);
+    }
+
+    #[test]
+    fn plano_diferente_de_outra_disciplina_fica() {
+        let antigo = registro("Arte", "EF07AR01");
+        let indice: BTreeMap<String, RegistroPlanejamento> =
+            [(chave_registro_planejamento(&antigo), antigo)].into_iter().collect();
+        let novos = vec![registro("Redação e Leitura", "EF07LP01")];
+        assert!(registros_renomeados(&indice, &novos).is_empty());
+    }
 }

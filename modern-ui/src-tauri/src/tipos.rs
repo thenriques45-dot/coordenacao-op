@@ -1016,7 +1016,7 @@ pub(crate) struct ProvisionamentoPeiResultado {
 // Um registro já processado = um Plano de Ensino por turma.
 // Uma resposta da planilha pode cobrir várias turmas (Turma A..G); cada turma
 // vira um RegistroPlanejamento (mesmo conteúdo, pasta própria).
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
 pub(crate) struct RegistroPlanejamento {
     pub(crate) professor: String,
     pub(crate) disciplina: String,    // componente curricular
