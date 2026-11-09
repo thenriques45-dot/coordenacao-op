@@ -1,10 +1,15 @@
 # Changelog
 
-## v4.7.2 - Planejamento sem disciplinas de outra turma
+## v4.7.2 - Organizador do grupo e Planejamento sem linhas a mais
 
-Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as correções da 4.7.1 e desta versão somadas ao fim de "outras mudanças".
+Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.7.1 e desta versão somadas ao fim de "outras mudanças".
 
-### Planejamento
+### Sincronização
+- **Organizador do grupo pelo Google depois de reinstalar:** só o computador onde o grupo foi criado guardava o que permite atualizar o script do grupo e trocar o código. Quem criou o grupo e reinstalou o app (ou trocou de computador) entrava pelo código como colega comum, sem os botões de organizador. Agora, em Configurações › Sincronização › Grupo pelo Google, "Fui eu que criei este grupo" › "Recuperar organização do grupo" pede o login no Google com a conta que criou o grupo, confere que o script é dela e é o mesmo do código e devolve os botões. O código dos colegas não muda.
+- **Script do grupo versão 3:** o script passa a informar o próprio ID. Assim, numa próxima reinstalação, basta o código do grupo e o login no Google (sem colar o link do script). Quem criou o grupo recebe o aviso para clicar em "Atualizar script do grupo" uma vez; os colegas não precisam fazer nada.
+
+### Planejamento e PEI
+- **"Outro coordenador da equipe já configurou" sem botão:** quando a configuração automática tinha sido feita por um perfil que não está mais no grupo (por exemplo, o da mesma pessoa antes de formatar o computador), não havia nome para comparar e o botão "Essa configuração é minha" não aparecia. Agora ele aparece nesse caso, com a pergunta se foi a própria pessoa numa instalação anterior.
 - **Disciplinas de outra turma na lista:** uma nota solta de um aluno (por exemplo, notas de 2º bimestre de "Aprofundamento de Filosofia" e "Atualidades" numa aluna da 2ª B, vindas do mapão de expansão de outra turma importado antes da 4.6.4) virava uma linha a mais no Planejamento e no formulário dos professores. Agora, quando a turma já tem o mapão regular importado, só as disciplinas dele entram. As notas da aluna continuam guardadas.
 - **Disciplina corrigida na planilha continuava duplicada:** o app guarda uma cópia de cada planejamento já baixado e nunca tirava a versão antiga. Quando o nome do componente era corrigido na planilha de respostas (ex.: "Redação e Leitra" → "Redação e Leitura"), a resposta antiga seguia aparecendo como uma linha a mais. Agora, ao carregar de novo, a versão com o nome antigo (mesmo professor, turma, bimestre e conteúdo) sai da lista e o documento antigo é apagado.
 

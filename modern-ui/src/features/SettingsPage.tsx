@@ -470,6 +470,7 @@ export function Configuracoes({
   const [secaoConfig, setSecaoConfig] = useState<SettingsSection>(secaoInicial ?? "visao-geral");
   const [grupoGoogle, setGrupoGoogle] = useState<GrupoGoogleStatus | null>(null);
   const [codigoGrupoDigitado, setCodigoGrupoDigitado] = useState("");
+  const [linkScriptGrupo, setLinkScriptGrupo] = useState("");
   const [autostartAtivo, setAutostartAtivo] = useState(false);
   const [busca, setBusca] = useState("");
   const [buscaFoco, setBuscaFoco] = useState(false);
@@ -935,6 +936,15 @@ export function Configuracoes({
     return acaoGrupoGoogle(async () => {
       setGrupoGoogle(await invokeApp<GrupoGoogleStatus>("atualizar_script_grupo_google"));
       setMensagem("Script do grupo atualizado para a versão deste app. O código do grupo continua o mesmo.");
+    });
+  }
+
+  function recuperarOrganizacaoGrupoGoogle() {
+    return acaoGrupoGoogle(async () => {
+      const status = await invokeApp<GrupoGoogleStatus>("recuperar_organizacao_grupo_google", { referencia: linkScriptGrupo });
+      setGrupoGoogle(status);
+      setLinkScriptGrupo("");
+      setMensagem("Pronto: este computador voltou a ser o organizador do grupo. O código dos colegas continua o mesmo.");
     });
   }
 
@@ -1748,6 +1758,27 @@ export function Configuracoes({
                 )}
                 <button type="button" onClick={sairGrupoGoogle} disabled={processando}>Sair do grupo</button>
               </div>
+              {!grupoGoogle.criador && (
+                <details>
+                  <summary>Fui eu que criei este grupo</summary>
+                  <p className="settings-version">
+                    Se você criou o grupo em outro computador (ou antes de reinstalar o app), recupere aqui os botões de organizador.
+                    O app vai pedir login no Google: use a mesma conta que criou o grupo. Se pedir o link do script, abra
+                    script.google.com com essa conta, abra o projeto "Grupo de sincronização — CoordenacaoOP" e copie o endereço da barra.
+                  </p>
+                  <label>
+                    Link do script (deixe em branco para tentar sem ele)
+                    <input
+                      value={linkScriptGrupo}
+                      onChange={(event) => setLinkScriptGrupo(event.target.value)}
+                      placeholder="https://script.google.com/home/projects/.../edit"
+                    />
+                  </label>
+                  <div className="sync-actions-row">
+                    <button type="button" onClick={recuperarOrganizacaoGrupoGoogle} disabled={processando}>Recuperar organização do grupo</button>
+                  </div>
+                </details>
+              )}
             </>
           ) : (
             <>
