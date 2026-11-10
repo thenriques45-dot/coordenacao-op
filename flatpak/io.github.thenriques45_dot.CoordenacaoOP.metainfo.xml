@@ -72,6 +72,16 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.7.2" date="2026-11-09">
+      <description>
+        <ul>
+          <li>The creator of a Google sync group can recover the organizer role on a new or reinstalled computer</li>
+          <li>Automatic lesson plan and PEI settings made by a profile that is no longer in the group can be claimed again</li>
+          <li>Fixed the planning screen listing subjects that only appear as stray grades of a few students (for example, another class's elective subjects)</li>
+          <li>Fixed a teaching plan staying duplicated after its subject name was corrected in the responses spreadsheet</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.7.1" date="2026-10-28">
       <description>
         <ul>

@@ -13,7 +13,11 @@
 // Gerado pelo app: não edite à mão (a próxima republicação sobrescreve).
 
 var TOKEN = "__TOKEN__";
-var VERSAO = 2;
+// ID deste projeto no Apps Script. Devolvido em "info" para quem criou o
+// grupo recuperar a organização num computador novo só com o código e o
+// login no Google.
+var SCRIPT_ID = "__SCRIPT_ID__";
+var VERSAO = 3;
 var NOME_PASTA = "CoordenacaoOP — Grupo de sincronização";
 
 var CAMINHO_PERMITIDO = /^(state\/(institutional|peers)\/[A-Za-z0-9_-]+\.json|devices\/[A-Za-z0-9_-]+\.json|state\/blobs\/[0-9a-f]+-[0-9]+)$/;
@@ -38,7 +42,7 @@ function doPost(e) {
     return resposta_({ erro: "Código do grupo inválido." });
   }
   try {
-    if (pedido.a === "info") return resposta_({ ok: true, versao: VERSAO });
+    if (pedido.a === "info") return resposta_({ ok: true, versao: VERSAO, scriptId: SCRIPT_ID });
     if (pedido.a === "indice") return resposta_(indiceResumido_());
     if (pedido.a === "baixar") return resposta_(baixar_(pedido.caminhos || []));
     if (pedido.a === "enviar") return resposta_(enviar_(pedido.arquivos || {}));
