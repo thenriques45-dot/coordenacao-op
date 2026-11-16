@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.7.3 - Turma duplicada na lista
+
+Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.7.1, da 4.7.2 e desta versão somadas ao fim de "outras mudanças".
+
+### Turmas
+- **A mesma turma aparecia duas vezes:** versões diferentes do app dão nomes diferentes ao arquivo da mesma turma ("turma_1a S_rie B.json" e "turma_1a Serie B.json"). Quando a cópia de outro computador ou do pendrive do conselho chegava com o outro nome, as duas ficavam na lista (ex.: duas "1ª Série B", só uma com o líder de sala), e a importação de mapões caía numa delas. A junção só acontecia durante a sincronização. Agora o app junta as cópias ao abrir, usando como base a mais completa, e o líder de sala, a deficiência e o comentário da educação especial vêm da outra cópia quando a base nunca os teve.
+- **Pendrive do conselho:** na reintegração, se o arquivo da turma tem outro nome neste computador, o conselho é mesclado na turma que já existe em vez de criar outra.
+
 ## v4.7.2 - Organizador do grupo e Planejamento sem linhas a mais
 
 Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.7.1 e desta versão somadas ao fim de "outras mudanças".

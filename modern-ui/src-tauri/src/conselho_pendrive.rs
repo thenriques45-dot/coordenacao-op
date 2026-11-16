@@ -417,6 +417,15 @@ pub(crate) fn reintegrar_pendrive_conselho(
         let mut valor_pendrive: Value =
             serde_json::from_str(&texto_pendrive).map_err(|err| err.to_string())?;
         renomear_ids_destaque(&mut valor_pendrive, &ids_destaque);
+        // Versões diferentes do app dão nomes diferentes ao arquivo da mesma
+        // turma ("turma_1a S_rie B.json", "turma_1a Serie B.json"). Se o nome
+        // do pendrive não existe aqui mas a turma existe com outro nome,
+        // mescla nela em vez de criar uma segunda "1ª Série B".
+        let destino = if destino.exists() {
+            destino
+        } else {
+            turma_equivalente(&destino, &valor_pendrive).unwrap_or(destino)
+        };
         if destino.exists() {
             let texto_local = fs::read_to_string(&destino).map_err(|err| err.to_string())?;
             let valor_local: Value =
@@ -647,6 +656,40 @@ pub(crate) fn cancelar_conselho_externo(
     });
     salvar_conselhos_externos(&externos)?;
     Ok(externos)
+}
+
+/// Procura, na mesma pasta de `destino`, outro arquivo de turma com o mesmo
+/// ano e o mesmo código (ignorando acentos e maiúsculas).
+fn turma_equivalente(destino: &Path, turma: &Value) -> Option<PathBuf> {
+    let ano = turma.get("ano").and_then(Value::as_i64)?;
+    let codigo = normalizar_texto_basico(turma.get("codigo").and_then(Value::as_str)?);
+    let pasta = destino.parent()?;
+    let mut candidatos: Vec<PathBuf> = fs::read_dir(pasta)
+        .ok()?
+        .filter_map(|entrada| entrada.ok().map(|e| e.path()))
+        .filter(|caminho| {
+            caminho.is_file()
+                && caminho
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.starts_with("turma_") && n.ends_with(".json"))
+                && !eh_copia_de_conflito_sync(caminho)
+        })
+        .filter(|caminho| {
+            fs::read_to_string(caminho)
+                .ok()
+                .and_then(|texto| serde_json::from_str::<Value>(&texto).ok())
+                .is_some_and(|dados| {
+                    dados.get("ano").and_then(Value::as_i64) == Some(ano)
+                        && dados
+                            .get("codigo")
+                            .and_then(Value::as_str)
+                            .is_some_and(|c| normalizar_texto_basico(c) == codigo)
+                })
+        })
+        .collect();
+    candidatos.sort();
+    candidatos.into_iter().next()
 }
 
 #[cfg(test)]
