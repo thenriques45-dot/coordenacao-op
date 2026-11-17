@@ -76,6 +76,7 @@
       <description>
         <ul>
           <li>Fixed the same class showing up twice in the class list when its file came from another computer or from the council USB drive under a different file name</li>
+          <li>Grades changed in the class council but not yet updated in the official records are now clearly marked, with a per-class list to review</li>
         </ul>
       </description>
     </release>

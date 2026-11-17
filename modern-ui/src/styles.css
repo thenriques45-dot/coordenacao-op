@@ -2795,6 +2795,24 @@ h3 {
   white-space: nowrap;
 }
 
+.grade-conselho-badge {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  background: var(--tag-bad-text);
+  color: var(--surface, #fff);
+}
+
+.grade-conselho-legend {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--tag-bad-text);
+}
+
 .student-subjects-table .grade-value.adequada {
   color: var(--tag-good-text);
 }
@@ -17314,4 +17332,24 @@ th:nth-child(3) {
   background: #3a1d22;
   border-color: #5a2a31;
   color: #f4b4b4;
+}
+
+.conselho-pendencias {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+}
+
+.conselho-pendencias summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--tag-bad-text);
+}
+
+.conselho-pendencias p {
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.conselho-pendencias .students-table {
+  width: 100%;
 }

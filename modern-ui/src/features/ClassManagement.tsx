@@ -267,6 +267,22 @@ function classeTextoNota(nota: number | null | undefined) {
   return `grade-value ${classeNota(nota)}`;
 }
 
+// Nota de um bimestre na ficha do aluno: a do conselho (quando houve ajuste)
+// e a do mapão importado. Quando divergem, o conselho mudou a nota e a SED
+// ainda tem a antiga — a ficha mostra as duas com o selo "Conselho".
+function notaBimestreFicha(disciplina: Disciplina, indice: number, bimestreAtual: number) {
+  const eAtual = indice === bimestreAtual;
+  const historico = (disciplina.historicoBimestres ?? []).find(
+    (hb) => Number.parseInt(hb.bimestre, 10) === indice
+  );
+  const notaBim = eAtual ? disciplina.mediaConselho ?? disciplina.mediaOriginal : historico?.media ?? null;
+  const notaMapao = eAtual ? disciplina.mediaOriginal : historico?.media_mapao ?? null;
+  const divergeMapao =
+    typeof notaBim === "number" && notaBim !== notaMapao &&
+    (typeof notaMapao !== "number" || Math.abs(notaBim - notaMapao) >= 0.05);
+  return { notaBim, notaMapao, divergeMapao };
+}
+
 function formatarAtribuicao(atribuicao: AtribuicaoNota | null | undefined) {
   if (!atribuicao) return null;
   const data = new Date(atribuicao.em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
@@ -520,6 +536,19 @@ export function GestaoTurma({
   const bimestreAtualTurma = bimestreParaNumero(turmaDetalhe?.bimestre);
   const disciplinas = useMemo(() => Array.from(new Set(alunosAtivos.flatMap((aluno) => aluno.disciplinas.map((disciplina) => disciplina.nome)))).sort(), [alunosAtivos]);
   const mediaGeral = calcularMetricasTurma(alunosAtivos, bimestreAtualTurma).mediaGeral;
+  // Notas mudadas no conselho que o mapão importado (SED) ainda não traz.
+  const notasConselhoPendentes = useMemo(
+    () =>
+      alunosAtivos.flatMap((aluno) =>
+        aluno.disciplinas.flatMap((disciplina) =>
+          [1, 2, 3, 4].flatMap((indice) => {
+            const { notaBim, notaMapao, divergeMapao } = notaBimestreFicha(disciplina, indice, bimestreAtualTurma);
+            return divergeMapao ? [{ aluno, disciplina: disciplina.nome, bimestre: indice, notaBim, notaMapao }] : [];
+          })
+        )
+      ),
+    [alunosAtivos, bimestreAtualTurma]
+  );
   const frequenciasAtivos = alunosAtivos
     .map((aluno) => aluno.frequencia)
     .filter((valor): valor is number => typeof valor === "number" && Number.isFinite(valor));
@@ -735,6 +764,38 @@ export function GestaoTurma({
 
       {aba === "alunos" && (
         <>
+          {notasConselhoPendentes.length > 0 && (
+            <details className="panel conselho-pendencias">
+              <summary>
+                <i className="grade-conselho-badge">Conselho</i>{" "}
+                {notasConselhoPendentes.length === 1
+                  ? "1 nota mudada no conselho ainda não está no mapão (SED)"
+                  : `${notasConselhoPendentes.length} notas mudadas no conselho ainda não estão no mapão (SED)`}
+              </summary>
+              <p>
+                Lance estas notas na SED e importe o mapão de novo; o aviso some sozinho. Se o conselho só deu nota porque
+                ela estava faltando, desfaça o ajuste na tela do conselho.
+              </p>
+              <table className="students-table">
+                <thead><tr><th>Aluno</th><th>Disciplina</th><th>Bimestre</th><th>Conselho</th><th>SED (mapão)</th></tr></thead>
+                <tbody>
+                  {notasConselhoPendentes.map((item) => (
+                    <tr
+                      key={`${item.aluno.matricula ?? item.aluno.nome}-${item.disciplina}-${item.bimestre}`}
+                      className="student-table-row"
+                      onClick={() => setAlunoAberto(item.aluno)}
+                    >
+                      <td>{item.aluno.nome}</td>
+                      <td>{item.disciplina}</td>
+                      <td>{item.bimestre}º</td>
+                      <td>{formatarNota(item.notaBim)}</td>
+                      <td>{formatarNota(item.notaMapao)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </details>
+          )}
           <div className="class-search-row">
             <label className="search-box class-search">
               <Search size={21} />
@@ -2044,27 +2105,19 @@ function AlunoDetalheGestao({
                       )}
                     </td>
                     {[1, 2, 3, 4].map((indice) => {
-                      const eAtual = indice === bimestreAtual;
-                      const historico = (disciplina.historicoBimestres ?? []).find(
-                        (hb) => Number.parseInt(hb.bimestre, 10) === indice
-                      );
-                      const notaBim = eAtual ? nota : historico?.media ?? null;
-                      const notaMapao = eAtual ? disciplina.mediaOriginal : historico?.media_mapao ?? null;
-                      // Nota do conselho diferente da do mapão: mostra as duas,
-                      // senão parece que o mapão já foi corrigido.
-                      const divergeMapao =
-                        typeof notaBim === "number" && notaBim !== notaMapao &&
-                        (typeof notaMapao !== "number" || Math.abs(notaBim - notaMapao) >= 0.05);
-                      const atribuicao = eAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
+                      const { notaBim, notaMapao, divergeMapao } = notaBimestreFicha(disciplina, indice, bimestreAtual);
+                      const atribuicao = indice === bimestreAtual ? formatarAtribuicao(disciplina.atribuicaoMedia) : null;
                       const avisoMapao = divergeMapao
-                        ? `Nota do conselho: ${formatarNota(notaBim)}. No mapão importado: ${formatarNota(notaMapao)}.`
+                        ? `Nota mudada no conselho: ${formatarNota(notaBim)}. No mapão importado (SED): ${formatarNota(notaMapao)}. Falta corrigir na SED.`
                         : null;
                       const tooltip = [avisoMapao, atribuicao].filter(Boolean).join("\n") || null;
                       return (
                         <td key={indice} className={classeTextoNota(notaBim)} title={tooltip ?? undefined}>
                           {formatarNota(notaBim)}
                           {divergeMapao && (
-                            <span className="grade-mapao-diff">mapão: {formatarNota(notaMapao)}</span>
+                            <span className="grade-mapao-diff">
+                              <i className="grade-conselho-badge">Conselho</i> SED: {formatarNota(notaMapao)}
+                            </span>
                           )}
                         </td>
                       );
@@ -2078,6 +2131,21 @@ function AlunoDetalheGestao({
             </tbody>
           </table>
         </div>
+        {(() => {
+          const pendentes = aluno.disciplinas.reduce(
+            (total, disciplina) =>
+              total + [1, 2, 3, 4].filter((indice) => notaBimestreFicha(disciplina, indice, bimestreAtual).divergeMapao).length,
+            0
+          );
+          if (!pendentes) return null;
+          return (
+            <p className="grade-conselho-legend">
+              <i className="grade-conselho-badge">Conselho</i>{" "}
+              {pendentes === 1 ? "1 nota foi mudada" : `${pendentes} notas foram mudadas`} no conselho e o mapão importado ainda
+              traz a nota antiga (mostrada como "SED"). Corrija na SED e importe o mapão de novo para o aviso sumir.
+            </p>
+          );
+        })()}
       </section>
 
       <section className="student-council-note">

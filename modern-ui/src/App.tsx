@@ -509,6 +509,7 @@ const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
       "Planejamento: disciplinas que aparecem só em notas soltas de algum aluno (por exemplo, aprofundamentos e itinerários de outra turma) deixam de virar linhas a mais na tela e no formulário. Quando a turma já tem o mapão regular importado, valem só as disciplinas dele.",
       "Planejamento: ao corrigir o nome de um componente na planilha de respostas (ex.: \"Redação e Leitra\" → \"Redação e Leitura\"), a versão com o nome antigo deixa de aparecer como linha duplicada depois de carregar de novo.",
       "Turmas: a mesma turma podia aparecer duas vezes (ex.: duas \"1ª Série B\"), com o líder de sala só numa delas, quando o arquivo chegava de outro computador ou do pendrive do conselho com outro nome. Agora o app junta as duas cópias sozinho ao abrir, sem perder o líder, os atendimentos nem as notas, e o pendrive passa a reconhecer a turma mesmo com nome de arquivo diferente.",
+      "Notas mudadas no conselho: na ficha do aluno, a nota ganha o selo \"Conselho\" com a nota do mapão como \"SED\" embaixo, e uma legenda explica que falta corrigir na SED. Na turma, um aviso mostra quantas notas do conselho ainda não estão no mapão, com a lista para conferir (clique no aluno para abrir a ficha).",
     ],
   },
   "4.7.2": {
