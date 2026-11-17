@@ -1323,6 +1323,17 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
     for campo in ["ajustes_medias_conselho", "encaminhamentos_conselho", "deliberados_conselho"] {
         completar_bimestres_ausentes(local_obj, inc_obj, campo);
     }
+    // Liderança e educação especial: o local vence, mas se o local nunca teve
+    // o campo (cópia enxuta de outro computador), traz o do incoming — senão
+    // o líder definido numa máquina sumia ao unir as duas cópias da turma.
+    // Campo presente e null (marcação desfeita) continua valendo.
+    for campo in ["lideranca_sala", "deficiencias", "comentario_educacao_especial"] {
+        if !local_obj.contains_key(campo) {
+            if let Some(valor) = inc_obj.get(campo) {
+                local_obj.insert(campo.to_string(), valor.clone());
+            }
+        }
+    }
 }
 
 /// Copia do incoming os bimestres que o local não tem em `campo` (mapa por
@@ -1773,6 +1784,12 @@ pub(crate) fn limpar_residuos_sincronizacao() -> io::Result<()> {
     }
 
     let dados = data_dir()?;
+    // Turma duplicada com nomes de arquivo diferentes (ex.: "turma_1a S_rie B"
+    // e "turma_1a Serie B") só era unida durante um pull da sincronização.
+    // Se a cópia chegasse de outro jeito (reintegração de pendrive, pull que
+    // achou "nada novo"), as duas ficavam na listagem para sempre, e a
+    // importação de mapões caía numa delas. Na abertura, une as que houver.
+    let _ = desduplicar_turmas_por_codigo(&dados.join("persistidos"));
     if dados.is_dir() {
         for entrada in fs::read_dir(&dados)? {
             let caminho = entrada?.path();
@@ -1930,15 +1947,31 @@ pub(crate) fn desduplicar_turmas_por_codigo(pasta: &Path) -> io::Result<()> {
             continue;
         }
 
+        // Base = arquivo com código já formatado e, entre esses, o mais
+        // completo (maior JSON). No merge a base é o lado "local", que vence
+        // em liderança de sala, ajustes e encaminhamentos — escolher pela
+        // ordem alfabética podia pôr como base uma cópia enxuta vinda de outro
+        // computador (ex.: "turma_1a Serie B.json" do Linux x
+        // "turma_1a S_rie B.json" do Windows, nomes que versões diferentes do
+        // app geram para a mesma turma).
+        let formatado = |dados: &Value| {
+            dados
+                .get("codigo")
+                .and_then(Value::as_str)
+                .map(|codigo| formatar_rotulo_turma_texto(codigo) == codigo)
+                .unwrap_or(false)
+        };
+        let tamanho = |dados: &Value| serde_json::to_string(dados).map(|t| t.len()).unwrap_or(0);
         let indice_base = valores
             .iter()
-            .position(|(_, dados)| {
-                dados
-                    .get("codigo")
-                    .and_then(Value::as_str)
-                    .map(|codigo| formatar_rotulo_turma_texto(codigo) == codigo)
-                    .unwrap_or(false)
+            .enumerate()
+            .max_by(|(ia, (_, a)), (ib, (_, b))| {
+                (formatado(a), tamanho(a))
+                    .cmp(&(formatado(b), tamanho(b)))
+                    // Empate: fica o primeiro em ordem alfabética, como antes.
+                    .then(ib.cmp(ia))
             })
+            .map(|(indice, _)| indice)
             .unwrap_or(0);
         let (caminho_base, base_original) = valores.remove(indice_base);
 
@@ -2664,5 +2697,67 @@ mod testes_pasta_por_dispositivo {
         gravar(&raiz.join("turma_7B (2).json"), "{}");
         assert!(!eh_copia_de_conflito_sync(&raiz.join("turma_7B (2).json")));
         let _ = fs::remove_dir_all(&raiz);
+    }
+}
+
+#[cfg(test)]
+mod testes_turma_duplicada {
+    use super::*;
+    use serde_json::json;
+
+    // Caso real (2026-11): o Windows tinha "turma_1a S_rie B.json" completo,
+    // com a líder de sala; o Linux mandou "turma_1a Serie B.json" enxuto,
+    // sem o campo lideranca_sala, e com um aluno novo. A turma aparecia duas
+    // vezes. Unir tem que manter a líder e o aluno novo.
+    #[test]
+    fn unir_turma_duplicada_mantem_lider_e_aluno_novo() {
+        let pasta = env::temp_dir().join(format!("coordenacaoop_dup_lider_{}", std::process::id()));
+        let ano = pasta.join("2026");
+        let _ = fs::remove_dir_all(&pasta);
+        fs::create_dir_all(&ano).unwrap();
+        let completo = json!({
+            "codigo": "1ª Série B", "ano": 2026, "serie": "1ª Série",
+            "atendimentos_extra": "x".repeat(200),
+            "alunos": {
+                "1": {"nome": "ISABELE", "ativo": true, "lideranca_sala": "lider", "atendimentos": [{"id": "a1"}]},
+                "2": {"nome": "OUTRO", "ativo": true, "lideranca_sala": null}
+            }
+        });
+        let enxuto = json!({
+            "codigo": "1ª Série B", "ano": 2026, "serie": "1ª Série",
+            "alunos": {
+                "1": {"nome": "ISABELE", "ativo": true},
+                "2": {"nome": "OUTRO", "ativo": true},
+                "3": {"nome": "BRYAN", "ativo": true}
+            }
+        });
+        // "turma_1a Serie B" é o enxuto e, para não depender da ordem
+        // alfabética, recebe o nome que vem primeiro.
+        fs::write(ano.join("turma_1a A Serie B.json"), enxuto.to_string()).unwrap();
+        fs::write(ano.join("turma_1a S_rie B.json"), completo.to_string()).unwrap();
+
+        desduplicar_turmas_por_codigo(&pasta).unwrap();
+
+        let restantes: Vec<_> = fs::read_dir(&ano).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert_eq!(restantes.len(), 1, "{restantes:?}");
+        let resultado: Value =
+            serde_json::from_str(&fs::read_to_string(ano.join("turma_1a S_rie B.json")).unwrap()).unwrap();
+        assert_eq!(resultado["alunos"]["1"]["lideranca_sala"], json!("lider"));
+        assert_eq!(resultado["alunos"]["1"]["atendimentos"][0]["id"], json!("a1"));
+        assert_eq!(resultado["alunos"]["2"]["lideranca_sala"], Value::Null);
+        assert_eq!(resultado["alunos"]["3"]["nome"], json!("BRYAN"));
+        fs::remove_dir_all(&pasta).unwrap();
+    }
+
+    #[test]
+    fn lider_do_incoming_entra_so_quando_local_nunca_teve_o_campo() {
+        let mut sem_campo = json!({"nome": "A"});
+        mesclar_aluno(&mut sem_campo, &json!({"nome": "A", "lideranca_sala": "vice"}));
+        assert_eq!(sem_campo["lideranca_sala"], json!("vice"));
+
+        // Marcação desfeita aqui (null) não volta pelo incoming.
+        let mut desfeito = json!({"nome": "A", "lideranca_sala": null});
+        mesclar_aluno(&mut desfeito, &json!({"nome": "A", "lideranca_sala": "lider"}));
+        assert_eq!(desfeito["lideranca_sala"], Value::Null);
     }
 }
