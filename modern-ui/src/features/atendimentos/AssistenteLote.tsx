@@ -141,7 +141,12 @@ export function AssistenteLote({
   const pendentes = useMemo(() => fila.filter((a) => a.sem_telefone), [fila]);
   const filaMatriculas = useMemo(() => new Set(fila.map((a) => a.matricula)), [fila]);
 
-  const nPelasCondicoes = avaliacao.filter((a) => a.entra && !a.sem_telefone && !removidos.has(a.matricula)).length;
+  // Quem atende às condições conta aqui com ou sem telefone — antes só
+  // contava quem tinha telefone, e a tela dizia "0 alunos" enquanto a fila
+  // mostrava vários (todos aguardando telefone).
+  const atendemCondicoes = avaliacao.filter((a) => a.entra && !removidos.has(a.matricula));
+  const nPelasCondicoes = atendemCondicoes.length;
+  const nPelasCondicoesSemTelefone = atendemCondicoes.filter((a) => a.sem_telefone).length;
   const nNaMao = [...manuais].filter((m) => {
     const a = porMatricula.get(m);
     return a && !a.entra && !a.sem_telefone;
@@ -445,6 +450,11 @@ export function AssistenteLote({
               <div className="atd-lote-contador">
                 <span>Atendem às condições</span>
                 <strong>{carregando ? "…" : `${nPelasCondicoes} ${nPelasCondicoes === 1 ? "aluno" : "alunos"}`}</strong>
+                {!carregando && nPelasCondicoesSemTelefone > 0 && (
+                  <small className="atd-lote-contador-detalhe">
+                    {nPelasCondicoes - nPelasCondicoesSemTelefone} com telefone · {nPelasCondicoesSemTelefone} sem telefone
+                  </small>
+                )}
               </div>
               <button type="button" className="atd-thread-link" onClick={() => { setCondicoes([]); setManuais(new Set()); setRemovidos(new Set()); }}>Limpar</button>
             </div>
@@ -490,6 +500,17 @@ export function AssistenteLote({
             </div>
           </div>
 
+          {!carregando && prontos.length === 0 && pendentes.length > 0 && (
+            <div className="atd-lote-fila-aviso-telefone">
+              <Phone size={13} aria-hidden />
+              <span>
+                {pendentes.length === 1 ? "Este aluno está" : `Estes ${pendentes.length} alunos estão`} na fila, mas ainda sem
+                telefone do responsável. Clique em <strong>adicionar telefone</strong> na linha de cada um para que
+                {pendentes.length === 1 ? " ele conte" : " contem"} como destinatário{pendentes.length === 1 ? "" : "s"}.
+              </span>
+            </div>
+          )}
+
           <div className="atd-lote-fila-dica">
             <Info size={13} aria-hidden /> Use o menu de cada linha para mudar a ordem — aí ela passa a ser "Personalizada".
           </div>
@@ -526,7 +547,7 @@ export function AssistenteLote({
 
       <div className="atd-lote-rodape">
         <div className="atd-lote-rodape-resumo">
-          {nPelasCondicoes} pelas condições + {nNaMao} na mão
+          {prontos.length} {prontos.length === 1 ? "destinatário com telefone" : "destinatários com telefone"} ({nPelasCondicoes - nPelasCondicoesSemTelefone} pelas condições + {nNaMao} na mão)
           {pendentes.length > 0 && ` · ${pendentes.length} aguardando telefone na fila`}
         </div>
         <div>
