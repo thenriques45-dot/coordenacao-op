@@ -1,5 +1,5 @@
 import { ArrowUpToLine, Check, ChevronDown, GripVertical, Info, MessageCircle, Pause, Phone, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { invokeApp } from "../appBridge";
 import type { MensagemTemplate } from "../SettingsPage";
 import { plural, useOnline } from "./formato";
@@ -11,13 +11,17 @@ import type { AtendimentoAlunoInput } from "./tipos";
 import {
   CAMPOS,
   OPERADORES,
+  COLUNAS_FILA,
   ORDENS,
   PRESETS,
+  colunasDaFila,
+  valorColuna,
   operadoresDoTipo,
   ordenarFila,
   rotuloCampo,
   tipoDoCampo,
   type AlunoLote,
+  type CampoColuna,
   type Condicao,
   type OrdemFila,
 } from "./lote";
@@ -136,6 +140,9 @@ export function AssistenteLote({
     const base = avaliacao.filter((a) => (a.entra && !removidos.has(a.matricula)) || manuais.has(a.matricula));
     return ordenarFila(base, ordem, personalizada);
   }, [avaliacao, removidos, manuais, ordem, personalizada]);
+
+  const colunas = useMemo(() => colunasDaFila(condicoes), [condicoes]);
+  const gradeFila = { gridTemplateColumns: `22px 22px minmax(0, 1.3fr) ${colunas.map(() => "104px").join(" ")} 130px 30px` };
 
   const prontos = useMemo(() => fila.filter((a) => !a.sem_telefone), [fila]);
   const pendentes = useMemo(() => fila.filter((a) => a.sem_telefone), [fila]);
@@ -515,14 +522,18 @@ export function AssistenteLote({
             <Info size={13} aria-hidden /> Use o menu de cada linha para mudar a ordem — aí ela passa a ser "Personalizada".
           </div>
 
-          <div className="atd-lote-fila-grade atd-lote-fila-cabecalho">
-            <span /><span /><span>Aluno</span><span>Frequência</span><span>Tarefas</span><span>Último contato</span><span />
+          <div className="atd-lote-fila-grade atd-lote-fila-cabecalho" style={gradeFila}>
+            <span /><span /><span>Aluno</span>
+            {colunas.map((c) => <span key={c}>{COLUNAS_FILA[c]}</span>)}
+            <span>Último contato</span><span />
           </div>
           <div className="atd-lote-fila-corpo">
             {fila.map((a) => (
               <LinhaFila
                 key={a.matricula}
                 aluno={a}
+                colunas={colunas}
+                gradeFila={gradeFila}
                 turmaCaminho={turma.caminho}
                 onRemover={() => {
                   if (manuais.has(a.matricula)) setManuais((s) => { const n = new Set(s); n.delete(a.matricula); return n; });
@@ -589,6 +600,8 @@ function TrilhoPassos({ atual, onSair, turma, modelo }: { atual: Passo; onSair: 
 
 function LinhaFila({
   aluno,
+  colunas,
+  gradeFila,
   turmaCaminho,
   onRemover,
   onSubir,
@@ -596,6 +609,8 @@ function LinhaFila({
   onResponsavelSalvo,
 }: {
   aluno: AlunoLote;
+  colunas: CampoColuna[];
+  gradeFila: CSSProperties;
   turmaCaminho: string;
   onRemover: () => void;
   onSubir: () => void;
@@ -607,7 +622,7 @@ function LinhaFila({
   const tom = tomFrequencia(aluno.frequencia);
   return (
     <div className={`atd-lote-fila-item ${aluno.sem_telefone ? "sem-tel" : ""}`}>
-      <div className="atd-lote-fila-grade atd-lote-fila-linha">
+      <div className="atd-lote-fila-grade atd-lote-fila-linha" style={gradeFila}>
         <span className="atd-lote-alca" aria-hidden><GripVertical size={13} /></span>
         <span className="atd-lote-check">{!aluno.sem_telefone ? <Check size={11} /> : null}</span>
         <span className="atd-lote-fila-aluno">
@@ -620,10 +635,15 @@ function LinhaFila({
             <small>{aluno.responsavel_nome ? `→ ${aluno.responsavel_nome}` : "→ responsável"}</small>
           )}
         </span>
-        <span className={`atd-lote-val tom-${tom}`}>
-          {aluno.frequencia != null ? <><span className="atd-lote-bolinha" aria-hidden />{Math.round(aluno.frequencia)}%</> : "—"}
-        </span>
-        <span className="atd-lote-val">{aluno.tarefas_pendentes != null ? `${aluno.tarefas_pendentes} pend.` : "—"}</span>
+        {colunas.map((c) =>
+          c === "frequencia" ? (
+            <span key={c} className={`atd-lote-val tom-${tom}`}>
+              {aluno.frequencia != null ? <><span className="atd-lote-bolinha" aria-hidden />{Math.round(aluno.frequencia)}%</> : "—"}
+            </span>
+          ) : (
+            <span key={c} className="atd-lote-val">{valorColuna(aluno, c)}</span>
+          ),
+        )}
         <span className="atd-lote-val">
           {aluno.ultimo_contato_dias == null ? "nunca" : aluno.ultimo_contato_dias === 0 ? "hoje" : `há ${aluno.ultimo_contato_dias} dias`}
         </span>
