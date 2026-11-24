@@ -1,4 +1,4 @@
-import { FileText, Printer, Search, ShieldAlert, UserPlus, Users, X } from "lucide-react";
+import { CalendarClock, Clock, FileText, Printer, Search, ShieldAlert, UserPlus, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { invokeApp } from "../appBridge";
@@ -40,6 +40,13 @@ function formatarPercentual(valor: number | null | undefined) {
   return typeof valor === "number" && Number.isFinite(valor) ? `${Math.round(valor)}%` : "-";
 }
 
+function formatarTempo(segundos: number) {
+  const horas = Math.floor(segundos / 3600);
+  const minutos = Math.floor((segundos % 3600) / 60);
+  const seg = segundos % 60;
+  return [horas, minutos, seg].map((valor) => String(valor).padStart(2, "0")).join(":");
+}
+
 function limparRegistro(registro: RegistroAlunoPre): RegistroAlunoPre | null {
   const limpo: RegistroAlunoPre = {};
   if (registro.incluido) limpo.incluido = true;
@@ -57,6 +64,8 @@ export function PreConselho({
   setBimestreSelecionado,
   bimestreDados,
   erro,
+  modoReuniao,
+  setModoReuniao,
   onVoltar,
   onAbrirConselho,
 }: {
@@ -68,6 +77,8 @@ export function PreConselho({
   /** Bimestre dos dados de alunos já carregados (evita misturar bimestres na troca). */
   bimestreDados: string | null;
   erro: string;
+  modoReuniao: boolean;
+  setModoReuniao: (ativo: boolean) => void;
   onVoltar: () => void;
   onAbrirConselho: () => void;
 }) {
@@ -123,19 +134,76 @@ export function PreConselho({
     };
   }, [caminho, bimestreSelecionado]);
 
-  function atualizarRegistro(chave: string, mudanca: Partial<RegistroAlunoPre>) {
+  function atualizarDados(mudar: (atual: DadosPreConselho) => DadosPreConselho, imediato = false) {
     if (!caminho || !carregado) return;
     setDados((atual) => {
+      const proximo = mudar(atual);
+      pendente.current = { caminho, bimestre: bimestreSelecionado, dados: proximo };
+      if (salvarTimer.current !== null) window.clearTimeout(salvarTimer.current);
+      salvarTimer.current = window.setTimeout(gravarPendente, imediato ? 0 : 600);
+      return proximo;
+    });
+  }
+
+  function atualizarRegistro(chave: string, mudanca: Partial<RegistroAlunoPre>) {
+    atualizarDados((atual) => {
       const alunosAtuais = { ...(atual.alunos ?? {}) };
       const novo = limparRegistro({ ...(alunosAtuais[chave] ?? {}), ...mudanca });
       if (novo) alunosAtuais[chave] = novo;
       else delete alunosAtuais[chave];
-      const proximo: DadosPreConselho = { ...atual, alunos: alunosAtuais };
-      pendente.current = { caminho, bimestre: bimestreSelecionado, dados: proximo };
-      if (salvarTimer.current !== null) window.clearTimeout(salvarTimer.current);
-      salvarTimer.current = window.setTimeout(gravarPendente, 600);
-      return proximo;
+      return { ...atual, alunos: alunosAtuais };
     });
+  }
+
+  // Modo reunião: tela cheia, sem menu, com cronômetro. O tempo acumula no
+  // pré-conselho do bimestre (separado do tempo do conselho).
+  const [inicioReuniao, setInicioReuniao] = useState<number | null>(null);
+  const [tempoBase, setTempoBase] = useState(0);
+  const [tempoReuniao, setTempoReuniao] = useState(0);
+  const ultimoTempoSalvo = useRef(0);
+
+  useEffect(() => {
+    if (!modoReuniao || inicioReuniao === null) return;
+    const timer = window.setInterval(() => {
+      const total = tempoBase + Math.floor((Date.now() - inicioReuniao) / 1000);
+      setTempoReuniao(total);
+      if (total - ultimoTempoSalvo.current >= 30) {
+        ultimoTempoSalvo.current = total;
+        atualizarDados((atual) => ({ ...atual, tempo_segundos: total }));
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [modoReuniao, inicioReuniao, tempoBase]);
+
+  // Saiu da tela (ou trocou turma/bimestre) no meio da reunião: encerra o modo.
+  useEffect(() => {
+    return () => {
+      if (inicioReuniao !== null) {
+        setModoReuniao(false);
+        invokeApp("definir_fullscreen", { ativo: false }).catch(() => {});
+      }
+    };
+  }, [inicioReuniao]);
+
+  function ativarModoReuniao() {
+    const acumulado = dados.tempo_segundos ?? 0;
+    ultimoTempoSalvo.current = acumulado;
+    setTempoBase(acumulado);
+    setTempoReuniao(acumulado);
+    setInicioReuniao(Date.now());
+    setModoReuniao(true);
+    invokeApp("definir_fullscreen", { ativo: true }).catch(() => {});
+  }
+
+  function encerrarReuniao(abrirAta: boolean) {
+    if (inicioReuniao !== null) {
+      const total = tempoBase + Math.floor((Date.now() - inicioReuniao) / 1000);
+      atualizarDados((atual) => ({ ...atual, tempo_segundos: total }), true);
+    }
+    setInicioReuniao(null);
+    setModoReuniao(false);
+    invokeApp("definir_fullscreen", { ativo: false }).catch(() => {});
+    if (abrirAta && lista.length > 0) setAtaAberta(true);
   }
 
   const dadosProntos = carregado && bimestreDados === bimestreSelecionado;
@@ -180,29 +248,47 @@ export function PreConselho({
 
   return (
     <>
-      <button className="back-link" onClick={onVoltar}>← Voltar para Conselho</button>
-      <header className="topbar council-topbar">
+      {!modoReuniao && <button className="back-link" onClick={onVoltar}>← Voltar para Conselho</button>}
+      <header className={`topbar council-topbar pc-topbar ${modoReuniao ? "meeting-topbar" : ""}`}>
         <div>
-          <span className="eyebrow">{turmaLabel}</span>
-          <h1>Pré-conselho</h1>
-          <p>Alunos com média global abaixo de {NOTA_MINIMA} e os que os professores pedirem para discutir.</p>
+          <span className="eyebrow">{modoReuniao ? `Pré-conselho · ${turmaLabel} · ${bimestre}º bimestre` : turmaLabel}</span>
+          {!modoReuniao && <h1>Pré-conselho</h1>}
+          {!modoReuniao && <p>Alunos com média global abaixo de {NOTA_MINIMA} e os que os professores pedirem para discutir.</p>}
         </div>
         <div className="council-actions">
+          {modoReuniao && (
+            <div className="meeting-timer">
+              <Clock size={18} />
+              {formatarTempo(tempoReuniao)}
+            </div>
+          )}
           <button onClick={() => setAdicionarAberto(true)} disabled={!dadosProntos}>
             <UserPlus size={18} />
             Adicionar aluno
           </button>
-          <button onClick={() => setAtaAberta(true)} disabled={!dadosProntos || lista.length === 0}>
-            <FileText size={18} />
-            Gerar ata
-          </button>
-          <button className="primary-action" onClick={onAbrirConselho}>
-            Abrir conselho
-          </button>
+          {modoReuniao ? (
+            <button className="danger-action" onClick={() => encerrarReuniao(true)}>
+              Encerrar pré-conselho
+            </button>
+          ) : (
+            <>
+              <button onClick={ativarModoReuniao} disabled={!dadosProntos}>
+                <CalendarClock size={18} />
+                Modo reunião
+              </button>
+              <button onClick={() => setAtaAberta(true)} disabled={!dadosProntos || lista.length === 0}>
+                <FileText size={18} />
+                Gerar ata
+              </button>
+              <button className="primary-action" onClick={onAbrirConselho}>
+                Abrir conselho
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      <section className="panel council-summary-panel">
+      {!modoReuniao && <section className="panel council-summary-panel">
         <div className="summary-selector">
           <label htmlFor="bimestre-pre-conselho">Bimestre</label>
           <select
@@ -221,7 +307,7 @@ export function PreConselho({
           <Metrica valor={contagem.reprovacao} rotulo="Casos de reprovação" tom="red" />
           <Metrica valor={contagem.semIndicacao} rotulo="Sem indicação" tom="amber" />
         </div>
-      </section>
+      </section>}
 
       {(erro || erroDados) && <div className="data-warning">{erro || erroDados}</div>}
       {turma && !dadosProntos && !erro && !erroDados && (

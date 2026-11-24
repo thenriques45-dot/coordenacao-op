@@ -494,3 +494,13 @@
 .theme-dark .conselho-card-acoes .details-action.secondary:hover {
   background: var(--surface-elevated);
 }
+
+/* Quatro botões no topo: quebram de linha inteiros, sem partir o texto. */
+.pc-topbar .council-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pc-topbar .council-actions button {
+  white-space: nowrap;
+}

@@ -1895,7 +1895,7 @@ export function App() {
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
-    if (proximaTela !== "conselho") {
+    if (proximaTela !== "conselho" && proximaTela !== "pre-conselho") {
       setModoReuniao(false);
       invokeApp("definir_fullscreen", { ativo: false }).catch(() => {});
     }
@@ -2098,6 +2098,8 @@ export function App() {
             setBimestreSelecionado={(v) => mudarBimestre(v, true)}
             bimestreDados={turmaDetalhe?.bimestre ?? null}
             erro={erroConselho}
+            modoReuniao={modoReuniao}
+            setModoReuniao={setModoReuniao}
             onVoltar={() => navegarPara("conselhos")}
             onAbrirConselho={() => navegarPara("conselho")}
           />

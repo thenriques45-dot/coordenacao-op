@@ -39,6 +39,8 @@ export type RegistroAlunoPre = {
 
 export type DadosPreConselho = {
   alunos?: Record<string, RegistroAlunoPre>;
+  /** Tempo acumulado do pré-conselho em modo reunião. */
+  tempo_segundos?: number;
 };
 
 export type LinhaPreConselho = {
