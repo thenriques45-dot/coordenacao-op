@@ -213,6 +213,61 @@ export function ordenarFila(alunos: AlunoLote[], ordem: OrdemFila, personalizada
   }
 }
 
+// Colunas da fila: refletem os critérios escolhidos nas condições (ex.: só
+// "Progresso nas Expansões" → a fila mostra a % de Expansões). Sem condição
+// numérica, mostra Frequência e Tarefas. "Último contato" fica sempre no fim.
+export type CampoColuna =
+  | "frequencia"
+  | "tarefas_pendentes"
+  | "media_global"
+  | "media_disciplina"
+  | "faltas_periodo"
+  | "dias_sem_acesso"
+  | "expansao_progresso";
+
+export const COLUNAS_FILA: Record<CampoColuna, string> = {
+  frequencia: "Frequência",
+  tarefas_pendentes: "Tarefas",
+  media_global: "Média global",
+  media_disciplina: "Menor média",
+  faltas_periodo: "Faltas",
+  dias_sem_acesso: "Sem acesso",
+  expansao_progresso: "Expansões",
+};
+
+const COLUNAS_PADRAO: CampoColuna[] = ["frequencia", "tarefas_pendentes"];
+const MAX_COLUNAS = 4;
+
+export function colunasDaFila(condicoes: { campo: CampoCondicao }[]): CampoColuna[] {
+  const vistas: CampoColuna[] = [];
+  for (const c of condicoes) {
+    const campo = c.campo as CampoColuna;
+    if (campo in COLUNAS_FILA && !vistas.includes(campo)) vistas.push(campo);
+  }
+  return vistas.length > 0 ? vistas.slice(0, MAX_COLUNAS) : COLUNAS_PADRAO;
+}
+
+const fmtNota = (v: number) => v.toFixed(1).replace(".", ",");
+
+export function valorColuna(a: AlunoLote, campo: CampoColuna): string {
+  switch (campo) {
+    case "frequencia":
+      return a.frequencia != null ? `${Math.round(a.frequencia)}%` : "—";
+    case "tarefas_pendentes":
+      return a.tarefas_pendentes != null ? `${a.tarefas_pendentes} pend.` : "—";
+    case "media_global":
+      return a.media_global != null ? fmtNota(a.media_global) : "—";
+    case "media_disciplina":
+      return a.media_disciplina_min != null ? fmtNota(a.media_disciplina_min) : "—";
+    case "faltas_periodo":
+      return a.faltas_periodo != null ? `${Math.round(a.faltas_periodo)}` : "—";
+    case "dias_sem_acesso":
+      return a.dias_sem_acesso == null ? "—" : a.dias_sem_acesso === 0 ? "hoje" : `${a.dias_sem_acesso} dias`;
+    case "expansao_progresso":
+      return a.expansao_progresso != null ? `${Math.round(a.expansao_progresso)}%` : "—";
+  }
+}
+
 // Cor semântica de um valor numérico (verde/âmbar/vermelho). A cor nunca é o
 // único sinal — a UI mostra sempre o número junto.
 export function tomFrequencia(f: number | null): "ok" | "atencao" | "critico" | "neutro" {
