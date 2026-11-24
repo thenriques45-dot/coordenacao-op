@@ -251,6 +251,9 @@ pub(crate) fn aplicar_lote_alunos(
             inativados: cont.inativados,
         });
     }
+    // Quem acabou de ser remanejado (inativo numa turma, novo em outra da
+    // mesma série) já leva as notas dos bimestres anteriores.
+    let _ = completar_bimestres_remanejados_dados();
     Ok(saida)
 }
 

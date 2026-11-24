@@ -246,6 +246,105 @@ pub(crate) fn salvar_alunos_destaque(caminho: String, bimestre: String, nomes: V
     escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
 }
 
+/// Pré-conselho de um bimestre: alunos incluídos/retirados à mão, decisão
+/// (caso de aprovação/reprovação) e observação de cada aluno. Gravado no
+/// arquivo da turma em `pre_conselho[bimestre]` e sincronizado por bimestre
+/// como o perfil da turma.
+#[tauri::command]
+pub(crate) fn carregar_pre_conselho(caminho: String, bimestre: String) -> Result<Value, String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    Ok(dados
+        .get("pre_conselho")
+        .and_then(|pc| pc.get(&bimestre))
+        .filter(|valor| valor.is_object())
+        .cloned()
+        .unwrap_or(Value::Object(serde_json::Map::new())))
+}
+
+#[tauri::command(async)]
+pub(crate) fn salvar_pre_conselho(caminho: String, bimestre: String, dados_pre: Value) -> Result<(), String> {
+    if !dados_pre.is_object() {
+        return Err("Dados do pré-conselho inválidos.".to_string());
+    }
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    {
+        let objeto = dados
+            .as_object_mut()
+            .ok_or_else(|| "Arquivo da turma inválido.".to_string())?;
+        let pre = objeto
+            .entry("pre_conselho")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if !pre.is_object() {
+            *pre = Value::Object(serde_json::Map::new());
+        }
+        if let Some(obj) = pre.as_object_mut() {
+            obj.insert(bimestre.clone(), dados_pre);
+        }
+        marcar_bimestre_editado(objeto, "pre_conselho", &bimestre);
+    }
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
+/// Conselho final (4º bimestre + 5º conceito): decisões do conselho por
+/// disciplina e da coordenação por aluno. Gravado no arquivo da turma em
+/// `conselho_final[<RA do aluno>]`, com a data de edição de cada aluno em
+/// `conselho_final_editado_em` — dois coordenadores mexendo em alunos
+/// diferentes ao mesmo tempo não perdem nada na sincronização. A chave
+/// `_turma` guarda o que é da turma (tempo de reunião, texto da ata).
+#[tauri::command]
+pub(crate) fn carregar_conselho_final(caminho: String) -> Result<Value, String> {
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    Ok(dados
+        .get("conselho_final")
+        .filter(|valor| valor.is_object())
+        .cloned()
+        .unwrap_or(Value::Object(serde_json::Map::new())))
+}
+
+#[tauri::command(async)]
+pub(crate) fn salvar_conselho_final(caminho: String, chave: String, registro: Value) -> Result<(), String> {
+    let chave = chave.trim().to_string();
+    if chave.is_empty() {
+        return Err("Aluno inválido no conselho final.".to_string());
+    }
+    let _dados = travar_dados();
+    let caminho = PathBuf::from(caminho);
+    validar_caminho_turma(&caminho)?;
+    let texto = fs::read_to_string(&caminho).map_err(|err| err.to_string())?;
+    let mut dados: Value = serde_json::from_str(&texto).map_err(|err| err.to_string())?;
+    {
+        let objeto = dados
+            .as_object_mut()
+            .ok_or_else(|| "Arquivo da turma inválido.".to_string())?;
+        let mapa = objeto
+            .entry("conselho_final")
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if !mapa.is_object() {
+            *mapa = Value::Object(serde_json::Map::new());
+        }
+        if let Some(obj) = mapa.as_object_mut() {
+            // Registro vazio fica gravado como {} (e não some): assim uma
+            // decisão desfeita aqui vence a antiga de outra máquina.
+            let valor = if registro.is_object() { registro } else { Value::Object(serde_json::Map::new()) };
+            obj.insert(chave.clone(), valor);
+        }
+        marcar_bimestre_editado(objeto, "conselho_final", &chave);
+    }
+    let texto_atualizado = serde_json::to_string_pretty(&dados).map_err(|err| err.to_string())?;
+    escrever_json_atomicamente(&caminho, &texto_atualizado).map_err(|err| err.to_string())
+}
+
 #[tauri::command(async)]
 pub(crate) fn salvar_cabecalho_ata(input: ImagemCabecalhoInput) -> Result<ConfiguracoesApp, String> {
     let _dados = travar_dados();

@@ -793,11 +793,12 @@ export function ImportarNotas({
       <section className="panel import-notes-panel">
         <div className="import-notes-controls">
           <label>Bimestre
-            <select value={bimestre} onChange={(event) => setBimestre(event.target.value)}>
+            <select value={bimestre} onChange={(event) => { setBimestre(event.target.value); setPrevia(null); setResultado(null); }}>
               <option value="1">1º bimestre</option>
               <option value="2">2º bimestre</option>
               <option value="3">3º bimestre</option>
               <option value="4">4º bimestre</option>
+              <option value="5C">5º conceito (conselho final)</option>
             </select>
           </label>
 

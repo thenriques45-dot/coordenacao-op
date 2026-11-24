@@ -1,5 +1,25 @@
 # Changelog
 
+## v4.8.0 - Conselho final e pré-conselho
+
+### Conselho final
+- **Conselho do 4º bimestre com o 5º conceito:** ao abrir o conselho de uma turma no 4º bimestre, a tela mostra, para cada aluno, as 4 médias, o 5º conceito, faltas e frequência por disciplina, com os botões Aprovado / Aprovado pelo Conselho / Retido. Só o 4º bimestre e o 5º conceito são editáveis. 5º conceito a partir de 5 já vem como Aprovado, abaixo de 5 como Retido; alterar o 5º conceito para 5 ou mais marca Aprovado pelo Conselho, e aprovar uma disciplina abaixo de 5 sobe a nota para 5. Perfil da turma, alunos destaque e encaminhamentos continuam disponíveis.
+- **Resultado do aluno:** 5 ou mais retidas = Retido; qualquer Aprovado pelo Conselho = Aprovado pelo Conselho; no Ensino Médio, até 3 retidas = Aprovado Parcialmente (disciplina de expansão não entra na parcial). 4 retidas no Ensino Médio, retidas no fundamental e expansão retida pedem a decisão da coordenação ("Retornar ao conselho" ou "Reter aluno"). Mais de 3 aprovações pelo conselho mostram um alerta (ignorar ou corrigir), reter com menos de 5 retidas pede confirmação e frequência abaixo de 75% aparece em destaque.
+- **Tela "Resultado final":** mostra o resultado calculado e a decisão da coordenação de quem não foi aprovado direto, com "Abrir aluno no conselho" para todos. Falta de 5º conceito ou de status impede encerrar.
+- **Documentos:** "Encerrar conselho final" gera a ata do 4º bimestre (como antes, com encaminhamentos), a ata de resultado final (todos os alunos, sem notas, siglas ap/apc/app/rt com legenda e o resultado por extenso) e o relatório aos professores (5º conceito e nota do 4º bimestre a alterar na SED e compensação de ausências obrigatória).
+- **Importar mapões › 5º conceito (conselho final):** o importador de mapões lê o mapão "Conselho Final (QUINTO CONCEITO)" da SED (só a coluna M, sem faltas) nas versões com nome, com número ou com os dois. Mapão de 5º conceito escolhido como bimestre, ou o contrário, dá erro na prévia.
+
+### Pré-conselho
+- **Nova tela:** botão "Pré-conselho" no cartão de cada turma. Lista os alunos ativos com média global do ano abaixo de 5 (média e quantidade de disciplinas abaixo de 5 por bimestre), permite adicionar e retirar alunos, indicar caso de aprovação ou de reprovação com observação e ver todas as notas do aluno.
+- **Ata interna** para imprimir ou salvar em PDF, marcada "DOCUMENTO INTERNO — USO EXCLUSIVO DOS PROFESSORES", com as medidas pedagógicas sugeridas.
+- **Modo reunião** com tela cheia e cronômetro próprio, como no Conselho.
+
+### Turmas
+- **Aluno remanejado de turma:** o aluno que mudou de turma dentro da escola (mesmo RA, mesma série e ano) passa a ter na turma nova as notas dos bimestres cursados na turma antiga, sem sobrescrever o que a turma nova já tem. A ficha mostra de qual turma vieram.
+
+### Contatar famílias
+- **"Atendem às condições: 0":** o contador só contava alunos com telefone do responsável. Agora conta todos, com "X com telefone · Y sem telefone" e um aviso quando ninguém da fila tem telefone. As colunas da fila passam a seguir os campos usados nas condições.
+
 ## v4.7.3 - Turma duplicada e notas do conselho a lançar
 
 Versão de correção da 4.7.0. As novidades da 4.7.0 continuam valendo e aparecem de novo na tela "O que há de novo", com as mudanças da 4.7.1, da 4.7.2 e desta versão somadas ao fim de "outras mudanças".

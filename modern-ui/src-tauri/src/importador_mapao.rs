@@ -47,7 +47,7 @@ pub(crate) fn analisar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Previ
 #[tauri::command(async)]
 pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<ResultadoImportacaoMapoes, String> {
     let _dados = travar_dados();
-    let bimestre = normalizar_bimestre(&input.bimestre);
+    let bimestre = normalizar_bimestre_mapao(&input.bimestre);
     let device_id = input.device_id.as_deref();
     let mut turmas = carregar_turmas_com_caminho()?;
     let indice = indice_alunos_por_nome(&turmas);
@@ -186,6 +186,12 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
             let texto = serde_json::to_string_pretty(turma).map_err(|err| err.to_string())?;
             escrever_json_atomicamente(caminho, &texto).map_err(|err| err.to_string())?;
         }
+    }
+    // Remanejado que acabou de receber o primeiro mapão na turma nova (ou
+    // cuja turma nova ainda não tinha bimestres anteriores): completa com os
+    // bimestres da turma antiga (ver remanejamento.rs).
+    if !turmas_alteradas.is_empty() {
+        let _ = completar_bimestres_remanejados_dados();
     }
 
     Ok(ResultadoImportacaoMapoes {
@@ -530,9 +536,12 @@ pub(crate) fn analisar_arquivo_mapao(
     arquivo: &ArquivoMapaoInput,
     indice: &BTreeMap<String, Vec<(usize, String)>>,
     turmas: &[(PathBuf, TurmaArquivo)],
-    _bimestre: &str,
+    bimestre: &str,
 ) -> PreviaArquivoMapao {
-    match ler_mapao_bytes(&arquivo.bytes) {
+    let bimestre = normalizar_bimestre_mapao(bimestre);
+    match ler_mapao_bytes(&arquivo.bytes).and_then(|dados| {
+        conferir_tipo_mapao(&dados, &bimestre).map_or(Ok(dados), Err)
+    }) {
         Ok(dados) => {
             let mut correspondencias = 0;
             let mut nao_encontrados = 0;
@@ -595,6 +604,49 @@ pub(crate) fn analisar_arquivo_mapao(
     }
 }
 
+/// Bimestre escolhido no importador de mapões: "1".."4" ou "5C" (5º
+/// conceito do conselho final, gravado em medias["5C"]).
+pub(crate) fn normalizar_bimestre_mapao(bimestre: &str) -> String {
+    match bimestre.trim().to_uppercase().as_str() {
+        "5C" | "5" => "5C".to_string(),
+        outro => normalizar_bimestre(outro),
+    }
+}
+
+/// O mapão do 5º conceito e o de bimestre têm o mesmo formato de nota; sem
+/// esta conferência um 5º conceito importado como "4º bimestre" (ou o
+/// contrário) sobrescreveria as médias erradas sem ninguém perceber.
+pub(crate) fn conferir_tipo_mapao(dados: &DadosMapao, bimestre: &str) -> Option<String> {
+    match (dados.eh_quinto_conceito, bimestre == "5C") {
+        (true, false) => Some(
+            "Este mapão é do 5º conceito (Conselho Final). Escolha \"5º conceito\" no campo Bimestre."
+                .to_string(),
+        ),
+        (false, true) => Some(
+            "Este mapão não é do 5º conceito. Escolha o bimestre dele no campo Bimestre.".to_string(),
+        ),
+        _ => None,
+    }
+}
+
+/// "Tipo Fechamento: Conselho Final (QUINTO CONCEITO)" no cabeçalho do SED.
+pub(crate) fn mapao_eh_quinto_conceito(linhas: &[Vec<Data>], linha_inicio: usize) -> bool {
+    for linha in linhas.iter().take(linha_inicio) {
+        for (idx, celula) in linha.iter().enumerate() {
+            let rotulo = normalizar_texto_basico(&texto_celula(Some(celula)));
+            if rotulo.contains("TIPO FECHAMENTO") {
+                // O valor pode estar na célula ao lado ou algumas colunas
+                // adiante (versão "só número" mescla A:F no rótulo).
+                return linha.iter().skip(idx + 1).any(|valor| {
+                    let valor = normalizar_texto_basico(&texto_celula(Some(valor)));
+                    valor.contains("QUINTO CONCEITO") || valor.contains("5 CONCEITO")
+                });
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
     let cursor = Cursor::new(bytes.to_vec());
     let mut workbook: Xlsx<_> =
@@ -615,6 +667,7 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         .position(|(idx, linha)| linha_parece_cabecalho_mapao(linha, linhas.get(idx + 1)))
         .ok_or_else(|| "Cabeçalho de alunos não encontrado no mapão. Use a versão com nome, número ou nome e número.".to_string())?;
     let eh_expansao = mapao_eh_expansao(&linhas, linha_inicio);
+    let eh_quinto_conceito = mapao_eh_quinto_conceito(&linhas, linha_inicio);
     let cabecalho_alunos =
         localizar_colunas_aluno_mapao(&linhas[linha_inicio], linhas.get(linha_inicio + 1))
             .ok_or_else(|| {
@@ -641,8 +694,13 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
             break;
         }
     }
-    let linha_freq =
-        linha_freq.ok_or_else(|| "Coluna 'Fre An(%)' não encontrada no mapão.".to_string())?;
+    // O mapão do 5º conceito não tem "Fre An(%)" (nem faltas): o
+    // subcabeçalho é a linha logo abaixo dos nomes das disciplinas ("Nº | M").
+    let linha_freq = match linha_freq {
+        Some(linha) => linha,
+        None if eh_quinto_conceito && linha_inicio + 1 < linhas.len() => linha_inicio + 1,
+        None => return Err("Coluna 'Fre An(%)' não encontrada no mapão.".to_string()),
+    };
 
     let cabecalho = &linhas[linha_inicio];
     let mut disciplinas = Vec::new();
@@ -727,6 +785,7 @@ pub(crate) fn ler_mapao_bytes(bytes: &[u8]) -> Result<DadosMapao, String> {
         alunos,
         disciplinas: disciplinas_lidas,
         eh_expansao,
+        eh_quinto_conceito,
     })
 }
 
@@ -1625,5 +1684,148 @@ mod testes_diagnostico {
             destinos_diagnostico(&sem_ra, &indice_ra, &indice_nome),
             vec![(3, "999".to_string())]
         );
+    }
+}
+
+#[cfg(test)]
+mod testes_quinto_conceito {
+    use super::*;
+    use rust_xlsxwriter::Workbook;
+
+    #[derive(Clone, Copy)]
+    enum Versao {
+        NomeENumero,
+        SoNumero,
+        SoNome,
+    }
+
+    // Reproduz o layout do mapão "Conselho Final (QUINTO CONCEITO)" do SED
+    // (amostra da 3ª Série C enviada em 2026-11-24), com nomes fictícios.
+    fn mapao_5c(versao: Versao, notas: &[(&str, [Option<f64>; 2])], fechamento: &str) -> Vec<u8> {
+        let mut wb = Workbook::new();
+        let ws = wb.add_worksheet();
+        let col_valor = if matches!(versao, Versao::SoNumero) { 6 } else { 1 };
+        ws.write_string(0, 0, "Registro e Controle do Rendimento Escolar").unwrap();
+        for (linha, (rotulo, valor)) in [
+            ("Ano Letivo:", "2026"),
+            ("Diretoria:", "Maua"),
+            ("Escola:", "Escola Teste"),
+            ("Tipo de Ensino:", "101 - NOVO ENSINO MÉDIO"),
+            ("Turma:", "3ª SERIE C NOITE ANUAL"),
+            ("Tipo Fechamento:", fechamento),
+        ]
+        .iter()
+        .enumerate()
+        {
+            ws.write_string(linha as u32 + 1, 0, *rotulo).unwrap();
+            ws.write_string(linha as u32 + 1, col_valor, *valor).unwrap();
+        }
+        let disciplinas = ["BIOLOGIA\n2400", "FISICA\n2600"];
+        let (col0, largura) = match versao {
+            Versao::NomeENumero => (2u16, 2u16),
+            Versao::SoNumero => (0, 2),
+            Versao::SoNome => (2, 1),
+        };
+        if !matches!(versao, Versao::SoNumero) {
+            ws.write_string(10, 0, "ALUNO").unwrap();
+            ws.write_string(10, 1, "SITUAÇÃO").unwrap();
+        }
+        for (i, disciplina) in disciplinas.iter().enumerate() {
+            let col = col0 + i as u16 * largura;
+            ws.write_string(10, col, *disciplina).unwrap();
+            if largura == 2 {
+                ws.write_string(11, col, "Nº").unwrap();
+            }
+            ws.write_string(11, col + largura - 1, "M").unwrap();
+        }
+        for (n, (nome, valores)) in notas.iter().enumerate() {
+            let linha = 12 + n as u32;
+            if !matches!(versao, Versao::SoNumero) {
+                ws.write_string(linha, 0, *nome).unwrap();
+                ws.write_string(linha, 1, "Ativo").unwrap();
+            }
+            for (i, valor) in valores.iter().enumerate() {
+                let col = col0 + i as u16 * largura;
+                if largura == 2 {
+                    ws.write_number(linha, col, (n + 1) as f64).unwrap();
+                }
+                match valor {
+                    Some(v) => ws.write_number(linha, col + largura - 1, *v).unwrap(),
+                    None => ws.write_string(linha, col + largura - 1, "-").unwrap(),
+                };
+            }
+        }
+        wb.save_to_buffer().unwrap()
+    }
+
+    const NOTAS: &[(&str, [Option<f64>; 2])] = &[
+        ("ANA TESTE", [Some(7.0), Some(4.0)]),
+        ("BRUNO TESTE", [None, Some(5.0)]),
+    ];
+
+    #[test]
+    fn le_as_tres_versoes_do_mapao_do_quinto_conceito() {
+        for versao in [Versao::NomeENumero, Versao::SoNumero, Versao::SoNome] {
+            let bytes = mapao_5c(versao, NOTAS, "Conselho Final (QUINTO CONCEITO)");
+            let dados = ler_mapao_bytes(&bytes).expect("mapão do 5º conceito deve ser lido");
+            assert!(dados.eh_quinto_conceito);
+            assert_eq!(dados.alunos.len(), 2);
+            assert_eq!(
+                dados.disciplinas.iter().cloned().collect::<Vec<_>>(),
+                vec!["BIOLOGIA".to_string(), "FISICA".to_string()]
+            );
+            let ana = &dados.alunos[0];
+            let bruno = &dados.alunos[1];
+            match versao {
+                Versao::SoNumero => {
+                    assert_eq!(ana.numero_chamada, Some(1));
+                    assert_eq!(bruno.numero_chamada, Some(2));
+                }
+                Versao::NomeENumero => {
+                    assert_eq!(ana.nome, "ANA TESTE");
+                    assert_eq!(ana.numero_chamada, Some(1));
+                }
+                Versao::SoNome => assert_eq!(ana.nome, "ANA TESTE"),
+            }
+            let medias = |aluno: &AlunoMapao| aluno.disciplinas.iter().map(|d| d.1).collect::<Vec<_>>();
+            assert_eq!(medias(ana), vec![Some(7.0), Some(4.0)]);
+            assert_eq!(medias(bruno), vec![None, Some(5.0)]);
+            // Não há faltas no mapão do 5º conceito: o número de chamada
+            // não pode virar "faltas".
+            assert!(ana.disciplinas.iter().all(|d| d.2.is_none() && d.3.is_none()));
+        }
+    }
+
+    #[test]
+    fn mapao_do_quinto_conceito_so_entra_como_quinto_conceito() {
+        let quinto = ler_mapao_bytes(&mapao_5c(Versao::SoNome, NOTAS, "Conselho Final (QUINTO CONCEITO)")).unwrap();
+        assert_eq!(normalizar_bimestre_mapao("5C"), "5C");
+        assert_eq!(normalizar_bimestre_mapao("4"), "4");
+        assert!(conferir_tipo_mapao(&quinto, "5C").is_none());
+        assert!(conferir_tipo_mapao(&quinto, "4").is_some());
+
+        // Um mapão de bimestre sem "Fre An" continua dando erro (não é 5º conceito).
+        let bimestre = mapao_5c(Versao::SoNome, NOTAS, "4º Bimestre");
+        assert!(ler_mapao_bytes(&bimestre).is_err());
+    }
+
+    /// Lê as planilhas reais (fora do repositório) quando MAPAO_5C_DIR aponta
+    /// para a pasta delas: `MAPAO_5C_DIR=/tmp/x cargo test amostras_reais -- --nocapture`.
+    #[test]
+    fn amostras_reais() {
+        let Ok(pasta) = std::env::var("MAPAO_5C_DIR") else { return };
+        for entrada in fs::read_dir(pasta).unwrap() {
+            let caminho = entrada.unwrap().path();
+            let dados = ler_mapao_bytes(&fs::read(&caminho).unwrap()).unwrap();
+            println!(
+                "{}: 5C={} alunos={} disciplinas={:?} primeiro={:?}",
+                caminho.display(),
+                dados.eh_quinto_conceito,
+                dados.alunos.len(),
+                dados.disciplinas,
+                dados.alunos.first().map(|a| (a.nome.clone(), a.numero_chamada, a.disciplinas.iter().map(|d| (d.1, d.2)).collect::<Vec<_>>()))
+            );
+            assert!(dados.eh_quinto_conceito);
+        }
     }
 }

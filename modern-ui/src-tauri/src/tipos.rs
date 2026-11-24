@@ -377,6 +377,9 @@ pub(crate) struct TurmaDetalhe {
     pub(crate) tempo_conselho_segundos: i64,
     pub(crate) texto_ata: String,
     pub(crate) alunos: Vec<AlunoDetalhe>,
+    /// Disciplinas só de mapão de expansão (nome normalizado). O conselho
+    /// final não as aceita na aprovação parcial.
+    pub(crate) disciplinas_expansao: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -490,6 +493,9 @@ pub(crate) struct AlunoDetalhe {
     pub(crate) responsaveis: Vec<Responsavel>,
     pub(crate) diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     pub(crate) disciplinas: Vec<DisciplinaDetalhe>,
+    /// Bimestre -> turma de onde vieram as notas, para aluno remanejado de
+    /// turma (ver remanejamento.rs). Vazio para quem sempre esteve na turma.
+    pub(crate) bimestres_outra_turma: BTreeMap<String, String>,
 }
 
 /// Responsável pelo estudante — usado para o contato com a família (mensagem
@@ -573,6 +579,10 @@ pub(crate) struct DisciplinaDetalhe {
     pub(crate) media_original: Option<f64>,
     pub(crate) media_conselho: Option<f64>,
     pub(crate) quinto_conceito: Option<f64>,
+    /// Faltas e aulas do ano no mapão do 5º conceito (`frequencia["5C"]`,
+    /// `carga_horaria["5C"]`), quando importado.
+    pub(crate) faltas_quinto_conceito: Option<f64>,
+    pub(crate) aulas_quinto_conceito: Option<f64>,
     pub(crate) observacao_conselho: Option<String>,
     pub(crate) faltas: Option<f64>,
     pub(crate) total_aulas: Option<f64>,
@@ -910,6 +920,9 @@ pub(crate) struct DadosMapao {
     // "Expansão" (ex.: "110 - EXPANSÃO NOVO EM") — turma não seriada de
     // itinerário/aprofundamento. Ver ler_mapao_bytes.
     pub(crate) eh_expansao: bool,
+    // true quando "Tipo Fechamento:" diz "Conselho Final (QUINTO CONCEITO)":
+    // mapão do 5º conceito, só com a coluna M (sem faltas nem Fre An).
+    pub(crate) eh_quinto_conceito: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]

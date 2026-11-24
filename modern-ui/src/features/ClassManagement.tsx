@@ -104,6 +104,8 @@ type Aluno = {
   responsaveis?: ResponsavelAluno[];
   diagnosticoAprendizagem?: DiagnosticoAprendizagem | null;
   disciplinas: Disciplina[];
+  // Aluno remanejado: bimestre -> turma de onde vieram as notas.
+  bimestresOutraTurma?: Record<string, string>;
 };
 
 type ResponsavelAluno = {
@@ -191,6 +193,21 @@ function arredondarMedia(valor: number | null | undefined) {
 function formatarMediaGlobal(valor: number | null | undefined) {
   const arredondada = arredondarMedia(valor);
   return arredondada === null ? "-" : String(arredondada);
+}
+
+// "1º e 2º bimestres vieram do 9º Ano A (aluno remanejado de turma)."
+function textoBimestresOutraTurma(mapa: Record<string, string> | undefined): string {
+  const porTurma = new Map<string, string[]>();
+  for (const [bimestre, turma] of Object.entries(mapa ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!turma) continue;
+    porTurma.set(turma, [...(porTurma.get(turma) ?? []), `${bimestre}º`]);
+  }
+  const partes = Array.from(porTurma.entries()).map(([turma, bimestres]) => {
+    const lista = bimestres.length > 1 ? `${bimestres.slice(0, -1).join(", ")} e ${bimestres[bimestres.length - 1]}` : bimestres[0];
+    const artigo = /s[ée]rie/i.test(turma) ? "da" : "do";
+    return `${lista} ${bimestres.length > 1 ? "bimestres vieram" : "bimestre veio"} ${artigo} ${turma}`;
+  });
+  return partes.length ? `${partes.join("; ")} (aluno remanejado de turma).` : "";
 }
 
 function formatarPercentual(valor: number | null | undefined) {
@@ -2075,6 +2092,9 @@ function AlunoDetalheGestao({
 
       <section className="student-subjects-section">
         <h3>Notas por Disciplina</h3>
+        {textoBimestresOutraTurma(aluno.bimestresOutraTurma) && (
+          <p className="student-transfer-note">{textoBimestresOutraTurma(aluno.bimestresOutraTurma)}</p>
+        )}
         <div className="student-subjects-table-wrap">
           <table className="student-subjects-table">
             <thead>

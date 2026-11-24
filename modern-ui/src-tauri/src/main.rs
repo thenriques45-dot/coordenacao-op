@@ -8,6 +8,7 @@ mod apps_script_webapp_pei_conteudo;
 mod backup;
 mod cofre;
 mod config;
+mod conselho_final;
 mod conselho_pendrive;
 mod diagnosticos;
 mod diagnostico_turma;
@@ -27,6 +28,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod remanejamento;
 mod saresp;
 mod sheets_api;
 mod shell;
@@ -41,8 +43,8 @@ mod whatsapp_api;
 #[allow(unused_imports)]
 pub(crate) use {
     aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
-    conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, grupo_google::*, ia::*, importador_alunos::*,
-    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, saresp::*,
+    conselho_final::*, conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, grupo_google::*, ia::*, importador_alunos::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, remanejamento::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 
@@ -253,6 +255,11 @@ fn main() {
             config::carregar_alunos_destaque,
             diagnostico_turma::carregar_indicadores_diagnostico_turma,
             config::salvar_alunos_destaque,
+            config::carregar_pre_conselho,
+            config::salvar_pre_conselho,
+            config::carregar_conselho_final,
+            config::salvar_conselho_final,
+            conselho_final::gerar_documentos_conselho_final,
             config::resolver_bimestre_atual,
             config::fixar_bimestre_pin,
             sync::publicar_estado_sincronizacao,

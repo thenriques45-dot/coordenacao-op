@@ -19,6 +19,15 @@ import { invokeApp } from "./appBridge";
 import { AssistenteConfigConselho } from "./ConselhoConfigWizard";
 import type { ConfiguracoesApp, OpcaoEncaminhamento } from "./SettingsPage";
 import { FotoAluno } from "./StudentPhoto";
+import {
+  ConfirmacaoResultadoFinal,
+  EncerramentoConselhoFinal,
+  ModalDecidirAluno,
+  PainelConselhoFinal,
+  SeloResultado,
+  useConselhoFinal,
+} from "./conselhoFinal/ConselhoFinal";
+import { type AlunoCf, ehEnsinoMedio, montarSituacoes, normalizarNome } from "./conselhoFinal/calculos";
 
 const WIZARD_CONSELHO_KEY = "coordenacaoop:wizard-conselho-visto:v1";
 
@@ -42,6 +51,7 @@ type CriterioDestaque = {
 type NotaBimestre = {
   bimestre: string;
   media: number;
+  media_mapao?: number | null;
 };
 
 type Disciplina = {
@@ -49,6 +59,8 @@ type Disciplina = {
   mediaOriginal: number | null;
   mediaConselho: number | null;
   quintoConceito?: number | null;
+  faltasQuintoConceito?: number | null;
+  aulasQuintoConceito?: number | null;
   observacaoConselho?: string | null;
   faltas?: number | null;
   totalAulas?: number | null;
@@ -158,6 +170,7 @@ type TurmaDetalhe = {
   tempo_conselho_segundos: number;
   texto_ata: string;
   alunos: unknown[];
+  disciplinas_expansao?: string[];
 };
 
 type DocumentoConselho = {
@@ -302,6 +315,7 @@ function calcularMetricasTurma(alunos: Aluno[]) {
 }
 
 function rotuloBimestre(valor: string | null | undefined) {
+  if (valor === "final") return "Conselho final";
   return opcoesBimestre.find((opcao) => opcao.valor === valor)?.rotulo ?? "1º bimestre";
 }
 function CouncilMetric({
@@ -394,6 +408,57 @@ export function Council({
     ? `${turmaSelecionada.codigo} - ${turmaSelecionada.ano} - ${rotuloBimestre(turmaDetalhe?.bimestre ?? bimestreSelecionado)}`
     : `2A - ${rotuloBimestre(bimestreSelecionado)}`;
   const metricasTurma = calcularMetricasTurma(alunos);
+
+  // Conselho final: o conselho do 4º bimestre também decide aprovação,
+  // aprovação pelo conselho, aprovação parcial ou retenção pelo 5º conceito.
+  const conselhoFinal = turmaDetalhe?.bimestre === "4";
+  const caminhoTurma = turmaSelecionada?.caminho ?? "";
+  const cf = useConselhoFinal(caminhoTurma, conselhoFinal);
+  const ensinoMedio = ehEnsinoMedio(turmaSelecionada?.serie, turmaSelecionada?.codigo);
+  const disciplinasExpansao = useMemo(
+    () => new Set((turmaDetalhe?.disciplinas_expansao ?? []).map(normalizarNome)),
+    [turmaDetalhe?.disciplinas_expansao],
+  );
+  const situacoesFinal = useMemo(
+    () => (conselhoFinal && cf.carregado ? montarSituacoes(alunos as AlunoCf[], cf.dados, ensinoMedio, disciplinasExpansao) : []),
+    [conselhoFinal, cf.carregado, alunos, cf.dados, ensinoMedio, disciplinasExpansao],
+  );
+  const situacaoPorChave = useMemo(() => new Map(situacoesFinal.map((s) => [s.chave, s])), [situacoesFinal]);
+  const chaveDe = (item: Aluno) => item.matricula?.trim() || `nome:${item.nome.trim().toLocaleUpperCase("pt-BR")}`;
+  const situacaoAtual = conselhoFinal ? situacaoPorChave.get(chaveDe(aluno)) ?? null : null;
+  const semQuintoConceito = conselhoFinal && alunos.length > 0 && !alunos.some((a) => a.disciplinas.some((d) => typeof d.quintoConceito === "number"));
+  const [decidirAberto, setDecidirAberto] = useState<{ destino: number | null } | null>(null);
+  const [confirmacaoAberta, setConfirmacaoAberta] = useState(false);
+  const [encerramentoFinalAberto, setEncerramentoFinalAberto] = useState(false);
+
+  /** Troca de aluno no conselho final: se o aluno atual ficou sem resultado
+   *  possível e a coordenação não decidiu, pergunta antes de sair. */
+  function irParaAluno(indice: number, sairDoPerfil = true) {
+    const pendenteDecisao = situacaoAtual && !visaoPerfil && situacaoAtual.calculado === "decidir" && !situacaoAtual.confirmado;
+    if (pendenteDecisao && indice !== indiceAluno) {
+      setDecidirAberto({ destino: indice });
+      return;
+    }
+    if (sairDoPerfil) setVisaoPerfil(false);
+    selecionarAluno(indice);
+  }
+
+  function decidirAluno(chave: string, calculado: string, decisao: "manter" | "reter" | null) {
+    cf.salvarAluno(
+      chave,
+      (atual) => ({ ...atual, decisao, decidido_sobre: decisao ? (calculado as never) : null }),
+      true,
+    );
+  }
+
+  function abrirAlunoNoConselho(chave: string) {
+    const indice = alunos.findIndex((a) => chaveDe(a) === chave);
+    setConfirmacaoAberta(false);
+    if (indice >= 0) {
+      setVisaoPerfil(false);
+      selecionarAluno(indice);
+    }
+  }
   const alunosFiltrados = useMemo(() => {
     if (filtroAlunos === "todos") {
       return alunos.map((item, indice) => ({ item, indice }));
@@ -532,6 +597,18 @@ export function Council({
     setFinalizacaoAberta(true);
   }
 
+  function abrirConfirmacaoFinal() {
+    if (turmaSelecionada && turmaDetalhe) {
+      invokeApp("salvar_tempo_conselho", {
+        caminho: turmaSelecionada.caminho,
+        bimestre: turmaDetalhe.bimestre,
+        tempoSegundos: tempoReuniao,
+      }).catch(() => {});
+    }
+    cf.gravarPendentes();
+    setConfirmacaoAberta(true);
+  }
+
   function alternarDocumentacaoConselho() {
     if (!turmaSelecionada || !turmaDetalhe) {
       setMensagemDocumento("Selecione uma turma e um bimestre antes de abrir o documento.");
@@ -649,8 +726,14 @@ export function Council({
       <header className={`topbar council-topbar ${modoReuniao ? "meeting-topbar" : ""}`}>
         <div>
           <span className="eyebrow">{turmaLabel}</span>
-          {!modoReuniao && <h1>Conselho de classe</h1>}
-          {!modoReuniao && <p>Acompanhamento e deliberacoes do conselho.</p>}
+          {!modoReuniao && <h1>{conselhoFinal ? "Conselho final" : "Conselho de classe"}</h1>}
+          {!modoReuniao && (
+            <p>
+              {conselhoFinal
+                ? "4º bimestre e 5º conceito: aprovação, aprovação pelo conselho, aprovação parcial ou retenção."
+                : "Acompanhamento e deliberacoes do conselho."}
+            </p>
+          )}
         </div>
         <div className="council-actions">
           {modoReuniao ? (
@@ -659,8 +742,13 @@ export function Council({
                 <Clock size={18} />
                 {formatarTempo(tempoReuniao)}
               </div>
-              <button className="danger-action" onClick={abrirFinalizacao}>
-                Encerrar conselho
+              {conselhoFinal && (
+                <button onClick={() => setConfirmacaoAberta(true)} disabled={!cf.carregado}>
+                  Ver resultados
+                </button>
+              )}
+              <button className="danger-action" onClick={conselhoFinal ? abrirConfirmacaoFinal : abrirFinalizacao}>
+                {conselhoFinal ? "Encerrar conselho final" : "Encerrar conselho"}
               </button>
             </>
           ) : (
@@ -669,6 +757,12 @@ export function Council({
                 <CalendarClock size={18} />
                 Modo reuniao
               </button>
+              {conselhoFinal && (
+                <button onClick={() => setConfirmacaoAberta(true)} disabled={!cf.carregado}>
+                  <CheckCircle2 size={18} />
+                  Resultado final
+                </button>
+              )}
               <button
                 onClick={alternarDocumentacaoConselho}
                 disabled={!turmaSelecionada || !turmaDetalhe}
@@ -784,7 +878,7 @@ export function Council({
                     item.deliberado ? "deliberated" : ""
                   }`}
                   key={item.matricula ?? `${item.nome}-${indice}`}
-                  onClick={() => { setVisaoPerfil(false); selecionarAluno(indice); }}
+                  onClick={() => irParaAluno(indice)}
                   onBlur={() => marcarAlunoDeliberado(item)}
                   >
                   <div>
@@ -800,8 +894,20 @@ export function Council({
                   </div>
                   <div className="student-list-status">
                     {turmaConfig.elegivel_ativo && item.elegivel && <span className="mini-eligible">{turmaConfig.elegivel_rotulo}</span>}
-                    <i className={status}></i>
-                    <span>Media: {formatarMediaGlobal(media)}</span>
+                    {conselhoFinal && situacaoPorChave.get(chaveDe(item)) ? (
+                      <SeloResultado
+                        curto
+                        valor={(() => {
+                          const sit = situacaoPorChave.get(chaveDe(item))!;
+                          return sit.confirmado && sit.final ? sit.final : sit.calculado;
+                        })()}
+                      />
+                    ) : (
+                      <>
+                        <i className={status}></i>
+                        <span>Media: {formatarMediaGlobal(media)}</span>
+                      </>
+                    )}
                   </div>
                 </button>
               );
@@ -922,12 +1028,64 @@ export function Council({
             </div>
             <div className="student-header-status">
               <span className="student-number">Nº {aluno.chamada || "-"}</span>
-              <span className={`student-outcome ${classificarAluno(aluno)}`}>
-                {rotuloClassificacao(aluno)}
-              </span>
+              {situacaoAtual ? (
+                <SeloResultado valor={situacaoAtual.confirmado && situacaoAtual.final ? situacaoAtual.final : situacaoAtual.calculado} />
+              ) : (
+                <span className={`student-outcome ${classificarAluno(aluno)}`}>
+                  {rotuloClassificacao(aluno)}
+                </span>
+              )}
             </div>
           </div>
 
+          {conselhoFinal && situacaoAtual ? (
+            <>
+              <PainelConselhoFinal
+                situacao={situacaoAtual}
+                semQuintoConceito={semQuintoConceito}
+                onMudarDisciplina={(disciplina, registro) =>
+                  cf.salvarAluno(situacaoAtual.chave, (atual) => ({
+                    ...atual,
+                    disciplinas: { ...(atual.disciplinas ?? {}), [disciplina]: registro },
+                  }))
+                }
+                onSalvarQuarto={(linha, nota) =>
+                  salvarAjustesMedia([
+                    {
+                      disciplina: linha.disciplina.nome,
+                      media_original: linha.disciplina.mediaOriginal,
+                      media_ajustada: nota === null || nota === linha.nota4Mapao ? null : nota,
+                      observacao: "",
+                    },
+                  ])
+                }
+                onIgnorarLimite={() =>
+                  cf.salvarAluno(situacaoAtual.chave, (atual) => ({ ...atual, limite_apc_ignorado: true }), true)
+                }
+              />
+              <div className="cf-encaminhamentos">
+                <h4>Encaminhamentos <span>vão para a ata do 4º bimestre</span></h4>
+                {erroEncaminhamento && <div className="inline-edit-error">{erroEncaminhamento}</div>}
+                <div className="encaminhamentos-list">
+                  {(turmaConfig.encaminhamento_opcoes?.length ? turmaConfig.encaminhamento_opcoes : ENCAMINHAMENTOS_PADRAO).map((opcao) => (
+                    <button
+                      className={`encaminhamento-item ${aluno.encaminhamentos.includes(opcao.numero) ? "selected" : ""}`}
+                      key={opcao.numero}
+                      title={opcao.texto}
+                      onClick={() => alternarEncaminhamento(opcao.numero)}
+                      disabled={salvandoEncaminhamento !== null}
+                    >
+                      <span className="encaminhamento-code">ENC {opcao.numero}</span>
+                      <span>{opcao.texto}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : conselhoFinal && !cf.carregado ? (
+            <div className="data-warning neutral">{cf.erro || "Carregando o conselho final."}</div>
+          ) : (
+            <>
           <section className="summary-grid compact">
             <article>
               <span>Frequência mapão</span>
@@ -1087,9 +1245,66 @@ export function Council({
               </div>
             </div>
           </section>
+            </>
+          )}
           </>)}
         </section>
       </section>
+
+      {decidirAberto && situacaoAtual && (
+        <ModalDecidirAluno
+          situacao={situacaoAtual}
+          onRetornar={() => setDecidirAberto(null)}
+          onReter={() => {
+            decidirAluno(situacaoAtual.chave, situacaoAtual.calculado, "reter");
+            const destino = decidirAberto.destino;
+            setDecidirAberto(null);
+            if (destino !== null) {
+              setVisaoPerfil(false);
+              selecionarAluno(destino);
+            }
+          }}
+        />
+      )}
+
+      {confirmacaoAberta && conselhoFinal && (
+        <ConfirmacaoResultadoFinal
+          turmaLabel={turmaLabel}
+          situacoes={situacoesFinal}
+          onFechar={() => setConfirmacaoAberta(false)}
+          onAbrirAluno={(sit) => abrirAlunoNoConselho(sit.chave)}
+          onDecidir={(sit, decisao) => decidirAluno(sit.chave, sit.calculado, decisao)}
+          onGerarAtas={() => {
+            cf.gravarPendentes();
+            setConfirmacaoAberta(false);
+            setEncerramentoFinalAberto(true);
+          }}
+        />
+      )}
+
+      {encerramentoFinalAberto && turmaSelecionada && turmaDetalhe && (
+        <EncerramentoConselhoFinal
+          turmaLabel={turmaLabel}
+          caminho={turmaSelecionada.caminho}
+          bimestre={turmaDetalhe.bimestre}
+          tempoSegundos={tempoReuniao}
+          textoAta4Inicial={turmaDetalhe.texto_ata || `Conselho de classe - ${turmaLabel}`}
+          textoAtaFinalInicial={
+            cf.dados.texto_ata ||
+            `Reuniram-se os professores da turma ${turmaSelecionada.codigo} para o Conselho de Classe Final, com base no 5º conceito, deliberando sobre a aprovação, aprovação pelo conselho, aprovação parcial ou retenção de cada estudante, conforme o quadro abaixo.`
+          }
+          situacoes={situacoesFinal}
+          onClose={() => setEncerramentoFinalAberto(false)}
+          onFinished={() => {
+            setEncerramentoFinalAberto(false);
+            sairModoReuniao();
+          }}
+          aoFinalizado={() => {
+            aoAtualizarDados();
+            cf.recarregar();
+          }}
+        />
+      )}
 
       {finalizacaoAberta && (
         <FinalizacaoConselho
@@ -1111,6 +1326,7 @@ export function SelecaoConselho({
   turmas,
   erroTurmas,
   onSelecionar,
+  onPreConselho,
   turmaConfig,
   bimestreSelecionado,
   aoAtualizarDados,
@@ -1119,6 +1335,7 @@ export function SelecaoConselho({
   turmas: TurmaResumo[];
   erroTurmas: string;
   onSelecionar: (turma: TurmaResumo) => void;
+  onPreConselho: (turma: TurmaResumo) => void;
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
   bimestreSelecionado: string;
   aoAtualizarDados: () => void;
@@ -1227,9 +1444,14 @@ export function SelecaoConselho({
               )}
             </div>
 
-            <button className="details-action" onClick={() => onSelecionar(turma)}>
-              Abrir conselho
-            </button>
+            <div className="conselho-card-acoes">
+              <button className="details-action secondary" onClick={() => onPreConselho(turma)}>
+                Pré-conselho
+              </button>
+              <button className="details-action" onClick={() => onSelecionar(turma)}>
+                Abrir conselho
+              </button>
+            </div>
           </article>
         ))}
 
@@ -1747,7 +1969,7 @@ function rotuloSerie(valor?: string | null) {
     .replace(/\bano\b/gi, "Ano");
 }
 
-function rotuloTurma(turma: TurmaResumo) {
+export function rotuloTurma(turma: Pick<TurmaResumo, "serie" | "codigo">) {
   const serie = rotuloSerie(turma.serie);
   const codigo = turma.codigo ?? "";
   if (!serie) return codigo;

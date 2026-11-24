@@ -748,6 +748,7 @@ fn aplicar_dados_recebidos(temporario: &Path, destino: &Path, backup_destino: &P
     // por ano + código normalizado (ignorando acentos/maiúsculas) e mesclamos
     // qualquer grupo com mais de um arquivo.
     desduplicar_turmas_por_codigo(&temporario.join("persistidos"))?;
+    let _ = completar_bimestres_remanejados_na_pasta(&temporario.join("persistidos"));
 
     // Une as fotos locais às recebidas (sem perder fotos só locais).
     mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))?;
@@ -1592,7 +1593,7 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
 
     // Destaques e perfil da turma, gravados por bimestre no Conselho.
     if let Some(inc_obj) = incoming.as_object() {
-        for campo in ["alunos_destaque", "perfil_turma"] {
+        for campo in ["alunos_destaque", "perfil_turma", "pre_conselho", "conselho_final"] {
             mesclar_bimestres_por_edicao(res_obj, inc_obj, campo);
         }
     }
@@ -1790,6 +1791,9 @@ pub(crate) fn limpar_residuos_sincronizacao() -> io::Result<()> {
     // achou "nada novo"), as duas ficavam na listagem para sempre, e a
     // importação de mapões caía numa delas. Na abertura, une as que houver.
     let _ = desduplicar_turmas_por_codigo(&dados.join("persistidos"));
+    // Aluno remanejado de turma: traz para a turma nova os bimestres que
+    // ficaram na cópia inativa da turma antiga (ver remanejamento.rs).
+    let _ = completar_bimestres_remanejados_na_pasta(&dados.join("persistidos"));
     if dados.is_dir() {
         for entrada in fs::read_dir(&dados)? {
             let caminho = entrada?.path();
@@ -2464,6 +2468,50 @@ mod testes {
         assert_eq!(r["perfil_turma"]["2"]["engajamento"], json!("baixo"));
         assert_eq!(r["alunos_destaque"]["3"]["destaque"], json!("ANA"));
         assert_eq!(r["alunos_destaque_editado_em"]["3"], json!("2026-10-27T12:00:00-03:00"));
+    }
+
+    #[test]
+    fn pre_conselho_fica_com_a_edicao_mais_recente() {
+        let local = json!({
+            "codigo": "6A",
+            "pre_conselho": {"4": {"alunos": {"123": {"decisao": "aprovacao"}}}},
+            "pre_conselho_editado_em": {"4": "2026-11-24T10:00:00-03:00"}
+        });
+        let incoming = json!({
+            "codigo": "6A",
+            "pre_conselho": {
+                "4": {"alunos": {"123": {"decisao": "reprovacao"}}},
+                "3": {"alunos": {"456": {"incluido": true}}}
+            },
+            "pre_conselho_editado_em": {"4": "2026-11-24T11:00:00-03:00", "3": "2026-09-01T10:00:00-03:00"}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        assert_eq!(r["pre_conselho"]["4"]["alunos"]["123"]["decisao"], json!("reprovacao"));
+        assert_eq!(r["pre_conselho"]["3"]["alunos"]["456"]["incluido"], json!(true));
+    }
+
+    #[test]
+    fn conselho_final_mescla_aluno_a_aluno() {
+        let local = json!({
+            "codigo": "1A",
+            "conselho_final": {
+                "111": {"disciplinas": {"MATEMATICA": {"status": "apc", "quinto": 5.0}}},
+                "222": {"decisao": "manter"}
+            },
+            "conselho_final_editado_em": {"111": "2026-12-10T10:00:00-03:00", "222": "2026-12-10T10:05:00-03:00"}
+        });
+        let incoming = json!({
+            "codigo": "1A",
+            "conselho_final": {
+                "111": {},
+                "222": {"decisao": "reter"}
+            },
+            "conselho_final_editado_em": {"111": "2026-12-10T09:00:00-03:00", "222": "2026-12-10T10:30:00-03:00"}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        // Cada aluno fica com a edição mais recente, de onde ela vier.
+        assert_eq!(r["conselho_final"]["111"]["disciplinas"]["MATEMATICA"]["status"], json!("apc"));
+        assert_eq!(r["conselho_final"]["222"]["decisao"], json!("reter"));
     }
 
     #[test]

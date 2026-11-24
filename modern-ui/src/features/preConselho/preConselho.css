@@ -1,0 +1,506 @@
+/* Pré-conselho: lista de alunos para discutir, notas do aluno e ata. */
+
+.pc-metricas {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pre-conselho-panel {
+  margin-top: 24px;
+}
+
+.pre-conselho-legenda {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pre-conselho-tabela-wrap {
+  overflow-x: auto;
+}
+
+.pre-conselho-tabela {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.pre-conselho-tabela th,
+.pre-conselho-tabela td {
+  border-bottom: 1px solid var(--border-inner);
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.pre-conselho-tabela th {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pre-conselho-tabela .pc-num {
+  color: var(--text-secondary);
+  width: 40px;
+}
+
+.pre-conselho-tabela .pc-bim {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pc-nome {
+  min-width: 180px;
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+.pc-nome:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+.pc-selo {
+  background: var(--tag-empty-bg);
+  border-radius: 999px;
+  color: var(--tag-empty-text);
+  display: inline-block;
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 2px 8px;
+}
+
+.pc-media {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-media.pc-nota-abaixo {
+  color: var(--tag-bad-text);
+}
+
+.pc-media.pc-nota-cuidado {
+  color: var(--tag-warning-text);
+}
+
+.pc-media.pc-nota-adequada {
+  color: var(--tag-good-text);
+}
+
+.pc-media.pc-nota-sem-nota,
+.pc-vazio {
+  color: var(--text-tertiary);
+}
+
+.pc-abaixo {
+  color: var(--text-tertiary);
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.pc-abaixo.tem {
+  color: var(--tag-bad-text);
+}
+
+.pc-decisao {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pc-decisao button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.pc-decisao button.ativo.aprovacao {
+  background: var(--tag-good-bg);
+  border-color: var(--tag-good-text);
+  color: var(--tag-good-text);
+  font-weight: 600;
+}
+
+.pc-decisao button.ativo.reprovacao {
+  background: var(--tag-bad-bg);
+  border-color: var(--tag-bad-text);
+  color: var(--tag-bad-text);
+  font-weight: 600;
+}
+
+.pc-observacao {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-body);
+  font: inherit;
+  font-size: 13px;
+  min-width: 200px;
+  padding: 6px 8px;
+  resize: vertical;
+  width: 100%;
+}
+
+.pc-retirar {
+  padding: 6px;
+}
+
+.pc-retirados {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 12px 0 0;
+}
+
+.pc-busca {
+  margin-bottom: 12px;
+}
+
+.pc-lista-adicionar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.pc-lista-adicionar button {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-inner);
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 32px 1fr auto;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.pc-lista-adicionar button:hover {
+  border-color: var(--accent);
+}
+
+.pc-add-nome {
+  color: var(--text-primary);
+}
+
+.pc-modal-notas {
+  max-width: 820px;
+  width: 100%;
+}
+
+.pc-tabela-notas tfoot th {
+  color: var(--text-primary);
+  font-size: 13px;
+  text-transform: none;
+}
+
+.pc-aviso-modal {
+  align-items: center;
+  background: var(--tag-warning-bg);
+  border-radius: 8px;
+  color: var(--tag-warning-text);
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.pc-alerta-modal {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- Ata */
+
+.pc-ata {
+  border-collapse: collapse;
+  background: #ffffff;
+  color: #101828;
+  font-family: inherit;
+  font-size: 11pt;
+  margin: 0 auto;
+  max-width: 190mm;
+  padding: 8mm 0;
+}
+
+.pc-ata-aviso {
+  align-items: center;
+  border: 3px solid #a81c1c;
+  border-radius: 6px;
+  color: #a81c1c;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6mm;
+  padding: 10px 14px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background: #fde2e2;
+}
+
+.pc-ata-aviso strong {
+  display: block;
+  font-size: 13pt;
+  letter-spacing: 0.02em;
+}
+
+.pc-ata-aviso span {
+  display: block;
+  font-size: 9.5pt;
+  margin-top: 2px;
+}
+
+.pc-ata-cabecalho {
+  border-bottom: 2px solid #101828;
+  margin-bottom: 5mm;
+  padding-bottom: 3mm;
+}
+
+.pc-ata-cabecalho span {
+  color: #475467;
+  font-size: 9.5pt;
+  text-transform: uppercase;
+}
+
+.pc-ata-cabecalho h1 {
+  font-size: 18pt;
+  margin: 2px 0;
+}
+
+.pc-ata-cabecalho p {
+  color: #475467;
+  margin: 0;
+}
+
+.pc-ata h2 {
+  align-items: center;
+  display: flex;
+  font-size: 12pt;
+  gap: 6px;
+  margin: 5mm 0 2mm;
+}
+
+.pc-ata-tabela {
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  width: 100%;
+}
+
+.pc-ata-tabela th,
+.pc-ata-tabela td {
+  border: 1px solid #d0d5dd;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.pc-ata-tabela th {
+  background: #f2f4f7;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.pc-ata-tabela td:nth-child(2) {
+  min-width: 50mm;
+}
+
+.pc-ata-tabela small {
+  color: #667085;
+}
+
+.pc-ata-nota {
+  color: #667085;
+  font-size: 9pt;
+  margin: 2mm 0 0;
+}
+
+.pc-ata-aluno {
+  border-top: 1px solid #d0d5dd;
+  break-inside: avoid;
+  margin-top: 5mm;
+  padding-top: 3mm;
+}
+
+.pc-ata-aluno h3 {
+  align-items: center;
+  display: flex;
+  font-size: 11.5pt;
+  gap: 8px;
+  margin: 0 0 1.5mm;
+}
+
+.pc-ata-aluno p {
+  margin: 0 0 1.5mm;
+}
+
+.pc-ata-aluno h4 {
+  font-size: 10pt;
+  margin: 2mm 0 1mm;
+}
+
+.pc-ata-aluno ul {
+  margin: 0;
+  padding-left: 5mm;
+}
+
+.pc-ata-aluno li {
+  margin-bottom: 1mm;
+}
+
+.pc-ata-observacao {
+  background: #f9fafb;
+  border-left: 3px solid #98a2b3;
+  padding: 2mm 3mm;
+}
+
+.pc-ata-selo {
+  border: 1px solid #98a2b3;
+  border-radius: 999px;
+  font-size: 8.5pt;
+  font-weight: 600;
+  padding: 1px 8px;
+}
+
+.pc-ata-selo.aprovacao {
+  border-color: #067647;
+  color: #067647;
+}
+
+.pc-ata-selo.reprovacao {
+  border-color: #a81c1c;
+  color: #a81c1c;
+}
+
+.pc-ata-assinaturas {
+  break-inside: avoid;
+  margin-top: 8mm;
+}
+
+.pc-ata-linha {
+  display: grid;
+  gap: 10mm;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 9mm;
+}
+
+.pc-ata-linha span {
+  border-bottom: 1px solid #101828;
+}
+
+.pc-ata > thead td,
+.pc-ata > tfoot td,
+.pc-ata > tbody > tr > td {
+  padding: 0;
+}
+
+.pc-ata-faixa,
+.pc-ata-rodape {
+  color: #a81c1c;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.pc-ata-faixa {
+  border-bottom: 1px solid #a81c1c;
+  margin-bottom: 4mm;
+  padding-bottom: 1.5mm;
+}
+
+.pc-ata-rodape {
+  border-top: 1px solid #a81c1c;
+  margin-top: 4mm;
+  padding-top: 1.5mm;
+}
+
+@media print {
+  .pc-ata {
+    max-width: none;
+    padding: 0;
+    width: 100%;
+  }
+}
+
+/* A ata usa margem própria; o relatório diagnóstico imprime sem margem. */
+@page preconselho {
+  margin: 12mm;
+  size: A4 portrait;
+}
+
+/* Igual ao relatório diagnóstico (diagnostico.css), repetido aqui para a ata
+   não depender daquele arquivo estar carregado. */
+.pc-impressao {
+  display: none;
+}
+
+@media print {
+  body.imprimindo-diagnostico > *:not(.pc-impressao) {
+    display: none !important;
+  }
+
+  body.imprimindo-diagnostico .diag-impressao.pc-impressao {
+    display: block;
+    page: preconselho;
+  }
+
+  body.imprimindo-diagnostico .pc-impressao,
+  body.imprimindo-diagnostico .pc-impressao * {
+    visibility: visible !important;
+  }
+
+  html:has(body.imprimindo-diagnostico),
+  body.imprimindo-diagnostico {
+    background: #ffffff !important;
+    margin: 0;
+  }
+}
+
+/* Botões do cartão da turma na seleção de conselho. */
+.conselho-card-acoes {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 18px;
+}
+
+.conselho-card-acoes .details-action {
+  margin-top: 0;
+}
+
+.conselho-card-acoes .details-action.secondary {
+  background: transparent;
+  border: 1px solid #d0d5dd;
+}
+
+.conselho-card-acoes .details-action.secondary:hover {
+  background: #f2f4f7;
+}
+
+.theme-dark .conselho-card-acoes .details-action.secondary {
+  border-color: var(--border);
+}
+
+.theme-dark .conselho-card-acoes .details-action.secondary:hover {
+  background: var(--surface-elevated);
+}
+
+/* Quatro botões no topo: quebram de linha inteiros, sem partir o texto. */
+.pc-topbar .council-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pc-topbar .council-actions button {
+  white-space: nowrap;
+}

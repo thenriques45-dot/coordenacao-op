@@ -83,6 +83,7 @@ pub(crate) fn listar_documentos_conselho(caminho: String) -> Result<Vec<Document
             });
         }
     }
+    documentos.extend(documentos_conselho_final_existentes(&dados));
     Ok(documentos)
 }
 

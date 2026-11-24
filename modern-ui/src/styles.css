@@ -2760,6 +2760,12 @@ h3 {
   overflow: auto;
 }
 
+.student-transfer-note {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .student-subjects-table {
   border-collapse: collapse;
   width: 100%;
@@ -13655,6 +13661,36 @@ th:nth-child(3) {
   margin-left: auto;
   font-size: 17px;
   color: var(--accent-dark);
+}
+
+.atd-lote-contador {
+  flex-wrap: wrap;
+}
+
+.atd-lote-contador-detalhe {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: var(--accent-dark);
+  opacity: 0.85;
+}
+
+.atd-lote-fila-aviso-telefone {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 16px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--atd-accent-borda);
+  color: var(--accent-dark);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.atd-lote-fila-aviso-telefone svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 /* fila */
