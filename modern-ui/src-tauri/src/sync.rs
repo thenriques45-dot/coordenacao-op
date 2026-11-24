@@ -1592,7 +1592,7 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
 
     // Destaques e perfil da turma, gravados por bimestre no Conselho.
     if let Some(inc_obj) = incoming.as_object() {
-        for campo in ["alunos_destaque", "perfil_turma", "pre_conselho"] {
+        for campo in ["alunos_destaque", "perfil_turma", "pre_conselho", "conselho_final"] {
             mesclar_bimestres_por_edicao(res_obj, inc_obj, campo);
         }
     }
@@ -2484,6 +2484,30 @@ mod testes {
         let r = mesclar_arquivo_turma(&local, &incoming);
         assert_eq!(r["pre_conselho"]["4"]["alunos"]["123"]["decisao"], json!("reprovacao"));
         assert_eq!(r["pre_conselho"]["3"]["alunos"]["456"]["incluido"], json!(true));
+    }
+
+    #[test]
+    fn conselho_final_mescla_aluno_a_aluno() {
+        let local = json!({
+            "codigo": "1A",
+            "conselho_final": {
+                "111": {"disciplinas": {"MATEMATICA": {"status": "apc", "quinto": 5.0}}},
+                "222": {"decisao": "manter"}
+            },
+            "conselho_final_editado_em": {"111": "2026-12-10T10:00:00-03:00", "222": "2026-12-10T10:05:00-03:00"}
+        });
+        let incoming = json!({
+            "codigo": "1A",
+            "conselho_final": {
+                "111": {},
+                "222": {"decisao": "reter"}
+            },
+            "conselho_final_editado_em": {"111": "2026-12-10T09:00:00-03:00", "222": "2026-12-10T10:30:00-03:00"}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        // Cada aluno fica com a edição mais recente, de onde ela vier.
+        assert_eq!(r["conselho_final"]["111"]["disciplinas"]["MATEMATICA"]["status"], json!("apc"));
+        assert_eq!(r["conselho_final"]["222"]["decisao"], json!("reter"));
     }
 
     #[test]

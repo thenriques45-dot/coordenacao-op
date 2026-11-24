@@ -2004,6 +2004,12 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
         .and_then(|registro| registro.get("tempo_segundos"))
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let disciplinas_expansao = disciplinas_so_de_expansao(
+        turma.disciplinas_expansao.as_deref(),
+        turma.disciplinas_regulares.as_deref(),
+    )
+    .into_iter()
+    .collect::<Vec<_>>();
     let alunos = turma.alunos.unwrap_or_default();
     let mut alunos_detalhe = Vec::new();
 
@@ -2082,6 +2088,7 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
         tempo_conselho_segundos,
         texto_ata,
         alunos: alunos_detalhe,
+        disciplinas_expansao,
     }
 }
 
@@ -2305,6 +2312,8 @@ pub(crate) fn extrair_disciplinas(
     let frequencia = objeto_bimestre(info, "frequencia", bimestre);
     let ajustes = objeto_bimestre(info, "ajustes_medias_conselho", bimestre);
     let medias_5c = objeto_bimestre(info, "medias", "5C");
+    let frequencia_5c = objeto_bimestre(info, "frequencia", "5C");
+    let aulas_5c = carga_horaria.get("5C").and_then(Value::as_object);
     let aulas = carga_horaria.get(bimestre).and_then(Value::as_object);
     let mut nomes = BTreeSet::new();
 
@@ -2354,6 +2363,10 @@ pub(crate) fn extrair_disciplinas(
                 .map(str::to_string);
             let quinto_conceito =
                 valor_disciplina(medias_5c, &nome).and_then(valor_para_f64);
+            let faltas_quinto_conceito =
+                valor_disciplina(frequencia_5c, &nome).and_then(valor_para_f64);
+            let aulas_quinto_conceito =
+                valor_disciplina(aulas_5c, &nome).and_then(valor_para_f64);
             let total_aulas = valor_disciplina(aulas, &nome).and_then(valor_para_f64);
             let mut faltas_acumuladas = 0.0;
             let mut total_aulas_acumuladas = 0.0;
@@ -2417,6 +2430,8 @@ pub(crate) fn extrair_disciplinas(
                 media_original,
                 media_conselho,
                 quinto_conceito,
+                faltas_quinto_conceito,
+                aulas_quinto_conceito,
                 observacao_conselho,
                 faltas,
                 total_aulas,

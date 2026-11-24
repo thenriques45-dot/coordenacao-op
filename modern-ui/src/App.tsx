@@ -98,6 +98,8 @@ type Disciplina = {
   mediaOriginal: number | null;
   mediaConselho: number | null;
   quintoConceito?: number | null;
+  faltasQuintoConceito?: number | null;
+  aulasQuintoConceito?: number | null;
   observacaoConselho?: string | null;
   faltas?: number | null;
   totalAulas?: number | null;
@@ -249,6 +251,7 @@ type TurmaDetalhe = {
   tempo_conselho_segundos: number;
   texto_ata: string;
   alunos: AlunoApi[];
+  disciplinas_expansao?: string[];
 };
 
 type PendriveConselhoDetectado = {
@@ -316,6 +319,8 @@ type DisciplinaApi = {
   media_original: number | null;
   media_conselho: number | null;
   quinto_conceito: number | null;
+  faltas_quinto_conceito?: number | null;
+  aulas_quinto_conceito?: number | null;
   observacao_conselho: string | null;
   faltas: number | null;
   total_aulas: number | null;
@@ -1355,6 +1360,8 @@ export function App() {
         mediaOriginal: disciplina.media_original,
         mediaConselho: disciplina.media_conselho,
         quintoConceito: disciplina.quinto_conceito,
+        faltasQuintoConceito: disciplina.faltas_quinto_conceito ?? null,
+        aulasQuintoConceito: disciplina.aulas_quinto_conceito ?? null,
         observacaoConselho: disciplina.observacao_conselho,
         faltas: disciplina.faltas,
         totalAulas: disciplina.total_aulas,

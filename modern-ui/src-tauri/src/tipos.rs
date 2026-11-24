@@ -377,6 +377,9 @@ pub(crate) struct TurmaDetalhe {
     pub(crate) tempo_conselho_segundos: i64,
     pub(crate) texto_ata: String,
     pub(crate) alunos: Vec<AlunoDetalhe>,
+    /// Disciplinas só de mapão de expansão (nome normalizado). O conselho
+    /// final não as aceita na aprovação parcial.
+    pub(crate) disciplinas_expansao: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -573,6 +576,10 @@ pub(crate) struct DisciplinaDetalhe {
     pub(crate) media_original: Option<f64>,
     pub(crate) media_conselho: Option<f64>,
     pub(crate) quinto_conceito: Option<f64>,
+    /// Faltas e aulas do ano no mapão do 5º conceito (`frequencia["5C"]`,
+    /// `carga_horaria["5C"]`), quando importado.
+    pub(crate) faltas_quinto_conceito: Option<f64>,
+    pub(crate) aulas_quinto_conceito: Option<f64>,
     pub(crate) observacao_conselho: Option<String>,
     pub(crate) faltas: Option<f64>,
     pub(crate) total_aulas: Option<f64>,
