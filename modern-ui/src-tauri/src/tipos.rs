@@ -490,6 +490,9 @@ pub(crate) struct AlunoDetalhe {
     pub(crate) responsaveis: Vec<Responsavel>,
     pub(crate) diagnostico_aprendizagem: Option<DiagnosticoAprendizagem>,
     pub(crate) disciplinas: Vec<DisciplinaDetalhe>,
+    /// Bimestre -> turma de onde vieram as notas, para aluno remanejado de
+    /// turma (ver remanejamento.rs). Vazio para quem sempre esteve na turma.
+    pub(crate) bimestres_outra_turma: BTreeMap<String, String>,
 }
 
 /// Responsável pelo estudante — usado para o contato com a família (mensagem

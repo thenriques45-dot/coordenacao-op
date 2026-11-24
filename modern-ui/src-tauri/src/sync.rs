@@ -748,6 +748,7 @@ fn aplicar_dados_recebidos(temporario: &Path, destino: &Path, backup_destino: &P
     // por ano + código normalizado (ignorando acentos/maiúsculas) e mesclamos
     // qualquer grupo com mais de um arquivo.
     desduplicar_turmas_por_codigo(&temporario.join("persistidos"))?;
+    let _ = completar_bimestres_remanejados_na_pasta(&temporario.join("persistidos"));
 
     // Une as fotos locais às recebidas (sem perder fotos só locais).
     mesclar_diretorio_fotos(&destino.join("fotos"), &temporario.join("fotos"))?;
@@ -1790,6 +1791,9 @@ pub(crate) fn limpar_residuos_sincronizacao() -> io::Result<()> {
     // achou "nada novo"), as duas ficavam na listagem para sempre, e a
     // importação de mapões caía numa delas. Na abertura, une as que houver.
     let _ = desduplicar_turmas_por_codigo(&dados.join("persistidos"));
+    // Aluno remanejado de turma: traz para a turma nova os bimestres que
+    // ficaram na cópia inativa da turma antiga (ver remanejamento.rs).
+    let _ = completar_bimestres_remanejados_na_pasta(&dados.join("persistidos"));
     if dados.is_dir() {
         for entrada in fs::read_dir(&dados)? {
             let caminho = entrada?.path();

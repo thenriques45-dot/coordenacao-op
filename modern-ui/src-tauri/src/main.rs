@@ -27,6 +27,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod remanejamento;
 mod saresp;
 mod sheets_api;
 mod shell;
@@ -42,7 +43,7 @@ mod whatsapp_api;
 pub(crate) use {
     aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, grupo_google::*, ia::*, importador_alunos::*,
-    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, saresp::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, remanejamento::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 

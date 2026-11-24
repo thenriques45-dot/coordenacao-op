@@ -187,6 +187,12 @@ pub(crate) fn aplicar_mapoes_lote(input: ImportacaoMapoesInput) -> Result<Result
             escrever_json_atomicamente(caminho, &texto).map_err(|err| err.to_string())?;
         }
     }
+    // Remanejado que acabou de receber o primeiro mapão na turma nova (ou
+    // cuja turma nova ainda não tinha bimestres anteriores): completa com os
+    // bimestres da turma antiga (ver remanejamento.rs).
+    if !turmas_alteradas.is_empty() {
+        let _ = completar_bimestres_remanejados_dados();
+    }
 
     Ok(ResultadoImportacaoMapoes {
         arquivos,

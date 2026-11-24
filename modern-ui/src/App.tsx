@@ -283,6 +283,7 @@ type AlunoApi = {
   responsaveis: ResponsavelAluno[];
   diagnostico_aprendizagem: DiagnosticoAprendizagemApi | null;
   disciplinas: DisciplinaApi[];
+  bimestres_outra_turma?: Record<string, string>;
 };
 
 type EncaminhamentosBimestreApi = {
@@ -1349,6 +1350,7 @@ export function App() {
       atendimentos: aluno.atendimentos ?? [],
       responsaveis: aluno.responsaveis ?? [],
       diagnosticoAprendizagem: aluno.diagnostico_aprendizagem,
+      bimestresOutraTurma: aluno.bimestres_outra_turma ?? {},
       disciplinas: aluno.disciplinas.map((disciplina) => ({
         nome: disciplina.nome,
         mediaOriginal: disciplina.media_original,
