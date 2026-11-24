@@ -503,7 +503,50 @@ const NOVIDADES_4_7_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_8_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Conselho",
+      titulo: "Conselho final: 4º bimestre e 5º conceito juntos",
+      corpo:
+        "Ao abrir o conselho de uma turma no 4º bimestre, a tela vira o Conselho final. Cada aluno mostra as 4 médias, o 5º conceito, as faltas e a frequência de cada disciplina, com os botões Aprovado, Aprovado pelo Conselho e Retido. Só o 4º bimestre e o 5º conceito podem ser alterados. Perfil da turma, alunos destaque e encaminhamentos continuam na mesma tela.",
+      destaques: [
+        { icone: "grade", titulo: "Resultado calculado", texto: "5 ou mais retidas é Retido; qualquer Aprovado pelo Conselho dá Aprovado pelo Conselho; no Ensino Médio, até 3 retidas é Aprovado Parcialmente (disciplina de expansão não entra na parcial)." },
+        { icone: "aluno", titulo: "Casos para a coordenação decidir", texto: "4 retidas no Ensino Médio ou retidas no fundamental pedem \"Retornar ao conselho\" ou \"Reter aluno\". Mais de 3 aprovações pelo conselho e reter com menos de 5 retidas pedem confirmação. Frequência abaixo de 75% aparece em destaque." },
+        { icone: "documento", titulo: "Duas atas e o relatório aos professores", texto: "A ata do 4º bimestre, como sempre, e a ata de resultado final com todos os alunos (ap, apc, app, rt e o resultado por extenso). O relatório lista as notas a alterar na SED e as compensações de ausência obrigatórias." },
+      ],
+      irPara: { rotulo: "Abrir Conselho", tela: "conselhos" },
+    },
+    {
+      area: "Importar dados › Importar mapões",
+      titulo: "Mapão do 5º conceito pelo importador de sempre",
+      corpo:
+        "No campo Bimestre do importador de mapões há a opção \"5º conceito (conselho final)\". Ela lê o mapão \"Conselho Final (QUINTO CONCEITO)\" da SED nas três versões (com nome, com número ou com os dois) e leva as notas para o Conselho final.",
+      destaques: [
+        { icone: "filtro", titulo: "Sem trocar por engano", texto: "Se um mapão de 5º conceito for escolhido como bimestre, ou o contrário, a prévia avisa e nada é gravado." },
+      ],
+      irPara: { rotulo: "Abrir Importar dados", tela: "importar-dados" },
+    },
+    {
+      area: "Conselho",
+      titulo: "Pré-conselho",
+      corpo:
+        "O novo botão \"Pré-conselho\", no cartão de cada turma em Conselho, lista sozinho os alunos com média global do ano abaixo de 5, com a média e quantas disciplinas ficaram abaixo de 5 em cada bimestre. Dá para adicionar ou retirar alunos, indicar caso de aprovação ou de reprovação com observação e abrir todas as notas do aluno.",
+      destaques: [
+        { icone: "documento", titulo: "Ata interna", texto: "Para imprimir ou salvar em PDF, marcada \"DOCUMENTO INTERNO — USO EXCLUSIVO DOS PROFESSORES\", com as medidas pedagógicas sugeridas para cada aluno." },
+        { icone: "agenda", titulo: "Modo reunião", texto: "Tela cheia e cronômetro, como no Conselho. O tempo do pré-conselho fica separado do tempo do conselho." },
+      ],
+      irPara: { rotulo: "Abrir Conselho", tela: "conselhos" },
+    },
+  ],
+  outrasMudancas: [
+    "Aluno remanejado de turma (ex.: do 9º A para o 9º E): as notas dos bimestres cursados na turma antiga passam para a turma nova (boletim, ficha, estatísticas e conselho), e a ficha avisa de qual turma elas vieram.",
+    "Contatar famílias: \"Atendem às condições\" mostrava 0 quando ninguém tinha telefone do responsável. Agora conta todos, com \"X com telefone · Y sem telefone\", e as colunas da fila seguem os critérios escolhidos (ex.: % de Expansões).",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.8.0": NOVIDADES_4_8_0,
   "4.7.3": {
     ...NOVIDADES_4_7_0,
     outrasMudancas: [
