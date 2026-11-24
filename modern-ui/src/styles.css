@@ -2760,6 +2760,12 @@ h3 {
   overflow: auto;
 }
 
+.student-transfer-note {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .student-subjects-table {
   border-collapse: collapse;
   width: 100%;

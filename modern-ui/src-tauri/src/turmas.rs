@@ -2064,6 +2064,15 @@ pub(crate) fn detalhar_turma(turma: TurmaArquivo, bimestre: &str) -> TurmaDetalh
             responsaveis: extrair_responsaveis_aluno(&info),
             diagnostico_aprendizagem: extrair_diagnostico_aprendizagem(&info),
             disciplinas: extrair_disciplinas(&info, &bimestre, &carga_horaria),
+            bimestres_outra_turma: info
+                .get(CAMPO_BIMESTRES_OUTRA_TURMA)
+                .and_then(Value::as_object)
+                .map(|mapa| {
+                    mapa.iter()
+                        .filter_map(|(b, t)| Some((b.clone(), t.as_str()?.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default(),
         });
     }
 
