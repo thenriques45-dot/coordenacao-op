@@ -36,7 +36,8 @@ import { CalendarioGestao } from "./features/CalendarManagement";
 import { Turmas } from "./features/ClassList";
 import { GestaoTurma } from "./features/ClassManagement";
 import { TelaAtendimentos } from "./features/Atendimentos";
-import { Council, SelecaoConselho } from "./features/Council";
+import { Council, SelecaoConselho, rotuloTurma } from "./features/Council";
+import { PreConselho } from "./features/preConselho/PreConselho";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
@@ -62,7 +63,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -1946,7 +1947,7 @@ export function App() {
             badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
           />
           <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-aluno-presente" || tela === "importar-saresp" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
-          <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho"} onClick={() => navegarPara("conselhos")} />
+          <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho" || tela === "pre-conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
@@ -2083,7 +2084,23 @@ export function App() {
           <SelecaoConselho turmas={turmas} erroTurmas={erroTurmas} turmaConfig={turmaConfig} bimestreSelecionado={bimestreSelecionado} aoAtualizarDados={recarregarDadosTurmas} onConfigSalva={aplicarConfigCarregada} onSelecionar={(turma) => {
             setTurmaSelecionada(turma);
             navegarPara("conselho");
+          }} onPreConselho={(turma) => {
+            setTurmaSelecionada(turma);
+            navegarPara("pre-conselho");
           }} />
+        )}
+        {tela === "pre-conselho" && (
+          <PreConselho
+            turma={turmaSelecionada}
+            turmaLabel={turmaSelecionada ? rotuloTurma(turmaSelecionada) : "Turma"}
+            alunos={turmaDetalhe ? alunosConselho : []}
+            bimestreSelecionado={bimestreSelecionado}
+            setBimestreSelecionado={(v) => mudarBimestre(v, true)}
+            bimestreDados={turmaDetalhe?.bimestre ?? null}
+            erro={erroConselho}
+            onVoltar={() => navegarPara("conselhos")}
+            onAbrirConselho={() => navegarPara("conselho")}
+          />
         )}
         {tela === "conselho" && (
           <Council

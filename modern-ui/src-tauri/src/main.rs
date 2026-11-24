@@ -253,6 +253,8 @@ fn main() {
             config::carregar_alunos_destaque,
             diagnostico_turma::carregar_indicadores_diagnostico_turma,
             config::salvar_alunos_destaque,
+            config::carregar_pre_conselho,
+            config::salvar_pre_conselho,
             config::resolver_bimestre_atual,
             config::fixar_bimestre_pin,
             sync::publicar_estado_sincronizacao,

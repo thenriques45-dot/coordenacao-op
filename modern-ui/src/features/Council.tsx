@@ -1111,6 +1111,7 @@ export function SelecaoConselho({
   turmas,
   erroTurmas,
   onSelecionar,
+  onPreConselho,
   turmaConfig,
   bimestreSelecionado,
   aoAtualizarDados,
@@ -1119,6 +1120,7 @@ export function SelecaoConselho({
   turmas: TurmaResumo[];
   erroTurmas: string;
   onSelecionar: (turma: TurmaResumo) => void;
+  onPreConselho: (turma: TurmaResumo) => void;
   turmaConfig: { lider_ativo: boolean; lider_rotulo: string; elegivel_ativo: boolean; elegivel_rotulo: string };
   bimestreSelecionado: string;
   aoAtualizarDados: () => void;
@@ -1227,9 +1229,14 @@ export function SelecaoConselho({
               )}
             </div>
 
-            <button className="details-action" onClick={() => onSelecionar(turma)}>
-              Abrir conselho
-            </button>
+            <div className="conselho-card-acoes">
+              <button className="details-action secondary" onClick={() => onPreConselho(turma)}>
+                Pré-conselho
+              </button>
+              <button className="details-action" onClick={() => onSelecionar(turma)}>
+                Abrir conselho
+              </button>
+            </div>
           </article>
         ))}
 
@@ -1747,7 +1754,7 @@ function rotuloSerie(valor?: string | null) {
     .replace(/\bano\b/gi, "Ano");
 }
 
-function rotuloTurma(turma: TurmaResumo) {
+export function rotuloTurma(turma: Pick<TurmaResumo, "serie" | "codigo">) {
   const serie = rotuloSerie(turma.serie);
   const codigo = turma.codigo ?? "";
   if (!serie) return codigo;

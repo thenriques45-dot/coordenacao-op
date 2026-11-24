@@ -1592,7 +1592,7 @@ pub(crate) fn mesclar_arquivo_turma(local: &Value, incoming: &Value) -> Value {
 
     // Destaques e perfil da turma, gravados por bimestre no Conselho.
     if let Some(inc_obj) = incoming.as_object() {
-        for campo in ["alunos_destaque", "perfil_turma"] {
+        for campo in ["alunos_destaque", "perfil_turma", "pre_conselho"] {
             mesclar_bimestres_por_edicao(res_obj, inc_obj, campo);
         }
     }
@@ -2464,6 +2464,26 @@ mod testes {
         assert_eq!(r["perfil_turma"]["2"]["engajamento"], json!("baixo"));
         assert_eq!(r["alunos_destaque"]["3"]["destaque"], json!("ANA"));
         assert_eq!(r["alunos_destaque_editado_em"]["3"], json!("2026-10-27T12:00:00-03:00"));
+    }
+
+    #[test]
+    fn pre_conselho_fica_com_a_edicao_mais_recente() {
+        let local = json!({
+            "codigo": "6A",
+            "pre_conselho": {"4": {"alunos": {"123": {"decisao": "aprovacao"}}}},
+            "pre_conselho_editado_em": {"4": "2026-11-24T10:00:00-03:00"}
+        });
+        let incoming = json!({
+            "codigo": "6A",
+            "pre_conselho": {
+                "4": {"alunos": {"123": {"decisao": "reprovacao"}}},
+                "3": {"alunos": {"456": {"incluido": true}}}
+            },
+            "pre_conselho_editado_em": {"4": "2026-11-24T11:00:00-03:00", "3": "2026-09-01T10:00:00-03:00"}
+        });
+        let r = mesclar_arquivo_turma(&local, &incoming);
+        assert_eq!(r["pre_conselho"]["4"]["alunos"]["123"]["decisao"], json!("reprovacao"));
+        assert_eq!(r["pre_conselho"]["3"]["alunos"]["456"]["incluido"], json!(true));
     }
 
     #[test]
