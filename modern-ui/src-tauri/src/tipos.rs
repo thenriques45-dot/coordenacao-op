@@ -917,6 +917,9 @@ pub(crate) struct DadosMapao {
     // "Expansão" (ex.: "110 - EXPANSÃO NOVO EM") — turma não seriada de
     // itinerário/aprofundamento. Ver ler_mapao_bytes.
     pub(crate) eh_expansao: bool,
+    // true quando "Tipo Fechamento:" diz "Conselho Final (QUINTO CONCEITO)":
+    // mapão do 5º conceito, só com a coluna M (sem faltas nem Fre An).
+    pub(crate) eh_quinto_conceito: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
