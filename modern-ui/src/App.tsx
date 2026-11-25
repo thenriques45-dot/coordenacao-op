@@ -1,5 +1,6 @@
 import {
   AlarmClock,
+  StickyNote,
   BookMarked,
   BookOpen,
   CalendarDays,
@@ -42,6 +43,7 @@ import { PreConselho } from "./features/preConselho/PreConselho";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
+import { QuadroMagnetico } from "./features/quadroMagnetico/QuadroMagnetico";
 import { ImportarCalendarioEscolar } from "./features/calendarioEscolar/ImportarCalendario";
 import { TelaLembretes } from "./features/lembretes/Lembretes";
 import { registrarConclusao, type DestinoLembrete } from "./features/lembretesDados";
@@ -68,7 +70,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "importar-calendario" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "importar-calendario" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "quadro-magnetico" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -553,6 +555,31 @@ const NOVIDADES_4_8_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_10_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Quadro de Gestão › Quadro magnético",
+      titulo: "Seu quadro magnético",
+      corpo:
+        "Um mural só seu para post-its, listas de tarefas e arquivos importantes, como um quadro de cortiça de verdade. Arraste os cartões para onde quiser: eles levantam ao pegar, deslizam se você jogar e assentam ao soltar. Mude o tamanho pelo canto e a cor pela barrinha que aparece ao clicar.",
+      destaques: [
+        { icone: "documento", titulo: "Arquivos no quadro", texto: "Use \"Arquivo\" ou arraste do computador para o quadro. O app guarda uma cópia (o original fica onde estava); imagens aparecem em miniatura. Ao apagar do quadro, a cópia também sai do computador, sempre com aviso antes." },
+        { icone: "equipe", titulo: "Linhas de investigação", texto: "Arraste a bolinha da direita de um cartão até outro para ligar os dois com um barbante. Clique na linha para escrever algo nela, mudar a cor ou tirar." },
+        { icone: "config", titulo: "Do seu jeito", texto: "Em \"Aparência\", troque o fundo por cortiça e prenda os cartões com tachinhas ou ímãs. Busca, zoom, \"Arrumar\" e a gaveta de arquivados ajudam quando o quadro enche." },
+      ],
+      irPara: { rotulo: "Abrir o quadro", tela: "quadro-magnetico" },
+    },
+    {
+      area: "Privacidade e backup",
+      titulo: "Só você vê o seu quadro",
+      corpo:
+        "O quadro magnético não vai para os colegas pela sincronização do grupo: cada coordenador organiza o seu. Ele fica numa pasta própria do app e entra no backup, junto com o resto dos seus dados.",
+      destaques: [],
+    },
+  ],
+  outrasMudancas: [],
+};
+
 const NOVIDADES_4_9_0: NovidadesVersao = {
   paginas: [
     {
@@ -613,6 +640,7 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
 };
 
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.10.0": NOVIDADES_4_10_0,
   "4.9.0": NOVIDADES_4_9_0,
   "4.8.0": NOVIDADES_4_8_0,
   "4.7.3": {
@@ -2086,7 +2114,7 @@ export function App() {
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
-              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" || tela === "lembretes" ? "active" : ""}`}
+              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" || tela === "lembretes" || tela === "quadro-magnetico" ? "active" : ""}`}
               type="button"
               onClick={() => setGestaoMenuAberto((atual) => !atual)}
             >
@@ -2099,6 +2127,7 @@ export function App() {
                 <NavButton icon={<ClipboardList size={17} />} label="Quadro Kanban" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
                 <NavButton icon={<CalendarDays size={17} />} label="Calendário" active={tela === "calendario"} onClick={() => navegarPara("calendario")} />
                 <NavButton icon={<AlarmClock size={17} />} label="Lembretes" active={tela === "lembretes"} onClick={() => navegarPara("lembretes")} />
+                <NavButton icon={<StickyNote size={17} />} label="Quadro magnético" active={tela === "quadro-magnetico"} onClick={() => navegarPara("quadro-magnetico")} />
               </div>
             )}
           </div>
@@ -2435,6 +2464,7 @@ export function App() {
           />
         )}
         {tela === "lembretes" && <TelaLembretes />}
+        {tela === "quadro-magnetico" && <QuadroMagnetico />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

@@ -72,6 +72,14 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="4.10.0" date="2026-11-25">
+      <description>
+        <ul>
+          <li>New personal pinboard ("quadro magnético") with sticky notes, checklists and files, physical-feeling drag animations, resizing and strings linking items</li>
+          <li>Optional cork background and pins or magnets; the board stays on your computer and is included in backups</li>
+        </ul>
+      </description>
+    </release>
     <release version="4.9.0" date="2026-11-25">
       <description>
         <ul>

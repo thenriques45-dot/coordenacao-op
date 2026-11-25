@@ -1,5 +1,17 @@
 # Changelog
 
+## v4.10.0 - Quadro magnético
+
+### Quadro magnético
+- **Nova tela Quadro de Gestão › Quadro magnético:** mural pessoal com post-its (título, texto, etiqueta e cor), listas com caixinhas de feito e arquivos. Cartões ficam em qualquer lugar de um quadro grande, com rolagem, zoom (botões ou Ctrl + roda), "Mostrar tudo" e um minimapa.
+- **Movimento "físico":** ao pegar, o cartão levanta (sombra maior) e inclina conforme o movimento; jogado rápido, desliza um pouco antes de parar; ao soltar, assenta com um pequeno quique. Cartão solto quase todo por cima de outro empurra o de baixo para o lado; sobreposição parcial é permitida, como num quadro real, e o cartão clicado vem para a frente. Cartões novos caem no quadro num lugar livre; apagados saem amassando (com "Desfazer"). "Arrumar" organiza tudo em fileiras.
+- **Redimensionar** pelo canto inferior direito (mínimo 150×110, máximo 640×640). **Fixar** impede mover sem querer.
+- **Linhas de investigação:** arrastando a bolinha da direita de um cartão até outro, um barbante liga os dois e acompanha os cartões. Clicando na linha: texto no meio (ex.: "mesma família"), cor ou tirar.
+- **Arquivos:** pelo botão "Arquivo" ou arrastando do computador para o quadro. O app guarda uma cópia em `pessoal/quadro_magnetico/arquivos` (o original não é tocado); imagens aparecem em miniatura; "Abrir" e "Mostrar na pasta". Apagar um arquivo do quadro apaga também essa cópia do computador, depois de um aviso que oferece "Arquivar" como alternativa.
+- **Aparência:** fundo pontilhado (padrão) ou cortiça; prender com nada (padrão), tachinhas ou ímãs. Com cortiça ou prendedor, os cartões ficam levemente tortos como papel, e o barbante sai da tachinha/ímã.
+- **Arquivados**, **busca** (realça o que combina e apaga o resto) e teclas Delete/Esc.
+- **Pessoal e no backup:** o quadro fica em `pessoal/`, fora de `dados/`, por isso não vai para o grupo pela sincronização. O backup passa a incluir `pessoal/`; restaurar um backup antigo (sem essa pasta) não apaga o quadro.
+
 ## v4.9.0 - Lembretes, central de avisos e calendário escolar
 
 ### Lembretes
