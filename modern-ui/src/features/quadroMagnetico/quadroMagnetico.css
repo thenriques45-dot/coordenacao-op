@@ -26,13 +26,6 @@
   max-width: 560px;
 }
 
-.qm-ferramentas {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .qm-busca {
   align-items: center;
   background: var(--surface);
@@ -168,6 +161,94 @@
   border: 0;
   color: inherit;
   cursor: pointer;
+}
+
+/* barra de ferramentas (flutua à esquerda do quadro) */
+
+.qm-area {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.qm-barra {
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  left: 14px;
+  padding: 6px;
+  position: absolute;
+  top: 14px;
+  z-index: 40;
+}
+
+.qm-area:has(.fundo-cortica) .qm-barra {
+  left: 24px;
+  top: 24px;
+}
+
+.qm-ferramenta {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-body);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  gap: 3px;
+  padding: 8px 4px 6px;
+  transition: background 0.15s, transform 0.15s;
+  width: 68px;
+}
+
+.qm-ferramenta span {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.qm-ferramenta:hover {
+  background: var(--surface-elevated);
+  transform: translateY(-1px);
+}
+
+.qm-ferramenta:active {
+  transform: scale(0.95);
+}
+
+.qm-ferramenta.ativa {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.qm-barra-divisor {
+  background: var(--border);
+  height: 1px;
+  margin: 4px 6px;
+}
+
+.qm-menu.qm-menu-lateral {
+  left: calc(100% + 14px);
+  right: auto;
+  top: 0;
+}
+
+.qm-menu.qm-menu-busca {
+  padding: 8px;
+  width: auto;
+}
+
+.qm-menu-busca .qm-busca input {
+  width: 220px;
 }
 
 /* área rolável e lona */
@@ -447,6 +528,77 @@
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* texto livre: sem papel, só a letra */
+
+.qm-item.tipo-texto .qm-papel {
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.qm-item.tipo-texto:hover .qm-papel {
+  border-color: rgba(29, 36, 51, 0.25);
+}
+
+.qm-item.tipo-texto.selecionado .qm-papel {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.qm-item.tipo-texto.arrastando .qm-papel {
+  box-shadow: none;
+}
+
+.qm-texto-livre {
+  background: transparent;
+  border: 0;
+  box-sizing: border-box;
+  color: var(--tinta);
+  display: block;
+  font: inherit;
+  font-size: var(--fonte);
+  font-weight: 700;
+  height: 100%;
+  line-height: 1.2;
+  margin: 0;
+  outline: none;
+  overflow: hidden;
+  padding: 4px 8px;
+  resize: none;
+  white-space: pre-wrap;
+  width: 100%;
+  word-break: break-word;
+}
+
+textarea.qm-texto-livre {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  cursor: text;
+  user-select: text;
+}
+
+.qm-texto-livre.vazio {
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.5;
+}
+
+.qm-rolagem.fundo-cortica .qm-texto-livre {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.qm-acoes > button.qm-fonte {
+  font-size: 14px;
+  font-weight: 800;
+  width: 32px;
+}
+
+.qm-fonte small {
+  font-size: 11px;
 }
 
 .qm-placeholder {

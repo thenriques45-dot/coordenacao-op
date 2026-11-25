@@ -561,7 +561,7 @@ const NOVIDADES_4_10_0: NovidadesVersao = {
       area: "Quadro de Gestão › Quadro magnético",
       titulo: "Seu quadro magnético",
       corpo:
-        "Um mural só seu para post-its, listas de tarefas e arquivos importantes, como um quadro de cortiça de verdade. Arraste os cartões para onde quiser: eles levantam ao pegar, deslizam se você jogar e assentam ao soltar. Mude o tamanho pelo canto e a cor pela barrinha que aparece ao clicar.",
+        "Um mural só seu para post-its, listas de tarefas, textos e arquivos importantes, como um quadro de cortiça de verdade. A barra de ferramentas à esquerda cria cada coisa; dois cliques num espaço vazio escrevem um texto ali mesmo. Arraste os cartões para onde quiser: eles levantam ao pegar, deslizam se você jogar e assentam ao soltar. Mude o tamanho pelo canto e a cor pela barrinha que aparece ao clicar.",
       destaques: [
         { icone: "documento", titulo: "Arquivos no quadro", texto: "Use \"Arquivo\" ou arraste do computador para o quadro. O app guarda uma cópia (o original fica onde estava); imagens aparecem em miniatura. Ao apagar do quadro, a cópia também sai do computador, sempre com aviso antes." },
         { icone: "equipe", titulo: "Linhas de investigação", texto: "Arraste a bolinha da direita de um cartão até outro para ligar os dois com um barbante. Clique na linha para escrever algo nela, mudar a cor ou tirar." },

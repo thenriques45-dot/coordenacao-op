@@ -18,6 +18,7 @@ import {
   Plus,
   Search,
   StickyNote,
+  Type,
   Trash2,
   X,
 } from "lucide-react";
@@ -25,6 +26,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { invokeApp, tauriDisponivel } from "../appBridge";
 import {
   ALTURA_QUADRO,
+  CORES_TEXTO,
+  FONTE_TEXTO,
+  TAMANHO_MIN_TEXTO,
   arrumarEmGrade,
   carregarQuadro,
   CORES_LINHA,
@@ -63,6 +67,10 @@ function fundoDaCor(cor: CorQuadro) {
   return CORES_QUADRO.find((item) => item.cor === cor)?.fundo ?? "#fff3a3";
 }
 
+function corNoMinimapa(item: ItemQuadro) {
+  return item.tipo === "texto" ? CORES_TEXTO[item.cor].tinta : fundoDaCor(item.cor);
+}
+
 function textoDoItem(item: ItemQuadro) {
   return [item.titulo, item.texto, item.etiqueta, item.arquivo?.nome ?? "", ...(item.itens ?? []).map((i) => i.texto)].join(" ").toLowerCase();
 }
@@ -97,6 +105,7 @@ export function QuadroMagnetico() {
   const [busca, setBusca] = useState("");
   const [verArquivados, setVerArquivados] = useState(false);
   const [verAparencia, setVerAparencia] = useState(false);
+  const [verBusca, setVerBusca] = useState(false);
   const [arrastando, setArrastando] = useState<{ id: string; inclinacao: number } | null>(null);
   const [assentando, setAssentando] = useState<Set<string>>(new Set());
   const [chegando, setChegando] = useState<Set<string>>(new Set());
@@ -137,6 +146,19 @@ export function QuadroMagnetico() {
     }, 400);
     return () => window.clearTimeout(espera);
   }, [quadro, carregado]);
+
+  // Texto livre que ficou em branco some sozinho ao sair da edição.
+  const editandoAntes = useRef<string | null>(null);
+  useEffect(() => {
+    const anterior = editandoAntes.current;
+    editandoAntes.current = editando;
+    if (!anterior || anterior === editando) return;
+    setQuadro((q) => {
+      const item = q.itens.find((i) => i.id === anterior);
+      if (!item || item.tipo !== "texto" || item.texto.trim()) return q;
+      return { ...q, itens: q.itens.filter((i) => i.id !== anterior), linhas: q.linhas.filter((l) => l.de !== anterior && l.para !== anterior) };
+    });
+  }, [editando]);
 
   // Miniaturas das imagens.
   useEffect(() => {
@@ -203,20 +225,23 @@ export function QuadroMagnetico() {
   // ── criar itens ─────────────────────────────────────────────────────────
   function criarItem(tipo: ItemQuadro["tipo"], extra: Partial<ItemQuadro> = {}, posicao?: Ponto) {
     const agora = new Date().toISOString();
-    const tamanho = tipo === "arquivo" ? { w: 220, h: 210 } : tipo === "lista" ? { w: 240, h: 220 } : { w: 210, h: 190 };
+    const tamanho =
+      tipo === "arquivo" ? { w: 220, h: 210 } : tipo === "lista" ? { w: 240, h: 220 } : tipo === "texto" ? { w: 280, h: 64 } : { w: 210, h: 190 };
     const centro = posicao ?? centroVisivel();
     const desvio = posicao ? { x: 0, y: 0 } : { x: Math.random() * 80 - 40, y: Math.random() * 60 - 30 };
-    const lugar = lugarLivre(
-      { x: centro.x - tamanho.w / 2 + desvio.x, y: centro.y - tamanho.h / 2 + desvio.y, ...tamanho },
-      quadroRef.current.itens.filter((outro) => !outro.arquivado),
-    );
+    const desejado = { x: centro.x - tamanho.w / 2 + desvio.x, y: centro.y - tamanho.h / 2 + desvio.y, ...tamanho };
+    // Texto criado com dois cliques fica exatamente onde foi clicado.
+    const lugar =
+      tipo === "texto" && posicao
+        ? limitarAoQuadro({ ...desejado, x: posicao.x - 8, y: posicao.y - tamanho.h / 2 })
+        : lugarLivre(desejado, quadroRef.current.itens.filter((outro) => !outro.arquivado));
     const item: ItemQuadro = {
       id: novoId("item"),
       tipo,
       ...tamanho,
       ...lugar,
       z: maiorZ() + 1,
-      giro: giroAleatorio(),
+      giro: tipo === "texto" ? 0 : giroAleatorio(),
       cor: tipo === "nota" ? (["amarelo", "rosa", "azul", "verde", "laranja"] as CorQuadro[])[Math.floor(Math.random() * 5)] : "branco",
       titulo: "",
       texto: "",
@@ -233,6 +258,11 @@ export function QuadroMagnetico() {
 
   function novoPostIt() {
     const item = criarItem("nota");
+    setEditando(item.id);
+  }
+
+  function novoTexto(posicao?: Ponto) {
+    const item = criarItem("texto", { fonte: FONTE_TEXTO.padrao }, posicao);
     setEditando(item.id);
   }
 
@@ -448,8 +478,10 @@ export function QuadroMagnetico() {
     const redim = redimensao.current;
     if (redim && redim.ponteiro === evento.pointerId) {
       const z = quadroRef.current.zoom;
-      const w = Math.max(TAMANHO_MIN.w, Math.min(TAMANHO_MAX.w, redim.w + (evento.clientX - redim.inicioX) / z));
-      const h = Math.max(TAMANHO_MIN.h, Math.min(TAMANHO_MAX.h, redim.h + (evento.clientY - redim.inicioY) / z));
+      const ehTexto = quadroRef.current.itens.find((i) => i.id === redim.id)?.tipo === "texto";
+      const minimo = ehTexto ? TAMANHO_MIN_TEXTO : TAMANHO_MIN;
+      const w = Math.max(minimo.w, Math.min(TAMANHO_MAX.w * (ehTexto ? 2 : 1), redim.w + (evento.clientX - redim.inicioX) / z));
+      const h = Math.max(minimo.h, Math.min(TAMANHO_MAX.h, redim.h + (evento.clientY - redim.inicioY) / z));
       setQuadro((q) => ({ ...q, itens: q.itens.map((i) => (i.id === redim.id ? { ...i, w: Math.round(w), h: Math.round(h) } : i)) }));
       return;
     }
@@ -697,33 +729,82 @@ export function QuadroMagnetico() {
         <div>
           <span className="eyebrow">Quadro de Gestão</span>
           <h1>Quadro magnético</h1>
-          <p>Seu mural pessoal de recados, listas e arquivos importantes. Só você vê: ele não vai para o grupo, mas entra no seu backup.</p>
+          <p>Seu mural pessoal. Só você vê: não vai para o grupo, mas entra no seu backup.</p>
         </div>
-        <div className="qm-ferramentas">
-          <button type="button" className="primary-action" onClick={novoPostIt}>
-            <StickyNote size={17} /> Post-it
+      </header>
+
+      {erro && (
+        <div className="notice error qm-erro">
+          {erro}
+          <button type="button" onClick={() => setErro("")} aria-label="Fechar">
+            <X size={14} />
           </button>
-          <button type="button" className="secondary-action" onClick={novaLista}>
-            <ListChecks size={17} /> Lista
+        </div>
+      )}
+
+      <div className="qm-area">
+      <nav className="qm-barra" aria-label="Ferramentas do quadro" onPointerDown={(e) => e.stopPropagation()}>
+        <button type="button" className="qm-ferramenta" onClick={novoPostIt} title="Novo post-it">
+          <StickyNote size={20} />
+          <span>Post-it</span>
+        </button>
+        <button type="button" className="qm-ferramenta" onClick={novaLista} title="Nova lista de tarefas">
+          <ListChecks size={20} />
+          <span>Lista</span>
+        </button>
+        <button type="button" className="qm-ferramenta" onClick={() => novoTexto()} title="Texto livre no quadro (ou dois cliques num espaço vazio)">
+          <Type size={20} />
+          <span>Texto</span>
+        </button>
+        <button type="button" className="qm-ferramenta" onClick={() => void escolherArquivos()} title="Colocar um arquivo (ou arraste do computador)">
+          <Paperclip size={20} />
+          <span>Arquivo</span>
+        </button>
+        <i className="qm-barra-divisor" />
+        <div className="qm-menu-ancora">
+          <button
+            type="button"
+            className={`qm-ferramenta ${verBusca || busca ? "ativa" : ""}`}
+            onClick={() => {
+              setVerBusca((v) => !v);
+              setVerAparencia(false);
+            }}
+            title="Buscar no quadro"
+            aria-expanded={verBusca}
+          >
+            <Search size={20} />
+            <span>Buscar</span>
           </button>
-          <button type="button" className="secondary-action" onClick={() => void escolherArquivos()}>
-            <Paperclip size={17} /> Arquivo
+          {verBusca && (
+            <div className="qm-menu qm-menu-lateral qm-menu-busca">
+              <label className="qm-busca">
+                <Search size={15} />
+                <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setVerBusca(false)} placeholder="Buscar no quadro" />
+                {busca && (
+                  <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca">
+                    <X size={14} />
+                  </button>
+                )}
+              </label>
+            </div>
+          )}
+        </div>
+        <div className="qm-menu-ancora">
+          <button
+            type="button"
+            className={`qm-ferramenta ${verAparencia ? "ativa" : ""}`}
+            onClick={() => {
+              setVerAparencia((v) => !v);
+              setVerBusca(false);
+            }}
+            title="Fundo, tachinhas e ímãs"
+            aria-expanded={verAparencia}
+          >
+            <Palette size={20} />
+            <span>Aparência</span>
           </button>
-          <label className="qm-busca">
-            <Search size={15} />
-            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar no quadro" />
-            {busca && (
-              <button type="button" onClick={() => setBusca("")} aria-label="Limpar busca">
-                <X size={14} />
-              </button>
-            )}
-          </label>
-          <div className="qm-menu-ancora">
-            <button type="button" className="secondary-action" onClick={() => setVerAparencia((v) => !v)} aria-expanded={verAparencia}>
-              <Palette size={17} /> Aparência
-            </button>
-            {verAparencia && (
-              <div className="qm-menu" onPointerDown={(e) => e.stopPropagation()}>
+          {verAparencia && (
+              <div className="qm-menu qm-menu-lateral" onPointerDown={(e) => e.stopPropagation()}>
                 <strong>Fundo</strong>
                 <div className="qm-opcoes">
                   {(
@@ -752,20 +833,9 @@ export function QuadroMagnetico() {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+          )}
         </div>
-      </header>
-
-      {erro && (
-        <div className="notice error qm-erro">
-          {erro}
-          <button type="button" onClick={() => setErro("")} aria-label="Fechar">
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
+      </nav>
       <div
         ref={rolagem}
         className={`qm-rolagem fundo-${quadro.aparencia.fundo} ${prendedor !== "nenhum" ? "com-prendedor" : ""} ${arquivoSobre ? "arquivo-sobre" : ""}`}
@@ -776,6 +846,12 @@ export function QuadroMagnetico() {
             setLinhaSelecionada(null);
             setEditando(null);
             setVerAparencia(false);
+            setVerBusca(false);
+          }
+        }}
+        onDoubleClick={(e) => {
+          if (e.target === e.currentTarget || (e.target as HTMLElement).classList.contains("qm-lona")) {
+            novoTexto(pontoNoQuadro(e.clientX, e.clientY));
           }
         }}
       >
@@ -812,6 +888,8 @@ export function QuadroMagnetico() {
                       zIndex: emArrasto ? 100000 : item.z,
                       "--giro": `${inclinacao}deg`,
                       "--fundo": fundoDaCor(item.cor),
+                      "--tinta": CORES_TEXTO[item.cor].tinta,
+                      "--fonte": `${item.fonte ?? FONTE_TEXTO.padrao}px`,
                       "--prendedor": corDoPrendedor(item.id),
                     } as CSSProperties
                   }
@@ -823,7 +901,7 @@ export function QuadroMagnetico() {
                   }}
                 >
                   <div className="qm-papel">
-                    {prendedor !== "nenhum" && <span className={`qm-prendedor ${prendedor}`} />}
+                    {prendedor !== "nenhum" && item.tipo !== "texto" && <span className={`qm-prendedor ${prendedor}`} />}
                     {item.fixado && prendedor === "nenhum" && <Pin className="qm-alfinete" size={15} />}
                     <ConteudoItem
                       item={item}
@@ -842,14 +920,34 @@ export function QuadroMagnetico() {
                           <Pencil size={14} />
                         </button>
                       )}
+                      {item.tipo === "texto" && (
+                        <>
+                          <button
+                            type="button"
+                            title="Letra menor"
+                            className="qm-fonte"
+                            onClick={() => atualizarItem(item.id, { fonte: Math.max(FONTE_TEXTO.min, (item.fonte ?? FONTE_TEXTO.padrao) - 4) })}
+                          >
+                            A<small>−</small>
+                          </button>
+                          <button
+                            type="button"
+                            title="Letra maior"
+                            className="qm-fonte"
+                            onClick={() => atualizarItem(item.id, { fonte: Math.min(FONTE_TEXTO.max, (item.fonte ?? FONTE_TEXTO.padrao) + 4) })}
+                          >
+                            A<small>+</small>
+                          </button>
+                        </>
+                      )}
                       <span className="qm-cores">
                         {CORES_QUADRO.map((cor) => (
                           <button
                             key={cor.cor}
                             type="button"
-                            title={cor.nome}
+                            title={item.tipo === "texto" ? CORES_TEXTO[cor.cor].nome : cor.nome}
                             className={item.cor === cor.cor ? "ativa" : ""}
-                            style={{ background: cor.fundo }}
+                            style={{ background: item.tipo === "texto" ? CORES_TEXTO[cor.cor].tinta : cor.fundo }}
                             onClick={() => atualizarItem(item.id, { cor: cor.cor })}
                           />
                         ))}
@@ -930,9 +1028,10 @@ export function QuadroMagnetico() {
           <div className="qm-vazio">
             <StickyNote size={30} />
             <strong>Seu quadro está vazio</strong>
-            <span>Crie um post-it ou uma lista, ou arraste arquivos do computador para cá.</span>
+            <span>Use a barra à esquerda para criar post-its, listas e textos, ou arraste arquivos do computador para cá.</span>
           </div>
         )}
+      </div>
       </div>
 
       <div className="qm-rodape">
@@ -942,7 +1041,7 @@ export function QuadroMagnetico() {
         <button type="button" className="qm-gaveta-botao" onClick={arrumar} title="Organiza os cartões em fileiras">
           <LayoutGrid size={15} /> Arrumar
         </button>
-        <span className="qm-dica">Dica: arraste a bolinha da direita de um cartão até outro para ligar os dois com uma linha.</span>
+        <span className="qm-dica">Dica: dois cliques num espaço vazio escrevem um texto ali. Arraste a bolinha da direita de um cartão até outro para ligar os dois com uma linha.</span>
         <Minimapa itens={visiveis} viewport={viewport} onIr={(ponto) => {
           const caixa = rolagem.current;
           if (!caixa) return;
@@ -990,7 +1089,7 @@ export function QuadroMagnetico() {
 
       {desfazer && (
         <div className="qm-toast">
-          {desfazer.item.tipo === "lista" ? "Lista apagada." : "Post-it apagado."}
+          {desfazer.item.tipo === "lista" ? "Lista apagada." : desfazer.item.tipo === "texto" ? "Texto apagado." : "Post-it apagado."}
           <button type="button" onClick={desfazerApagar}>
             Desfazer
           </button>
@@ -1093,6 +1192,26 @@ function ConteudoItem({
     );
   }
 
+  if (item.tipo === "texto") {
+    return editando ? (
+      <textarea
+        className="qm-texto-livre"
+        autoFocus
+        value={item.texto}
+        placeholder="Escreva aqui…"
+        onChange={(e) => onMudar({ texto: e.target.value })}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={onTerminar}
+        onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) onTerminar();
+        }}
+      />
+    ) : (
+      <div className={`qm-texto-livre ${item.texto ? "" : "vazio"}`}>{item.texto || "Clique duas vezes para escrever"}</div>
+    );
+  }
+
   if (editando) {
     return (
       <div className="qm-edicao" onKeyDown={(e) => e.key === "Escape" && onTerminar()}>
@@ -1172,7 +1291,7 @@ function Minimapa({ itens, viewport, onIr }: { itens: ItemQuadro[]; viewport: { 
       title="Clique para ir até essa parte do quadro"
     >
       {itens.map((item) => (
-        <i key={item.id} style={{ left: item.x * escala, top: item.y * escala, width: Math.max(2, item.w * escala), height: Math.max(2, item.h * escala), background: fundoDaCor(item.cor) }} />
+        <i key={item.id} style={{ left: item.x * escala, top: item.y * escala, width: Math.max(2, item.w * escala), height: Math.max(2, item.h * escala), background: corNoMinimapa(item) }} />
       ))}
       <span
         className="qm-minimapa-vista"

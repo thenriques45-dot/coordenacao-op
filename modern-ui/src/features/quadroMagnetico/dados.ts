@@ -16,6 +16,21 @@ export const CORES_QUADRO: { cor: CorQuadro; fundo: string; nome: string }[] = [
   { cor: "branco", fundo: "#ffffff", nome: "Branco" },
 ];
 
+/** No texto livre a cor vale para a letra: tons escuros que se leem no
+ *  pontilhado e na cortiça. "branco" é o preto (cor padrão do texto). */
+export const CORES_TEXTO: Record<CorQuadro, { tinta: string; nome: string }> = {
+  branco: { tinta: "#1d2433", nome: "Preto" },
+  amarelo: { tinta: "#a16207", nome: "Mostarda" },
+  rosa: { tinta: "#be185d", nome: "Rosa" },
+  azul: { tinta: "#1d4ed8", nome: "Azul" },
+  verde: { tinta: "#15803d", nome: "Verde" },
+  laranja: { tinta: "#c2410c", nome: "Laranja" },
+  lilas: { tinta: "#7e22ce", nome: "Roxo" },
+};
+
+export const FONTE_TEXTO = { min: 14, padrao: 24, max: 72 };
+export const TAMANHO_MIN_TEXTO = { w: 60, h: 32 };
+
 export const CORES_LINHA = ["#d93025", "#1a73e8", "#188038", "#f29900", "#5f6368"];
 
 export type ItemLista = { id: string; texto: string; feito: boolean };
@@ -24,7 +39,7 @@ export type ArquivoNoQuadro = { arquivoId: string; nome: string; tamanho: number
 
 export type ItemQuadro = {
   id: string;
-  tipo: "nota" | "lista" | "arquivo";
+  tipo: "nota" | "lista" | "arquivo" | "texto";
   x: number;
   y: number;
   w: number;
@@ -38,6 +53,8 @@ export type ItemQuadro = {
   etiqueta: string;
   itens?: ItemLista[];
   arquivo?: ArquivoNoQuadro;
+  /** Tamanho da letra do texto livre (px). */
+  fonte?: number;
   fixado?: boolean;
   arquivado?: boolean;
   criadoEm: string;

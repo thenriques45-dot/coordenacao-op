@@ -5,6 +5,8 @@
 ### Quadro magnético
 - **Nova tela Quadro de Gestão › Quadro magnético:** mural pessoal com post-its (título, texto, etiqueta e cor), listas com caixinhas de feito e arquivos. Cartões ficam em qualquer lugar de um quadro grande, com rolagem, zoom (botões ou Ctrl + roda), "Mostrar tudo" e um minimapa.
 - **Movimento "físico":** ao pegar, o cartão levanta (sombra maior) e inclina conforme o movimento; jogado rápido, desliza um pouco antes de parar; ao soltar, assenta com um pequeno quique. Cartão solto quase todo por cima de outro empurra o de baixo para o lado; sobreposição parcial é permitida, como num quadro real, e o cartão clicado vem para a frente. Cartões novos caem no quadro num lugar livre; apagados saem amassando (com "Desfazer"). "Arrumar" organiza tudo em fileiras.
+- **Barra de ferramentas** flutuante à esquerda do quadro: Post-it, Lista, Texto, Arquivo, Buscar e Aparência.
+- **Texto livre:** escrever direto no quadro, sem papel (botão "Texto" ou dois cliques num espaço vazio), com cor da letra e A−/A+ para o tamanho. Texto deixado em branco some sozinho.
 - **Redimensionar** pelo canto inferior direito (mínimo 150×110, máximo 640×640). **Fixar** impede mover sem querer.
 - **Linhas de investigação:** arrastando a bolinha da direita de um cartão até outro, um barbante liga os dois e acompanha os cartões. Clicando na linha: texto no meio (ex.: "mesma família"), cor ou tirar.
 - **Arquivos:** pelo botão "Arquivo" ou arrastando do computador para o quadro. O app guarda uma cópia em `pessoal/quadro_magnetico/arquivos` (o original não é tocado); imagens aparecem em miniatura; "Abrir" e "Mostrar na pasta". Apagar um arquivo do quadro apaga também essa cópia do computador, depois de um aviso que oferece "Arquivar" como alternativa.
