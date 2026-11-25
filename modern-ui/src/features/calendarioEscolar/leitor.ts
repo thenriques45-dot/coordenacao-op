@@ -10,6 +10,8 @@
 //      pela cor (e, nas que têm a mesma cor, pelo tamanho do texto).
 // O "L" preto (dia letivo comum) não é etiqueta e é ignorado.
 
+import { lerBimestres, type DatasBimestre } from "./bimestres";
+
 export type CodigoCalendario =
   | "F"
   | "RE"
@@ -88,6 +90,8 @@ export type LeituraCalendario = {
   /** Quantos dos 24 testes de formato (12 meses × 2) bateram com o ano escolhido. */
   confianca: number;
   etiquetas: EtiquetaLida[];
+  /** Quadro dos bimestres do alto da página, quando deu para ler. */
+  bimestres: DatasBimestre[] | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -420,7 +424,12 @@ export function lerCalendario(paginas: ImagemRgba[], anoSugerido?: number): Leit
       }
     });
   });
-  return { ano, confianca, etiquetas };
+  let bimestres: DatasBimestre[] | null = null;
+  for (const img of paginas) {
+    bimestres = lerBimestres(img, ano);
+    if (bimestres) break;
+  }
+  return { ano, confianca, etiquetas, bimestres };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,8 @@
 import { CalendarDays, Check, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
+import { invokeApp } from "../appBridge";
 import { OPCOES_AVISO_EVENTO } from "../management";
+import type { ConfiguracoesApp } from "../SettingsPage";
 import { agruparPeriodos, TIPOS_CALENDARIO, type LeituraCalendario, type PeriodoCalendario } from "./leitor";
 import { chaveTipo, escolhasPadrao, gravarCalendarioEscolar, lerArquivoCalendario, type EscolhaTipo } from "./importar";
 import "./calendarioEscolar.css";
@@ -31,7 +33,13 @@ function Etiqueta({ cor, texto }: { cor: string; texto: string }) {
 
 type Resultado = ReturnType<typeof gravarCalendarioEscolar>;
 
-export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalendario: () => void }) {
+export function ImportarCalendarioEscolar({
+  onAbrirCalendario,
+  onConfigSalva,
+}: {
+  onAbrirCalendario: () => void;
+  onConfigSalva: (config: ConfiguracoesApp) => void;
+}) {
   const [nomeArquivo, setNomeArquivo] = useState("");
   const [leitura, setLeitura] = useState<LeituraCalendario | null>(null);
   const [escolhas, setEscolhas] = useState<Record<string, EscolhaTipo>>({});
@@ -39,6 +47,9 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [verDatas, setVerDatas] = useState(false);
+  const [usarBimestres, setUsarBimestres] = useState(true);
+  const [bimestresAtuais, setBimestresAtuais] = useState<string[] | null>(null);
+  const [resultadoBimestres, setResultadoBimestres] = useState("");
 
   const periodos = useMemo(() => (leitura ? agruparPeriodos(leitura.etiquetas) : []), [leitura]);
   const tipos = useMemo(() => {
@@ -75,6 +86,13 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
       const lida = await lerArquivoCalendario(arquivo);
       setLeitura(lida);
       setEscolhas(escolhasPadrao(agruparPeriodos(lida.etiquetas)));
+      setUsarBimestres(Boolean(lida.bimestres));
+      setBimestresAtuais(null);
+      if (lida.bimestres) {
+        invokeApp<ConfiguracoesApp>("carregar_configuracoes")
+          .then((config) => setBimestresAtuais(config.bimestre_datas_inicio ?? []))
+          .catch(() => setBimestresAtuais(null));
+      }
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : String(falha));
     } finally {
@@ -86,10 +104,27 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
     setEscolhas((atuais) => ({ ...atuais, [chave]: { ...atuais[chave], ...mudanca } }));
   }
 
-  function importar() {
-    if (!leitura) return;
-    setResultado(gravarCalendarioEscolar(leitura.ano, periodos, escolhas));
+  async function gravarBimestres(inicios: string[]) {
+    try {
+      const config = await invokeApp<ConfiguracoesApp>("carregar_configuracoes");
+      const salvo = await invokeApp<ConfiguracoesApp>("salvar_configuracoes", { input: { ...config, bimestre_datas_inicio: inicios } });
+      onConfigSalva(salvo);
+      setBimestresAtuais(salvo.bimestre_datas_inicio);
+      setResultadoBimestres("O início dos 4 bimestres foi preenchido em Configurações › Instituição.");
+    } catch (falha) {
+      setResultadoBimestres(`Não consegui salvar o início dos bimestres em Configurações: ${falha instanceof Error ? falha.message : String(falha)}`);
+    }
   }
+
+  async function importar() {
+    if (!leitura) return;
+    setResultadoBimestres("");
+    setResultado(gravarCalendarioEscolar(leitura.ano, periodos, escolhas));
+    if (leitura.bimestres && usarBimestres) await gravarBimestres(leitura.bimestres.map((b) => b.inicio));
+  }
+
+  const bimestresIguais =
+    Boolean(leitura?.bimestres) && Boolean(bimestresAtuais) && leitura!.bimestres!.every((b, i) => bimestresAtuais![i] === b.inicio);
 
   return (
     <>
@@ -204,6 +239,35 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
               </table>
             </div>
 
+            <div className="cal-esc-bimestres">
+              <strong>Bimestres</strong>
+              {leitura.bimestres ? (
+                <>
+                  <ul>
+                    {leitura.bimestres.map((b, i) => (
+                      <li key={b.inicio}>
+                        <span>{i + 1}º</span> {dataCurta(b.inicio)} a {dataCurta(b.fim)}
+                      </li>
+                    ))}
+                  </ul>
+                  {bimestresIguais ? (
+                    <span className="cal-esc-nota">O início dos bimestres em Configurações já está com essas datas.</span>
+                  ) : (
+                    <label className="cal-esc-opcao">
+                      <input type="checkbox" checked={usarBimestres} onChange={(e) => setUsarBimestres(e.target.checked)} />
+                      Preencher o início dos bimestres em Configurações › Instituição
+                      {bimestresAtuais?.some(Boolean) ? " (troca as datas que estão lá)" : ""}
+                    </label>
+                  )}
+                </>
+              ) : (
+                <span className="cal-esc-nota">
+                  Não consegui ler o quadro dos bimestres deste arquivo. Preencha o início de cada bimestre em Configurações ›
+                  Instituição.
+                </span>
+              )}
+            </div>
+
             <button type="button" className="ghost-action cal-esc-ver" onClick={() => setVerDatas((atual) => !atual)} aria-expanded={verDatas}>
               <CalendarDays size={16} /> {verDatas ? "Esconder as datas" : "Ver todas as datas"}
             </button>
@@ -224,7 +288,7 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
             )}
 
             <div className="cal-esc-rodape">
-              <button type="button" className="primary-action" onClick={importar} disabled={!selecionados.length}>
+              <button type="button" className="primary-action" onClick={() => void importar()} disabled={!selecionados.length}>
                 <Check size={17} /> Adicionar {selecionados.length} datas ao calendário
               </button>
             </div>
@@ -239,6 +303,9 @@ export function ImportarCalendarioEscolar({ onAbrirCalendario }: { onAbrirCalend
               {resultado.removidos ? `, ${resultado.removidos} que não estão mais no calendário foram tiradas` : ""}.{" "}
               {resultado.comAviso ? `${resultado.comAviso} vão avisar no sino.` : ""}
             </div>
+            {resultadoBimestres && (
+              <div className={`notice ${resultadoBimestres.startsWith("Não") ? "error" : "success"}`}>{resultadoBimestres}</div>
+            )}
             <div className="cal-esc-acoes">
               <button type="button" className="primary-action" onClick={onAbrirCalendario}>
                 <CalendarDays size={17} /> Abrir o calendário

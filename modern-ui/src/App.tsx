@@ -596,6 +596,7 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
       destaques: [
         { icone: "agenda", titulo: "Avisos já configurados", texto: "Conselhos de classe, reuniões de pais e semanas de estudos intensivos avisam uma semana antes e na véspera; férias, uma semana antes; o resto, na véspera. Tudo dá para mudar na prévia." },
         { icone: "config", titulo: "Sem duplicar", texto: "Importar de novo o calendário do mesmo ano (por exemplo, depois de uma alteração na SED) atualiza as datas e tira as que saíram, sem repetir eventos." },
+        { icone: "config", titulo: "Bimestres preenchidos", texto: "O quadro dos bimestres do PDF também é lido: o início de cada bimestre vai direto para Configurações › Instituição, sem digitar." },
         { icone: "equipe", titulo: "Para o grupo todo", texto: "As datas entram no Calendário de Gestão e vão para os colegas pela sincronização, como os outros eventos." },
       ],
       irPara: { rotulo: "Importar o calendário", tela: "importar-calendario" },
@@ -2343,7 +2344,7 @@ export function App() {
         {tela === "importar-prova-paulista" && (
           <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
-        {tela === "importar-calendario" && <ImportarCalendarioEscolar onAbrirCalendario={() => navegarPara("calendario")} />}
+        {tela === "importar-calendario" && <ImportarCalendarioEscolar onAbrirCalendario={() => navegarPara("calendario")} onConfigSalva={aplicarConfigCarregada} />}
         {tela === "importar-expansoes" && (
           <ImportarExpansoes onAplicado={() => {
             registrarConclusao("expansoes");
