@@ -25,6 +25,9 @@
 - **Datas dos bimestres:** o quadro do canto do PDF ("1º Bimestre 02/02 a 22/04"…) também é lido (os algarismos são reconhecidos por comparação com modelos da fonte da SED) e, se você deixar marcado, o início dos 4 bimestres é preenchido em Configurações › Instituição, onde antes era digitado à mão. Se o quadro não puder ser lido com segurança (datas inválidas ou fora de ordem), o app não preenche nada e avisa.
 - "Avisar no sino" do calendário ganhou a opção "1 semana antes".
 
+### Outros
+- A tela "O que há de novo" da 4.9.0 repete a página do pré-conselho (novidade da 4.8.0), para quem atualizar direto da 4.7.
+
 ## v4.8.0 - Conselho final e pré-conselho
 
 ### Conselho final

@@ -602,6 +602,10 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
       ],
       irPara: { rotulo: "Importar o calendário", tela: "importar-calendario" },
     },
+    // Quem pula da 4.7 direto para a 4.9 não vê a tela da 4.8.0: repete o pré-conselho.
+    ...NOVIDADES_4_8_0.paginas
+      .filter((pagina) => pagina.titulo === "Pré-conselho")
+      .map((pagina) => ({ ...pagina, area: `${pagina.area} (chegou na 4.8.0)` })),
   ],
   outrasMudancas: [
     "Com a janela escondida na bandeja, o aviso do canto da tela espera a janela voltar para aparecer.",
