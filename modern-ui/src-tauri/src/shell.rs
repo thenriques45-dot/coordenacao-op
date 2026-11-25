@@ -376,7 +376,7 @@ pub(crate) fn abrir_arquivo(arquivo: &Path) -> Result<(), String> {
 /// caminho viaja na sincronização do grupo. Um caminho adulterado apontando
 /// para um programa faria o clique no anexo executá-lo, então extensões de
 /// programas e scripts nunca são abertas por aqui.
-fn extensao_executavel(arquivo: &Path) -> bool {
+pub(crate) fn extensao_executavel(arquivo: &Path) -> bool {
     let ext = arquivo
         .extension()
         .and_then(|valor| valor.to_str())

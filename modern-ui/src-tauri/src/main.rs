@@ -28,6 +28,7 @@ mod pei;
 mod pendencias;
 mod planejamento;
 mod prova_paulista;
+mod quadro_magnetico;
 mod remanejamento;
 mod saresp;
 mod sheets_api;
@@ -44,7 +45,7 @@ mod whatsapp_api;
 pub(crate) use {
     aluno_presente::*, apps_script_api::*, atendimentos_lote::*, apps_script_webapp_conteudo::*, apps_script_webapp_pei_conteudo::*, backup::*, config::*,
     conselho_final::*, conselho_pendrive::*, diagnostico_turma::*, diagnosticos::*, docx::*, fotos::*, github_oauth::*, google_oauth::*, grupo_google::*, ia::*, importador_alunos::*,
-    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, remanejamento::*, saresp::*,
+    importador_expansoes::*, importador_mapao::*, infra::*, mensagem_familia::*, motor_relatorios::*, pei::*, pendencias::*, planejamento::*, prova_paulista::*, quadro_magnetico::*, remanejamento::*, saresp::*,
     sheets_api::*, shell::*, sync::*, tipos::*, turmas::*, whatsapp_api::*,
 };
 
@@ -292,6 +293,13 @@ fn main() {
             ia::requisicao_ia_json,
             shell::abrir_url,
             shell::enviar_notificacao,
+            quadro_magnetico::carregar_quadro_magnetico,
+            quadro_magnetico::salvar_quadro_magnetico,
+            quadro_magnetico::adicionar_arquivo_quadro,
+            quadro_magnetico::remover_arquivo_quadro,
+            quadro_magnetico::abrir_arquivo_quadro,
+            quadro_magnetico::mostrar_arquivo_quadro,
+            quadro_magnetico::miniatura_arquivo_quadro,
             shell::abrir_pasta,
             shell::preparar_anexo_kanban,
             shell::abrir_anexo_kanban,

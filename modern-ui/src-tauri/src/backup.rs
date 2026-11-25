@@ -67,7 +67,8 @@ pub(crate) fn exportar_backup_interno() -> io::Result<BackupResultado> {
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
     let mut total = 0;
 
-    for nome_raiz in ["dados", "config"] {
+    // `pessoal/` (quadro magnético) não vai para o grupo, mas vai no backup.
+    for nome_raiz in ["dados", "config", "pessoal"] {
         let pasta = app_base_dir()?.join(nome_raiz);
         if pasta.exists() {
             adicionar_pasta_zip(&mut zip, &pasta, nome_raiz, options, &mut total)?;
@@ -293,7 +294,7 @@ pub(crate) fn importar_backup_interno(input: BackupImportInput) -> io::Result<Ba
         }
         let nomes_validos = nomes
             .into_iter()
-            .filter(|nome| nome.starts_with("dados/") || nome.starts_with("config/"))
+            .filter(|nome| nome.starts_with("dados/") || nome.starts_with("config/") || nome.starts_with("pessoal/"))
             .collect::<Vec<_>>();
         if nomes_validos.is_empty() {
             return Err(io::Error::new(
@@ -318,8 +319,12 @@ pub(crate) fn importar_backup_interno(input: BackupImportInput) -> io::Result<Ba
 
         if input.modo == "substituir" {
             let seguranca = exportar_backup_interno().ok().and_then(|info| info.caminho);
-            for nome in ["dados", "config"] {
+            for nome in ["dados", "config", "pessoal"] {
                 let destino = app_base_dir()?.join(nome);
+                // Backup antigo, de antes do quadro magnético: não apaga o quadro.
+                if nome == "pessoal" && !tmp.join(nome).exists() {
+                    continue;
+                }
                 if destino.exists() {
                     fs::remove_dir_all(&destino)?;
                 }
@@ -341,8 +346,11 @@ pub(crate) fn importar_backup_interno(input: BackupImportInput) -> io::Result<Ba
         } else {
             let mut importados = 0;
             let mut conflitos = Vec::new();
-            for nome in ["dados", "config"] {
+            for nome in ["dados", "config", "pessoal"] {
                 let origem = tmp.join(nome);
+                if !origem.exists() {
+                    continue;
+                }
                 let destino = app_base_dir()?.join(nome);
                 mesclar_recursivamente(&origem, &destino, nome, &mut importados, &mut conflitos)?;
             }
@@ -372,7 +380,7 @@ pub(crate) fn validar_entrada_backup(nome: &str) -> io::Result<()> {
             "Backup contem caminho invalido.",
         ));
     }
-    if !nome.starts_with("dados/") && !nome.starts_with("config/") {
+    if !nome.starts_with("dados/") && !nome.starts_with("config/") && !nome.starts_with("pessoal/") {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "Backup contem arquivo fora das pastas esperadas.",
