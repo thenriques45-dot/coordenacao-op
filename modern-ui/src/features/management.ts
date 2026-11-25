@@ -105,6 +105,7 @@ export const OPCOES_AVISO_EVENTO = [
   { valor: "1", rotulo: "1 dia antes" },
   { valor: "1,0", rotulo: "1 dia antes e no dia" },
   { valor: "2", rotulo: "2 dias antes" },
+  { valor: "7", rotulo: "1 semana antes" },
   { valor: "7,1", rotulo: "1 semana antes e na véspera" },
 ];
 

@@ -1,13 +1,13 @@
 # Changelog
 
-## v4.9.0 - Lembretes e central de avisos
+## v4.9.0 - Lembretes, central de avisos e calendário escolar
 
 ### Lembretes
 - **Nova tela "Lembretes"** (Quadro de Gestão › Lembretes, ou o botão "Lembretes" no sino): avisos que se repetem sozinhos, mais simples que uma tarefa no Kanban. Repetem toda semana (em um ou mais dias), a cada N dias (a partir de uma data) ou todo mês (num dia; meses mais curtos usam o último dia), sempre num horário escolhido.
 - **Sugestões prontas, desligadas até você ligar:** importar o Aluno Presente (segunda, 8h), importar as tarefas realizadas (sexta, 8h), importar o progresso das Disciplinas de Expansão (quarta, 18h), revisar as tarefas da semana no Kanban (segunda, 7h30), contatar famílias de alunos faltosos (a cada 14 dias) e fazer o backup do app (dia 1 de cada mês). Cada uma pode ser editada e voltar ao padrão.
 - **Na hora marcada**, o lembrete aparece no canto da tela e fica no sino. Clicar no aviso abre a tela escolhida (ex.: Importar Aluno Presente). Com o app fechado na hora, o aviso aparece uma vez quando ele for aberto, sem acumular os perdidos. O botão do sininho em cada lembrete mostra como fica o aviso.
 - **Lembretes que se resolvem sozinhos:** nos lembretes ligados a uma importação (Aluno Presente, tarefas, Expansões, mapões) ou ao backup, o aviso sai do sino quando isso é feito neste computador, e o lembrete não aparece se foi feito pouco antes da hora (até metade do intervalo, no máximo 3 dias antes). O cartão mostra "Feito …". Dá para desligar por lembrete.
-- Os lembretes ficam neste computador (não sincronizam com o grupo) e entram no espelho de estado da interface, como o Kanban.
+- Os lembretes, as preferências de avisos e o registro do que foi feito ficam neste computador (não sincronizam com o grupo) e entram no espelho de estado da interface, como o Kanban.
 
 ### Central de avisos
 - **Feito e Adiar** em cada aviso (no sino e no canto da tela). Adiar: daqui a 1 hora, amanhã às 8h ou segunda às 8h; os adiados aparecem no rodapé do sino ("Trazer agora") e voltam sozinhos na hora.
@@ -16,6 +16,13 @@
 - **Calendário › "Avisar no sino"** no evento: no dia, 1 dia antes, 1 dia antes e no dia, 2 dias antes ou 1 semana antes e na véspera. Vale também para eventos que se repetem.
 - **Notificações do Windows/Linux (opcionais):** em Lembretes › Notificações do Windows / Linux, botão "Testar notificação" e liga/desliga. Ligadas, os avisos também aparecem como notificação do sistema quando o app está minimizado, na bandeja ou atrás de outra janela. As tentativas anteriores falhavam porque o Windows descarta a notificação de um app com identificador não registrado (o app usava um fixo, que nenhum instalador registra) e o Flatpak não tinha permissão para o serviço de notificações. Agora: Store usa o identificador do pacote, a versão instalada o do atalho, a portátil o padrão do sistema; o Flatpak ganhou `--talk-name=org.freedesktop.Notifications`.
 - Com a janela escondida na bandeja, o aviso do canto espera a janela voltar para aparecer (antes podia sumir sem ninguém ver; no sino ele já ficava).
+
+### Calendário escolar
+- **Novo importador "Importar calendário escolar (SED)"** em Importar dados: lê o PDF do Calendário Escolar baixado da SED (que vem como imagem, sem texto) pelas cores da legenda e coloca as datas do ano no Calendário de Gestão, na categoria "Calendário escolar", com a cor de cada tipo. Reconhece férias, recesso, feriados (nacional, estadual, ponto facultativo), dia não letivo, reposição, dia letivo de reposição, acolhimento, planejamento, replanejamento, reunião pedagógica, semana de estudos intensivos, conselho de classe, reuniões da APM, do Grêmio, do Conselho de Escola e de pais, e eleição do Conselho de Escola. Dias seguidos do mesmo tipo viram um único evento (férias e recessos atravessam o fim de semana).
+- **Prévia antes de gravar:** cada tipo com a quantidade e as primeiras datas, liga/desliga e "Avisar no sino" por tipo, e a lista de todas as datas. Padrões: conselho de classe, reunião de pais e semana de estudos intensivos avisam uma semana antes e na véspera; férias uma semana antes; Grêmio não avisa; o resto, na véspera. Tipos de cor não reconhecida aparecem desligados, para dar um nome se quiser importar.
+- **Importar de novo atualiza sem duplicar:** os eventos do calendário escolar de um ano têm identificador fixo (ano, tipo e data de início); os que não vieram mais são removidos, inclusive dos colegas do grupo.
+- As datas dos bimestres (quadro no canto do PDF) não são lidas, porque estão só como texto na imagem.
+- "Avisar no sino" do calendário ganhou a opção "1 semana antes".
 
 ## v4.8.0 - Conselho final e pré-conselho
 

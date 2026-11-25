@@ -78,6 +78,7 @@
           <li>New recurring reminders (weekly, every N days or monthly) with ready-made suggestions; reminders tied to an import clear themselves once it is done</li>
           <li>Notification center with done/snooze buttons, filters by type, a daily summary and automatic notices (calendar events, follow-ups due, students at risk for absences, tasks assigned by colleagues)</li>
           <li>Optional system notifications with a test button</li>
+          <li>Importer for the official SED school calendar PDF: holidays, breaks, class councils and meetings are added to the calendar with reminders</li>
         </ul>
       </description>
     </release>

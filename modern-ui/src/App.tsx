@@ -42,6 +42,7 @@ import { PreConselho } from "./features/preConselho/PreConselho";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
+import { ImportarCalendarioEscolar } from "./features/calendarioEscolar/ImportarCalendario";
 import { TelaLembretes } from "./features/lembretes/Lembretes";
 import { registrarConclusao, type DestinoLembrete } from "./features/lembretesDados";
 import { avisosDasTurmas, mostrarAvisos } from "./features/centralAvisosDados";
@@ -67,7 +68,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "importar-calendario" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -586,6 +587,18 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
         { icone: "envio", titulo: "Notificação do Windows/Linux (opcional)", texto: "Em Lembretes › Notificações do Windows / Linux, teste e ligue para os avisos aparecerem também no canto do sistema quando o app estiver minimizado ou na bandeja." },
       ],
       irPara: { rotulo: "Abrir Calendário", tela: "calendario" },
+    },
+    {
+      area: "Importar dados › Importar calendário escolar (SED)",
+      titulo: "O calendário escolar do ano, de uma vez",
+      corpo:
+        "Carregue o PDF do Calendário Escolar baixado da SED e o app lê o ano inteiro: férias, recessos, feriados, pontos facultativos, conselhos de classe, reuniões de pais, da APM e do Grêmio, semanas de estudos intensivos e reposições. Antes de gravar, uma prévia mostra cada tipo de data com a cor da legenda, para escolher o que entra no calendário e quando avisar no sino.",
+      destaques: [
+        { icone: "agenda", titulo: "Avisos já configurados", texto: "Conselhos de classe, reuniões de pais e semanas de estudos intensivos avisam uma semana antes e na véspera; férias, uma semana antes; o resto, na véspera. Tudo dá para mudar na prévia." },
+        { icone: "config", titulo: "Sem duplicar", texto: "Importar de novo o calendário do mesmo ano (por exemplo, depois de uma alteração na SED) atualiza as datas e tira as que saíram, sem repetir eventos." },
+        { icone: "equipe", titulo: "Para o grupo todo", texto: "As datas entram no Calendário de Gestão e vão para os colegas pela sincronização, como os outros eventos." },
+      ],
+      irPara: { rotulo: "Importar o calendário", tela: "importar-calendario" },
     },
   ],
   outrasMudancas: [
@@ -2061,7 +2074,7 @@ export function App() {
             onClick={() => navegarPara("atendimentos")}
             badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
           />
-          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-aluno-presente" || tela === "importar-saresp" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela.startsWith("importar-")} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho" || tela === "pre-conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
@@ -2314,6 +2327,7 @@ export function App() {
             onImportarTarefas={() => navegarPara("importar-tarefas")}
             onImportarProvaPaulista={() => navegarPara("importar-prova-paulista")}
             onImportarExpansoes={() => navegarPara("importar-expansoes")}
+            onImportarCalendario={() => navegarPara("importar-calendario")}
           />
         )}
         {tela === "importar-fotos" && <ImportarFotos />}
@@ -2329,6 +2343,7 @@ export function App() {
         {tela === "importar-prova-paulista" && (
           <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
+        {tela === "importar-calendario" && <ImportarCalendarioEscolar onAbrirCalendario={() => navegarPara("calendario")} />}
         {tela === "importar-expansoes" && (
           <ImportarExpansoes onAplicado={() => {
             registrarConclusao("expansoes");

@@ -1,4 +1,4 @@
-import { BarChart3, CalendarCheck, Check, GripVertical, ImagePlus, Upload, Users } from "lucide-react";
+import { BarChart3, CalendarCheck, CalendarDays, Check, GripVertical, ImagePlus, Upload, Users } from "lucide-react";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
@@ -118,7 +118,8 @@ type IdImportador =
   | "alunos-lote"
   | "tarefas"
   | "prova-paulista"
-  | "expansoes";
+  | "expansoes"
+  | "calendario";
 
 type ModoOrdemImportadores = "manual" | "mais-usados";
 
@@ -204,6 +205,7 @@ export function ImportarDados({
   onImportarTarefas,
   onImportarProvaPaulista,
   onImportarExpansoes,
+  onImportarCalendario,
 }: {
   onImportarNotas: () => void;
   onImportarElegiveis: () => void;
@@ -215,6 +217,7 @@ export function ImportarDados({
   onImportarTarefas: () => void;
   onImportarProvaPaulista: () => void;
   onImportarExpansoes: () => void;
+  onImportarCalendario: () => void;
 }) {
   const cartoes: CartaoImportador[] = [
     { id: "mapoes", icone: <Upload size={24} />, titulo: "Importar mapões", descricao: "Leia mapões em lote e atualize notas, faltas por disciplina e aulas dadas.", aoAbrir: onImportarNotas },
@@ -227,6 +230,7 @@ export function ImportarDados({
     { id: "tarefas", icone: <BarChart3 size={24} />, titulo: "Importar Tarefas Realizadas", descricao: "Carregue a planilha de tarefas do sistema e registre o andamento por bimestre para cada aluno.", aoAbrir: onImportarTarefas },
     { id: "prova-paulista", icone: <BarChart3 size={24} />, titulo: "Importar Prova Paulista", descricao: "Carregue uma ou várias planilhas de resultados da Prova Paulista e registre as notas por disciplina e bimestre.", aoAbrir: onImportarProvaPaulista },
     { id: "expansoes", icone: <BarChart3 size={24} />, titulo: "Importar Disciplinas de Expansão", descricao: "Carregue as planilhas de progresso das expansões (noturno) e guarde o histórico para o construtor de relatórios.", aoAbrir: onImportarExpansoes },
+    { id: "calendario", icone: <CalendarDays size={24} />, titulo: "Importar calendário escolar (SED)", descricao: "Carregue o PDF do Calendário Escolar da SED: férias, feriados, conselhos e reuniões entram no Calendário de Gestão, com aviso no sino.", aoAbrir: onImportarCalendario },
   ];
   const idsPadrao = cartoes.map((cartao) => cartao.id);
 
