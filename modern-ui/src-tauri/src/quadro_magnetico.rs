@@ -103,9 +103,8 @@ pub(crate) fn mostrar_arquivo_quadro(arquivo_id: String) -> Result<(), String> {
 }
 
 /// Miniatura da imagem do quadro como data URL. PNG e JPEG são reduzidos
-/// para no máximo 640 px e mandados como JPEG (uma foto de vários MB inteira
-/// em base64 é pesada demais para chegar à tela); os outros formatos vão como
-/// estão, se forem pequenos.
+/// para no máximo 640 px e mandados como JPEG; o que não der para reduzir vai
+/// como está (até o limite de tamanho).
 #[tauri::command(async)]
 pub(crate) fn miniatura_arquivo_quadro(arquivo_id: String) -> Result<Option<String>, String> {
     let caminho = caminho_do_arquivo(&arquivo_id)?;
@@ -121,13 +120,30 @@ pub(crate) fn miniatura_arquivo_quadro(arquivo_id: String) -> Result<Option<Stri
     if let Some(jpeg) = reduzir_imagem(&bytes) {
         return Ok(Some(format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(jpeg))));
     }
-    if tamanho > LIMITE_MINIATURA_ORIGINAL {
-        return Ok(None);
-    }
-    Ok(Some(format!("data:{tipo};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))))
+    // Não deu para reduzir (formato que o app não decodifica, como WebP, ou
+    // uma imagem com extensão trocada): manda o original com o tipo real,
+    // que a tela sabe mostrar.
+    let tipo_real = tipo_pelo_conteudo(&bytes).unwrap_or(tipo.as_str()).to_string();
+    Ok(Some(format!("data:{tipo_real};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))))
 }
 
-const LIMITE_MINIATURA_ORIGINAL: u64 = 1024 * 1024;
+/// Tipo da imagem pelos primeiros bytes (a extensão às vezes mente: foto
+/// baixada como .png que na verdade é JPEG ou WebP).
+fn tipo_pelo_conteudo(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
+        Some("image/png")
+    } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some("image/jpeg")
+    } else if bytes.starts_with(b"GIF8") {
+        Some("image/gif")
+    } else if bytes.len() > 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else if bytes.starts_with(b"BM") {
+        Some("image/bmp")
+    } else {
+        None
+    }
+}
 const LADO_MINIATURA: u32 = 640;
 
 /// Reduz PNG/JPEG para JPEG pequeno, com fundo branco onde era transparente.
@@ -158,6 +174,13 @@ mod testes {
         let jpeg = reduzir_imagem(&png.into_inner()).expect("miniatura");
         let lida = image::load_from_memory(&jpeg).unwrap();
         assert_eq!(image::GenericImageView::dimensions(&lida), (640, 320));
+    }
+
+    #[test]
+    fn tipo_da_imagem_pelo_conteudo() {
+        assert_eq!(tipo_pelo_conteudo(&[0xFF, 0xD8, 0xFF, 0xE0]), Some("image/jpeg"));
+        assert_eq!(tipo_pelo_conteudo(b"RIFF\0\0\0\0WEBPVP8 "), Some("image/webp"));
+        assert_eq!(tipo_pelo_conteudo(b"texto"), None);
     }
 
     #[test]

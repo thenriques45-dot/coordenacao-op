@@ -114,6 +114,7 @@ export function QuadroMagnetico() {
   const [confirmarArquivo, setConfirmarArquivo] = useState<ItemQuadro | null>(null);
   const [desfazer, setDesfazer] = useState<{ item: ItemQuadro; linhas: LinhaQuadro[] } | null>(null);
   const [miniaturas, setMiniaturas] = useState<Record<string, string | null>>({});
+  const [avisosMiniatura, setAvisosMiniatura] = useState<Record<string, string>>({});
   const [arquivoSobre, setArquivoSobre] = useState(false);
   const [viewport, setViewport] = useState({ x: 0, y: 0, w: 1000, h: 600 });
 
@@ -168,8 +169,14 @@ export function QuadroMagnetico() {
       if (!arquivo || !arquivo.tipo.startsWith("image/") || arquivo.arquivoId in miniaturas) continue;
       setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: null }));
       invokeApp<string | null>("miniatura_arquivo_quadro", { arquivoId: arquivo.arquivoId })
-        .then((url) => setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: url })))
-        .catch((falha) => console.warn("[quadro] miniatura", falha));
+        .then((url) => {
+          setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: url }));
+          if (!url) setAvisosMiniatura((atuais) => ({ ...atuais, [arquivo.arquivoId]: "imagem grande demais para a miniatura" }));
+        })
+        .catch((falha) => {
+          console.warn("[quadro] miniatura", falha);
+          setAvisosMiniatura((atuais) => ({ ...atuais, [arquivo.arquivoId]: falha instanceof Error ? falha.message : String(falha) }));
+        });
     }
   }, [quadro.itens, miniaturas]);
 
@@ -907,6 +914,10 @@ export function QuadroMagnetico() {
                       item={item}
                       editando={editando === item.id}
                       miniatura={item.arquivo ? miniaturas[item.arquivo.arquivoId] : undefined}
+                      avisoMiniatura={item.arquivo ? avisosMiniatura[item.arquivo.arquivoId] : undefined}
+                      onMiniaturaFalhou={() =>
+                        item.arquivo && setAvisosMiniatura((atuais) => ({ ...atuais, [item.arquivo!.arquivoId]: "a tela não conseguiu mostrar a imagem" }))
+                      }
                       onMudar={(mudanca) => atualizarItem(item.id, mudanca)}
                       onTerminar={() => setEditando(null)}
                       onAbrir={() => item.arquivo && void abrirArquivo(item.arquivo)}
@@ -1152,6 +1163,8 @@ function ConteudoItem({
   item,
   editando,
   miniatura,
+  avisoMiniatura,
+  onMiniaturaFalhou,
   onMudar,
   onTerminar,
   onAbrir,
@@ -1160,6 +1173,8 @@ function ConteudoItem({
   item: ItemQuadro;
   editando: boolean;
   miniatura: string | null | undefined;
+  avisoMiniatura?: string;
+  onMiniaturaFalhou: () => void;
   onMudar: (mudanca: Partial<ItemQuadro>) => void;
   onTerminar: () => void;
   onAbrir: () => void;
@@ -1169,11 +1184,12 @@ function ConteudoItem({
     const rotulo = rotuloTipoArquivo(item.arquivo.nome, item.arquivo.tipo);
     return (
       <div className="qm-arquivo">
-        {miniatura ? (
-          <img className="qm-miniatura" src={miniatura} alt="" draggable={false} />
+        {miniatura && !avisoMiniatura ? (
+          <img className="qm-miniatura" src={miniatura} alt="" draggable={false} onError={onMiniaturaFalhou} />
         ) : (
-          <div className="qm-tipo-arquivo" style={{ background: corTipoArquivo(rotulo) }}>
+          <div className="qm-tipo-arquivo" style={{ background: corTipoArquivo(rotulo) }} title={avisoMiniatura ? `Sem miniatura: ${avisoMiniatura}` : undefined}>
             {rotulo}
+            {avisoMiniatura && <small className="qm-aviso-miniatura">Sem miniatura: {avisoMiniatura}</small>}
           </div>
         )}
         <div className="qm-arquivo-nome" title={item.arquivo.nome}>
