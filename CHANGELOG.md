@@ -1,12 +1,20 @@
 # Changelog
 
-## v4.9.0 - Lembretes recorrentes
+## v4.9.0 - Lembretes e central de avisos
 
 ### Lembretes
 - **Nova tela "Lembretes"** (Quadro de Gestão › Lembretes, ou o botão "Lembretes" no sino): avisos que se repetem sozinhos, mais simples que uma tarefa no Kanban. Repetem toda semana (em um ou mais dias), a cada N dias (a partir de uma data) ou todo mês (num dia; meses mais curtos usam o último dia), sempre num horário escolhido.
 - **Sugestões prontas, desligadas até você ligar:** importar o Aluno Presente (segunda, 8h), importar as tarefas realizadas (sexta, 8h), importar o progresso das Disciplinas de Expansão (quarta, 18h), revisar as tarefas da semana no Kanban (segunda, 7h30), contatar famílias de alunos faltosos (a cada 14 dias) e fazer o backup do app (dia 1 de cada mês). Cada uma pode ser editada e voltar ao padrão.
-- **Na hora marcada**, o lembrete aparece no canto da tela e fica no sino da barra lateral, como os avisos de prazo do Kanban. Clicar no aviso abre a tela escolhida (ex.: Importar Aluno Presente). Com o app fechado na hora, o aviso aparece uma vez quando ele for aberto, sem acumular os perdidos. O botão do sininho em cada lembrete mostra como fica o aviso.
+- **Na hora marcada**, o lembrete aparece no canto da tela e fica no sino. Clicar no aviso abre a tela escolhida (ex.: Importar Aluno Presente). Com o app fechado na hora, o aviso aparece uma vez quando ele for aberto, sem acumular os perdidos. O botão do sininho em cada lembrete mostra como fica o aviso.
+- **Lembretes que se resolvem sozinhos:** nos lembretes ligados a uma importação (Aluno Presente, tarefas, Expansões, mapões) ou ao backup, o aviso sai do sino quando isso é feito neste computador, e o lembrete não aparece se foi feito pouco antes da hora (até metade do intervalo, no máximo 3 dias antes). O cartão mostra "Feito …". Dá para desligar por lembrete.
 - Os lembretes ficam neste computador (não sincronizam com o grupo) e entram no espelho de estado da interface, como o Kanban.
+
+### Central de avisos
+- **Feito e Adiar** em cada aviso (no sino e no canto da tela). Adiar: daqui a 1 hora, amanhã às 8h ou segunda às 8h; os adiados aparecem no rodapé do sino ("Trazer agora") e voltam sozinhos na hora.
+- **Filtros por tipo** (Tarefas, Lembretes, Agenda, Alunos, com o número de não lidos) e **grupos por data** (Hoje, Últimos 7 dias, Antes).
+- **Avisos automáticos**, cada um com liga/desliga em Lembretes › Avisos automáticos: resumo do dia (primeira abertura do dia: tarefas que vencem hoje ou atrasadas, eventos e lembretes do dia); eventos do calendário; retornos de atendimento com follow-up para hoje ou antes (uma vez por dia); turmas que ganharam alunos em risco de reprovação por faltas no Aluno Presente; tarefa compartilhada que chega de um colega com você como responsável.
+- **Calendário › "Avisar no sino"** no evento: no dia, 1 dia antes, 1 dia antes e no dia, 2 dias antes ou 1 semana antes e na véspera. Vale também para eventos que se repetem.
+- **Notificações do Windows/Linux (opcionais):** em Lembretes › Notificações do Windows / Linux, botão "Testar notificação" e liga/desliga. Ligadas, os avisos também aparecem como notificação do sistema quando o app está minimizado, na bandeja ou atrás de outra janela. As tentativas anteriores falhavam porque o Windows descarta a notificação de um app com identificador não registrado (o app usava um fixo, que nenhum instalador registra) e o Flatpak não tinha permissão para o serviço de notificações. Agora: Store usa o identificador do pacote, a versão instalada o do atalho, a portátil o padrão do sistema; o Flatpak ganhou `--talk-name=org.freedesktop.Notifications`.
 - Com a janela escondida na bandeja, o aviso do canto espera a janela voltar para aparecer (antes podia sumir sem ninguém ver; no sino ele já ficava).
 
 ## v4.8.0 - Conselho final e pré-conselho

@@ -43,7 +43,8 @@ import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
 import { TelaLembretes } from "./features/lembretes/Lembretes";
-import type { DestinoLembrete } from "./features/lembretesDados";
+import { registrarConclusao, type DestinoLembrete } from "./features/lembretesDados";
+import { avisosDasTurmas, mostrarAvisos } from "./features/centralAvisosDados";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { NovidadesWizard, normalizarNovidades, type EntradaNovidades, type NovidadesVersao } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
@@ -241,6 +242,8 @@ type TurmaResumo = {
   // callback declarando só um subconjunto dos campos.
   total_atendimentos?: number;
   followups_pendentes?: number;
+  followups_vencidos?: number;
+  alunos_risco_faltas?: number;
   conselhos_finalizados: Record<string, string>;
   em_conselho_externo: string[];
   caminho: string;
@@ -557,10 +560,32 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
         "Para as coisas de toda semana, sem criar tarefa no Kanban: escolha os dias e o horário (ou a cada N dias, ou todo mês) e, na hora marcada, o lembrete aparece no canto da tela e fica no sino. Clicar no aviso já abre a tela certa, como a importação do Aluno Presente.",
       destaques: [
         { icone: "lista", titulo: "Sugestões prontas", texto: "Importar o Aluno Presente, importar as tarefas realizadas, Disciplinas de Expansão, revisar o Kanban, contatar famílias e fazer o backup. Só ligar — e dá para mudar dia e horário." },
+        { icone: "config", titulo: "Se resolvem sozinhos", texto: "Importou o Aluno Presente? O aviso sai do sino sozinho. Importou antes da hora? O lembrete daquela vez nem aparece." },
         { icone: "agenda", titulo: "Do seu jeito", texto: "Crie os seus em \"Novo lembrete\": toda semana em um ou mais dias, a cada N dias a partir de uma data, ou todo mês." },
-        { icone: "config", titulo: "App fechado na hora?", texto: "O aviso aparece uma vez quando você abrir o app, sem acumular os perdidos. Os lembretes ficam neste computador." },
       ],
       irPara: { rotulo: "Abrir Lembretes", tela: "lembretes" },
+    },
+    {
+      area: "Sino da barra lateral",
+      titulo: "Central de avisos mais completa",
+      corpo:
+        "Os avisos agora ficam separados por tipo (Tarefas, Lembretes, Agenda, Alunos) e agrupados em Hoje e Últimos 7 dias. Cada aviso tem \"Feito\" e \"Adiar\" (daqui a 1 hora, amanhã às 8h ou segunda às 8h). Os adiados ficam listados no rodapé e voltam sozinhos na hora escolhida.",
+      destaques: [
+        { icone: "agenda", titulo: "Resumo do dia", texto: "Na primeira vez que o app abre no dia: tarefas que vencem hoje ou estão atrasadas, eventos do calendário e lembretes do dia." },
+        { icone: "aluno", titulo: "Avisos sobre os alunos", texto: "Retornos de atendimento combinados para hoje ou antes e turmas que ganharam alunos em risco de reprovação por faltas no último Aluno Presente." },
+        { icone: "equipe", titulo: "Tarefa de um colega", texto: "Quando uma tarefa compartilhada chega pela sincronização com você como responsável." },
+      ],
+      irPara: { rotulo: "Configurar avisos", tela: "lembretes" },
+    },
+    {
+      area: "Calendário",
+      titulo: "Eventos que avisam no sino",
+      corpo:
+        "Ao criar ou editar um evento do calendário, escolha em \"Avisar no sino\" quando quer ser lembrado: no dia, na véspera, 2 dias antes ou uma semana antes.",
+      destaques: [
+        { icone: "envio", titulo: "Notificação do Windows/Linux (opcional)", texto: "Em Lembretes › Notificações do Windows / Linux, teste e ligue para os avisos aparecerem também no canto do sistema quando o app estiver minimizado ou na bandeja." },
+      ],
+      irPara: { rotulo: "Abrir Calendário", tela: "calendario" },
     },
   ],
   outrasMudancas: [
@@ -1392,6 +1417,11 @@ export function App() {
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
   const centralAvisos = useCentralAvisos();
+  // Avisos automáticos que dependem das turmas (retornos vencidos, risco por
+  // faltas): conferidos sempre que a lista é recarregada.
+  useEffect(() => {
+    if (turmas.length) mostrarAvisos(avisosDasTurmas(turmas));
+  }, [turmas]);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const [tarefaParaAbrir, setTarefaParaAbrir] = useState<string | null>(null);
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
@@ -2090,6 +2120,7 @@ export function App() {
       {avisosAbertos && (
         <PainelAvisos
           avisos={centralAvisos.avisos}
+          adiados={centralAvisos.adiados}
           onFechar={() => setAvisosAbertos(false)}
           onAbrirTarefa={abrirTarefaDoAviso}
           onAbrirDestino={abrirDestinoDoAviso}
@@ -2290,18 +2321,27 @@ export function App() {
           <ImportarAlunosLote onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
         {tela === "importar-tarefas" && (
-          <ImportarTarefas onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+          <ImportarTarefas onAplicado={() => {
+            registrarConclusao("tarefas");
+            setTurmaRefreshKey((k) => k + 1);
+          }} />
         )}
         {tela === "importar-prova-paulista" && (
           <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
         {tela === "importar-expansoes" && (
-          <ImportarExpansoes onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+          <ImportarExpansoes onAplicado={() => {
+            registrarConclusao("expansoes");
+            setTurmaRefreshKey((k) => k + 1);
+          }} />
         )}
         {tela === "importar-notas" && (
           <ImportarNotas
             turmas={turmas}
-            onAplicado={() => setTurmaRefreshKey((k) => k + 1)}
+            onAplicado={() => {
+              registrarConclusao("mapoes");
+              setTurmaRefreshKey((k) => k + 1);
+            }}
             onSubstituirCsvTurma={(turma, alunos) => {
               const turmaCompleta = turmas.find((item) => item.caminho === turma.caminho);
               if (!turmaCompleta) {
@@ -2344,6 +2384,7 @@ export function App() {
         )}
         {tela === "importar-aluno-presente" && (
           <ImportarAlunoPresente onImportado={() => {
+            registrarConclusao("aluno-presente");
             invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
             if (turmaSelecionada) {
               invokeApp<TurmaDetalhe>("carregar_turma", {

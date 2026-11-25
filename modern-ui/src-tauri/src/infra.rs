@@ -316,7 +316,7 @@ fn pasta_dados_store() -> Option<PathBuf> {
 }
 
 #[cfg(all(target_os = "windows", feature = "store"))]
-fn familia_pacote_msix() -> Option<String> {
+pub(crate) fn familia_pacote_msix() -> Option<String> {
     #[link(name = "kernel32")]
     extern "system" {
         fn GetCurrentPackageFamilyName(tamanho: *mut u32, nome: *mut u16) -> i32;

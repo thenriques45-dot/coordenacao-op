@@ -361,6 +361,12 @@ pub(crate) struct TurmaResumo {
     // Alimentam o subtítulo e a pílula da sidebar na Tela de Atendimentos.
     pub(crate) total_atendimentos: usize,
     pub(crate) followups_pendentes: usize,
+    // Dos follow-ups em aberto, quantos têm a data combinada (AAAA-MM-DD) até
+    // hoje. Alimenta o aviso automático "retornos vencidos" da central.
+    pub(crate) followups_vencidos: usize,
+    // Alunos ativos marcados em risco de reprovação por faltas no último
+    // Aluno Presente importado (aviso automático da central).
+    pub(crate) alunos_risco_faltas: usize,
     // Bimestre -> data da finalização (RFC3339; vazio em registros antigos).
     pub(crate) conselhos_finalizados: BTreeMap<String, String>,
     // Bimestres com conselho preparado em pendrive e ainda não reintegrado.

@@ -291,6 +291,7 @@ fn main() {
             ia::baixar_modelo_ia_local,
             ia::requisicao_ia_json,
             shell::abrir_url,
+            shell::enviar_notificacao,
             shell::abrir_pasta,
             shell::preparar_anexo_kanban,
             shell::abrir_anexo_kanban,
@@ -1168,13 +1169,18 @@ mod tests {
                 "2": { "nome": "ALUNO DOIS", "ativo": true, "atendimentos": [
                     { "id": "a3", "followup_previsto": {} }
                 ]},
-                "3": { "nome": "ALUNO TRES", "ativo": true }
+                "3": { "nome": "ALUNO TRES", "ativo": true, "aluno_presente": { "risco_reprovacao": true }, "atendimentos": [
+                    { "id": "a4", "followup_previsto": { "data": "2999-01-01", "descricao": "futuro" } }
+                ]},
+                "4": { "nome": "ALUNO QUATRO", "ativo": false, "aluno_presente": { "risco_reprovacao": true } }
             }
         }))
         .unwrap();
         let resumo = resumir_turma(turma, std::path::PathBuf::from("turma_2a.json"));
-        assert_eq!(resumo.total_atendimentos, 3);
-        assert_eq!(resumo.followups_pendentes, 1, "objeto vazio não conta como pendência");
+        assert_eq!(resumo.total_atendimentos, 4);
+        assert_eq!(resumo.followups_pendentes, 2, "objeto vazio não conta como pendência");
+        assert_eq!(resumo.followups_vencidos, 1, "só a data passada está vencida");
+        assert_eq!(resumo.alunos_risco_faltas, 1, "inativo não conta");
     }
 
     // followup_previsto no input tem 3 estados (Option<Option<_>>): ausente

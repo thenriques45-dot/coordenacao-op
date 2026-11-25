@@ -6,6 +6,7 @@ import { type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, us
 import { invokeApp, tauriDisponivel } from "./appBridge";
 import { ConfigEnvioAutomatico } from "./atendimentos/ConfigEnvioAutomatico";
 import { EquipeGestoraSecao } from "./EquipeGestoraSecao";
+import { registrarConclusao } from "./lembretesDados";
 import {
   aplicarPadroesDoProvedor,
   carregarAiAssistantSettings,
@@ -378,6 +379,8 @@ function registrarBackupFeito(ciclos: string[]) {
   } catch {
     /* localStorage indisponivel - sem aviso, tudo bem */
   }
+  // Resolve o lembrete "Fazer o backup do app", se estiver ligado.
+  registrarConclusao("backup");
 }
 function lerUltimoBackup(): { em: string; ciclos: string[] } | null {
   try {

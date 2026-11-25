@@ -16,6 +16,8 @@ export type DestinoLembrete =
   | "importar-notas"
   | "atendimentos"
   | "kanban"
+  | "calendario"
+  | "turmas"
   | "backup";
 
 export const DESTINOS_LEMBRETE: { id: DestinoLembrete; rotulo: string }[] = [
@@ -25,6 +27,8 @@ export const DESTINOS_LEMBRETE: { id: DestinoLembrete; rotulo: string }[] = [
   { id: "importar-notas", rotulo: "Importar mapões" },
   { id: "atendimentos", rotulo: "Atendimentos" },
   { id: "kanban", rotulo: "Quadro Kanban" },
+  { id: "calendario", rotulo: "Calendário" },
+  { id: "turmas", rotulo: "Turmas" },
   { id: "backup", rotulo: "Configurações › Backup" },
 ];
 
@@ -45,11 +49,19 @@ export type Lembrete = {
   /** "HH:MM" */
   hora: string;
   destino?: DestinoLembrete;
+  /**
+   * Para lembretes ligados a uma importação ou ao backup: não avisa se isso já
+   * foi feito desde o último aviso. Ausente = sim.
+   */
+  pularSeFeito?: boolean;
   /** Id da sugestão pronta que originou este lembrete. */
   sugestao?: string;
   /** Referência para o próximo aviso: só avisa ocorrências depois disto. */
   ativadoEm?: string;
+  /** Última ocorrência processada (avisada ou pulada por já estar feita). */
   ultimoAviso?: string;
+  /** Última vez que o aviso apareceu de fato. */
+  avisadoEm?: string;
 };
 
 export const NOMES_DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -123,6 +135,100 @@ export const SUGESTOES_LEMBRETE: Lembrete[] = [
     destino: "backup",
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Conclusões: quando cada importação (ou o backup) foi feita NESTE computador.
+// É o que permite ao lembrete "se resolver sozinho".
+
+export type ChaveConclusao = "aluno-presente" | "tarefas" | "expansoes" | "mapoes" | "backup";
+export const CONCLUSOES_STORAGE_KEY = "coordenacaoop:conclusoes:v1";
+export const CONCLUSAO_EVENT = "coordenacaoop:conclusao-registrada";
+
+export const CONCLUSAO_POR_DESTINO: Partial<Record<DestinoLembrete, ChaveConclusao>> = {
+  "importar-aluno-presente": "aluno-presente",
+  "importar-tarefas": "tarefas",
+  "importar-expansoes": "expansoes",
+  "importar-notas": "mapoes",
+  backup: "backup",
+};
+
+export const ROTULO_CONCLUSAO: Record<ChaveConclusao, string> = {
+  "aluno-presente": "a importação do Aluno Presente",
+  tarefas: "a importação das tarefas",
+  expansoes: "a importação das Expansões",
+  mapoes: "a importação de mapões",
+  backup: "o backup",
+};
+
+function carregarConclusoes(): Partial<Record<ChaveConclusao, string>> {
+  try {
+    const bruto = localStorage.getItem(CONCLUSOES_STORAGE_KEY);
+    const dados = bruto ? JSON.parse(bruto) : {};
+    return dados && typeof dados === "object" ? dados : {};
+  } catch {
+    return {};
+  }
+}
+
+export function ultimaConclusao(chave: ChaveConclusao): Date | null {
+  const iso = carregarConclusoes()[chave];
+  const data = iso ? new Date(iso) : null;
+  return data && !Number.isNaN(data.getTime()) ? data : null;
+}
+
+/** Chamado ao terminar uma importação ou backup; a central tira os avisos já resolvidos. */
+export function registrarConclusao(chave: ChaveConclusao) {
+  try {
+    localStorage.setItem(CONCLUSOES_STORAGE_KEY, JSON.stringify({ ...carregarConclusoes(), [chave]: new Date().toISOString() }));
+  } catch {
+    /* sem localStorage, o lembrete só não se resolve sozinho */
+  }
+  window.dispatchEvent(new CustomEvent<ChaveConclusao>(CONCLUSAO_EVENT, { detail: chave }));
+  window.dispatchEvent(new CustomEvent(LEMBRETES_UPDATED_EVENT));
+}
+
+export function chaveConclusaoDoLembrete(lembrete: Pick<Lembrete, "destino" | "pularSeFeito">): ChaveConclusao | null {
+  if (lembrete.pularSeFeito === false || !lembrete.destino) return null;
+  return CONCLUSAO_POR_DESTINO[lembrete.destino] ?? null;
+}
+
+const DIA_MS = 86_400_000;
+
+/** Intervalo aproximado entre duas ocorrências do lembrete. */
+function periodoMs(lembrete: Lembrete) {
+  const f = lembrete.frequencia;
+  if (f.tipo === "semanal") return (7 / Math.max(1, f.dias.length)) * DIA_MS;
+  if (f.tipo === "intervalo") return Math.max(1, f.cadaDias) * DIA_MS;
+  return 30 * DIA_MS;
+}
+
+/**
+ * Feito pouco antes da ocorrência (até metade do intervalo, no máximo 3 dias
+ * antes): conta como cumprido e o aviso não aparece. A importação de segunda
+ * às 10h, em resposta ao aviso das 8h, não pula a segunda seguinte; a de
+ * domingo à noite pula.
+ */
+export function feitoAdiantado(lembrete: Lembrete, ocorrencia: Date): Date | null {
+  const chave = chaveConclusaoDoLembrete(lembrete);
+  if (!chave) return null;
+  const feito = ultimaConclusao(chave);
+  if (!feito) return null;
+  const janela = Math.min(periodoMs(lembrete) / 2, 3 * DIA_MS);
+  return feito.getTime() >= ocorrencia.getTime() - janela ? feito : null;
+}
+
+/** Para o cartão: feito depois do último aviso (respondido ou adiantado). */
+export function feitoRecente(lembrete: Lembrete): Date | null {
+  const chave = chaveConclusaoDoLembrete(lembrete);
+  if (!chave) return null;
+  const feito = ultimaConclusao(chave);
+  if (!feito) return null;
+  const avisado = lembrete.avisadoEm ? new Date(lembrete.avisadoEm).getTime() : 0;
+  const desde = Number.isFinite(avisado) && avisado > 0 ? avisado : Date.now() - 7 * DIA_MS;
+  return feito.getTime() > desde ? feito : null;
+}
+
+// ---------------------------------------------------------------------------
 
 function carregarSalvos(): Lembrete[] {
   try {
@@ -254,14 +360,18 @@ export function proximoAviso(lembrete: Lembrete): Date | null {
 export function lembretesQueVenceram(agora = new Date()): Lembrete[] {
   const salvos = carregarSalvos();
   const vencidos: Lembrete[] = [];
+  let mudou = false;
   const atualizados = salvos.map((lembrete) => {
     if (!lembrete.ativo) return lembrete;
     const proxima = proximaOcorrencia(lembrete, referencia(lembrete));
     if (!proxima || proxima > agora) return lembrete;
+    mudou = true;
+    // Já foi feito (adiantado): conta esta ocorrência como cumprida, sem aviso.
+    if (feitoAdiantado(lembrete, proxima)) return { ...lembrete, ultimoAviso: agora.toISOString() };
     vencidos.push(lembrete);
-    return { ...lembrete, ultimoAviso: agora.toISOString() };
+    return { ...lembrete, ultimoAviso: agora.toISOString(), avisadoEm: agora.toISOString() };
   });
-  if (vencidos.length) salvar(atualizados);
+  if (mudou) salvar(atualizados);
   return vencidos;
 }
 

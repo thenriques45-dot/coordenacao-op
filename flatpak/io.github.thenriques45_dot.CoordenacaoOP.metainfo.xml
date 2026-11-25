@@ -75,7 +75,9 @@
     <release version="4.9.0" date="2026-11-25">
       <description>
         <ul>
-          <li>New recurring reminders (weekly, every N days or monthly) with ready-made suggestions that only need to be switched on, shown in the in-app notification center</li>
+          <li>New recurring reminders (weekly, every N days or monthly) with ready-made suggestions; reminders tied to an import clear themselves once it is done</li>
+          <li>Notification center with done/snooze buttons, filters by type, a daily summary and automatic notices (calendar events, follow-ups due, students at risk for absences, tasks assigned by colleagues)</li>
+          <li>Optional system notifications with a test button</li>
         </ul>
       </description>
     </release>

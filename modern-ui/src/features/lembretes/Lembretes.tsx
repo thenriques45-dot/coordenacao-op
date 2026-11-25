@@ -1,8 +1,19 @@
-import { AlarmClock, BellRing, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { AlarmClock, BellRing, CheckCircle2, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { avisarLembreteAgora } from "../centralAvisosDados";
+import { testarNotificacaoSistema } from "../CentralAvisos";
+import { tauriDisponivel } from "../appBridge";
+import {
+  carregarPreferenciasAvisos,
+  PREFERENCIAS_AVISOS_EVENT,
+  salvarPreferenciasAvisos,
+  type PreferenciasAvisos,
+} from "../preferenciasAvisos";
 import {
   carregarLembretes,
+  CONCLUSAO_POR_DESTINO,
+  feitoRecente,
+  ROTULO_CONCLUSAO,
   descreverProgramacao,
   descreverQuando,
   DESTINOS_LEMBRETE,
@@ -143,6 +154,8 @@ export function TelaLembretes() {
         </ul>
       )}
 
+      <AvisosAutomaticos />
+
       {editando && (
         <EditorLembrete
           inicial={editando}
@@ -172,6 +185,7 @@ function CartaoLembrete({
   rotuloRemover: string;
 }) {
   const proximo = proximoAviso(lembrete);
+  const feito = lembrete.ativo ? feitoRecente(lembrete) : null;
   const destino = DESTINOS_LEMBRETE.find((d) => d.id === lembrete.destino);
   return (
     <li className={`lembrete-cartao ${lembrete.ativo ? "ativo" : ""}`}>
@@ -186,6 +200,11 @@ function CartaoLembrete({
           <span>
             <AlarmClock size={14} aria-hidden /> {descreverProgramacao(lembrete)}
           </span>
+          {feito && (
+            <span className="lembrete-feito">
+              <CheckCircle2 size={14} aria-hidden /> Feito {descreverQuando(feito)}
+            </span>
+          )}
           {proximo && <span className="lembrete-proximo">Próximo aviso: {descreverQuando(proximo)}</span>}
           {destino && <span>Abre: {destino.rotulo}</span>}
         </div>
@@ -236,6 +255,8 @@ function EditorLembrete({
   const [inicio, setInicio] = useState(inicial.frequencia.tipo === "intervalo" ? inicial.frequencia.inicio : hojeIso());
   const [diaMes, setDiaMes] = useState(inicial.frequencia.tipo === "mensal" ? inicial.frequencia.dia : 1);
   const [ativo, setAtivo] = useState(novo ? true : inicial.ativo);
+  const [pularSeFeito, setPularSeFeito] = useState(inicial.pularSeFeito !== false);
+  const chaveConclusao = destino ? CONCLUSAO_POR_DESTINO[destino] : undefined;
 
   useEffect(() => {
     const aoTeclar = (evento: KeyboardEvent) => {
@@ -251,7 +272,7 @@ function EditorLembrete({
     return { tipo, dia: Math.max(1, Math.min(31, Math.round(diaMes) || 1)) };
   }, [tipo, dias, cadaDias, inicio, diaMes]);
 
-  const rascunho: Lembrete = { ...inicial, titulo: titulo.trim(), texto: texto.trim(), hora: hora || "08:00", destino: destino || undefined, frequencia, ativo };
+  const rascunho: Lembrete = { ...inicial, titulo: titulo.trim(), texto: texto.trim(), hora: hora || "08:00", destino: destino || undefined, frequencia, ativo, pularSeFeito: chaveConclusao ? pularSeFeito : undefined };
   const erro = !titulo.trim() ? "Dê um título ao lembrete." : tipo === "semanal" && dias.length === 0 ? "Escolha ao menos um dia da semana." : "";
 
   function enviar(evento: FormEvent) {
@@ -357,6 +378,15 @@ function EditorLembrete({
             </label>
           </div>
 
+          {chaveConclusao && (
+            <label className="lembrete-ligado">
+              <input type="checkbox" checked={pularSeFeito} onChange={(e) => setPularSeFeito(e.target.checked)} />
+              <span>
+                Resolver sozinho: não avisar se já estiver feito e tirar o aviso do sino quando for feito. O app percebe quando
+                você faz {ROTULO_CONCLUSAO[chaveConclusao]} neste computador.
+              </span>
+            </label>
+          )}
           <label className="lembrete-ligado">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} /> Lembrete ligado
           </label>
@@ -371,5 +401,107 @@ function EditorLembrete({
         </div>
       </form>
     </div>
+  );
+}
+
+const AUTOMATICOS: { chave: Exclude<keyof PreferenciasAvisos, "sistema">; titulo: string; texto: string }[] = [
+  {
+    chave: "resumoDia",
+    titulo: "Resumo do dia",
+    texto: "Na primeira vez que o app abre no dia: tarefas que vencem hoje ou estão atrasadas, eventos do calendário e lembretes do dia.",
+  },
+  {
+    chave: "eventos",
+    titulo: "Eventos do calendário",
+    texto: "Avisa os eventos com \"Avisar no sino\" escolhido (no dia, na véspera, uma semana antes…).",
+  },
+  {
+    chave: "retornos",
+    titulo: "Retornos de atendimento",
+    texto: "Uma vez por dia, quando há follow-up combinado com aluno ou família para hoje ou antes.",
+  },
+  {
+    chave: "riscoFaltas",
+    titulo: "Alunos em risco por faltas",
+    texto: "Depois de importar o Aluno Presente, se alguma turma ganhou alunos em risco de reprovação por faltas.",
+  },
+  {
+    chave: "tarefasAtribuidas",
+    titulo: "Tarefas passadas por colegas",
+    texto: "Quando uma tarefa compartilhada chega pela sincronização com você como responsável.",
+  },
+];
+
+function AvisosAutomaticos() {
+  const [preferencias, setPreferencias] = useState<PreferenciasAvisos>(carregarPreferenciasAvisos);
+  const [teste, setTeste] = useState<{ estado: "enviando" | "ok" | "erro"; mensagem?: string } | null>(null);
+
+  useEffect(() => {
+    const recarregar = () => setPreferencias(carregarPreferenciasAvisos());
+    window.addEventListener(PREFERENCIAS_AVISOS_EVENT, recarregar);
+    return () => window.removeEventListener(PREFERENCIAS_AVISOS_EVENT, recarregar);
+  }, []);
+
+  function alternar(chave: keyof PreferenciasAvisos) {
+    salvarPreferenciasAvisos({ ...preferencias, [chave]: !preferencias[chave] });
+  }
+
+  async function testar() {
+    setTeste({ estado: "enviando" });
+    const erro = await testarNotificacaoSistema();
+    setTeste(erro ? { estado: "erro", mensagem: erro } : { estado: "ok" });
+  }
+
+  return (
+    <>
+      <h2 className="lembretes-secao">Avisos automáticos</h2>
+      <p className="lembretes-vazio">O app gera estes avisos sozinho, a partir dos seus dados. Desligue os que não quiser.</p>
+      <ul className="lembretes-lista">
+        {AUTOMATICOS.map((item) => (
+          <li key={item.chave} className={`lembrete-cartao ${preferencias[item.chave] ? "ativo" : ""}`}>
+            <label className="lembrete-chave" title={preferencias[item.chave] ? "Desligar" : "Ligar"}>
+              <input type="checkbox" checked={preferencias[item.chave]} onChange={() => alternar(item.chave)} aria-label={item.titulo} />
+              <span aria-hidden />
+            </label>
+            <div className="lembrete-corpo">
+              <strong>{item.titulo}</strong>
+              <p>{item.texto}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="lembretes-secao">Notificações do Windows / Linux</h2>
+      <ul className="lembretes-lista">
+        <li className={`lembrete-cartao ${preferencias.sistema ? "ativo" : ""}`}>
+          <label className="lembrete-chave" title={preferencias.sistema ? "Desligar" : "Ligar"}>
+            <input
+              type="checkbox"
+              checked={preferencias.sistema}
+              onChange={() => alternar("sistema")}
+              disabled={!tauriDisponivel}
+              aria-label="Também mostrar como notificação do sistema"
+            />
+            <span aria-hidden />
+          </label>
+          <div className="lembrete-corpo">
+            <strong>Também mostrar como notificação do sistema</strong>
+            <p>
+              Útil com o app minimizado, na bandeja ou atrás de outra janela: o aviso aparece também no canto do Windows (ou
+              do Linux). Com o app à frente, só o aviso do próprio app aparece. Teste antes de ligar.
+            </p>
+            <div className="lembrete-teste">
+              <button type="button" className="secondary-action" onClick={testar} disabled={teste?.estado === "enviando"}>
+                <BellRing size={15} /> Testar notificação
+              </button>
+              {teste?.estado === "ok" && (
+                <span>Enviada. Se não apareceu, as notificações do app podem estar bloqueadas nas configurações do sistema.</span>
+              )}
+              {teste?.estado === "erro" && <span className="lembrete-teste-erro">Não funcionou: {teste.mensagem}</span>}
+            </div>
+          </div>
+        </li>
+      </ul>
+    </>
   );
 }
