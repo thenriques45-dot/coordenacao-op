@@ -102,7 +102,10 @@ pub(crate) fn mostrar_arquivo_quadro(arquivo_id: String) -> Result<(), String> {
     abrir_pasta(pasta_quadro()?.join("arquivos").to_string_lossy().to_string())
 }
 
-/// Imagem do quadro como data URL, para a miniatura no cartão.
+/// Miniatura da imagem do quadro como data URL. PNG e JPEG são reduzidos
+/// para no máximo 640 px e mandados como JPEG (uma foto de vários MB inteira
+/// em base64 é pesada demais para chegar à tela); os outros formatos vão como
+/// estão, se forem pequenos.
 #[tauri::command(async)]
 pub(crate) fn miniatura_arquivo_quadro(arquivo_id: String) -> Result<Option<String>, String> {
     let caminho = caminho_do_arquivo(&arquivo_id)?;
@@ -115,12 +118,47 @@ pub(crate) fn miniatura_arquivo_quadro(arquivo_id: String) -> Result<Option<Stri
         return Ok(None);
     }
     let bytes = fs::read(&caminho).map_err(|err| err.to_string())?;
+    if let Some(jpeg) = reduzir_imagem(&bytes) {
+        return Ok(Some(format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(jpeg))));
+    }
+    if tamanho > LIMITE_MINIATURA_ORIGINAL {
+        return Ok(None);
+    }
     Ok(Some(format!("data:{tipo};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))))
+}
+
+const LIMITE_MINIATURA_ORIGINAL: u64 = 1024 * 1024;
+const LADO_MINIATURA: u32 = 640;
+
+/// Reduz PNG/JPEG para JPEG pequeno, com fundo branco onde era transparente.
+fn reduzir_imagem(bytes: &[u8]) -> Option<Vec<u8>> {
+    let imagem = image::load_from_memory(bytes).ok()?;
+    let reduzida = imagem.thumbnail(LADO_MINIATURA, LADO_MINIATURA).to_rgba8();
+    let (largura, altura) = reduzida.dimensions();
+    let mut rgb = image::RgbImage::new(largura, altura);
+    for (x, y, pixel) in reduzida.enumerate_pixels() {
+        let [r, g, b, a] = pixel.0;
+        let mistura = |c: u8| ((c as u32 * a as u32 + 255 * (255 - a as u32)) / 255) as u8;
+        rgb.put_pixel(x, y, image::Rgb([mistura(r), mistura(g), mistura(b)]));
+    }
+    let mut saida = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(rgb).write_to(&mut saida, image::ImageOutputFormat::Jpeg(82)).ok()?;
+    Some(saida.into_inner())
 }
 
 #[cfg(test)]
 mod testes {
     use super::*;
+
+    #[test]
+    fn miniatura_reduz_imagem_grande() {
+        let imagem = image::RgbaImage::from_pixel(2000, 1000, image::Rgba([10, 120, 200, 128]));
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgba8(imagem).write_to(&mut png, image::ImageOutputFormat::Png).unwrap();
+        let jpeg = reduzir_imagem(&png.into_inner()).expect("miniatura");
+        let lida = image::load_from_memory(&jpeg).unwrap();
+        assert_eq!(image::GenericImageView::dimensions(&lida), (640, 320));
+    }
 
     #[test]
     fn arquivo_do_quadro_nao_sai_da_pasta() {

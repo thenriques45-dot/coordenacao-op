@@ -147,7 +147,7 @@ export function QuadroMagnetico() {
       setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: null }));
       invokeApp<string | null>("miniatura_arquivo_quadro", { arquivoId: arquivo.arquivoId })
         .then((url) => setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: url })))
-        .catch(() => undefined);
+        .catch((falha) => console.warn("[quadro] miniatura", falha));
     }
   }, [quadro.itens, miniaturas]);
 
