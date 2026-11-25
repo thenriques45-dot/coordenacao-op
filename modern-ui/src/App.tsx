@@ -245,6 +245,7 @@ type TurmaResumo = {
   followups_pendentes?: number;
   followups_vencidos?: number;
   alunos_risco_faltas?: number;
+  alunos_ncom?: string[];
   conselhos_finalizados: Record<string, string>;
   em_conselho_externo: string[];
   caminho: string;
@@ -573,7 +574,7 @@ const NOVIDADES_4_9_0: NovidadesVersao = {
         "Os avisos agora ficam separados por tipo (Tarefas, Lembretes, Agenda, Alunos) e agrupados em Hoje e Últimos 7 dias. Cada aviso tem \"Feito\" e \"Adiar\" (daqui a 1 hora, amanhã às 8h ou segunda às 8h). Os adiados ficam listados no rodapé e voltam sozinhos na hora escolhida.",
       destaques: [
         { icone: "agenda", titulo: "Resumo do dia", texto: "Na primeira vez que o app abre no dia: tarefas que vencem hoje ou estão atrasadas, eventos do calendário e lembretes do dia." },
-        { icone: "aluno", titulo: "Avisos sobre os alunos", texto: "Retornos de atendimento combinados para hoje ou antes e turmas que ganharam alunos em risco de reprovação por faltas no último Aluno Presente." },
+        { icone: "aluno", titulo: "Avisos sobre os alunos", texto: "Retornos de atendimento combinados para hoje ou antes, turmas que ganharam alunos em risco de reprovação por faltas e possível NCOM: alunos com 3 semanas seguidas entre 0% e 5% de presença no Aluno Presente, com os nomes." },
         { icone: "equipe", titulo: "Tarefa de um colega", texto: "Quando uma tarefa compartilhada chega pela sincronização com você como responsável." },
       ],
       irPara: { rotulo: "Configurar avisos", tela: "lembretes" },

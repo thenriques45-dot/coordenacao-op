@@ -1803,6 +1803,8 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
     let mut followups_pendentes = 0;
     let mut followups_vencidos = 0;
     let mut alunos_risco_faltas = 0;
+    let mut alunos_ncom = Vec::new();
+    let hoje_data = chrono::Local::now().date_naive();
     let hoje_iso = chrono::Local::now().format("%Y-%m-%d").to_string();
     let mut lider_sala = None;
     let mut vice_lider_sala = None;
@@ -1841,6 +1843,15 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
                 .unwrap_or(false)
             {
                 alunos_risco_faltas += 1;
+            }
+            if info
+                .get("aluno_presente")
+                .is_some_and(|ap| semanas_sem_frequencia(ap, hoje_data) >= SEMANAS_NCOM)
+            {
+                let nome = info.get("nome").and_then(Value::as_str).unwrap_or("").trim();
+                if !nome.is_empty() {
+                    alunos_ncom.push(nome.to_string());
+                }
             }
             if let Some(nome) = info.get("nome").and_then(Value::as_str) {
                 if !nome.trim().is_empty() {
@@ -1917,6 +1928,7 @@ pub(crate) fn resumir_turma(turma: TurmaArquivo, caminho: PathBuf) -> TurmaResum
         followups_pendentes,
         followups_vencidos,
         alunos_risco_faltas,
+        alunos_ncom,
         conselhos_finalizados,
         // Preenchido em listar_turmas, que cruza com o registro de check-outs.
         em_conselho_externo: Vec::new(),

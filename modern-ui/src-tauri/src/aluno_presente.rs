@@ -9,7 +9,7 @@
 use crate::*;
 
 use calamine::{open_workbook_from_rs, Data, Reader, Xlsx, XlsxError};
-use chrono::Local;
+use chrono::{DateTime, Datelike, Duration, Local, NaiveDate};
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -233,10 +233,95 @@ fn numero_json(valor: Option<f64>) -> Value {
         .unwrap_or(Value::Null)
 }
 
+/// Presença semanal (em %) até a qual a semana conta como "sem frequência"
+/// para a NCOM (não comparecimento: o aluno perde a vaga).
+pub(crate) const LIMITE_PRESENCA_NCOM: f64 = 5.0;
+/// Semanas seguidas sem frequência que levam à NCOM.
+pub(crate) const SEMANAS_NCOM: usize = 3;
+/// Quantas semanas o histórico guarda por aluno.
+const SEMANAS_GUARDADAS: usize = 26;
+
+fn segunda_da_semana(data: NaiveDate) -> NaiveDate {
+    data - Duration::days(data.weekday().num_days_from_monday() as i64)
+}
+
+fn data_da_importacao(em: &str) -> NaiveDate {
+    DateTime::parse_from_rfc3339(em)
+        .map(|momento| momento.date_naive())
+        .unwrap_or_else(|_| Local::now().date_naive())
+}
+
+/// O relatório só traz a semana atual e a anterior; o histórico semana a
+/// semana vai sendo montado a cada importação. Cada item: `semana` (segunda,
+/// AAAA-MM-DD), `presenca` (0–100) e `parcial` (semana ainda em andamento
+/// quando foi importada; é trocada pelo valor fechado na importação seguinte).
+pub(crate) fn mesclar_historico_presenca(base: Option<&Value>, novos: Option<&Value>) -> Value {
+    let mut por_semana: BTreeMap<String, Value> = BTreeMap::new();
+    for lista in [base, novos].into_iter().flatten() {
+        for item in lista.as_array().into_iter().flatten() {
+            let Some(semana) = item.get("semana").and_then(Value::as_str) else {
+                continue;
+            };
+            if item.get("presenca").and_then(Value::as_f64).is_none() {
+                continue;
+            }
+            let parcial = item.get("parcial").and_then(Value::as_bool).unwrap_or(false);
+            let fechado_antes = por_semana
+                .get(semana)
+                .is_some_and(|atual| !atual.get("parcial").and_then(Value::as_bool).unwrap_or(false));
+            if parcial && fechado_antes {
+                continue;
+            }
+            por_semana.insert(semana.to_string(), item.clone());
+        }
+    }
+    let itens: Vec<Value> = por_semana.into_values().collect();
+    let inicio = itens.len().saturating_sub(SEMANAS_GUARDADAS);
+    Value::Array(itens[inicio..].to_vec())
+}
+
+/// Quantas semanas fechadas seguidas, contando da mais recente, o aluno teve
+/// presença entre 0% e 5%. Semanas sem dado (sem importação ou sem aula) não
+/// entram na conta. Dado velho (última semana fechada há mais de 3 semanas)
+/// não conta, para o alerta não ficar preso numa situação antiga.
+pub(crate) fn semanas_sem_frequencia(aluno_presente: &Value, hoje: NaiveDate) -> usize {
+    let mut fechadas: Vec<(String, f64)> = aluno_presente
+        .get("historico")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|item| !item.get("parcial").and_then(Value::as_bool).unwrap_or(false))
+        .filter_map(|item| Some((item.get("semana")?.as_str()?.to_string(), item.get("presenca")?.as_f64()?)))
+        .collect();
+    fechadas.sort_by(|a, b| b.0.cmp(&a.0));
+    let limite_recente = (segunda_da_semana(hoje) - Duration::days(21)).format("%Y-%m-%d").to_string();
+    match fechadas.first() {
+        Some((semana, _)) if *semana >= limite_recente => {}
+        _ => return 0,
+    }
+    fechadas.iter().take_while(|(_, presenca)| *presenca <= LIMITE_PRESENCA_NCOM).count()
+}
+
 /// Grava o bloco `aluno_presente` e passa a frequência geral do aluno para o
 /// valor do Aluno Presente. `frequencia_fonte` é o que faz o mapão parar de
 /// sobrescrever essa frequência geral.
 pub(crate) fn gravar_aluno_presente(info: &mut serde_json::Map<String, Value>, registro: &RegistroAlunoPresente, em: &str) {
+    let dia = data_da_importacao(em);
+    let esta_semana = segunda_da_semana(dia);
+    let mut novos = Vec::new();
+    if let Some(presenca) = registro.semana_anterior {
+        let semana = (esta_semana - Duration::days(7)).format("%Y-%m-%d").to_string();
+        novos.push(serde_json::json!({ "semana": semana, "presenca": presenca, "parcial": false }));
+    }
+    if let Some(presenca) = registro.semana_atual {
+        // Importado no fim de semana, a semana atual já está fechada.
+        let parcial = dia.weekday().num_days_from_monday() < 5;
+        novos.push(serde_json::json!({ "semana": esta_semana.format("%Y-%m-%d").to_string(), "presenca": presenca, "parcial": parcial }));
+    }
+    let historico = mesclar_historico_presenca(
+        info.get("aluno_presente").and_then(|bloco| bloco.get("historico")),
+        Some(&Value::Array(novos)),
+    );
     info.insert(
         "aluno_presente".to_string(),
         serde_json::json!({
@@ -245,6 +330,7 @@ pub(crate) fn gravar_aluno_presente(info: &mut serde_json::Map<String, Value>, r
             "semana_anterior": numero_json(registro.semana_anterior),
             "risco_reprovacao": registro.risco_reprovacao,
             "em": em,
+            "historico": historico,
         }),
     );
     if let Some(anual) = registro.anual {
@@ -371,5 +457,51 @@ mod testes {
         assert_eq!(info["frequencia_fonte"], "aluno_presente");
         assert_eq!(info["aluno_presente"]["risco_reprovacao"], true);
         assert_eq!(info["aluno_presente"]["semana_anterior"], serde_json::json!(74.0));
+    }
+
+    fn registro(atual: Option<f64>, anterior: Option<f64>) -> RegistroAlunoPresente {
+        RegistroAlunoPresente {
+            ra: "1".into(),
+            digito: "1".into(),
+            nome: "ALUNO".into(),
+            risco_reprovacao: false,
+            anual: Some(50.0),
+            semana_atual: atual,
+            semana_anterior: anterior,
+        }
+    }
+
+    #[test]
+    fn historico_semanal_se_acumula_e_acha_tres_semanas_sem_frequencia() {
+        let mut info = serde_json::Map::new();
+        // Segunda 2026-11-09: anterior = semana de 02/11 (fechada), atual = 09/11 (parcial).
+        gravar_aluno_presente(&mut info, &registro(Some(40.0), Some(0.0)), "2026-11-09T08:00:00-03:00");
+        // Segunda 16/11: fecha a semana de 09/11 com 3%.
+        gravar_aluno_presente(&mut info, &registro(Some(0.0), Some(3.0)), "2026-11-16T08:00:00-03:00");
+        let historico = info["aluno_presente"]["historico"].as_array().unwrap().clone();
+        assert_eq!(historico.len(), 3);
+        assert_eq!(historico[1]["semana"], "2026-11-09");
+        assert_eq!(historico[1]["presenca"], serde_json::json!(3.0), "o valor fechado substitui o parcial");
+        let hoje = NaiveDate::from_ymd_opt(2026, 11, 18).unwrap();
+        assert_eq!(semanas_sem_frequencia(&info["aluno_presente"], hoje), 2);
+        // Segunda 23/11: semana de 16/11 com 5% -> 3 semanas seguidas.
+        gravar_aluno_presente(&mut info, &registro(Some(0.0), Some(5.0)), "2026-11-23T08:00:00-03:00");
+        let hoje = NaiveDate::from_ymd_opt(2026, 11, 25).unwrap();
+        assert_eq!(semanas_sem_frequencia(&info["aluno_presente"], hoje), 3);
+        // Dado velho não conta.
+        let depois = NaiveDate::from_ymd_opt(2027, 1, 20).unwrap();
+        assert_eq!(semanas_sem_frequencia(&info["aluno_presente"], depois), 0);
+        // Uma semana com presença quebra a sequência.
+        gravar_aluno_presente(&mut info, &registro(Some(0.0), Some(60.0)), "2026-11-30T08:00:00-03:00");
+        let hoje = NaiveDate::from_ymd_opt(2026, 12, 1).unwrap();
+        assert_eq!(semanas_sem_frequencia(&info["aluno_presente"], hoje), 0);
+    }
+
+    #[test]
+    fn historico_parcial_nao_substitui_semana_fechada() {
+        let base = serde_json::json!([{ "semana": "2026-11-09", "presenca": 80.0, "parcial": false }]);
+        let novos = serde_json::json!([{ "semana": "2026-11-09", "presenca": 10.0, "parcial": true }]);
+        let mesclado = mesclar_historico_presenca(Some(&base), Some(&novos));
+        assert_eq!(mesclado[0]["presenca"], serde_json::json!(80.0));
     }
 }

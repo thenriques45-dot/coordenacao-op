@@ -367,6 +367,9 @@ pub(crate) struct TurmaResumo {
     // Alunos ativos marcados em risco de reprovação por faltas no último
     // Aluno Presente importado (aviso automático da central).
     pub(crate) alunos_risco_faltas: usize,
+    // Alunos ativos com 3 semanas fechadas seguidas entre 0% e 5% de presença
+    // no Aluno Presente: candidatos à NCOM (aviso automático da central).
+    pub(crate) alunos_ncom: Vec<String>,
     // Bimestre -> data da finalização (RFC3339; vazio em registros antigos).
     pub(crate) conselhos_finalizados: BTreeMap<String, String>,
     // Bimestres com conselho preparado em pendrive e ainda não reintegrado.

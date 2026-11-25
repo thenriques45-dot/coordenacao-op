@@ -9,6 +9,8 @@ export type PreferenciasAvisos = {
   retornos: boolean;
   /** Turmas com mais alunos em risco de reprovação por faltas no Aluno Presente. */
   riscoFaltas: boolean;
+  /** Alunos com 3 semanas seguidas entre 0% e 5% de presença (possível NCOM). */
+  ncom: boolean;
   /** Eventos do calendário com "Avisar" marcado. */
   eventos: boolean;
   /** Tarefa compartilhada que um colega passou para você. */
@@ -22,6 +24,7 @@ export type PreferenciasAvisos = {
 export const PREFERENCIAS_PADRAO: PreferenciasAvisos = {
   retornos: true,
   riscoFaltas: true,
+  ncom: true,
   eventos: true,
   tarefasAtribuidas: true,
   resumoDia: true,

@@ -426,6 +426,11 @@ const AUTOMATICOS: { chave: Exclude<keyof PreferenciasAvisos, "sistema">; titulo
     texto: "Depois de importar o Aluno Presente, se alguma turma ganhou alunos em risco de reprovação por faltas.",
   },
   {
+    chave: "ncom",
+    titulo: "Possível NCOM",
+    texto: "Alunos com 3 semanas seguidas entre 0% e 5% de presença no Aluno Presente. O app monta o histórico semana a semana a cada importação, então importe toda semana.",
+  },
+  {
     chave: "tarefasAtribuidas",
     titulo: "Tarefas passadas por colegas",
     texto: "Quando uma tarefa compartilhada chega pela sincronização com você como responsável.",

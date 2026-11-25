@@ -459,6 +459,7 @@ export type TurmaParaAvisos = {
   codigo: string;
   followups_vencidos?: number;
   alunos_risco_faltas?: number;
+  alunos_ncom?: string[];
 };
 
 /**
@@ -517,6 +518,35 @@ export function avisosDasTurmas(turmas: TurmaParaAvisos[], agora = new Date()): 
     }
   }
   marcas.risco = JSON.stringify(contagem);
+
+  // Possível NCOM: avisa cada aluno uma vez, quando entra na lista.
+  const ncomAgora = turmas.flatMap((turma) => (turma.alunos_ncom ?? []).map((nome) => ({ codigo: turma.codigo, nome })));
+  let ncomAntes: string[] = [];
+  try {
+    ncomAntes = marcas.ncom ? (JSON.parse(marcas.ncom) as string[]) : [];
+  } catch {
+    ncomAntes = [];
+  }
+  const chaveNcom = (item: { codigo: string; nome: string }) => `${item.codigo}|${item.nome}`;
+  const ncomNovos = ncomAgora.filter((item) => !ncomAntes.includes(chaveNcom(item)));
+  if (preferencias.ncom && ncomNovos.length) {
+    const porTurma = new Map<string, string[]>();
+    for (const item of ncomNovos) porTurma.set(item.codigo, [...(porTurma.get(item.codigo) ?? []), item.nome]);
+    novos.push(
+      novoAviso({
+        tipo: "frequencia",
+        titulo:
+          ncomNovos.length === 1
+            ? "Possível NCOM: 1 aluno com 3 semanas sem frequência"
+            : `Possível NCOM: ${ncomNovos.length} alunos com 3 semanas sem frequência`,
+        texto: `Entre 0% e 5% de presença por 3 semanas seguidas no Aluno Presente. ${[...porTurma.entries()]
+          .map(([codigo, nomes]) => `${codigo}: ${nomes.join(", ")}`)
+          .join("; ")}.`,
+        destino: "turmas",
+      }),
+    );
+  }
+  marcas.ncom = JSON.stringify(ncomAgora.map(chaveNcom));
 
   const mudouMarcas = JSON.stringify(marcas) !== JSON.stringify(estado.marcas);
   if (novos.length || mudouMarcas) salvarEstado({ ...estado, marcas, avisos: inserirAvisos(estado.avisos, novos) });
