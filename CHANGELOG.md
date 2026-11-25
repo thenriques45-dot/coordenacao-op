@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.9.0 - Lembretes recorrentes
+
+### Lembretes
+- **Nova tela "Lembretes"** (Quadro de Gestão › Lembretes, ou o botão "Lembretes" no sino): avisos que se repetem sozinhos, mais simples que uma tarefa no Kanban. Repetem toda semana (em um ou mais dias), a cada N dias (a partir de uma data) ou todo mês (num dia; meses mais curtos usam o último dia), sempre num horário escolhido.
+- **Sugestões prontas, desligadas até você ligar:** importar o Aluno Presente (segunda, 8h), importar as tarefas realizadas (sexta, 8h), importar o progresso das Disciplinas de Expansão (quarta, 18h), revisar as tarefas da semana no Kanban (segunda, 7h30), contatar famílias de alunos faltosos (a cada 14 dias) e fazer o backup do app (dia 1 de cada mês). Cada uma pode ser editada e voltar ao padrão.
+- **Na hora marcada**, o lembrete aparece no canto da tela e fica no sino da barra lateral, como os avisos de prazo do Kanban. Clicar no aviso abre a tela escolhida (ex.: Importar Aluno Presente). Com o app fechado na hora, o aviso aparece uma vez quando ele for aberto, sem acumular os perdidos. O botão do sininho em cada lembrete mostra como fica o aviso.
+- Os lembretes ficam neste computador (não sincronizam com o grupo) e entram no espelho de estado da interface, como o Kanban.
+- Com a janela escondida na bandeja, o aviso do canto espera a janela voltar para aparecer (antes podia sumir sem ninguém ver; no sino ele já ficava).
+
 ## v4.8.0 - Conselho final e pré-conselho
 
 ### Conselho final

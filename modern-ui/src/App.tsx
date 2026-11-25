@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   BookMarked,
   BookOpen,
   CalendarDays,
@@ -41,6 +42,8 @@ import { PreConselho } from "./features/preConselho/PreConselho";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
+import { TelaLembretes } from "./features/lembretes/Lembretes";
+import type { DestinoLembrete } from "./features/lembretesDados";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { NovidadesWizard, normalizarNovidades, type EntradaNovidades, type NovidadesVersao } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
@@ -63,7 +66,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -545,7 +548,28 @@ const NOVIDADES_4_8_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_9_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Quadro de Gestão › Lembretes",
+      titulo: "Lembretes que se repetem sozinhos",
+      corpo:
+        "Para as coisas de toda semana, sem criar tarefa no Kanban: escolha os dias e o horário (ou a cada N dias, ou todo mês) e, na hora marcada, o lembrete aparece no canto da tela e fica no sino. Clicar no aviso já abre a tela certa, como a importação do Aluno Presente.",
+      destaques: [
+        { icone: "lista", titulo: "Sugestões prontas", texto: "Importar o Aluno Presente, importar as tarefas realizadas, Disciplinas de Expansão, revisar o Kanban, contatar famílias e fazer o backup. Só ligar — e dá para mudar dia e horário." },
+        { icone: "agenda", titulo: "Do seu jeito", texto: "Crie os seus em \"Novo lembrete\": toda semana em um ou mais dias, a cada N dias a partir de uma data, ou todo mês." },
+        { icone: "config", titulo: "App fechado na hora?", texto: "O aviso aparece uma vez quando você abrir o app, sem acumular os perdidos. Os lembretes ficam neste computador." },
+      ],
+      irPara: { rotulo: "Abrir Lembretes", tela: "lembretes" },
+    },
+  ],
+  outrasMudancas: [
+    "Com a janela escondida na bandeja, o aviso do canto da tela espera a janela voltar para aparecer.",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.9.0": NOVIDADES_4_9_0,
   "4.8.0": NOVIDADES_4_8_0,
   "4.7.3": {
     ...NOVIDADES_4_7_0,
@@ -1944,6 +1968,15 @@ export function App() {
     navegarPara("kanban");
   }
 
+  function abrirDestinoDoAviso(destino: DestinoLembrete) {
+    if (destino === "backup") {
+      setConfigSecaoInicial("backup");
+      navegarPara("configuracoes");
+      return;
+    }
+    navegarPara(destino);
+  }
+
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
@@ -2004,7 +2037,7 @@ export function App() {
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
-              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" ? "active" : ""}`}
+              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" || tela === "lembretes" ? "active" : ""}`}
               type="button"
               onClick={() => setGestaoMenuAberto((atual) => !atual)}
             >
@@ -2016,6 +2049,7 @@ export function App() {
               <div className="nav-submenu">
                 <NavButton icon={<ClipboardList size={17} />} label="Quadro Kanban" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
                 <NavButton icon={<CalendarDays size={17} />} label="Calendário" active={tela === "calendario"} onClick={() => navegarPara("calendario")} />
+                <NavButton icon={<AlarmClock size={17} />} label="Lembretes" active={tela === "lembretes"} onClick={() => navegarPara("lembretes")} />
               </div>
             )}
           </div>
@@ -2058,12 +2092,15 @@ export function App() {
           avisos={centralAvisos.avisos}
           onFechar={() => setAvisosAbertos(false)}
           onAbrirTarefa={abrirTarefaDoAviso}
+          onAbrirDestino={abrirDestinoDoAviso}
+          onGerenciarLembretes={() => navegarPara("lembretes")}
         />
       )}
       <AvisosFlutuantes
         avisos={centralAvisos.flutuantes}
         onFechar={centralAvisos.fecharFlutuante}
         onAbrirTarefa={abrirTarefaDoAviso}
+        onAbrirDestino={abrirDestinoDoAviso}
       />
 
       <section className="workspace">
@@ -2335,6 +2372,7 @@ export function App() {
             onTarefaAberta={() => setTarefaParaAbrir(null)}
           />
         )}
+        {tela === "lembretes" && <TelaLembretes />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

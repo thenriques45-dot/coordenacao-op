@@ -7,6 +7,7 @@ import {
   type KanbanStatus,
   type KanbanTarefa,
 } from "./management";
+import { lembretesQueVenceram, LEMBRETES_UPDATED_EVENT, type DestinoLembrete, type Lembrete } from "./lembretesDados";
 
 // Central de avisos interna: os alertas de prazo das tarefas do Kanban viram
 // avisos dentro do app (sino na barra lateral + aviso no canto da tela), sem
@@ -21,16 +22,21 @@ export const AVISOS_STORAGE_KEY = "coordenacaoop:avisos:v1";
 export const AVISOS_UPDATED_EVENT = "coordenacaoop:avisos-updated";
 
 const INTERVALO_VERIFICACAO_MS = 30 * 60 * 1000;
+// Os lembretes têm hora marcada: conferidos a cada minuto (só lê o localStorage).
+const INTERVALO_LEMBRETES_MS = 60 * 1000;
 const LIMITE_AVISOS = 50;
 
 export type AvisoApp = {
   id: string;
-  tipo: "prazo-tarefa";
+  tipo: "prazo-tarefa" | "lembrete";
   titulo: string;
   texto: string;
   criadoEm: string;
   lidoEm?: string;
   tarefaId?: string;
+  lembreteId?: string;
+  /** Tela aberta ao clicar no aviso de um lembrete. */
+  destino?: DestinoLembrete;
 };
 
 type EstadoAvisos = {
@@ -181,18 +187,67 @@ export function verificarAvisosPrazo(): AvisoApp[] {
   return novos;
 }
 
+function avisoDeLembrete(lembrete: Lembrete): AvisoApp {
+  return {
+    id: novoId(),
+    tipo: "lembrete",
+    titulo: lembrete.titulo,
+    texto: lembrete.texto || "Lembrete",
+    criadoEm: new Date().toISOString(),
+    lembreteId: lembrete.id,
+    destino: lembrete.destino,
+  };
+}
+
+function publicarAvisosDeLembrete(lembretes: Lembrete[]): AvisoApp[] {
+  if (!lembretes.length) return [];
+  const novos = lembretes.map(avisoDeLembrete);
+  const ids = new Set(lembretes.map((lembrete) => lembrete.id));
+  const estado = carregarEstado();
+  // Como nos prazos: um aviso não lido do mesmo lembrete é substituído, não empilhado.
+  const restantes = estado.avisos.filter((aviso) => aviso.lidoEm || !aviso.lembreteId || !ids.has(aviso.lembreteId));
+  salvarEstado({ ...estado, avisos: [...novos, ...restantes].slice(0, LIMITE_AVISOS) });
+  return novos;
+}
+
+/** Gera os avisos dos lembretes cuja hora chegou e devolve os novos. */
+export function verificarLembretes(): AvisoApp[] {
+  try {
+    return publicarAvisosDeLembrete(lembretesQueVenceram());
+  } catch {
+    return [];
+  }
+}
+
+const AVISO_IMEDIATO_EVENT = "coordenacaoop:aviso-imediato";
+
+/** "Ver como fica": mostra o aviso do lembrete agora, sem mexer na programação. */
+export function avisarLembreteAgora(lembrete: Lembrete) {
+  const novos = publicarAvisosDeLembrete([lembrete]);
+  window.dispatchEvent(new CustomEvent<AvisoApp[]>(AVISO_IMEDIATO_EVENT, { detail: novos }));
+}
+
 /**
  * Verifica os prazos ao abrir, a cada 30 min, logo depois de salvar o Kanban
  * e quando a janela volta da bandeja. Devolve a função de limpeza.
  */
 export function iniciarMonitorAvisos(aoSurgirem: (novos: AvisoApp[]) => void) {
   const verificar = () => {
-    const novos = verificarAvisosPrazo();
+    const novos = [...verificarAvisosPrazo(), ...verificarLembretes()];
     if (novos.length) aoSurgirem(novos);
+  };
+  const verificarSoLembretes = () => {
+    const novos = verificarLembretes();
+    if (novos.length) aoSurgirem(novos);
+  };
+  const aoAvisoImediato = (evento: Event) => {
+    const novos = (evento as CustomEvent<AvisoApp[]>).detail;
+    if (novos?.length) aoSurgirem(novos);
   };
 
   verificar();
   const intervalo = window.setInterval(verificar, INTERVALO_VERIFICACAO_MS);
+  const intervaloLembretes = window.setInterval(verificarSoLembretes, INTERVALO_LEMBRETES_MS);
   let agendada: number | null = null;
   const verificarAposSalvar = () => {
     if (agendada !== null) window.clearTimeout(agendada);
@@ -205,10 +260,15 @@ export function iniciarMonitorAvisos(aoSurgirem: (novos: AvisoApp[]) => void) {
     if (document.visibilityState === "visible") verificar();
   };
   window.addEventListener(KANBAN_UPDATED_EVENT, verificarAposSalvar);
+  window.addEventListener(LEMBRETES_UPDATED_EVENT, verificarAposSalvar);
+  window.addEventListener(AVISO_IMEDIATO_EVENT, aoAvisoImediato);
   document.addEventListener("visibilitychange", aoMudarVisibilidade);
 
   return () => {
     window.clearInterval(intervalo);
+    window.clearInterval(intervaloLembretes);
+    window.removeEventListener(LEMBRETES_UPDATED_EVENT, verificarAposSalvar);
+    window.removeEventListener(AVISO_IMEDIATO_EVENT, aoAvisoImediato);
     if (agendada !== null) window.clearTimeout(agendada);
     window.removeEventListener(KANBAN_UPDATED_EVENT, verificarAposSalvar);
     document.removeEventListener("visibilitychange", aoMudarVisibilidade);

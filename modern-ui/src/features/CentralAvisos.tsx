@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, Check, X } from "lucide-react";
+import { AlarmClock, Bell, CalendarClock, Check, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   AVISOS_UPDATED_EVENT,
@@ -10,6 +10,29 @@ import {
   removerAviso,
   type AvisoApp,
 } from "./centralAvisosDados";
+import type { DestinoLembrete } from "./lembretesDados";
+
+function IconeAviso({ aviso, size }: { aviso: AvisoApp; size: number }) {
+  return aviso.tipo === "lembrete" ? <AlarmClock size={size} aria-hidden /> : <CalendarClock size={size} aria-hidden />;
+}
+
+/** O que acontece ao clicar num aviso: abre a tarefa ou a tela do lembrete. */
+export type AcoesAviso = {
+  onAbrirTarefa: (tarefaId: string) => void;
+  onAbrirDestino: (destino: DestinoLembrete) => void;
+};
+
+function abrirAlvo(aviso: AvisoApp, acoes: AcoesAviso) {
+  if (aviso.tarefaId) {
+    acoes.onAbrirTarefa(aviso.tarefaId);
+    return true;
+  }
+  if (aviso.destino) {
+    acoes.onAbrirDestino(aviso.destino);
+    return true;
+  }
+  return false;
+}
 
 const DURACAO_FLUTUANTE_MS = 8000;
 const MAX_FLUTUANTES = 3;
@@ -26,11 +49,23 @@ export function useCentralAvisos() {
   useEffect(() => {
     const recarregar = () => setAvisos(carregarAvisos());
     window.addEventListener(AVISOS_UPDATED_EVENT, recarregar);
+    // Com a janela na bandeja, o aviso do canto sumiria antes de alguém ver:
+    // guarda e mostra quando a janela voltar (no sino ele já está).
+    let pendentes: AvisoApp[] = [];
+    const mostrar = (novos: AvisoApp[]) => setFlutuantes((atuais) => [...novos, ...atuais].slice(0, MAX_FLUTUANTES));
+    const aoVoltar = () => {
+      if (document.visibilityState !== "visible" || !pendentes.length) return;
+      mostrar(pendentes);
+      pendentes = [];
+    };
+    document.addEventListener("visibilitychange", aoVoltar);
     const parar = iniciarMonitorAvisos((novos) => {
-      setFlutuantes((atuais) => [...novos, ...atuais].slice(0, MAX_FLUTUANTES));
+      if (document.visibilityState === "hidden") pendentes = [...novos, ...pendentes].slice(0, MAX_FLUTUANTES);
+      else mostrar(novos);
     });
     return () => {
       window.removeEventListener(AVISOS_UPDATED_EVENT, recarregar);
+      document.removeEventListener("visibilitychange", aoVoltar);
       parar();
     };
   }, []);
@@ -77,12 +112,13 @@ function quandoFoi(iso: string) {
 export function PainelAvisos({
   avisos,
   onFechar,
-  onAbrirTarefa,
+  onGerenciarLembretes,
+  ...acoes
 }: {
   avisos: AvisoApp[];
   onFechar: () => void;
-  onAbrirTarefa: (tarefaId: string) => void;
-}) {
+  onGerenciarLembretes: () => void;
+} & AcoesAviso) {
   useEffect(() => {
     const aoTeclar = (evento: KeyboardEvent) => {
       if (evento.key === "Escape") onFechar();
@@ -96,10 +132,7 @@ export function PainelAvisos({
 
   function abrir(aviso: AvisoApp) {
     marcarAvisoLido(aviso.id);
-    if (aviso.tarefaId) {
-      onAbrirTarefa(aviso.tarefaId);
-      onFechar();
-    }
+    if (abrirAlvo(aviso, acoes)) onFechar();
   }
 
   return (
@@ -109,6 +142,17 @@ export function PainelAvisos({
         <header>
           <strong>Avisos</strong>
           <div>
+            <button
+              type="button"
+              className="ghost-action"
+              onClick={() => {
+                onGerenciarLembretes();
+                onFechar();
+              }}
+              title="Lembretes recorrentes"
+            >
+              <AlarmClock size={13} aria-hidden /> Lembretes
+            </button>
             {temNaoLidos && (
               <button type="button" className="ghost-action" onClick={marcarTodosAvisosLidos}>
                 Marcar todos como lidos
@@ -123,14 +167,14 @@ export function PainelAvisos({
         </header>
         {avisos.length === 0 ? (
           <p className="avisos-vazio">
-            Nenhum aviso. Os avisos de prazo das tarefas do Kanban aparecem aqui — escolha quando avisar no campo de prazo da tarefa.
+            Nenhum aviso. Os avisos de prazo das tarefas do Kanban e os seus lembretes aparecem aqui. Para criar ou ativar um lembrete, clique em "Lembretes".
           </p>
         ) : (
           <ul>
             {avisos.map((aviso) => (
               <li key={aviso.id} className={aviso.lidoEm ? "lido" : ""}>
                 <button type="button" className="avisos-item" onClick={() => abrir(aviso)}>
-                  <CalendarClock size={16} aria-hidden />
+                  <IconeAviso aviso={aviso} size={16} />
                   <span>
                     <strong>{aviso.titulo}</strong>
                     <small>{aviso.texto}</small>
@@ -169,12 +213,11 @@ export function PainelAvisos({
 function AvisoFlutuante({
   aviso,
   onFechar,
-  onAbrirTarefa,
+  ...acoes
 }: {
   aviso: AvisoApp;
   onFechar: () => void;
-  onAbrirTarefa: (tarefaId: string) => void;
-}) {
+} & AcoesAviso) {
   const [pausado, setPausado] = useState(false);
   // Em ref para o temporizador não reiniciar a cada render do pai (o
   // onFechar chega como função nova sempre que outro aviso some).
@@ -194,11 +237,11 @@ function AvisoFlutuante({
         className="avisos-item"
         onClick={() => {
           marcarAvisoLido(aviso.id);
-          if (aviso.tarefaId) onAbrirTarefa(aviso.tarefaId);
+          abrirAlvo(aviso, acoes);
           onFechar();
         }}
       >
-        <CalendarClock size={18} aria-hidden />
+        <IconeAviso aviso={aviso} size={18} />
         <span>
           <strong>{aviso.titulo}</strong>
           <small>{aviso.texto}</small>
@@ -215,17 +258,16 @@ function AvisoFlutuante({
 export function AvisosFlutuantes({
   avisos,
   onFechar,
-  onAbrirTarefa,
+  ...acoes
 }: {
   avisos: AvisoApp[];
   onFechar: (id: string) => void;
-  onAbrirTarefa: (tarefaId: string) => void;
-}) {
+} & AcoesAviso) {
   if (!avisos.length) return null;
   return (
     <div className="avisos-flutuantes">
       {avisos.map((aviso) => (
-        <AvisoFlutuante key={aviso.id} aviso={aviso} onFechar={() => onFechar(aviso.id)} onAbrirTarefa={onAbrirTarefa} />
+        <AvisoFlutuante key={aviso.id} aviso={aviso} onFechar={() => onFechar(aviso.id)} {...acoes} />
       ))}
     </div>
   );

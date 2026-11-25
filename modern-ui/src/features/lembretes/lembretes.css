@@ -1,0 +1,302 @@
+/* Lembretes recorrentes: lista de sugestões/próprios e editor. */
+
+.lembretes-page {
+  min-width: 0;
+}
+
+.lembretes-resumo {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  margin: 24px 0 8px;
+  padding: 12px 16px;
+}
+
+.lembretes-secao {
+  color: var(--text-primary);
+  font-size: 16px;
+  margin: 26px 0 10px;
+}
+
+.lembretes-vazio {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+.lembretes-lista {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lembrete-cartao {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  gap: 14px;
+  padding: 14px 14px 14px 16px;
+}
+
+.lembrete-cartao.ativo {
+  border-color: var(--atd-accent-borda, var(--accent));
+}
+
+.lembrete-corpo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lembrete-corpo strong {
+  color: var(--text-primary);
+  font-size: 14.5px;
+}
+
+.lembrete-cartao:not(.ativo) .lembrete-corpo strong {
+  color: var(--text-secondary);
+}
+
+.lembrete-corpo p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.lembrete-meta {
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  gap: 6px 14px;
+  margin-top: 4px;
+}
+
+.lembrete-meta span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+}
+
+.lembrete-proximo {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.lembrete-acoes {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+/* Chave liga/desliga */
+.lembrete-chave {
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+  position: relative;
+}
+
+.lembrete-chave input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.lembrete-chave span {
+  background: var(--tag-empty-bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: block;
+  height: 22px;
+  position: relative;
+  transition: background 0.15s;
+  width: 40px;
+}
+
+.lembrete-chave span::after {
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25);
+  content: "";
+  height: 16px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 0.15s;
+  width: 16px;
+}
+
+.lembrete-chave input:checked + span {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.lembrete-chave input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.lembrete-chave input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Editor */
+.lembrete-editor {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  color: var(--text-body);
+  width: min(560px, 100%);
+}
+
+.lembrete-editor .modal-title-row {
+  border-bottom-color: var(--border-inner);
+}
+
+.lembrete-editor .modal-title-row p {
+  color: var(--text-secondary);
+}
+
+.lembrete-editor .modal-actions {
+  padding: 14px 24px 20px;
+}
+
+.lembrete-editor-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 24px 4px;
+}
+
+.lembrete-editor-corpo label {
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 6px;
+}
+
+.lembrete-editor-corpo input:not([type="checkbox"]),
+.lembrete-editor-corpo textarea,
+.lembrete-editor-corpo select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-body);
+  font: inherit;
+  font-weight: 400;
+  min-height: 38px;
+  padding: 7px 10px;
+}
+
+.lembrete-editor-corpo textarea {
+  resize: vertical;
+}
+
+.lembrete-editor-corpo fieldset {
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.lembrete-editor-corpo legend {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  padding: 0;
+}
+
+.lembrete-opcoes-repeticao,
+.lembrete-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lembrete-opcoes-repeticao button,
+.lembrete-dias button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.lembrete-dias button {
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+.lembrete-opcoes-repeticao button.selecionado,
+.lembrete-dias button.selecionado {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-dark);
+}
+
+.theme-dark .lembrete-opcoes-repeticao button.selecionado,
+.theme-dark .lembrete-dias button.selecionado {
+  background: var(--accent-subtle);
+  color: #ff8a8f;
+}
+
+.lembrete-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.lembrete-linha > label {
+  flex: 1 1 180px;
+}
+
+.lembrete-numero {
+  align-items: center;
+  display: flex;
+  font-weight: 400;
+  gap: 8px;
+}
+
+.lembrete-numero input {
+  width: 80px;
+}
+
+.lembrete-editor-corpo label.lembrete-ligado {
+  align-items: center;
+  flex-direction: row;
+  font-weight: 500;
+  gap: 8px;
+}
+
+/* Cabeçalho da central de avisos ganhou o botão "Lembretes". */
+.avisos-painel header div {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.lembretes-page .kanban-top-actions .primary-action {
+  white-space: nowrap;
+}
+
+.lembrete-opcoes-repeticao button,
+.lembrete-dias button {
+  font-size: 13px;
+}
