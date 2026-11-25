@@ -836,7 +836,7 @@ export function QuadroMagnetico() {
                     />
                   </div>
                   {selecionado === item.id && editando !== item.id && (
-                    <div className={`qm-acoes ${item.y < 56 ? "abaixo" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
+                    <div className={`qm-acoes ${item.y < 56 ? "abaixo" : ""} ${item.x + item.w < 380 ? "esquerda" : ""}`} onPointerDown={(e) => e.stopPropagation()}>
                       {item.tipo !== "arquivo" && (
                         <button type="button" title="Editar" onClick={() => setEditando(item.id)}>
                           <Pencil size={14} />

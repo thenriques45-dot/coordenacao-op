@@ -650,6 +650,13 @@
   top: calc(100% + 10px);
 }
 
+/* Perto da borda esquerda a barra alinha pela esquerda do cartão, para não
+   sair do quadro. */
+.qm-acoes.esquerda {
+  left: 0;
+  right: auto;
+}
+
 .qm-acoes {
   align-items: center;
   background: var(--surface);
