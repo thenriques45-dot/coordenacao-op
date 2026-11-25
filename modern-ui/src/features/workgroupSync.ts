@@ -6,8 +6,12 @@ import {
   type CalendarEvent,
   type KanbanColuna,
   type KanbanTarefa,
+  obterResponsaveisTarefa,
+  tarefaEstaAtiva,
+  idsDeConclusao,
 } from "./management";
 import { invokeApp } from "./appBridge";
+import { avisarTarefasAtribuidas } from "./centralAvisosDados";
 import type { ConfiguracoesApp, EquipeGestora } from "./SettingsPage";
 
 // Formato mínimo usado só para carregar a config de Planejamento/PEI do Web
@@ -593,11 +597,31 @@ export async function aplicarPayloadSincronizacao(payload: WorkgroupSyncPayload)
   );
   registrarMembroSincronizacao(perfilRemetente);
   perfisRecebidos.forEach(registrarMembroSincronizacao);
+  // Tarefas que chegaram de um colega atribuídas a mim (novas, ou que antes
+  // eram de outra pessoa): viram aviso na central.
+  const meuNome = carregarPerfilSincronizacao().displayName?.trim() ?? "";
+  const ehMinha = (tarefa: KanbanTarefa) =>
+    Boolean(meuNome) && obterResponsaveisTarefa(tarefa).some((responsavel) => nomesCompativeis(responsavel, meuNome));
+  const antes = new Map(tarefasAtuais.map((tarefa) => [tarefa.id, tarefa]));
+  const concluintes = idsDeConclusao();
+  // Primeira sincronização (quadro vazio ou sem nada compartilhado): não é
+  // "atribuição nova", é o quadro do grupo chegando inteiro.
+  const primeiraVez = !tarefasAtuais.some((tarefa) => tarefa.compartilhada);
+  const atribuidas = primeiraVez ? [] : tarefas.filter((tarefa) => {
+    if (!ehMinha(tarefa) || !tarefaEstaAtiva(tarefa, concluintes)) return false;
+    const anterior = antes.get(tarefa.id);
+    return !anterior || !ehMinha(anterior);
+  });
   localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tarefas));
   localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
   salvarTombstones(tombstones);
   window.dispatchEvent(new CustomEvent("coordenacaoop:kanban-updated"));
   window.dispatchEvent(new CustomEvent(WORKGROUP_SYNC_APPLIED_EVENT));
+  try {
+    avisarTarefasAtribuidas(atribuidas);
+  } catch {
+    /* aviso é extra; a sincronização já foi aplicada */
+  }
 
   return {
     tarefas: tarefas.length,

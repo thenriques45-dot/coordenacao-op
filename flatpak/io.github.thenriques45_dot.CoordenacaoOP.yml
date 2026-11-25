@@ -32,6 +32,8 @@ finish-args:
   - --filesystem=/run/media
   # Ícone na bandeja do sistema.
   - --talk-name=org.kde.StatusNotifierWatcher
+  # Notificações do sistema (opcionais, ligadas em Lembretes).
+  - --talk-name=org.freedesktop.Notifications
   - --filesystem=xdg-run/tray-icon:create
   # Cofre de senhas do sistema (GNOME Keyring/KWallet) para os logins Google
   # e GitHub. Sem ele o app usa o arquivo de reserva (ver cofre.rs).

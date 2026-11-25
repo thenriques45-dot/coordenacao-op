@@ -1235,12 +1235,23 @@ pub(crate) fn mesclar_aluno(local: &mut Value, incoming: &Value) {
             .and_then(Value::as_str)
             .unwrap_or("");
         let em_inc = presente_inc.get("em").and_then(Value::as_str).unwrap_or("");
+        // O histórico semanal é somado dos dois lados: cada computador pode
+        // ter importado semanas diferentes.
+        let historico = mesclar_historico_presenca(
+            local_obj.get("aluno_presente").and_then(|bloco| bloco.get("historico")),
+            presente_inc.get("historico"),
+        );
         if em_inc >= em_local {
             local_obj.insert("aluno_presente".to_string(), presente_inc.clone());
             for campo in &["frequencia_percentual", "frequencia_fonte"] {
                 if let Some(valor) = inc_obj.get(*campo) {
                     local_obj.insert(campo.to_string(), valor.clone());
                 }
+            }
+        }
+        if let Some(bloco) = local_obj.get_mut("aluno_presente").and_then(Value::as_object_mut) {
+            if historico.as_array().is_some_and(|itens| !itens.is_empty()) {
+                bloco.insert("historico".to_string(), historico);
             }
         }
     }

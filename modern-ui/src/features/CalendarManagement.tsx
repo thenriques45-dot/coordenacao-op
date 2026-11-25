@@ -2,12 +2,14 @@ import { Clock, Pencil, Plus, Trash2, X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CALENDAR_STORAGE_KEY,
+  CALENDARIO_UPDATED_EVENT,
   adicionarMeses,
   carregarEventosCalendario,
   carregarTarefasKanban,
   chaveData,
   colunasKanbanPadrao,
   coresCalendario,
+  OPCOES_AVISO_EVENTO,
   filtrarSugestoesFuzzy,
   formatarDataLonga,
   montarLinhaDoTempo,
@@ -126,6 +128,7 @@ export function CalendarioGestao({
     repetir: "none" as "none" | RecurrenceFrequency,
     intervalo: 1,
     repetirAte: "",
+    avisar: "",
   });
   const [formTarefa, setFormTarefa] = useState({
     titulo: "",
@@ -143,6 +146,7 @@ export function CalendarioGestao({
 
   useEffect(() => {
     localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(eventos));
+    window.dispatchEvent(new CustomEvent(CALENDARIO_UPDATED_EVENT));
   }, [eventos]);
 
   useEffect(() => {
@@ -251,6 +255,7 @@ export function CalendarioGestao({
       repetir: "none",
       intervalo: 1,
       repetirAte: "",
+      avisar: "",
     });
     setModalEvento(true);
   }
@@ -272,6 +277,7 @@ export function CalendarioGestao({
       repetir: evento.recorrencia?.frequency ?? "none",
       intervalo: evento.recorrencia?.interval ?? 1,
       repetirAte: evento.recorrencia?.until ?? "",
+      avisar: (evento.avisarDiasAntes ?? []).join(","),
     });
     setModalEvento(true);
   }
@@ -304,6 +310,7 @@ export function CalendarioGestao({
       vinculo: vinculos[0] ?? "Geral",
       vinculos: vinculos.length ? vinculos : undefined,
       recorrencia,
+      avisarDiasAntes: formEvento.avisar ? formEvento.avisar.split(",").map(Number).filter((dias) => Number.isFinite(dias)) : undefined,
       createdAt: eventoEditando?.createdAt ?? agora,
       updatedAt: agora,
     };
@@ -567,6 +574,17 @@ export function CalendarioGestao({
                       <input type="time" value={formEvento.horaFim} onChange={(event) => setFormEvento((atual) => ({ ...atual, horaFim: event.target.value }))} />
                     </label>
                   </div>
+                  <label>
+                    Avisar no sino
+                    <select value={formEvento.avisar} onChange={(event) => setFormEvento((atual) => ({ ...atual, avisar: event.target.value }))}>
+                      {!OPCOES_AVISO_EVENTO.some((opcao) => opcao.valor === formEvento.avisar) && (
+                        <option value={formEvento.avisar}>Personalizado ({formEvento.avisar} dias antes)</option>
+                      )}
+                      {OPCOES_AVISO_EVENTO.map((opcao) => (
+                        <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               )}
 

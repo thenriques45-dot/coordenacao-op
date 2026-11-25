@@ -92,9 +92,22 @@ export type CalendarEvent = {
   vinculo: string;
   vinculos?: string[];
   recorrencia?: RecurrenceRule;
+  /** Dias antes do evento em que a central avisa (0 = no dia). Ausente = não avisa. */
+  avisarDiasAntes?: number[];
   createdAt?: string;
   updatedAt?: string;
 };
+
+// "Avisar no sino" dos eventos: dias antes (0 = no dia), separados por vírgula.
+export const OPCOES_AVISO_EVENTO = [
+  { valor: "", rotulo: "Não avisar" },
+  { valor: "0", rotulo: "No dia" },
+  { valor: "1", rotulo: "1 dia antes" },
+  { valor: "1,0", rotulo: "1 dia antes e no dia" },
+  { valor: "2", rotulo: "2 dias antes" },
+  { valor: "7", rotulo: "1 semana antes" },
+  { valor: "7,1", rotulo: "1 semana antes e na véspera" },
+];
 
 export type TimelineItem = {
   id: string;
@@ -115,6 +128,8 @@ export const KANBAN_STORAGE_KEY = "coordenacaoop:quadro-kanban:v1";
 export const KANBAN_COLUMNS_STORAGE_KEY = "coordenacaoop:quadro-kanban-colunas:v1";
 export const CALENDAR_STORAGE_KEY = "coordenacaoop:calendario-gestao:v1";
 export const KANBAN_UPDATED_EVENT = "coordenacaoop:kanban-updated";
+// Disparado ao gravar os eventos do calendário (a central confere os avisos).
+export const CALENDARIO_UPDATED_EVENT = "coordenacaoop:calendario-updated";
 
 export const colunasKanbanPadrao: KanbanColuna[] = [
   { id: "fazer", titulo: "A Fazer", cor: "#2f78ff" },

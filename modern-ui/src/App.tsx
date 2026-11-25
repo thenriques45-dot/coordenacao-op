@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   BookMarked,
   BookOpen,
   CalendarDays,
@@ -41,6 +42,10 @@ import { PreConselho } from "./features/preConselho/PreConselho";
 import { Dashboard } from "./features/Dashboard";
 import { ImportarAlunoPresente, ImportarAlunosLote, ImportarSaresp, ImportarDados, ImportarDiagnostico, ImportarElegiveis, ImportarExpansoes, ImportarFotos, ImportarNotas, ImportarProvaPaulista, ImportarTarefas } from "./features/Imports";
 import { QuadroKanban } from "./features/KanbanBoard";
+import { ImportarCalendarioEscolar } from "./features/calendarioEscolar/ImportarCalendario";
+import { TelaLembretes } from "./features/lembretes/Lembretes";
+import { registrarConclusao, type DestinoLembrete } from "./features/lembretesDados";
+import { avisosDasTurmas, mostrarAvisos } from "./features/centralAvisosDados";
 import { RelatorioAtendimentos, RelatoriosMenu, MotorRelatorios } from "./features/Reports";
 import { NovidadesWizard, normalizarNovidades, type EntradaNovidades, type NovidadesVersao } from "./features/Novidades";
 import { ConstrutorRelatorio } from "./features/motorRelatorios/ConstrutorRelatorio";
@@ -63,7 +68,7 @@ import {
   type WorkgroupSyncProfile,
 } from "./features/workgroupSync";
 
-type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
+type Tela = "dashboard" | "turmas" | "gestao-turma" | "atendimentos" | "importar-dados" | "importar-notas" | "importar-elegiveis" | "importar-diagnostico" | "importar-aluno-presente" | "importar-saresp" | "importar-fotos" | "importar-alunos-lote" | "importar-tarefas" | "importar-prova-paulista" | "importar-expansoes" | "importar-calendario" | "conselhos" | "conselho" | "pre-conselho" | "kanban" | "calendario" | "lembretes" | "relatorios" | "relatorio-atendimentos" | "relatorio-motor" | "construtor-relatorio" | "repositorio-relatorios" | "pei" | "planejamento" | "configuracoes";
 
 const PERIODOS_TURMA = ["MANHA", "TARDE", "NOITE", "INTEGRAL (9 HORAS)", "INTEGRAL (7 HORAS)"];
 const TIPOS_ATENDIMENTO_PADRAO = ["Disciplinar", "Dúvidas", "Pedagógico", "Financeiro", "Educação especial"];
@@ -238,6 +243,9 @@ type TurmaResumo = {
   // callback declarando só um subconjunto dos campos.
   total_atendimentos?: number;
   followups_pendentes?: number;
+  followups_vencidos?: number;
+  alunos_risco_faltas?: number;
+  alunos_ncom?: string[];
   conselhos_finalizados: Record<string, string>;
   em_conselho_externo: string[];
   caminho: string;
@@ -545,7 +553,67 @@ const NOVIDADES_4_8_0: NovidadesVersao = {
   ],
 };
 
+const NOVIDADES_4_9_0: NovidadesVersao = {
+  paginas: [
+    {
+      area: "Quadro de Gestão › Lembretes",
+      titulo: "Lembretes que se repetem sozinhos",
+      corpo:
+        "Para as coisas de toda semana, sem criar tarefa no Kanban: escolha os dias e o horário (ou a cada N dias, ou todo mês) e, na hora marcada, o lembrete aparece no canto da tela e fica no sino. Clicar no aviso já abre a tela certa, como a importação do Aluno Presente.",
+      destaques: [
+        { icone: "lista", titulo: "Sugestões prontas", texto: "Importar o Aluno Presente, importar as tarefas realizadas, Disciplinas de Expansão, revisar o Kanban, contatar famílias e fazer o backup. Só ligar — e dá para mudar dia e horário." },
+        { icone: "config", titulo: "Se resolvem sozinhos", texto: "Importou o Aluno Presente? O aviso sai do sino sozinho. Importou antes da hora? O lembrete daquela vez nem aparece." },
+        { icone: "agenda", titulo: "Do seu jeito", texto: "Crie os seus em \"Novo lembrete\": toda semana em um ou mais dias, a cada N dias a partir de uma data, ou todo mês." },
+      ],
+      irPara: { rotulo: "Abrir Lembretes", tela: "lembretes" },
+    },
+    {
+      area: "Sino da barra lateral",
+      titulo: "Central de avisos mais completa",
+      corpo:
+        "Os avisos agora ficam separados por tipo (Tarefas, Lembretes, Agenda, Alunos) e agrupados em Hoje e Últimos 7 dias. Cada aviso tem \"Feito\" e \"Adiar\" (daqui a 1 hora, amanhã às 8h ou segunda às 8h). Os adiados ficam listados no rodapé e voltam sozinhos na hora escolhida.",
+      destaques: [
+        { icone: "agenda", titulo: "Resumo do dia", texto: "Na primeira vez que o app abre no dia: tarefas que vencem hoje ou estão atrasadas, eventos do calendário e lembretes do dia." },
+        { icone: "aluno", titulo: "Avisos sobre os alunos", texto: "Retornos de atendimento combinados para hoje ou antes, turmas que ganharam alunos em risco de reprovação por faltas e possível NCOM: alunos com 3 semanas seguidas entre 0% e 5% de presença no Aluno Presente, com os nomes." },
+        { icone: "equipe", titulo: "Tarefa de um colega", texto: "Quando uma tarefa compartilhada chega pela sincronização com você como responsável." },
+      ],
+      irPara: { rotulo: "Configurar avisos", tela: "lembretes" },
+    },
+    {
+      area: "Calendário",
+      titulo: "Eventos que avisam no sino",
+      corpo:
+        "Ao criar ou editar um evento do calendário, escolha em \"Avisar no sino\" quando quer ser lembrado: no dia, na véspera, 2 dias antes ou uma semana antes.",
+      destaques: [
+        { icone: "envio", titulo: "Notificação do Windows/Linux (opcional)", texto: "Em Lembretes › Notificações do Windows / Linux, teste e ligue para os avisos aparecerem também no canto do sistema quando o app estiver minimizado ou na bandeja." },
+      ],
+      irPara: { rotulo: "Abrir Calendário", tela: "calendario" },
+    },
+    {
+      area: "Importar dados › Importar calendário escolar (SED)",
+      titulo: "O calendário escolar do ano, de uma vez",
+      corpo:
+        "Carregue o PDF do Calendário Escolar baixado da SED e o app lê o ano inteiro: férias, recessos, feriados, pontos facultativos, conselhos de classe, reuniões de pais, da APM e do Grêmio, semanas de estudos intensivos e reposições. Antes de gravar, uma prévia mostra cada tipo de data com a cor da legenda, para escolher o que entra no calendário e quando avisar no sino.",
+      destaques: [
+        { icone: "agenda", titulo: "Avisos já configurados", texto: "Conselhos de classe, reuniões de pais e semanas de estudos intensivos avisam uma semana antes e na véspera; férias, uma semana antes; o resto, na véspera. Tudo dá para mudar na prévia." },
+        { icone: "config", titulo: "Sem duplicar", texto: "Importar de novo o calendário do mesmo ano (por exemplo, depois de uma alteração na SED) atualiza as datas e tira as que saíram, sem repetir eventos." },
+        { icone: "config", titulo: "Bimestres preenchidos", texto: "O quadro dos bimestres do PDF também é lido: o início de cada bimestre vai direto para Configurações › Instituição, sem digitar." },
+        { icone: "equipe", titulo: "Para o grupo todo", texto: "As datas entram no Calendário de Gestão e vão para os colegas pela sincronização, como os outros eventos." },
+      ],
+      irPara: { rotulo: "Importar o calendário", tela: "importar-calendario" },
+    },
+    // Quem pula da 4.7 direto para a 4.9 não vê a tela da 4.8.0: repete o pré-conselho.
+    ...NOVIDADES_4_8_0.paginas
+      .filter((pagina) => pagina.titulo === "Pré-conselho")
+      .map((pagina) => ({ ...pagina, area: `${pagina.area} (chegou na 4.8.0)` })),
+  ],
+  outrasMudancas: [
+    "Com a janela escondida na bandeja, o aviso do canto da tela espera a janela voltar para aparecer.",
+  ],
+};
+
 const NOVIDADES_POR_VERSAO: Record<string, EntradaNovidades> = {
+  "4.9.0": NOVIDADES_4_9_0,
   "4.8.0": NOVIDADES_4_8_0,
   "4.7.3": {
     ...NOVIDADES_4_7_0,
@@ -1368,6 +1436,11 @@ export function App() {
   const [mostrarNovidades, setMostrarNovidades] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() => localStorage.getItem("coordenacaoop:tema") === "escuro");
   const centralAvisos = useCentralAvisos();
+  // Avisos automáticos que dependem das turmas (retornos vencidos, risco por
+  // faltas): conferidos sempre que a lista é recarregada.
+  useEffect(() => {
+    if (turmas.length) mostrarAvisos(avisosDasTurmas(turmas));
+  }, [turmas]);
   const [avisosAbertos, setAvisosAbertos] = useState(false);
   const [tarefaParaAbrir, setTarefaParaAbrir] = useState<string | null>(null);
   const [gestaoMenuAberto, setGestaoMenuAberto] = useState(() => localStorage.getItem("coordenacaoop:menu-gestao") !== "fechado");
@@ -1944,6 +2017,15 @@ export function App() {
     navegarPara("kanban");
   }
 
+  function abrirDestinoDoAviso(destino: DestinoLembrete) {
+    if (destino === "backup") {
+      setConfigSecaoInicial("backup");
+      navegarPara("configuracoes");
+      return;
+    }
+    navegarPara(destino);
+  }
+
   function navegarPara(proximaTela: Tela) {
     setTela(proximaTela);
     setMenuAberto(false);
@@ -1998,13 +2080,13 @@ export function App() {
             onClick={() => navegarPara("atendimentos")}
             badge={turmas.reduce((soma, t) => soma + (t.followups_pendentes ?? 0), 0)}
           />
-          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela === "importar-dados" || tela === "importar-notas" || tela === "importar-elegiveis" || tela === "importar-diagnostico" || tela === "importar-aluno-presente" || tela === "importar-saresp" || tela === "importar-fotos" || tela === "importar-alunos-lote"} onClick={() => navegarPara("importar-dados")} />
+          <NavButton icon={<Upload size={18} />} label="Importar Dados" active={tela.startsWith("importar-")} onClick={() => navegarPara("importar-dados")} />
           <NavButton icon={<BookOpen size={18} />} label="Conselho" active={tela === "conselhos" || tela === "conselho" || tela === "pre-conselho"} onClick={() => navegarPara("conselhos")} />
           <NavButton icon={<BookMarked size={18} />} label="PEI" active={tela === "pei"} onClick={() => navegarPara("pei")} />
           <NavButton icon={<NotebookPen size={18} />} label="Planejamento" active={tela === "planejamento"} onClick={() => navegarPara("planejamento")} />
           <div className={`nav-group ${gestaoMenuAberto ? "open" : ""}`}>
             <button
-              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" ? "active" : ""}`}
+              className={`nav-item nav-group-toggle ${tela === "kanban" || tela === "calendario" || tela === "lembretes" ? "active" : ""}`}
               type="button"
               onClick={() => setGestaoMenuAberto((atual) => !atual)}
             >
@@ -2016,6 +2098,7 @@ export function App() {
               <div className="nav-submenu">
                 <NavButton icon={<ClipboardList size={17} />} label="Quadro Kanban" active={tela === "kanban"} onClick={() => navegarPara("kanban")} />
                 <NavButton icon={<CalendarDays size={17} />} label="Calendário" active={tela === "calendario"} onClick={() => navegarPara("calendario")} />
+                <NavButton icon={<AlarmClock size={17} />} label="Lembretes" active={tela === "lembretes"} onClick={() => navegarPara("lembretes")} />
               </div>
             )}
           </div>
@@ -2056,14 +2139,18 @@ export function App() {
       {avisosAbertos && (
         <PainelAvisos
           avisos={centralAvisos.avisos}
+          adiados={centralAvisos.adiados}
           onFechar={() => setAvisosAbertos(false)}
           onAbrirTarefa={abrirTarefaDoAviso}
+          onAbrirDestino={abrirDestinoDoAviso}
+          onGerenciarLembretes={() => navegarPara("lembretes")}
         />
       )}
       <AvisosFlutuantes
         avisos={centralAvisos.flutuantes}
         onFechar={centralAvisos.fecharFlutuante}
         onAbrirTarefa={abrirTarefaDoAviso}
+        onAbrirDestino={abrirDestinoDoAviso}
       />
 
       <section className="workspace">
@@ -2246,6 +2333,7 @@ export function App() {
             onImportarTarefas={() => navegarPara("importar-tarefas")}
             onImportarProvaPaulista={() => navegarPara("importar-prova-paulista")}
             onImportarExpansoes={() => navegarPara("importar-expansoes")}
+            onImportarCalendario={() => navegarPara("importar-calendario")}
           />
         )}
         {tela === "importar-fotos" && <ImportarFotos />}
@@ -2253,18 +2341,28 @@ export function App() {
           <ImportarAlunosLote onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
         {tela === "importar-tarefas" && (
-          <ImportarTarefas onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+          <ImportarTarefas onAplicado={() => {
+            registrarConclusao("tarefas");
+            setTurmaRefreshKey((k) => k + 1);
+          }} />
         )}
         {tela === "importar-prova-paulista" && (
           <ImportarProvaPaulista onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
         )}
+        {tela === "importar-calendario" && <ImportarCalendarioEscolar onAbrirCalendario={() => navegarPara("calendario")} onConfigSalva={aplicarConfigCarregada} />}
         {tela === "importar-expansoes" && (
-          <ImportarExpansoes onAplicado={() => setTurmaRefreshKey((k) => k + 1)} />
+          <ImportarExpansoes onAplicado={() => {
+            registrarConclusao("expansoes");
+            setTurmaRefreshKey((k) => k + 1);
+          }} />
         )}
         {tela === "importar-notas" && (
           <ImportarNotas
             turmas={turmas}
-            onAplicado={() => setTurmaRefreshKey((k) => k + 1)}
+            onAplicado={() => {
+              registrarConclusao("mapoes");
+              setTurmaRefreshKey((k) => k + 1);
+            }}
             onSubstituirCsvTurma={(turma, alunos) => {
               const turmaCompleta = turmas.find((item) => item.caminho === turma.caminho);
               if (!turmaCompleta) {
@@ -2307,6 +2405,7 @@ export function App() {
         )}
         {tela === "importar-aluno-presente" && (
           <ImportarAlunoPresente onImportado={() => {
+            registrarConclusao("aluno-presente");
             invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});
             if (turmaSelecionada) {
               invokeApp<TurmaDetalhe>("carregar_turma", {
@@ -2335,6 +2434,7 @@ export function App() {
             onTarefaAberta={() => setTarefaParaAbrir(null)}
           />
         )}
+        {tela === "lembretes" && <TelaLembretes />}
         {tela === "calendario" && <CalendarioGestao turmas={turmas} onOpenKanban={() => navegarPara("kanban")} />}
         {tela === "configuracoes" && <Configuracoes turmas={turmas} perfilSync={perfilSync} onPerfilSyncChange={atualizarPerfilSync} onAbrirAssistenteSync={() => setMostrarAssistenteSync(true)} onConfigSalva={aplicarConfigCarregada} secaoInicial={configSecaoInicial} onVerNovidades={novidades ? () => setMostrarNovidades(true) : undefined} onDadosAlterados={() => {
           invokeApp<TurmaResumo[]>("listar_turmas").then(setTurmas).catch(() => {});

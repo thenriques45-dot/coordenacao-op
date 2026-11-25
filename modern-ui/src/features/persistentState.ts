@@ -19,6 +19,9 @@ const CHAVES_ESPELHADAS = [
   "coordenacaoop:workgroup-sync-members:v1",
   "coordenacaoop:workgroup-sync-tombstones:v1",
   "coordenacaoop:avisos:v1",
+  "coordenacaoop:lembretes:v1",
+  "coordenacaoop:conclusoes:v1",
+  "coordenacaoop:preferencias-avisos:v1",
   // Preferências da interface: espelhadas para sobreviver à troca do
   // identificador do app, que muda a pasta do localStorage do WebView.
   "coordenacaoop:tema",

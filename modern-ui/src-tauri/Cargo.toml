@@ -1,6 +1,6 @@
 [package]
 name = "coordenacaoop"
-version = "4.8.0"
+version = "4.9.0"
 description = "Nova interface desktop do CoordenacaoOP"
 authors = ["CoordenacaoOP Contributors"]
 license = "GPL-3.0-or-later"
@@ -42,5 +42,7 @@ rand = "0.8"
 # quebrando a publicação no repositório e forçando reautorização a cada uso.
 keyring = { version = "3", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 url = "2"
+# Notificações do sistema (opcionais, ligadas em Lembretes › Notificações do sistema).
+notify-rust = "4"
 genpdf = { version = "0.2.0", features = ["images"] }
 image = { version = "0.23", default-features = false, features = ["jpeg", "png"] }

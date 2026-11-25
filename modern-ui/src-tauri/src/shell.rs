@@ -1,5 +1,5 @@
 
-// Integração com o sistema: abrir URLs/pastas/arquivos e anexos.
+// Integração com o sistema: notificações, abrir URLs/pastas/arquivos e anexos.
 // Extraído de main.rs; os itens são pub(crate) e os módulos se enxergam
 // através dos re-exports globais feitos no main.rs (use crate::*).
 
@@ -16,6 +16,49 @@ use std::{
 // ao compilar/rodar `cargo fix` no Windows ou macOS.
 #[cfg(target_os = "linux")]
 use std::env;
+
+/// AppUserModelID usado no toast do Windows. O toast é descartado em silêncio
+/// quando o ID não pertence a um atalho/pacote registrado — era o caso até a
+/// 4.5 (ID fixo "br.gov.sp.educacao.coordenacaoop", que nenhum instalador
+/// registra). Agora: pacote da Store = "<família>!CoordenacaoOP" (Application
+/// Id do AppxManifest); instalado pelo NSIS (há uninstall.exe ao lado do
+/// executável) = identificador do bundle, que o atalho do menu Iniciar leva;
+/// portátil = ID padrão do notify-rust (PowerShell), que sempre existe.
+#[cfg(target_os = "windows")]
+fn app_id_notificacao() -> Option<String> {
+    #[cfg(feature = "store")]
+    if let Some(familia) = crate::infra::familia_pacote_msix() {
+        return Some(format!("{familia}!CoordenacaoOP"));
+    }
+    let instalado = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|pasta| pasta.join("uninstall.exe").exists()))
+        .unwrap_or(false);
+    instalado.then(|| "io.github.thenriques45-dot.CoordenacaoOP".to_string())
+}
+
+/// Notificação nativa do sistema (opcional; a central de avisos dentro do app
+/// continua sendo o canal principal). Roda numa thread do SO dedicada: no
+/// Linux o `zbus::blocking` do notify-rust falha de forma intermitente quando
+/// chamado de dentro do runtime async. Devolve o erro real para o botão
+/// "Testar" mostrar. No Flatpak depende de --talk-name=org.freedesktop.Notifications.
+#[tauri::command]
+pub(crate) fn enviar_notificacao(titulo: String, corpo: String) -> Result<(), String> {
+    std::thread::spawn(move || {
+        let mut notificacao = notify_rust::Notification::new();
+        notificacao.summary(&titulo).body(&corpo);
+        // Com o nome do binário ("coordenacaoop") algumas versões do GNOME
+        // casam com um .desktop quebrado do AppImage e descartam a notificação.
+        notificacao.appname("CoordenacaoOP");
+        #[cfg(target_os = "windows")]
+        if let Some(id) = app_id_notificacao() {
+            notificacao.app_id(&id);
+        }
+        notificacao.show().map(|_| ()).map_err(|err| err.to_string())
+    })
+    .join()
+    .map_err(|_| "Falha ao executar a thread de notificação.".to_string())?
+}
 
 #[tauri::command]
 pub(crate) fn abrir_url(url: String) -> Result<(), String> {
