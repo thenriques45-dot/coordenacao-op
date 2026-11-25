@@ -1264,7 +1264,19 @@ g.selecionada .qm-barbante {
 }
 
 .qm-confirmar {
-  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+  width: min(500px, 100%);
+}
+
+.qm-confirmar h2,
+.qm-confirmar p {
+  margin: 0;
 }
 
 .qm-confirmar p {
@@ -1282,6 +1294,7 @@ g.selecionada .qm-barbante {
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .primary-action.perigo {
