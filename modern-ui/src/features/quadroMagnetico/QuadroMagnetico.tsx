@@ -171,7 +171,7 @@ export function QuadroMagnetico() {
       invokeApp<string | null>("miniatura_arquivo_quadro", { arquivoId: arquivo.arquivoId })
         .then((url) => {
           setMiniaturas((atuais) => ({ ...atuais, [arquivo.arquivoId]: url }));
-          if (!url) setAvisosMiniatura((atuais) => ({ ...atuais, [arquivo.arquivoId]: "imagem grande demais para a miniatura" }));
+          if (!url) setAvisosMiniatura((atuais) => ({ ...atuais, [arquivo.arquivoId]: "o app não reconheceu a imagem" }));
         })
         .catch((falha) => {
           console.warn("[quadro] miniatura", falha);

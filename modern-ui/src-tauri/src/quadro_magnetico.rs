@@ -66,11 +66,28 @@ pub(crate) fn adicionar_arquivo_quadro(caminho: String) -> Result<ArquivoQuadro,
         .and_then(|valor| valor.to_str())
         .unwrap_or("arquivo")
         .to_string();
-    let arquivo_id = format!("{}_{}", chrono::Local::now().timestamp_millis(), sanitizar_segmento(&nome));
+    let arquivo_id = id_do_arquivo(&nome, chrono::Local::now().timestamp_millis());
     let destino = caminho_do_arquivo(&arquivo_id)?;
     fs::copy(&origem, &destino).map_err(|err| format!("Não foi possível copiar o arquivo para o quadro: {err}"))?;
     let tamanho = fs::metadata(&destino).map(|meta| meta.len()).unwrap_or(0);
     Ok(ArquivoQuadro { arquivo_id, nome, tamanho, tipo: tipo_mime_por_caminho(&origem) })
+}
+
+/// Nome da cópia: `<momento>_<nome limpo>.<extensão>`. A extensão fica de
+/// fora da limpeza para o Windows saber com que programa abrir e o app saber
+/// que é imagem.
+fn id_do_arquivo(nome: &str, momento: i64) -> String {
+    let caminho = std::path::Path::new(nome);
+    let base = caminho.file_stem().and_then(|v| v.to_str()).unwrap_or(nome);
+    let extensao = caminho
+        .extension()
+        .and_then(|v| v.to_str())
+        .map(|v| v.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_lowercase())
+        .filter(|v| !v.is_empty() && v.len() <= 10);
+    match extensao {
+        Some(extensao) => format!("{momento}_{}.{extensao}", sanitizar_segmento(base)),
+        None => format!("{momento}_{}", sanitizar_segmento(base)),
+    }
 }
 
 /// Apaga a cópia guardada pelo quadro (o original, fora do app, não é tocado).
@@ -108,23 +125,27 @@ pub(crate) fn mostrar_arquivo_quadro(arquivo_id: String) -> Result<(), String> {
 #[tauri::command(async)]
 pub(crate) fn miniatura_arquivo_quadro(arquivo_id: String) -> Result<Option<String>, String> {
     let caminho = caminho_do_arquivo(&arquivo_id)?;
-    let tipo = tipo_mime_por_caminho(&caminho);
-    if !tipo.starts_with("image/") {
-        return Ok(None);
-    }
     let tamanho = fs::metadata(&caminho).map(|meta| meta.len()).unwrap_or(0);
     if tamanho == 0 || tamanho > LIMITE_MINIATURA {
         return Ok(None);
     }
     let bytes = fs::read(&caminho).map_err(|err| err.to_string())?;
+    // Cópias feitas pela versão de teste anterior ficaram sem extensão: o
+    // conteúdo diz se é imagem.
+    let tipo = match tipo_pelo_conteudo(&bytes) {
+        Some(tipo) => tipo.to_string(),
+        None => tipo_mime_por_caminho(&caminho),
+    };
+    if !tipo.starts_with("image/") {
+        return Ok(None);
+    }
     if let Some(jpeg) = reduzir_imagem(&bytes) {
         return Ok(Some(format!("data:image/jpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(jpeg))));
     }
     // Não deu para reduzir (formato que o app não decodifica, como WebP, ou
     // uma imagem com extensão trocada): manda o original com o tipo real,
     // que a tela sabe mostrar.
-    let tipo_real = tipo_pelo_conteudo(&bytes).unwrap_or(tipo.as_str()).to_string();
-    Ok(Some(format!("data:{tipo_real};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))))
+    Ok(Some(format!("data:{tipo};base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))))
 }
 
 /// Tipo da imagem pelos primeiros bytes (a extensão às vezes mente: foto
@@ -174,6 +195,14 @@ mod testes {
         let jpeg = reduzir_imagem(&png.into_inner()).expect("miniatura");
         let lida = image::load_from_memory(&jpeg).unwrap();
         assert_eq!(image::GenericImageView::dimensions(&lida), (640, 320));
+    }
+
+    #[test]
+    fn copia_mantem_a_extensao() {
+        assert_eq!(id_do_arquivo("Img_Perfil_Thiago.png", 1), "1_Img_Perfil_Thiago.png");
+        assert_eq!(id_do_arquivo("Ata do conselho (2).PDF", 2), "2_Ata do conselho _2_.pdf");
+        assert_eq!(id_do_arquivo("LEIAME", 3), "3_LEIAME");
+        assert!(caminho_do_arquivo(&id_do_arquivo("x.png", 4)).is_ok());
     }
 
     #[test]
